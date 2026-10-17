@@ -1,7 +1,7 @@
 // What the app does to a Browser's tabs, whether the page, the main menu or
 // a context menu asks.
 
-use wren::{Browser, BrowserTab, Error};
+use wren::{Browser, BrowserTab, Error, TabGroup};
 
 /// A tab on the New Tab page, at the top of the list, as the sidebar
 /// shows new tabs.
@@ -19,4 +19,13 @@ pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
         tab.close()?;
     }
     Ok(())
+}
+
+/// The tabs of `group`, in their order.
+pub fn in_group(browser: &Browser, group: TabGroup) -> Vec<BrowserTab> {
+    browser
+        .tabs()
+        .into_iter()
+        .filter(|tab| tab.state().is_ok_and(|state| state.group == Some(group)))
+        .collect()
 }

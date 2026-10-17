@@ -3,7 +3,14 @@
 // those are made up here.
 
 /** A tab of the Browser, by its ID, or a made-up favourite or pinned one, by its address. */
-export type Tab = { id: number | string; title: string; url: string; favicon?: string | null };
+export type Tab = {
+  id: number | string;
+  title: string;
+  url: string;
+  favicon?: string | null;
+  /** A tab of the Browser's group's ID. */
+  group?: string | null;
+};
 export type Folder = { id: string; title: string; open: boolean; tabs: Tab[] };
 export type Space = {
   id: string;

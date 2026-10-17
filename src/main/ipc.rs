@@ -6,8 +6,12 @@ use std::rc::{Rc, Weak};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use wren::{Browser, BrowserTab, MainThread, TabCrash, WebView};
+use wren::{
+    Browser, BrowserTab, MainThread, NativeView, PageCall, TabCrash, TabGroup, TabGroupColor,
+    WebView,
+};
 
 use crate::app::State;
 use crate::main_window::MainWindow;
@@ -26,6 +30,8 @@ pub struct Tab {
     can_go_back: bool,
     can_go_forward: bool,
     crashed: bool,
+    /// Its group's ID, if it is in one.
+    group: Option<String>,
 }
 
 /// The tabs of the Browser in front, in its order, and which is active.
@@ -35,14 +41,34 @@ pub struct Tabs {
     browser: i32,
     tabs: Vec<Tab>,
     active: Option<i32>,
+    /// The groups of `tabs`, in their order.
+    groups: Vec<Group>,
 }
 
-/// Where a context menu goes: what it is for, and the point in the page.
+/// A tab group, as the sidebar heads its tabs.
+#[derive(Serialize)]
+pub struct Group {
+    id: String,
+    /// "" for an untitled group.
+    title: String,
+    /// Chromium's name for its colour: "grey", "blue", ...
+    color: &'static str,
+    collapsed: bool,
+}
+
+/// Where a context menu goes: what it is for (a tab's or a group's ID),
+/// and the point in the page.
 #[derive(Deserialize)]
-struct MenuAt {
-    id: i32,
+struct MenuAt<Id> {
+    id: Id,
     x: f64,
     y: f64,
+}
+
+#[derive(Deserialize)]
+struct Rename {
+    id: String,
+    title: String,
 }
 
 /// The Browser's side panel: which is open, if one is, and how wide.
@@ -131,32 +157,42 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     // was chosen, once the app has done it, or null.
     let weak = Rc::downgrade(state);
     let _ = web_view.handle_call("tabs.menu", move |call| {
-        let at = match call.value::<MenuAt>() {
-            Ok(at) => at,
-            Err(error) => {
-                let _ = call.fail(&error.to_string());
-                return;
-            }
-        };
-        let found = with_browser(&weak, |main, browser| {
-            Ok((
-                main.page.web_view.view(),
-                browser.clone(),
-                tab(mt, browser, at.id)?,
-            ))
-        });
-        match found {
-            // A menu that fails to show drops the call, which fails it.
-            Ok((view, browser, tab)) => {
-                let _ =
-                    menus::show_tab_menu(mt, view, &browser, tab, (at.x, at.y), move |chosen| {
-                        let _ = call.answer(&chosen);
-                    });
-            }
-            Err(error) => {
-                let _ = call.fail(&error);
-            }
-        }
+        menu_call(&weak, call, |view, browser, at: MenuAt<i32>, done| {
+            let tab = tab(mt, browser, at.id)?;
+            menus::show_tab_menu(mt, view, browser, tab, (at.x, at.y), done).map_err(failed)
+        })
+    });
+
+    // A group's, the same way. "rename" is the page's to do.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle_call("groups.menu", move |call| {
+        menu_call(&weak, call, |view, browser, at: MenuAt<String>, done| {
+            let group = group(mt, browser, &at.id)?;
+            menus::show_group_menu(mt, view, browser, group, (at.x, at.y), done).map_err(failed)
+        })
+    });
+
+    // Collapses an open group, or opens a collapsed one.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("groups.toggle", move |id: String| {
+        with_browser(&weak, |_, browser| {
+            let group = group(mt, browser, &id)?;
+            let (color, collapsed) = group.visuals().map_err(failed)?;
+            group
+                .set_visuals(&group.title(), color, !collapsed)
+                .map_err(failed)
+        })
+    });
+
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("groups.rename", move |rename: Rename| {
+        with_browser(&weak, |_, browser| {
+            let group = group(mt, browser, &rename.id)?;
+            let (color, collapsed) = group.visuals().map_err(failed)?;
+            group
+                .set_visuals(rename.title.trim(), color, collapsed)
+                .map_err(failed)
+        })
     });
 
     // Back, forward and reload, in the active tab.
@@ -241,11 +277,16 @@ pub fn send_favicon(main: &MainWindow, tab: BrowserTab) {
 }
 
 fn tab_list(browser: &Browser) -> Tabs {
+    let mut groups: Vec<TabGroup> = Vec::new();
     let tabs = browser
         .tabs()
         .into_iter()
         .map(|tab| {
             let state = tab.state().ok();
+            let group = state.and_then(|state| state.group);
+            if let Some(group) = group.filter(|group| !groups.contains(group)) {
+                groups.push(group);
+            }
             Tab {
                 id: tab.id(),
                 title: tab.title(),
@@ -254,6 +295,19 @@ fn tab_list(browser: &Browser) -> Tabs {
                 can_go_back: state.is_some_and(|state| state.can_go_back),
                 can_go_forward: state.is_some_and(|state| state.can_go_forward),
                 crashed: state.is_some_and(|state| state.crash != TabCrash::None),
+                group: group.map(|group| group.to_string()),
+            }
+        })
+        .collect();
+    let groups = groups
+        .into_iter()
+        .map(|group| {
+            let (color, collapsed) = group.visuals().unwrap_or((TabGroupColor::Grey, false));
+            Group {
+                id: group.to_string(),
+                title: group.title(),
+                color: menus::color_name(color),
+                collapsed,
             }
         })
         .collect();
@@ -261,6 +315,7 @@ fn tab_list(browser: &Browser) -> Tabs {
         browser: browser.id(),
         tabs,
         active: browser.active_tab().map(BrowserTab::id),
+        groups,
     }
 }
 
@@ -269,6 +324,51 @@ fn tab(mt: MainThread, browser: &Browser, id: i32) -> Result<BrowserTab, String>
     BrowserTab::from_id(mt, id)
         .filter(|tab| tab.browser().as_ref() == Some(browser))
         .ok_or_else(|| "There is no such tab.".into())
+}
+
+// The group an ID from the page names, if it is the Browser's.
+fn group(mt: MainThread, browser: &Browser, id: &str) -> Result<TabGroup, String> {
+    TabGroup::parse(mt, id)
+        .filter(|group| group.browser().as_ref() == Some(browser))
+        .ok_or_else(|| "There is no such group.".into())
+}
+
+// Answers a call for a context menu: `show` finds what the menu is for and
+// shows it with `done`, which answers the call with the item chosen. A menu
+// that is not shown drops `done`, and with it the call, which fails it.
+fn menu_call<Id: DeserializeOwned>(
+    state: &Weak<State>,
+    call: PageCall,
+    show: impl FnOnce(
+        NativeView,
+        &Browser,
+        MenuAt<Id>,
+        Box<dyn FnOnce(Option<String>)>,
+    ) -> Result<(), String>,
+) {
+    let at = match call.value::<MenuAt<Id>>() {
+        Ok(at) => at,
+        Err(error) => {
+            let _ = call.fail(&error.to_string());
+            return;
+        }
+    };
+    let found = with_browser(state, |main, browser| {
+        Ok((main.page.web_view.view(), browser.clone()))
+    });
+    let (view, browser) = match found {
+        Ok(found) => found,
+        Err(error) => {
+            let _ = call.fail(&error);
+            return;
+        }
+    };
+    let done = Box::new(move |chosen: Option<String>| {
+        let _ = call.answer(&chosen);
+    });
+    if let Err(error) = show(view, &browser, at, done) {
+        eprintln!("Wren showed no menu: {error}");
+    }
 }
 
 fn failed(error: wren::Error) -> String {

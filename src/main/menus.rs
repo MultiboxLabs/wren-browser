@@ -6,7 +6,7 @@ use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
 use objc2_foundation::NSString;
 use wren::{
     Browser, BrowserTab, ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifiers,
-    MenuRole, NativeView,
+    MenuRole, NativeView, TabGroup, TabGroupColor,
 };
 
 use crate::tabs;
@@ -158,8 +158,8 @@ fn keyed(id: &str, label: &str, key: &str, modifiers: MenuModifiers) -> MenuItem
     }
 }
 
-/// Shows a tab's menu at `point` in the page's `view`, acts on what is chosen, and
-/// calls `done` with its ID, or None.
+/// Shows a tab's menu at `point` in the page's `view`, acts on what is
+/// chosen, and calls `done` with its ID, or None.
 pub fn show_tab_menu(
     mt: MainThread,
     view: NativeView,
@@ -170,9 +170,26 @@ pub fn show_tab_menu(
 ) -> Result<(), wren::Error> {
     let all = browser.tabs();
     let index = all.iter().position(|each| *each == tab).unwrap_or(0);
-    let items = [
+    let in_group = tab.state()?.group;
+    // The groups it could join.
+    let others: Vec<MenuItem> = groups(browser)
+        .into_iter()
+        .filter(|group| Some(*group) != in_group)
+        .map(|group| MenuItem::item(format!("group:{group}"), group_name(group)))
+        .collect();
+    let mut items = vec![
         MenuItem::item("reload", "Reload"),
         MenuItem::item("copy-link", "Copy Link"),
+        MenuItem::Separator,
+        MenuItem::item("new-group", "Add Tab to New Group"),
+    ];
+    if !others.is_empty() {
+        items.push(MenuItem::submenu("Add Tab to Group", others));
+    }
+    if in_group.is_some() {
+        items.push(MenuItem::item("ungroup", "Remove from Group"));
+    }
+    items.extend([
         MenuItem::Separator,
         MenuItem::item("close", "Close Tab"),
         enabled(
@@ -183,7 +200,7 @@ pub fn show_tab_menu(
             MenuItem::item("close-below", "Close Tabs Below"),
             index + 1 < all.len(),
         ),
-    ];
+    ]);
     let browser = browser.clone();
     mt.show_context_menu(&items, view, point, move |chosen| {
         let _ = match chosen.as_deref() {
@@ -192,6 +209,12 @@ pub fn show_tab_menu(
                 copy(&tab.url());
                 Ok(())
             }
+            Some("new-group") => BrowserTab::group(mt, &[tab]).map(drop),
+            Some("ungroup") => BrowserTab::ungroup(mt, &[tab]),
+            Some(id) if id.starts_with("group:") => match TabGroup::parse(mt, &id[6..]) {
+                Some(group) => group.add(&[tab]),
+                None => Ok(()),
+            },
             Some("close") => tabs::close(&browser, &[tab]),
             Some("close-others") => {
                 let others: Vec<_> = browser
@@ -213,6 +236,131 @@ pub fn show_tab_menu(
         };
         done(chosen);
     })
+}
+
+/// Shows a group's menu, as `show_tab_menu` does a tab's. "rename" is left
+/// to the page, which has the field.
+pub fn show_group_menu(
+    mt: MainThread,
+    view: NativeView,
+    browser: &Browser,
+    group: TabGroup,
+    point: (f64, f64),
+    done: impl FnOnce(Option<String>) + 'static,
+) -> Result<(), wren::Error> {
+    let (current, _) = group.visuals()?;
+    let colors = COLORS
+        .iter()
+        .map(|&color| MenuItem::Item {
+            id: format!("color:{}", color_name(color)),
+            label: color_label(color).into(),
+            enabled: true,
+            checked: color == current,
+            key: None,
+        })
+        .collect();
+    let items = [
+        MenuItem::item("new-tab", "New Tab in Group"),
+        MenuItem::item("rename", "Rename Group…"),
+        MenuItem::submenu("Color", colors),
+        MenuItem::Separator,
+        MenuItem::item("ungroup", "Ungroup"),
+        MenuItem::item("close", "Close Group"),
+    ];
+    let browser = browser.clone();
+    mt.show_context_menu(&items, view, point, move |chosen| {
+        let members = tabs::in_group(&browser, group);
+        let _ = match chosen.as_deref() {
+            Some("new-tab") => {
+                let after = members
+                    .last()
+                    .and_then(|tab| tab.index())
+                    .map(|index| index + 1);
+                browser
+                    .add_tab("", after, true)
+                    .and_then(|tab| group.add(&[tab]))
+            }
+            Some(id) if id.starts_with("color:") => {
+                match COLORS.iter().find(|&&color| color_name(color) == &id[6..]) {
+                    Some(&color) => group.visuals().and_then(|(_, collapsed)| {
+                        group.set_visuals(&group.title(), color, collapsed)
+                    }),
+                    None => Ok(()),
+                }
+            }
+            Some("ungroup") => BrowserTab::ungroup(mt, &members),
+            Some("close") => tabs::close(&browser, &members),
+            _ => Ok(()),
+        };
+        done(chosen);
+    })
+}
+
+const COLORS: [TabGroupColor; 9] = [
+    TabGroupColor::Grey,
+    TabGroupColor::Blue,
+    TabGroupColor::Red,
+    TabGroupColor::Yellow,
+    TabGroupColor::Green,
+    TabGroupColor::Pink,
+    TabGroupColor::Purple,
+    TabGroupColor::Cyan,
+    TabGroupColor::Orange,
+];
+
+/// A group colour's name, for the page, which has a colour for each.
+pub fn color_name(color: TabGroupColor) -> &'static str {
+    match color {
+        TabGroupColor::Grey => "grey",
+        TabGroupColor::Blue => "blue",
+        TabGroupColor::Red => "red",
+        TabGroupColor::Yellow => "yellow",
+        TabGroupColor::Green => "green",
+        TabGroupColor::Pink => "pink",
+        TabGroupColor::Purple => "purple",
+        TabGroupColor::Cyan => "cyan",
+        TabGroupColor::Orange => "orange",
+    }
+}
+
+fn color_label(color: TabGroupColor) -> &'static str {
+    match color {
+        TabGroupColor::Grey => "Grey",
+        TabGroupColor::Blue => "Blue",
+        TabGroupColor::Red => "Red",
+        TabGroupColor::Yellow => "Yellow",
+        TabGroupColor::Green => "Green",
+        TabGroupColor::Pink => "Pink",
+        TabGroupColor::Purple => "Purple",
+        TabGroupColor::Cyan => "Cyan",
+        TabGroupColor::Orange => "Orange",
+    }
+}
+
+// A group's title, or its colour for an untitled one.
+fn group_name(group: TabGroup) -> String {
+    match group.title() {
+        title if !title.is_empty() => title,
+        _ => {
+            let color = group
+                .visuals()
+                .map_or(TabGroupColor::Grey, |(color, _)| color);
+            format!("{} Group", color_label(color))
+        }
+    }
+}
+
+// The Browser's groups, in their order.
+fn groups(browser: &Browser) -> Vec<TabGroup> {
+    let mut groups = Vec::new();
+    for tab in browser.tabs() {
+        if let Some(group) = tab.state().ok().and_then(|state| state.group)
+            && !groups.contains(&group)
+        {
+            groups.push(group);
+        }
+    }
+    groups
 }
 
 fn enabled(mut item: MenuItem, on: bool) -> MenuItem {

@@ -1,13 +1,25 @@
 // The sidebar: the toolbar beside the window's buttons, the address, the
 // favourites, and the space's tabs.
 
-import { Archive, Folder as FolderIcon, FolderOpen, Orbit, PanelRight, Plus, Search, X } from "lucide-react";
+import {
+  Archive,
+  ChevronDown,
+  ChevronRight,
+  Folder as FolderIcon,
+  FolderOpen,
+  Orbit,
+  PanelRight,
+  Plus,
+  Search,
+  X
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
+import type { GroupColor, TabGroup } from "../../ipc";
 import { IconButton } from "../../components/ui/icon-button";
 import { press } from "../../components/ui/press";
 import { Tooltip } from "../../components/ui/tooltip";
-import { Favicon, host } from "./favicon";
+import { Favicon } from "./favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "./icons";
 import { type Folder, isFolder, type Space, type Tab } from "./space";
 
@@ -16,8 +28,9 @@ export const SIDEBAR_WIDTH = { min: 240, max: 480, initial: 320 };
 
 export type SidebarProps = {
   space: Space;
-  /** The Browser's tabs, below the space's pinned ones. */
+  /** The Browser's tabs, below the space's pinned ones, and their groups. */
   tabs: Tab[];
+  groups: TabGroup[];
   selected?: Tab["id"];
   onSelect: (tab: Tab) => void;
   onNewTab: () => void;
@@ -25,6 +38,14 @@ export type SidebarProps = {
   /** A right click on a tab, at a point in the page. */
   onTabMenu: (tab: Tab, x: number, y: number) => void;
   onToggleFolder: (folder: Folder) => void;
+  onToggleGroup: (group: TabGroup) => void;
+  /** A right click on a group's heading. */
+  onGroupMenu: (group: TabGroup, x: number, y: number) => void;
+  /** The group whose title is being edited, if one is. */
+  renaming: string | null;
+  onStartRename: (group: TabGroup) => void;
+  /** The new title, or null to leave it. */
+  onRename: (group: TabGroup, title: string | null) => void;
   canGoBack: boolean;
   canGoForward: boolean;
   onBack: () => void;
@@ -42,6 +63,18 @@ export type SidebarProps = {
 const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
 
 const shortcut = (key: string) => (document.documentElement.dataset.platform === "mac" ? `⌘${key}` : `Ctrl+${key}`);
+
+// A web page's address shows as its host; any other's (wren://game,
+// chrome://settings) with its scheme, so it reads as what it is.
+function address(url: string) {
+  try {
+    const { protocol, host } = new URL(url);
+    if (protocol === "http:" || protocol === "https:") return host;
+    return host ? `${protocol}//${host}` : url;
+  } catch {
+    return url;
+  }
+}
 
 // Chromium's New Tab page has no address to show.
 const isNewTab = (url: string) => url === "" || url.startsWith("chrome://newtab");
@@ -81,7 +114,7 @@ export function Sidebar(props: SidebarProps) {
 
       <div className="no-drag mt-0.5 flex h-9 shrink-0 items-center rounded-field bg-fill pr-1 text-fg-2">
         {current && !isNewTab(current.url) ? (
-          <span className="flex-1 truncate pl-3.25">{host(current.url)}</span>
+          <span className="flex-1 truncate pl-3.25">{address(current.url)}</span>
         ) : (
           <>
             <Search size={12} strokeWidth={2.25} className="ml-3 shrink-0 glyph-2" />
@@ -142,20 +175,17 @@ export function Sidebar(props: SidebarProps) {
               under the first. */}
           <div className="-mt-1.25 flex flex-col">
             <AnimatePresence initial={false}>
-              {tabs.map((tab) => (
-                <motion.div
-                  key={tab.id}
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={tabTransition}
-                  className="shrink-0"
-                >
-                  <div className="pt-1.25">
-                    <TabRow tab={tab} closable {...props} />
-                  </div>
-                </motion.div>
-              ))}
+              {entries(tabs, props.groups).map((entry) =>
+                entry.group ? (
+                  <Appear key={`group-${entry.group.id}`}>
+                    <GroupRows {...props} group={entry.group} members={entry.tabs} />
+                  </Appear>
+                ) : (
+                  <Appear key={entry.tab.id}>
+                    <TabRow tab={entry.tab} closable {...props} />
+                  </Appear>
+                )
+              )}
             </AnimatePresence>
           </div>
         </div>
@@ -279,5 +309,121 @@ function FolderRow(props: SidebarProps & { folder: Folder }) {
       </Row>
       {folder.open && folder.tabs.map((tab) => <TabRow key={tab.id} tab={tab} indent={16} {...props} />)}
     </>
+  );
+}
+
+// The Browser's tabs as the list shows them: each alone, or with the rest of
+// its group under the group's heading. Chromium keeps a group's tabs
+// together.
+type Entry = { group: TabGroup; tabs: Tab[] } | { group?: undefined; tab: Tab };
+
+function entries(tabs: Tab[], groups: TabGroup[]): Entry[] {
+  const list: Entry[] = [];
+  for (const tab of tabs) {
+    const last = list[list.length - 1];
+    const group = groups.find((group) => group.id === tab.group);
+    if (!group) list.push({ tab });
+    else if (last?.group && last.group.id === group.id) last.tabs.push(tab);
+    else list.push({ group, tabs: [tab] });
+  }
+  return list;
+}
+
+/** A row of the Browser's list, fading in and out where it stands while the rows below slide. */
+function Appear({ children }: { children: ReactNode }) {
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={tabTransition}
+      className="shrink-0"
+    >
+      <div className="pt-1.25">{children}</div>
+    </motion.div>
+  );
+}
+
+/** Chromium's group colours, made to read on the space's colour. */
+const groupColors: Record<GroupColor, string> = {
+  grey: "oklch(0.72 0 0)",
+  blue: "oklch(0.7 0.15 255)",
+  red: "oklch(0.66 0.19 25)",
+  yellow: "oklch(0.84 0.16 90)",
+  green: "oklch(0.72 0.16 150)",
+  pink: "oklch(0.7 0.19 350)",
+  purple: "oklch(0.68 0.18 305)",
+  cyan: "oklch(0.75 0.12 210)",
+  orange: "oklch(0.76 0.16 55)"
+};
+
+function GroupRows(props: SidebarProps & { group: TabGroup; members: Tab[] }) {
+  const { group, members } = props;
+  const Chevron = group.collapsed ? ChevronRight : ChevronDown;
+  return (
+    <div className="flex flex-col gap-1.25">
+      <Row onPress={() => props.onToggleGroup(group)} onMenu={(x, y) => props.onGroupMenu(group, x, y)}>
+        <IconSlot>
+          <span className="size-3 rounded-[3.5px]" style={{ background: groupColors[group.color] }} />
+        </IconSlot>
+        {props.renaming === group.id ? (
+          <GroupTitleField group={group} onDone={(title) => props.onRename(group, title)} />
+        ) : (
+          <span
+            className={`min-w-0 flex-1 truncate font-semibold ${group.title ? "" : "text-fg-3"}`}
+            onDoubleClick={() => props.onStartRename(group)}
+          >
+            {group.title || "Unnamed Group"}
+          </span>
+        )}
+        <span className="grid size-5.5 place-items-center glyph-3">
+          <Chevron size={14} strokeWidth={2} />
+        </span>
+      </Row>
+      <AnimatePresence initial={false}>
+        {!group.collapsed &&
+          members.map((tab) => (
+            <motion.div
+              key={tab.id}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={tabTransition}
+              className="shrink-0"
+            >
+              <TabRow tab={tab} indent={16} closable {...props} />
+            </motion.div>
+          ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Edits a group's title in place: Return keeps it, Escape leaves it as it
+// was.
+function GroupTitleField({ group, onDone }: { group: TabGroup; onDone: (title: string | null) => void }) {
+  // Return or Escape ends it before the blur that follows.
+  const done = useRef(false);
+  const finish = (title: string | null) => {
+    if (done.current) return;
+    done.current = true;
+    onDone(title);
+  };
+  return (
+    <input
+      autoFocus
+      defaultValue={group.title}
+      placeholder="Unnamed Group"
+      aria-label="Group Title"
+      // Clicks in the field stay in it, not the row.
+      onPointerDown={(event) => event.stopPropagation()}
+      onFocus={(event) => event.currentTarget.select()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") finish(event.currentTarget.value);
+        if (event.key === "Escape") finish(null);
+      }}
+      onBlur={(event) => finish(event.currentTarget.value)}
+      className="min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:text-fg-3"
+    />
   );
 }

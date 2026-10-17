@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { appWindow, browser, hasApp, menu, sidePanel } from "../../ipc";
+import { appWindow, browser, groups, hasApp, menu, sidePanel } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { useBrowser, useSidePanel } from "./browser";
@@ -18,6 +18,7 @@ export function App() {
   const { tabs: browserTabs, favicons } = useBrowser();
   const current = browserTabs?.tabs.find((tab) => tab.id === browserTabs.active);
   const tabs: Tab[] = (browserTabs?.tabs ?? []).map((tab) => ({ ...tab, favicon: favicons[tab.id] }));
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [presentation, setPresentation] = useState<Presentation>("anchored");
   const sidebarOpen = presentation === "anchored";
   const panel = useSidePanel();
@@ -101,6 +102,19 @@ export function App() {
     onTabMenu: (tab, x, y) => {
       const id = real(tab);
       if (id !== undefined) browser.menu(id, x, y);
+    },
+    groups: browserTabs?.groups ?? [],
+    onToggleGroup: (group) => groups.toggle(group.id),
+    onGroupMenu: (group, x, y) =>
+      groups.menu(group.id, x, y).then(
+        (chosen) => chosen === "rename" && setRenaming(group.id),
+        () => {}
+      ),
+    renaming,
+    onStartRename: (group) => setRenaming(group.id),
+    onRename: (group, title) => {
+      setRenaming(null);
+      if (title !== null && title !== group.title) groups.rename(group.id, title);
     },
     onToggleFolder: toggleFolder,
     canGoBack: current?.canGoBack ?? false,
