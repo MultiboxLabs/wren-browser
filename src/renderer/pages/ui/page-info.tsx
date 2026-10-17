@@ -123,7 +123,7 @@ export function PageInfo({
 
       {info && info.permissions.length > 0 && (
         <Section title="Permissions">
-          <div className="-mx-1 flex flex-col">
+          <div className="flex flex-col gap-1">
             {info.permissions.map((permission) => (
               <PermissionRow key={permission.id} permission={permission} />
             ))}
@@ -132,13 +132,7 @@ export function PageInfo({
       )}
 
       {info?.reloadNeeded && (
-        <Button
-          variant="raised"
-          icon={RotateCw}
-          iconSize={13}
-          onClick={() => site.reload()}
-          className="mt-2 font-semibold"
-        >
+        <Button variant="raised" icon={RotateCw} iconSize={13} onClick={() => site.reload()} className="mt-2">
           Reload to Apply Changes
         </Button>
       )}
@@ -157,7 +151,7 @@ export function PageInfo({
               onClick={(event) => {
                 const button = event.currentTarget;
                 const box = button.getBoundingClientRect();
-                site.menu(box.left, box.bottom + 4).then(
+                site.menu(box.left + 6, box.bottom + 4).then(
                   (chosen) => {
                     // The native menu gives focus back as if by the
                     // keyboard, which would ring the button.
@@ -284,8 +278,9 @@ function ExtensionTile({ action, onRun }: { action: ExtensionAction; onRun: () =
   );
 }
 
-// A permission: its icon, filled while it is allowed, its name and its
-// state. A click is its menu, below it, which sets it.
+// A permission: its circle, filled while it is allowed, its name and its
+// state. A row as tall and as round as the tiles above, its circle inset
+// evenly on every side. A click is its menu, below it, which sets it.
 function PermissionRow({ permission }: { permission: SitePermission }) {
   const Icon = permissionIcon(permission.id);
   return (
@@ -294,21 +289,26 @@ function PermissionRow({ permission }: { permission: SitePermission }) {
       scale={0.985}
       disabled={permission.managed}
       onClick={(event) => {
-        const box = event.currentTarget.getBoundingClientRect();
-        site.permissionMenu(permission.id, box.left + 4, box.bottom + 2).catch(() => {});
+        const row = event.currentTarget;
+        const box = row.getBoundingClientRect();
+        site.permissionMenu(permission.id, box.left + 6, box.bottom + 4).then(
+          // As the More menu's: no ring from the focus it gives back.
+          () => row.blur(),
+          () => {}
+        );
       }}
-      className="flex h-11.5 items-center gap-2.5 rounded-tile px-1 text-left"
+      className="flex h-10 items-center gap-2.5 rounded-tile p-1.5 text-left"
     >
       <span
-        className={`grid size-8 shrink-0 place-items-center rounded-full ${
+        className={`grid size-7 shrink-0 place-items-center rounded-full group-disabled/button:opacity-50 ${
           permission.allowed ? "bg-inverse text-on-inverse" : "bg-fill"
         }`}
       >
         <span className={permission.allowed ? "grid" : "grid glyph-1"}>
-          <Icon size={15} strokeWidth={2} />
+          <Icon size={14} strokeWidth={2} />
         </span>
       </span>
-      <span className="flex min-w-0 flex-col gap-0.5">
+      <span className="flex min-w-0 flex-col gap-px">
         <span className="truncate font-semibold">{permission.label}</span>
         <span className="truncate text-subtitle text-fg-3">{permission.state}</span>
       </span>
