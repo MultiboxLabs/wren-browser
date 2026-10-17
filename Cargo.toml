@@ -1,0 +1,15 @@
+[package]
+name = "wren-browser"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "wren-browser"
+path = "src/main/main.rs"
+
+[dependencies]
+wren = { path = ".wren/runtime/wren-rust" }
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"

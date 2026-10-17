@@ -1,0 +1,7 @@
+{
+  "name": "Wren",
+  "displayName": "Wren",
+  "bundleId": "dev.multibox.wren",
+  "wren": "0.1.0",
+  "resources": ["dist/renderer"]
+}
