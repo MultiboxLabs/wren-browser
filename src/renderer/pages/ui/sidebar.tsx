@@ -22,6 +22,8 @@ export type SidebarProps = {
   onSelect: (tab: Tab) => void;
   onNewTab: () => void;
   onClose: (tab: Tab) => void;
+  /** A right click on a tab, at a point in the page. */
+  onTabMenu: (tab: Tab, x: number, y: number) => void;
   onToggleFolder: (folder: Folder) => void;
   canGoBack: boolean;
   canGoForward: boolean;
@@ -183,12 +185,14 @@ function Row({
   indent = 0,
   className = "",
   onPress,
+  onMenu,
   children
 }: {
   selected?: boolean;
   indent?: number;
   className?: string;
   onPress: () => void;
+  onMenu?: (x: number, y: number) => void;
   children: ReactNode;
 }) {
   return (
@@ -199,6 +203,11 @@ function Row({
       aria-pressed={selected}
       // Selects on press, as a native list does.
       onPointerDown={(event) => event.button === 0 && onPress()}
+      onContextMenu={(event) => {
+        if (!onMenu) return;
+        event.preventDefault();
+        onMenu(event.clientX, event.clientY);
+      }}
       // Nested rows are indented whole, their highlight with them.
       style={{ marginLeft: indent }}
       className={`no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5 ${
@@ -223,10 +232,16 @@ function TabRow({
   closable,
   selected,
   onSelect,
-  onClose
+  onClose,
+  onTabMenu
 }: SidebarProps & { tab: Tab; indent?: number; closable?: boolean }) {
   return (
-    <Row selected={tab.id === selected} indent={indent} onPress={() => onSelect(tab)}>
+    <Row
+      selected={tab.id === selected}
+      indent={indent}
+      onPress={() => onSelect(tab)}
+      onMenu={(x, y) => onTabMenu(tab, x, y)}
+    >
       <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
       <span className="min-w-0 flex-1 truncate">{tab.title}</span>
       {closable && (

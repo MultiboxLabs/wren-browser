@@ -6,11 +6,12 @@ use std::rc::{Rc, Weak};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use wren::{Browser, BrowserTab, MainThread, TabCrash, WebView};
 
 use crate::app::State;
 use crate::main_window::MainWindow;
+use crate::menus;
 use crate::tabs;
 use crate::window::PageWindow;
 
@@ -34,6 +35,14 @@ pub struct Tabs {
     browser: i32,
     tabs: Vec<Tab>,
     active: Option<i32>,
+}
+
+/// Where a context menu goes: what it is for, and the point in the page.
+#[derive(Deserialize)]
+struct MenuAt {
+    id: i32,
+    x: f64,
+    y: f64,
 }
 
 /// The Browser's side panel: which is open, if one is, and how wide.
@@ -116,6 +125,38 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
         with_browser(&weak, |_, browser| {
             tabs::close(browser, &[tab(mt, browser, id)?]).map_err(failed)
         })
+    });
+
+    // A tab's context menu, at the point the page names. Answers with what
+    // was chosen, once the app has done it, or null.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle_call("tabs.menu", move |call| {
+        let at = match call.value::<MenuAt>() {
+            Ok(at) => at,
+            Err(error) => {
+                let _ = call.fail(&error.to_string());
+                return;
+            }
+        };
+        let found = with_browser(&weak, |main, browser| {
+            Ok((
+                main.page.web_view.view(),
+                browser.clone(),
+                tab(mt, browser, at.id)?,
+            ))
+        });
+        match found {
+            // A menu that fails to show drops the call, which fails it.
+            Ok((view, browser, tab)) => {
+                let _ =
+                    menus::show_tab_menu(mt, view, &browser, tab, (at.x, at.y), move |chosen| {
+                        let _ = call.answer(&chosen);
+                    });
+            }
+            Err(error) => {
+                let _ = call.fail(&error);
+            }
+        }
     });
 
     // Back, forward and reload, in the active tab.

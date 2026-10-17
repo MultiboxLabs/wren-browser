@@ -1,7 +1,15 @@
 // The main menu: the system's items, Chromium's commands, and the app's own,
-// which reach `App::menu_command` by their IDs here.
+// which reach `App::menu_command` by their IDs here. And the context menus
+// of the sidebar's tabs, which the page asks for and the app acts on.
 
-use wren::{ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifiers, MenuRole};
+use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
+use objc2_foundation::NSString;
+use wren::{
+    Browser, BrowserTab, ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifiers,
+    MenuRole, NativeView,
+};
+
+use crate::tabs;
 
 pub const NEW_TAB: &str = "new-tab";
 pub const CLOSE_TAB: &str = "close-tab";
@@ -148,4 +156,75 @@ fn keyed(id: &str, label: &str, key: &str, modifiers: MenuModifiers) -> MenuItem
         checked: false,
         key: Some(MenuKey::new(key, modifiers)),
     }
+}
+
+/// Shows a tab's menu at `point` in the page's `view`, acts on what is chosen, and
+/// calls `done` with its ID, or None.
+pub fn show_tab_menu(
+    mt: MainThread,
+    view: NativeView,
+    browser: &Browser,
+    tab: BrowserTab,
+    point: (f64, f64),
+    done: impl FnOnce(Option<String>) + 'static,
+) -> Result<(), wren::Error> {
+    let all = browser.tabs();
+    let index = all.iter().position(|each| *each == tab).unwrap_or(0);
+    let items = [
+        MenuItem::item("reload", "Reload"),
+        MenuItem::item("copy-link", "Copy Link"),
+        MenuItem::Separator,
+        MenuItem::item("close", "Close Tab"),
+        enabled(
+            MenuItem::item("close-others", "Close Other Tabs"),
+            all.len() > 1,
+        ),
+        enabled(
+            MenuItem::item("close-below", "Close Tabs Below"),
+            index + 1 < all.len(),
+        ),
+    ];
+    let browser = browser.clone();
+    mt.show_context_menu(&items, view, point, move |chosen| {
+        let _ = match chosen.as_deref() {
+            Some("reload") => tab.reload(),
+            Some("copy-link") => {
+                copy(&tab.url());
+                Ok(())
+            }
+            Some("close") => tabs::close(&browser, &[tab]),
+            Some("close-others") => {
+                let others: Vec<_> = browser
+                    .tabs()
+                    .into_iter()
+                    .filter(|each| *each != tab)
+                    .collect();
+                tabs::close(&browser, &others)
+            }
+            Some("close-below") => {
+                let all = browser.tabs();
+                let below = all
+                    .iter()
+                    .position(|each| *each == tab)
+                    .map_or(&[][..], |index| &all[index + 1..]);
+                tabs::close(&browser, below)
+            }
+            _ => Ok(()),
+        };
+        done(chosen);
+    })
+}
+
+fn enabled(mut item: MenuItem, on: bool) -> MenuItem {
+    if let MenuItem::Item { enabled, .. } = &mut item {
+        *enabled = on;
+    }
+    item
+}
+
+// Puts text on the clipboard.
+fn copy(text: &str) {
+    let pasteboard = NSPasteboard::generalPasteboard();
+    pasteboard.clearContents();
+    pasteboard.setString_forType(&NSString::from_str(text), unsafe { NSPasteboardTypeString });
 }

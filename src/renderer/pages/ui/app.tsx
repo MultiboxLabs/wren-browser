@@ -98,6 +98,10 @@ export function App() {
       const id = real(tab);
       if (id !== undefined) browser.close(id);
     },
+    onTabMenu: (tab, x, y) => {
+      const id = real(tab);
+      if (id !== undefined) browser.menu(id, x, y);
+    },
     onToggleFolder: toggleFolder,
     canGoBack: current?.canGoBack ?? false,
     canGoForward: current?.canGoForward ?? false,
