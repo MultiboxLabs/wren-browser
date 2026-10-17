@@ -323,7 +323,7 @@ body,
   }
 }
 
-/* The omnibox (pages/ui/omnibox.tsx), a command bar: neutral, not
+/* The omnibox (components/omnibox/omnibox.tsx), a command bar: neutral, not
    the space's, but for its selected row, which is the space's colour. A
    little of what is under it shows through, blurred. A
    light inner edge and a dark outer one. */

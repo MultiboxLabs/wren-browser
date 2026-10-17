@@ -19,6 +19,8 @@ src/main/            the main process (Rust)
 src/renderer/        the renderer (Vite root): one entry for every page
   main.tsx           shows the page wren://<page>/ names
   pages/ui/          wren://ui    the main window
+  components/        what the pages are made of: ui/ (Radix wrappers), then omnibox/, sidebar/, address/
+  state/             the page's view of the Browser, the window and the space
   pages/game/        wren://game  Twig & Trill, a little game
 ```
 

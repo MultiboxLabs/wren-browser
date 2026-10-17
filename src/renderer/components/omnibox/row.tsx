@@ -17,8 +17,8 @@ import {
 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import type { OmniboxTarget, Suggestion, SuggestionKind } from "../../ipc";
-import { Favicon } from "./favicon";
-import { type OmniboxItem, switchesToTab } from "./omnibox-items";
+import { Favicon } from "../favicon";
+import { type OmniboxItem, switchesToTab } from "./items";
 
 export function OmniboxRow({
   item,

@@ -4,10 +4,10 @@
 
 import { Glasses, Image, Link, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
-import type { Icon } from "../../components/ui/button";
-import { Toast as ToastView } from "../../components/ui/toast";
-import { type Toast, toast as toasts } from "../../ipc";
-import { useToastShown } from "./browser";
+import type { Icon } from "./ui/button";
+import { Toast as ToastView } from "./ui/toast";
+import { type Toast, toast as toasts } from "../ipc";
+import { useToastShown } from "../state/browser";
 
 // Our own icons, by the toast's name. Any other has Chromium's.
 const icons: Record<string, Icon> = {

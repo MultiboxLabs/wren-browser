@@ -5,13 +5,13 @@ import { Archive, ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, O
 import { AnimatePresence, motion } from "motion/react";
 import { type MouseEvent, type PointerEvent, type ReactNode, type RefObject, useRef } from "react";
 import type { GroupColor, TabGroup, TabSplit } from "../../ipc";
-import { Button } from "../../components/ui/button";
-import { press } from "../../components/ui/press";
-import { AddressField } from "./address-field";
-import { Favicon } from "./favicon";
-import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "./icons";
-import type { SidePanelId } from "./side-panel";
-import { type Folder, isFolder, type Space, type Tab } from "./space";
+import { Button } from "../ui/button";
+import { press } from "../ui/press";
+import { AddressField } from "../address/field";
+import { Favicon } from "../favicon";
+import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "../icons";
+import type { SidePanelId } from "../side-panel";
+import { type Folder, isFolder, type Space, type Tab } from "../../state/space";
 
 /** The docked sidebar's width, its left padding in it. */
 export const SIDEBAR_WIDTH = { min: 240, max: 480, initial: 320 };

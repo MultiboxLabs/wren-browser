@@ -3,7 +3,7 @@
 // after the caret, selected, moves through the list with the arrow keys
 // putting each row's text in the field, brings back what was typed on
 // Escape, and enters a search engine's keyword mode on Tab. What it lists,
-// and what choosing a row does, is omnibox-items.ts's.
+// and what choosing a row does, is items.ts's.
 
 import {
   type ChangeEvent,
@@ -15,7 +15,7 @@ import {
   useState
 } from "react";
 import { type OmniboxTarget, omnibox, type Suggestion, type Suggestions } from "../../ipc";
-import { defaultIndex, fillOf, itemsOf, type OmniboxTabs, openItem } from "./omnibox-items";
+import { defaultIndex, fillOf, itemsOf, type OmniboxTabs, openItem } from "./items";
 
 /** The search engine whose chip the field shows: Chromium's keyword for it, and its name. */
 export type Keyword = { keyword: string; name: string };

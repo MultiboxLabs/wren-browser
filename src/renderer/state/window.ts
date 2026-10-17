@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { appWindow, hasApp } from "../../ipc";
+import { appWindow, hasApp } from "../ipc";
 
 /**
  * Whether the window is in use, as the app says: it counts the window's

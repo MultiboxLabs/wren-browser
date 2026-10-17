@@ -2,8 +2,8 @@
 // panel itself below it, in a <wren-view>.
 
 import { BookOpen, Bookmark, ChevronDown, Glasses, History, PanelRight, X } from "lucide-react";
-import { Button } from "../../components/ui/button";
-import { Menu } from "../../components/ui/menu";
+import { Button } from "./ui/button";
+import { Menu } from "./ui/menu";
 
 /** The panels the menu offers, by Chromium's names for them. */
 export const sidePanels = [

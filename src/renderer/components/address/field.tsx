@@ -8,15 +8,15 @@
 import { Search } from "lucide-react";
 import { type Ref, useEffect, useState } from "react";
 import { type ExtensionAction, extensions } from "../../ipc";
-import { Anchor } from "../../components/ui/anchor";
-import { Button } from "../../components/ui/button";
-import { Popover } from "../../components/ui/popover";
+import { Anchor } from "../ui/anchor";
+import { Button } from "../ui/button";
+import { Popover } from "../ui/popover";
 import { address, isNewTab, SEARCH_PLACEHOLDER } from "./address";
-import { useExtensionActions, useShowingAnchors, useSite } from "./browser";
-import { PageInfoIcon } from "./icons";
+import { useExtensionActions, useShowingAnchors, useSite } from "../../state/browser";
+import { PageInfoIcon } from "../icons";
 import { ExtensionIcon, PageInfo } from "./page-info";
-import type { SidePanelId } from "./side-panel";
-import type { Tab } from "./space";
+import type { SidePanelId } from "../side-panel";
+import type { Tab } from "../../state/space";
 
 export function AddressField({
   tab,

@@ -3,18 +3,18 @@
 // window, empty, and what is chosen opens in a new tab, or switches to the
 // tab that has it. For the active tab (⌘L, a click on the address) it opens
 // over the sidebar's address field, on the tab's address, and what is
-// chosen opens there. The field's behaviour is omnibox-field.ts's, the
-// list's omnibox-items.ts's, and when it is open omnibox-shown.ts's.
+// chosen opens there. The field's behaviour is field.ts's, the
+// list's items.ts's, and when it is open shown.ts's.
 
 import { Search } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { OmniboxTarget } from "../../ipc";
-import { SEARCH_PLACEHOLDER } from "./address";
-import { Favicon } from "./favicon";
-import { useOmniboxField } from "./omnibox-field";
-import type { OmniboxTabs } from "./omnibox-items";
-import { OmniboxIcon, OmniboxRow } from "./omnibox-row";
+import { SEARCH_PLACEHOLDER } from "../address/address";
+import { Favicon } from "../favicon";
+import { useOmniboxField } from "./field";
+import type { OmniboxTabs } from "./items";
+import { OmniboxIcon, OmniboxRow } from "./row";
 
 /** Where the omnibox is: at the address field's top left, or, without it in view, in the middle of the window. */
 export type OmniboxPlace = { left: number; top: number } | "center";

@@ -3,17 +3,17 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { appWindow, browser, groups, hasApp, menu, sidePanel, type SidebarState } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
-import { useBrowser, useShowingAnchors, useSidePanel } from "./browser";
-import { Omnibox } from "./omnibox";
-import { useShownOmnibox } from "./omnibox-shown";
-import { SIDE_PANEL_WIDTH, SidePanel } from "./side-panel";
-import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
-import { type Presentation, useSidebarMotion } from "./sidebar-motion";
-import { useSaveSidebar, useSavedSidebar } from "./sidebar-state";
-import { cssColor, type Folder, personal, schemeFor, type Space, type Tab } from "./space";
-import { TabView } from "./tab-view";
-import { BrowserToast } from "./toast";
-import { useFullScreen, useWindowActive } from "./window";
+import { useBrowser, useShowingAnchors, useSidePanel } from "../../state/browser";
+import { Omnibox } from "../../components/omnibox/omnibox";
+import { useShownOmnibox } from "../../components/omnibox/shown";
+import { SIDE_PANEL_WIDTH, SidePanel } from "../../components/side-panel";
+import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "../../components/sidebar/sidebar";
+import { type Presentation, useSidebarMotion } from "../../components/sidebar/motion";
+import { useSaveSidebar, useSavedSidebar } from "../../components/sidebar/state";
+import { cssColor, type Folder, personal, schemeFor, type Space, type Tab } from "../../state/space";
+import { TabView } from "../../components/tab-view";
+import { BrowserToast } from "../../components/toast";
+import { useFullScreen, useWindowActive } from "../../state/window";
 
 // Waits for the sidebar's saved state, so it opens as it was left.
 export function App() {

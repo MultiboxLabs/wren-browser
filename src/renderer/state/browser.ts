@@ -12,7 +12,7 @@ import {
   site,
   type Toast,
   toast
-} from "../../ipc";
+} from "../ipc";
 
 /**
  * The window's tabs and their favicons, as the app last said. Null until

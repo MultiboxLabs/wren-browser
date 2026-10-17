@@ -11,7 +11,7 @@ import {
   type Suggestion,
   type Suggestions
 } from "../../ipc";
-import type { Tab } from "./space";
+import type { Tab } from "../../state/space";
 
 /** A row of the list: one of the window's tabs, or one of Chromium's suggestions, by its index in them. */
 export type OmniboxItem =

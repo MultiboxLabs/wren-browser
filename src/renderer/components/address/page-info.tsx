@@ -38,13 +38,13 @@ import {
 import { motion } from "motion/react";
 import { type ReactNode, useEffect, useState } from "react";
 import { browser, type ExtensionAction, extensions, type Site, site, type SitePermission } from "../../ipc";
-import { Button, type Icon } from "../../components/ui/button";
-import { press } from "../../components/ui/press";
-import { Tooltip } from "../../components/ui/tooltip";
+import { Button, type Icon } from "../ui/button";
+import { press } from "../ui/press";
+import { Tooltip } from "../ui/tooltip";
 import { isNewTab } from "./address";
-import { InsecureIcon } from "./icons";
-import { type SidePanelId, sidePanels } from "./side-panel";
-import type { Tab } from "./space";
+import { InsecureIcon } from "../icons";
+import { type SidePanelId, sidePanels } from "../side-panel";
+import type { Tab } from "../../state/space";
 
 /** Where the Extensions section's add button goes. */
 const STORE = "https://chromewebstore.google.com";

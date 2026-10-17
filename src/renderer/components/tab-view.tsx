@@ -2,9 +2,9 @@
 // one above the other, with a divider between them.
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
-import { Button } from "../../components/ui/button";
-import { ResizeHandle } from "../../components/ui/resize-handle";
-import { browser, type BrowserTab, splits, type TabSplit } from "../../ipc";
+import { Button } from "./ui/button";
+import { ResizeHandle } from "./ui/resize-handle";
+import { browser, type BrowserTab, splits, type TabSplit } from "../ipc";
 
 // The divider's thickness, as the gap beside the side panel.
 const DIVIDER = 10;
