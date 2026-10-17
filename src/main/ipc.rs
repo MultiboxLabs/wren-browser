@@ -16,6 +16,7 @@ use wren::{
 use crate::app::State;
 use crate::main_window::MainWindow;
 use crate::menus;
+use crate::sidebar::SidebarState;
 use crate::tabs;
 use crate::window::PageWindow;
 
@@ -139,6 +140,20 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setButtonsVisible", move |visible: bool| {
         with_main(&weak, |main| Ok(main.page.set_buttons_visible(visible)))
+    });
+
+    // The sidebar's state as it was saved, or null; the page saves it when
+    // the user changes it.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("sidebar.state", move |()| {
+        let state = weak.upgrade().ok_or("The app is closing.")?;
+        Ok::<_, String>(state.sidebar.load())
+    });
+
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("sidebar.save", move |saved: SidebarState| {
+        let state = weak.upgrade().ok_or("The app is closing.")?;
+        state.sidebar.save(&saved).map_err(|error| error.to_string())
     });
 
     // The tabs; "browser.tabs" says when they change.

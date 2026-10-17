@@ -1,6 +1,7 @@
 // The app's state and Wren's callbacks.
 
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use wren::{App, Browser, BrowserType, Change, ChangeKind, MainThread, Profile, TabFields};
@@ -9,18 +10,28 @@ use crate::ipc;
 use crate::main_window::MainWindow;
 use crate::menus;
 use crate::pages::{SCHEME, Source, UI, serve_page};
+use crate::sidebar::SidebarStore;
 use crate::tabs;
 use crate::window::PageWindow;
 
 // What the app holds, shared with the closures it hands Wren.
-#[derive(Default)]
 pub struct State {
     // The pages', not the user's.
     ui_profile: RefCell<Option<Profile>>,
     pub main: RefCell<Option<MainWindow>>,
+    // What the main page keeps between runs, in `data`.
+    pub sidebar: SidebarStore,
 }
 
 impl State {
+    pub fn new(data: PathBuf) -> State {
+        State {
+            ui_profile: RefCell::default(),
+            main: RefCell::default(),
+            sidebar: SidebarStore::new(&data),
+        }
+    }
+
     fn open_main(self: &Rc<Self>, mt: MainThread) {
         let Some(profile) = self.ui_profile.borrow().clone() else {
             return;

@@ -14,7 +14,7 @@ import {
   X
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { type MouseEvent, type ReactNode, useRef } from "react";
+import { type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import type { GroupColor, TabGroup, TabSplit } from "../../ipc";
 import { IconButton } from "../../components/ui/icon-button";
 import { press } from "../../components/ui/press";
@@ -213,15 +213,22 @@ export function Sidebar(props: SidebarProps) {
   );
 }
 
-/** Handlers that run `action` on a middle click, keeping the press from starting an autoscroll. */
-function middleClick(action?: () => void) {
-  if (!action) return {};
+/**
+ * The handlers of a row pressed: `onPress` as the primary button goes down,
+ * `onMiddlePress` as the middle one does, which is kept from starting an
+ * autoscroll.
+ */
+function pressHandlers(onPress?: () => void, onMiddlePress?: () => void) {
   return {
-    onMouseDown: (event: MouseEvent) => event.button === 1 && event.preventDefault(),
-    onAuxClick: (event: MouseEvent) => {
-      if (event.button !== 1) return;
-      event.preventDefault();
-      action();
+    onPointerDown: (event: PointerEvent) => {
+      if (event.button === 0) onPress?.();
+      else if (event.button === 1 && onMiddlePress) {
+        event.preventDefault();
+        onMiddlePress();
+      }
+    },
+    onMouseDown: (event: MouseEvent) => {
+      if (event.button === 1 && onMiddlePress) event.preventDefault();
     }
   };
 }
@@ -250,8 +257,7 @@ function Row({
       tabIndex={-1}
       aria-pressed={selected}
       // Selects on press, as a native list does.
-      onPointerDown={(event) => event.button === 0 && onPress()}
-      {...middleClick(onMiddlePress)}
+      {...pressHandlers(onPress, onMiddlePress)}
       onContextMenu={(event) => {
         if (!onMenu) return;
         event.preventDefault();
@@ -401,8 +407,10 @@ function SplitRow(props: SidebarProps & { split: TabSplit; first: Tab; second: T
             role="button"
             tabIndex={-1}
             aria-pressed={tab.id === selected}
-            onPointerDown={(event) => event.button === 0 && props.onSelect(tab)}
-            {...middleClick(() => props.onClose(tab))}
+            {...pressHandlers(
+              () => props.onSelect(tab),
+              () => props.onClose(tab)
+            )}
             onContextMenu={(event) => {
               event.preventDefault();
               props.onTabMenu(tab, event.clientX, event.clientY);

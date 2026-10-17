@@ -4,6 +4,7 @@ mod ipc;
 mod main_window;
 mod menus;
 mod pages;
+mod sidebar;
 mod tabs;
 mod window;
 
@@ -19,14 +20,14 @@ fn main() {
         "{}/Library/Application Support/dev.multibox.wren",
         std::env::var("HOME").unwrap()
     );
-    let mut startup = Startup::new(data, Keychain::Mock);
+    let mut startup = Startup::new(data.clone(), Keychain::Mock);
     startup.schemes = vec![Scheme::new(
         SCHEME,
         SchemePrivileges::STANDARD | SchemePrivileges::SECURE | SchemePrivileges::FETCH,
     )];
     let source = Source::from_env();
     startup.development_switches = source.development_switches();
-    let state = Rc::new(State::default());
+    let state = Rc::new(State::new(data.into()));
     let status = wren::run(
         startup,
         Wren {
