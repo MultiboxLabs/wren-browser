@@ -1,10 +1,10 @@
 import { motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { appWindow, browser, hasApp } from "../../ipc";
+import { appWindow, browser, hasApp, sidePanel } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
-import { useBrowser } from "./browser";
-import { SIDE_PANEL_WIDTH, SidePanel, type SidePanelId } from "./side-panel";
+import { useBrowser, useSidePanel } from "./browser";
+import { SIDE_PANEL_WIDTH, SidePanel } from "./side-panel";
 import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
 import { type Presentation, useSidebarMotion } from "./sidebar-motion";
 import { cssColor, type Folder, personal, schemeFor, type Space, type Tab } from "./space";
@@ -20,8 +20,14 @@ export function App() {
   const tabs: Tab[] = (browserTabs?.tabs ?? []).map((tab) => ({ ...tab, favicon: favicons[tab.id] }));
   const [presentation, setPresentation] = useState<Presentation>("anchored");
   const sidebarOpen = presentation === "anchored";
-  const [sidePanel, setSidePanel] = useState<SidePanelId | null>("reading-list");
+  const panel = useSidePanel();
+  const panelOpen = (panel?.open ?? false) && browserTabs !== null;
+  // Follows the user's drag at once, and Chromium's width otherwise: the
+  // one it keeps for each kind of panel.
   const [sidePanelWidth, setSidePanelWidth] = useState(SIDE_PANEL_WIDTH.initial);
+  useEffect(() => {
+    if (panel?.open && panel.width > 0) setSidePanelWidth(panel.width);
+  }, [panel?.open, panel?.width]);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH.initial);
   const motionValues = useSidebarMotion(presentation, sidebarWidth);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -110,8 +116,8 @@ export function App() {
     onReload: () => browser.reload(),
     sidebarOpen,
     onToggleSidebar: toggleSidebar,
-    sidePanelOpen: sidePanel !== null,
-    onToggleSidePanel: () => setSidePanel((panel) => (panel ? null : "reading-list"))
+    sidePanelOpen: panelOpen,
+    onToggleSidePanel: () => (panelOpen ? sidePanel.close() : sidePanel.show("ReadingList"))
   };
 
   return (
@@ -129,7 +135,7 @@ export function App() {
           ) : (
             <div className="card no-drag min-w-0 flex-1" />
           )}
-          {sidePanel && (
+          {panel && panelOpen && browserTabs && (
             <>
               <ResizeHandle
                 width={sidePanelWidth}
@@ -137,13 +143,18 @@ export function App() {
                 edge="left"
                 grip
                 className="w-2.5"
-                onResize={setSidePanelWidth}
+                onResize={(width) => {
+                  setSidePanelWidth(width);
+                  sidePanel.setWidth(width);
+                }}
               />
               <SidePanel
-                panel={sidePanel}
+                browser={browserTabs.browser}
+                panel={panel.id}
+                title={panel.title}
                 width={sidePanelWidth}
-                onSwitch={setSidePanel}
-                onClose={() => setSidePanel(null)}
+                onSwitch={sidePanel.show}
+                onClose={sidePanel.close}
               />
             </>
           )}

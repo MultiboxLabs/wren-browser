@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { browser, type BrowserTabs, hasApp } from "../../ipc";
+import { browser, type BrowserTabs, hasApp, sidePanel, type SidePanelState } from "../../ipc";
 
 /**
  * The window's tabs and their favicons, as the app last said. Null until
@@ -50,4 +50,23 @@ export function useBrowser() {
   }, [tabs]);
 
   return { tabs, favicons };
+}
+
+/** The side panel, as the app last said; it opens from Chromium too. */
+export function useSidePanel() {
+  const [state, setState] = useState<SidePanelState | null>(null);
+  useEffect(() => {
+    if (!hasApp) return;
+    let heard = false;
+    const stop = sidePanel.onState((next) => {
+      heard = true;
+      setState(next);
+    });
+    sidePanel.state().then(
+      (next) => heard || setState(next),
+      () => {}
+    );
+    return stop;
+  }, []);
+  return state;
 }

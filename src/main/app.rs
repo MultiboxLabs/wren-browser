@@ -82,6 +82,7 @@ impl State {
             // The page asked before there was a Browser.
             if main.is_front(&browser) {
                 ipc::send_tabs(main, &browser);
+                ipc::send_side_panel(main, &browser);
             }
         });
     }
@@ -136,6 +137,7 @@ impl App for Wren {
             }
             match change.kind {
                 ChangeKind::Tabs => tabs_changed = true,
+                ChangeKind::SidePanel => ipc::send_side_panel(main, &browser),
                 ChangeKind::Tab => {
                     let Some(tab) = change.tab else { continue };
                     tabs_changed |= change.tab_fields.intersects(drawn);
