@@ -1,6 +1,6 @@
 // The app's state and Wren's callbacks.
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use wren::{App, Browser, BrowserType, MainThread, Profile};
@@ -12,10 +12,8 @@ use crate::window::PageWindow;
 // What the app holds, shared with the closures it hands Wren.
 #[derive(Default)]
 pub struct State {
-    /// The main window's counter (`counter.get`, `counter.add`).
-    pub counter: Cell<i64>,
     profile: RefCell<Option<Profile>>,
-    main: RefCell<Option<PageWindow>>,
+    pub main: RefCell<Option<PageWindow>>,
 }
 
 impl State {
@@ -24,7 +22,7 @@ impl State {
             return;
         };
         // Closing the main window quits the app.
-        let Some(main) = PageWindow::open(&profile, &UI, "Wren", (1100.0, 760.0), move || {
+        let Some(main) = PageWindow::open(&profile, &UI, "Wren", (1280.0, 800.0), move || {
             mt.quit();
             false
         }) else {
@@ -32,6 +30,15 @@ impl State {
             return mt.quit();
         };
         ipc::handle_ui(&main.web_view, self);
+        // The page and the backdrop are drawn as in use while the window is.
+        let state = Rc::downgrade(self);
+        main.watch_active(mt, move |active| {
+            let Some(state) = state.upgrade() else { return };
+            if let Some(main) = state.main.borrow().as_ref() {
+                main.set_active(active);
+                ipc::send_active(main, active);
+            }
+        });
         *self.main.borrow_mut() = Some(main);
     }
 }

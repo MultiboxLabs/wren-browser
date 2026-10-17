@@ -1,0 +1,34 @@
+// Hover labels, as a native tooltip: they appear after a pause, in the
+// system's neutral colours, below what they label.
+
+import { Tooltip as Radix } from "radix-ui";
+import type { ReactNode } from "react";
+
+/** Once around the page: tooltips after the first appear without the pause. */
+export function TooltipProvider({ children }: { children: ReactNode }) {
+  return (
+    <Radix.Provider delayDuration={900} skipDelayDuration={300}>
+      {children}
+    </Radix.Provider>
+  );
+}
+
+/** Labels `children`, which must take a ref (a DOM element). No label, no tooltip. */
+export function Tooltip({ label, children }: { label?: string; children: ReactNode }) {
+  if (!label) return children;
+  return (
+    <Radix.Root>
+      <Radix.Trigger asChild>{children}</Radix.Trigger>
+      <Radix.Portal>
+        <Radix.Content
+          side="bottom"
+          sideOffset={6}
+          collisionPadding={6}
+          className="z-50 rounded-[5px] border border-menu-border bg-menu px-[7px] py-[3px] text-[11px] text-fg shadow-[0_2px_8px_rgb(0_0_0/0.15)] backdrop-blur-xl"
+        >
+          {label}
+        </Radix.Content>
+      </Radix.Portal>
+    </Radix.Root>
+  );
+}

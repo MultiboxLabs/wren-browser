@@ -5,3 +5,158 @@ body,
 #root {
   height: 100%;
 }
+
+/* The browser's own UI (wren://ui). Its colours come from the space: the
+   page sets --space, and data-scheme (light or dark, from that colour) and
+   data-active (whether the window is in use) on <html>. */
+
+@theme inline {
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-fg-4: var(--fg-4);
+  --color-fill: var(--fill);
+  --color-hover: var(--hover);
+  --color-pressed: var(--pressed);
+  --color-separator: var(--separator);
+  --color-selected: var(--selected);
+  --color-accent: var(--accent);
+  --color-card: var(--card);
+  --color-menu: var(--menu);
+  --color-menu-border: var(--menu-border);
+  --color-menu-highlight: var(--menu-highlight);
+}
+
+:root {
+  /* How strong the space's colour is over the blur behind it. Focused, the
+     blur is live; unfocused, macOS shows the material's flat colour, which
+     is what pales the window. */
+  --tint: 58%;
+  /* The space's colour as the window shows it. To calm a saturated one,
+     lower its chroma here: oklch(from var(--space) l calc(c * 0.8) h). */
+  --space-shown: oklch(from var(--space) l calc(c * 0.92) h);
+  /* Room the window's own buttons take at the top left. */
+  --window-buttons: 0px;
+}
+
+:root[data-platform="mac"] {
+  --window-buttons: 72px;
+}
+
+/* Text and fills (the named colours, and each space's title
+   colour). Tab titles are the space's title colour: solid, and tinted
+   toward the space rather than pure white or black. The rest is white (or
+   black) at fixed opacities: icons and the address (fg-2), headings and
+   placeholders (fg-3), and what is disabled (fg-4). They are the same
+   focused or not; the window pales by itself when unfocused (see --tint). */
+:root[data-scheme="light"] {
+  color-scheme: light;
+  --ink: oklch(from var(--space) 0.22 calc(c * 0.8) h);
+  --fg: var(--ink);
+  --fg-2: rgb(0 0 0 / 0.57);
+  --fg-3: rgb(0 0 0 / 0.45);
+  --fg-4: rgb(0 0 0 / 0.3);
+  --fill: color(display-p3 0.055 0.059 0.063 / 0.05);
+  --hover: color(display-p3 0.055 0.059 0.063 / 0.1);
+  --pressed: color(display-p3 0.055 0.059 0.063 / 0.14);
+  --selected: rgb(255 255 255 / 0.75);
+  --separator: rgb(0 0 0 / 0.15);
+  --card: color-mix(in oklab, var(--space) 4%, white);
+  --accent: oklch(from var(--space) 0.5 calc(c * 1.4) h);
+  --card-edge: rgb(0 0 0 / 0.08);
+  --menu: rgb(246 246 246 / 0.92);
+  --menu-border: rgb(0 0 0 / 0.12);
+  --menu-highlight: oklch(from var(--space) 0.55 c h);
+}
+
+:root[data-scheme="dark"] {
+  color-scheme: dark;
+  --fg: color-mix(in srgb, var(--space) 15%, white);
+  --fg-2: rgb(255 255 255 / 0.6);
+  --fg-3: rgb(255 255 255 / 0.45);
+  --fg-4: rgb(255 255 255 / 0.3);
+  --fill: color(display-p3 0.98 0.984 1 / 0.1);
+  --hover: color(display-p3 0.98 0.984 1 / 0.15);
+  --pressed: color(display-p3 0.98 0.984 1 / 0.2);
+  --selected: rgb(255 255 255 / 0.2);
+  --separator: rgb(255 255 255 / 0.15);
+  --card: color-mix(in oklab, var(--space) 6%, rgb(22 22 24));
+  --accent: var(--fg);
+  --card-edge: rgb(0 0 0 / 0.25);
+  --menu: rgb(40 40 42 / 0.92);
+  --menu-border: rgb(255 255 255 / 0.12);
+  --menu-highlight: oklch(from var(--space) 0.55 c h);
+}
+
+.browser {
+  background: color-mix(in display-p3, var(--space-shown) var(--tint), transparent);
+}
+
+/* The UI's page, its menus and tooltips among it (they are on <body>). */
+:root[data-scheme] body {
+  color: var(--fg);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  font-size: 13.5px;
+  line-height: 1.2;
+  /* Controls, not a document: no text selection, the arrow pointer, and
+     no rubber banding. */
+  cursor: default;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+/* The platform's own text smoothing, as native apps get: on macOS the
+   system's font smoothing, which thickens strokes slightly. "antialiased"
+   would draw every word thinner than the apps around it. */
+:root[data-platform="mac"] body {
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+:root[data-scheme] :where(button, a, [role="button"], [role="menuitem"]) {
+  cursor: default;
+}
+
+:root[data-scheme] :where(img, svg) {
+  -webkit-user-drag: none;
+}
+
+:root[data-scheme] :focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -1px;
+}
+:root[data-scheme] :focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* The page is the title bar: its background moves the window, and what
+   takes clicks says so. (app-region is inherited.) */
+.drag {
+  app-region: drag;
+}
+.no-drag {
+  app-region: no-drag;
+}
+
+/* The sidebar while it floats over the page: the space's colour over the
+   page blurred, deeper than the window around it, with a light hairline
+   for an edge. */
+.peek {
+  background: color-mix(in display-p3, var(--space-shown) 76%, transparent);
+  backdrop-filter: blur(40px) saturate(1.4);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.28),
+    0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+/* Where a tab's page or a side panel will show (<wren-view>). */
+.card {
+  background: var(--card);
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 0.5px var(--card-edge),
+    0 0 6px rgb(0 0 0 / 0.12);
+}

@@ -9,6 +9,14 @@ const pages: Record<string, () => Promise<ComponentType>> = {
   game: () => import("./pages/game/Game").then((page) => page.Game)
 };
 
+// Styles that differ by platform key off this.
+const agent = navigator.userAgent;
+document.documentElement.dataset.platform = agent.includes("Mac")
+  ? "mac"
+  : agent.includes("Windows")
+    ? "windows"
+    : "linux";
+
 const load = Object.hasOwn(pages, location.host) ? pages[location.host] : undefined;
 const Page = load ? lazy(() => load().then((component) => ({ default: component }))) : () => <p>No page here.</p>;
 
