@@ -261,6 +261,11 @@ impl App for Wren {
         if id == menus::TOGGLE_SIDEBAR {
             return ipc::send_toggle_sidebar(main);
         }
+        if id == menus::TOGGLE_UI_DEVTOOLS {
+            // The wren runtime can open a web view's DevTools, not close them.
+            let _ = main.page.web_view.open_dev_tools();
+            return;
+        }
         let Some(browser) = main.browser() else {
             return;
         };

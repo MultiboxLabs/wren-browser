@@ -16,11 +16,13 @@ pub use site::{show_permission_menu, show_site_menu};
 pub use tab::show_tab_menu;
 
 pub const NEW_TAB: &str = "new-tab";
+pub const OPEN_LOCATION: &str = "open-location";
 pub const CLOSE_TAB: &str = "close-tab";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
+pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 
 pub fn set_main_menu(mt: MainThread) {
-    let menu = [
+    let mut menu = vec![
         MenuItem::submenu(
             "Wren",
             vec![
@@ -38,9 +40,12 @@ pub fn set_main_menu(mt: MainThread) {
         MenuItem::submenu(
             "File",
             vec![
-                // The app's own, not Chromium's: a new tab goes at the top
-                // of the sidebar's list, not at its end.
+                // The app's own, not Chromium's: both open the page's
+                // omnibox, which opens what is chosen in a new tab at the
+                // top of the sidebar's list, or in the active tab. Chromium's
+                // New Tab page is never shown.
                 keyed(NEW_TAB, "New Tab", "t", MenuModifiers::PRIMARY),
+                keyed(OPEN_LOCATION, "Open Location…", "l", MenuModifiers::PRIMARY),
                 MenuItem::chromium(Command::NewSplitTab),
                 MenuItem::Separator,
                 // Keeps the window's last tab, which Chromium's would close
@@ -138,9 +143,26 @@ pub fn set_main_menu(mt: MainThread) {
         ),
         system(MenuRole::Help, Some("Help"), vec![]),
     ];
+    if cfg!(debug_assertions) {
+        menu.push(development_menu());
+    }
     if let Err(error) = mt.set_main_menu(&menu) {
         eprintln!("Wren took no main menu: {error:?}");
     }
+}
+
+// For working on the app, in a development build only.
+fn development_menu() -> MenuItem {
+    MenuItem::submenu(
+        "DEVELOPMENT",
+        vec![MenuItem::Item {
+            id: TOGGLE_UI_DEVTOOLS.into(),
+            label: "Toggle UI Devtools".into(),
+            enabled: true,
+            checked: false,
+            key: None,
+        }],
+    )
 }
 
 // One of the system's own submenus.
