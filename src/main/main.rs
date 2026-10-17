@@ -1,5 +1,6 @@
 mod app;
 mod dev_server;
+mod ipc;
 mod pages;
 mod window;
 

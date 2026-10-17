@@ -1,17 +1,19 @@
 // The app's state and Wren's callbacks.
 
-use std::cell::RefCell;
-use std::convert::Infallible;
+use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
 use wren::{App, Browser, BrowserType, MainThread, Profile};
 
+use crate::ipc;
 use crate::pages::{GAME, SCHEME, Source, UI, serve_page};
 use crate::window::PageWindow;
 
 // What the app holds, shared with the closures it hands Wren.
 #[derive(Default)]
 pub struct State {
+    /// The main window's counter (`counter.get`, `counter.add`).
+    pub counter: Cell<i64>,
     profile: RefCell<Option<Profile>>,
     main: RefCell<Option<PageWindow>>,
     game: RefCell<Option<PageWindow>>,
@@ -30,17 +32,11 @@ impl State {
             eprintln!("Wren made no web view.");
             return mt.quit();
         };
-        let state = Rc::downgrade(self);
-        let _ = main.web_view.handle("game.open", move |()| {
-            if let Some(state) = state.upgrade() {
-                mt.later(move |_| state.open_game(mt));
-            }
-            Ok::<_, Infallible>(())
-        });
+        ipc::handle_ui(&main.web_view, self, mt);
         *self.main.borrow_mut() = Some(main);
     }
 
-    fn open_game(self: &Rc<Self>, mt: MainThread) {
+    pub fn open_game(self: &Rc<Self>, mt: MainThread) {
         if let Some(game) = self.game.borrow().as_ref() {
             game.window.makeKeyAndOrderFront(None);
             return;

@@ -16,6 +16,9 @@ pub struct Page {
     pub size: (f64, f64),
     /// Its page may call the app (`wren.invoke`).
     pub messages: bool,
+    /// A tab may load it (a typed address); otherwise only the app's own web
+    /// views get it.
+    pub in_tabs: bool,
 }
 
 pub const UI: Page = Page {
@@ -23,6 +26,7 @@ pub const UI: Page = Page {
     title: "Wren",
     size: (1100.0, 760.0),
     messages: true,
+    in_tabs: false,
 };
 
 pub const GAME: Page = Page {
@@ -30,6 +34,7 @@ pub const GAME: Page = Page {
     title: "Twig & Trill",
     size: (900.0, 640.0),
     messages: false,
+    in_tabs: true,
 };
 
 const PAGES: [&Page; 2] = [&UI, &GAME];
@@ -92,8 +97,12 @@ pub fn serve_page(request: SchemeRequest, source: &Source) {
         let _ = request.respond(SchemeResponse::Failure(SchemeFailure::NotFound));
         return;
     };
-    if !PAGES.iter().any(|page| page.host == host) {
+    let Some(page) = PAGES.iter().find(|page| page.host == host) else {
         let _ = request.respond(SchemeResponse::Failure(SchemeFailure::NotFound));
+        return;
+    };
+    if !page.in_tabs && request.web_view().is_none() {
+        let _ = request.respond(SchemeResponse::Failure(SchemeFailure::AccessDenied));
         return;
     }
     let path = path.split('#').next().unwrap_or("");
