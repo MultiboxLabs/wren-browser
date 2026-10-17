@@ -7,7 +7,3 @@ export const counter = {
   get: () => wren.invoke<number>("counter.get"),
   add: (amount: number) => wren.invoke<number>("counter.add", amount)
 };
-
-export const game = {
-  open: () => wren.invoke<null>("game.open")
-};

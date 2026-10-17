@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { counter, game, hasApp } from "../../ipc";
+import { counter, hasApp } from "../../ipc";
 
 const button =
   "rounded-full px-6 py-2.5 font-semibold text-white shadow-sm transition active:scale-95 disabled:opacity-40";
@@ -29,10 +29,6 @@ export function App() {
           </button>
           {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
         </div>
-
-        <button disabled={!hasApp} onClick={game.open} className={`${button} mt-8 bg-amber-700 hover:bg-amber-600`}>
-          Play Twig &amp; Trill
-        </button>
       </div>
     </main>
   );

@@ -1,12 +1,12 @@
 // The app's state and Wren's callbacks.
 
 use std::cell::{Cell, RefCell};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use wren::{App, Browser, BrowserType, MainThread, Profile};
 
 use crate::ipc;
-use crate::pages::{GAME, SCHEME, Source, UI, serve_page};
+use crate::pages::{SCHEME, Source, UI, serve_page};
 use crate::window::PageWindow;
 
 // What the app holds, shared with the closures it hands Wren.
@@ -16,7 +16,6 @@ pub struct State {
     pub counter: Cell<i64>,
     profile: RefCell<Option<Profile>>,
     main: RefCell<Option<PageWindow>>,
-    game: RefCell<Option<PageWindow>>,
 }
 
 impl State {
@@ -25,37 +24,15 @@ impl State {
             return;
         };
         // Closing the main window quits the app.
-        let Some(main) = PageWindow::open(&profile, &UI, move || {
+        let Some(main) = PageWindow::open(&profile, &UI, "Wren", (1100.0, 760.0), move || {
             mt.quit();
             false
         }) else {
             eprintln!("Wren made no web view.");
             return mt.quit();
         };
-        ipc::handle_ui(&main.web_view, self, mt);
+        ipc::handle_ui(&main.web_view, self);
         *self.main.borrow_mut() = Some(main);
-    }
-
-    pub fn open_game(self: &Rc<Self>, mt: MainThread) {
-        if let Some(game) = self.game.borrow().as_ref() {
-            game.window.makeKeyAndOrderFront(None);
-            return;
-        }
-        let Some(profile) = self.profile.borrow().clone() else {
-            return;
-        };
-        // Closing the game's window lets it close, then drops its page.
-        let state: Weak<State> = Rc::downgrade(self);
-        let game = PageWindow::open(&profile, &GAME, move || {
-            let state = state.clone();
-            mt.later(move |_| {
-                if let Some(state) = state.upgrade() {
-                    state.game.borrow_mut().take();
-                }
-            });
-            true
-        });
-        *self.game.borrow_mut() = game;
     }
 }
 

@@ -3,11 +3,11 @@
 
 use std::rc::{Rc, Weak};
 
-use wren::{MainThread, WebView};
+use wren::WebView;
 
 use crate::app::State;
 
-pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
+pub fn handle_ui(web_view: &WebView, state: &Rc<State>) {
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("counter.get", move |()| {
         with_state(&weak, |state| Ok(state.counter.get()))
@@ -23,14 +23,6 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
                 .ok_or("The counter would overflow.")?;
             state.counter.set(count);
             Ok(count)
-        })
-    });
-
-    let weak = Rc::downgrade(state);
-    let _ = web_view.handle("game.open", move |()| {
-        with_state(&weak, |state| {
-            mt.later(move |_| state.open_game(mt));
-            Ok(())
         })
     });
 }

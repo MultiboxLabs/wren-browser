@@ -26,6 +26,8 @@ impl PageWindow {
     pub fn open(
         profile: &Profile,
         page: &Page,
+        title: &str,
+        size: (f64, f64),
         should_close: impl Fn() -> bool + 'static,
     ) -> Option<PageWindow> {
         let mtm = MainThreadMarker::new().unwrap();
@@ -39,10 +41,7 @@ impl PageWindow {
         let window = unsafe {
             NSWindow::initWithContentRect_styleMask_backing_defer(
                 NSWindow::alloc(mtm),
-                NSRect::new(
-                    NSPoint::new(0.0, 0.0),
-                    NSSize::new(page.size.0, page.size.1),
-                ),
+                NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(size.0, size.1)),
                 NSWindowStyleMask::Titled
                     | NSWindowStyleMask::Closable
                     | NSWindowStyleMask::Resizable
@@ -52,7 +51,7 @@ impl PageWindow {
             )
         };
         unsafe { window.setReleasedWhenClosed(false) };
-        window.setTitle(&NSString::from_str(page.title));
+        window.setTitle(&NSString::from_str(title));
         window.center();
         let delegate = WindowDelegate::new(mtm, Box::new(should_close));
         window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
