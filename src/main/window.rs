@@ -78,6 +78,7 @@ impl PageWindow {
         let options = WebViewOptions {
             kind: WebViewKind::BrowserUi,
             messages: page.messages,
+            embeds_views: page.embeds_views,
             drags_window: true,
             transparent: true,
             ..Default::default()

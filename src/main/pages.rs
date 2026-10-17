@@ -14,6 +14,8 @@ pub struct Page {
     pub host: &'static str,
     /// Its page may call the app (`wren.invoke`).
     pub messages: bool,
+    /// Its page may show tabs and side panels (`<wren-view>`).
+    pub embeds_views: bool,
     /// A tab may load it (a typed address); otherwise only the app's own web
     /// views get it.
     pub in_tabs: bool,
@@ -22,12 +24,14 @@ pub struct Page {
 pub const UI: Page = Page {
     host: "ui",
     messages: true,
+    embeds_views: true,
     in_tabs: false,
 };
 
 pub const GAME: Page = Page {
     host: "game",
     messages: false,
+    embeds_views: false,
     in_tabs: true,
 };
 

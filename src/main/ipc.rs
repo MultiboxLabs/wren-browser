@@ -7,40 +7,41 @@ use std::rc::{Rc, Weak};
 use wren::WebView;
 
 use crate::app::State;
+use crate::main_window::MainWindow;
 use crate::window::PageWindow;
 
 pub fn handle_ui(web_view: &WebView, state: &Rc<State>) {
     // Whether the window is in use; "window.active" says when it changes.
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.active", move |()| {
-        with_main(&weak, |main| Ok(main.is_active()))
+        with_main(&weak, |main| Ok(main.page.is_active()))
     });
 
     // Whether the window is full screen; "window.fullScreen" says when it
     // starts to go or to come back.
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.fullScreen", move |()| {
-        with_main(&weak, |main| Ok(main.is_full_screen()))
+        with_main(&weak, |main| Ok(main.page.is_full_screen()))
     });
 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setDark", move |dark: bool| {
-        with_main(&weak, |main| Ok(main.set_dark(dark)))
+        with_main(&weak, |main| Ok(main.page.set_dark(dark)))
     });
 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setBackdropDark", move |dark: bool| {
-        with_main(&weak, |main| Ok(main.set_backdrop_dark(dark)))
+        with_main(&weak, |main| Ok(main.page.set_backdrop_dark(dark)))
     });
 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setButtonsPosition", move |(x, y): (f64, f64)| {
-        with_main(&weak, |main| Ok(main.set_buttons_position(x, y)))
+        with_main(&weak, |main| Ok(main.page.set_buttons_position(x, y)))
     });
 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setButtonsVisible", move |visible: bool| {
-        with_main(&weak, |main| Ok(main.set_buttons_visible(visible)))
+        with_main(&weak, |main| Ok(main.page.set_buttons_visible(visible)))
     });
 }
 
@@ -58,7 +59,7 @@ pub fn send_full_screen(main: &PageWindow, full_screen: bool) {
 // Runs a handler with the main window, or fails the call once it is gone.
 fn with_main<A>(
     state: &Weak<State>,
-    handler: impl FnOnce(&PageWindow) -> Result<A, &'static str>,
+    handler: impl FnOnce(&MainWindow) -> Result<A, &'static str>,
 ) -> Result<A, &'static str> {
     let state = state.upgrade().ok_or("The app is closing.")?;
     let main = state.main.borrow();
