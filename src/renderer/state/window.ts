@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { appWindow, hasApp } from "../ipc";
+import { appWindow, follow, hasApp } from "../ipc";
 
 /**
  * Whether the window is in use, as the app says: it counts the window's
@@ -32,23 +32,4 @@ export function useFullScreen() {
   const [fullScreen, setFullScreen] = useState(false);
   useEffect(() => (hasApp ? follow(appWindow.fullScreen, appWindow.onFullScreen, setFullScreen) : undefined), []);
   return fullScreen;
-}
-
-// Keeps `set` to the app's value: the page asks first, and a change heard
-// before the answer is newer.
-function follow<T>(
-  ask: () => Promise<T>,
-  listen: (listener: (value: T) => void) => () => void,
-  set: (value: T) => void
-) {
-  let heard = false;
-  const stop = listen((value) => {
-    heard = true;
-    set(value);
-  });
-  ask().then(
-    (value) => heard || set(value),
-    () => {}
-  );
-  return stop;
 }

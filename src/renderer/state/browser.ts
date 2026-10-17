@@ -5,6 +5,7 @@ import {
   type BrowserTabs,
   type ExtensionAction,
   extensions,
+  follow,
   hasApp,
   type SidePanelState,
   type Site,
@@ -23,20 +24,7 @@ export function useBrowser() {
   const [favicons, setFavicons] = useState<Record<number, string | null>>({});
   const asked = useRef(new Set<number>());
 
-  useEffect(() => {
-    if (!hasApp) return;
-    let heard = false;
-    const stop = browser.onTabs((next) => {
-      heard = true;
-      setTabs(next);
-    });
-    // Fails while the window has no Browser; the message follows then.
-    browser.tabs().then(
-      (next) => heard || setTabs(next),
-      () => {}
-    );
-    return stop;
-  }, []);
+  useEffect(() => (hasApp ? follow(browser.tabs, browser.onTabs, setTabs) : undefined), []);
 
   // Each tab's favicon, asked for once it is new and again when it changes.
   const ask = (id: number) =>
@@ -86,19 +74,6 @@ export const useToastShown = () => useFromApp<Toast | null>(toast.state, toast.o
  */
 function useFromApp<T>(read: () => Promise<T>, listen: (listener: (value: T) => void) => () => void) {
   const [value, setValue] = useState<T | null>(null);
-  useEffect(() => {
-    if (!hasApp) return;
-    let heard = false;
-    const stop = listen((next) => {
-      heard = true;
-      setValue(next);
-    });
-    // Fails while the window has no Browser; the message follows then.
-    read().then(
-      (next) => heard || setValue(next),
-      () => {}
-    );
-    return stop;
-  }, []);
+  useEffect(() => (hasApp ? follow(read, listen, setValue) : undefined), []);
   return value;
 }
