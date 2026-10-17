@@ -22,22 +22,34 @@ pub fn handle(web_view: &WebView, state: &Rc<State>) {
 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setDark", move |dark: bool| {
-        with_main(&weak, |main| Ok(main.page.set_dark(dark)))
+        with_main(&weak, |main| {
+            main.page.set_dark(dark);
+            Ok(())
+        })
     });
 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setBackdropDark", move |dark: bool| {
-        with_main(&weak, |main| Ok(main.page.set_backdrop_dark(dark)))
+        with_main(&weak, |main| {
+            main.page.set_backdrop_dark(dark);
+            Ok(())
+        })
     });
 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setButtonsPosition", move |(x, y): (f64, f64)| {
-        with_main(&weak, |main| Ok(main.page.set_buttons_position(x, y)))
+        with_main(&weak, |main| {
+            main.page.set_buttons_position(x, y);
+            Ok(())
+        })
     });
 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setButtonsVisible", move |visible: bool| {
-        with_main(&weak, |main| Ok(main.page.set_buttons_visible(visible)))
+        with_main(&weak, |main| {
+            main.page.set_buttons_visible(visible);
+            Ok(())
+        })
     });
 }
 
