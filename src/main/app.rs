@@ -7,7 +7,9 @@ use wren::{App, Browser, BrowserType, Change, ChangeKind, MainThread, Profile, T
 
 use crate::ipc;
 use crate::main_window::MainWindow;
+use crate::menus;
 use crate::pages::{SCHEME, Source, UI, serve_page};
+use crate::tabs;
 use crate::window::PageWindow;
 
 // What the app holds, shared with the closures it hands Wren.
@@ -95,6 +97,7 @@ pub struct Wren {
 
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
+        menus::set_main_menu(mt);
         let source = self.source.clone();
         let _ = mt.set_scheme_handler(
             SCHEME,
@@ -160,6 +163,25 @@ impl App for Wren {
         if tabs_changed {
             ipc::send_tabs(main, &browser);
         }
+    }
+
+    fn menu_command(&self, _: MainThread, id: &str, _: Option<Browser>) {
+        let main = self.state.main.borrow();
+        let Some(main) = main.as_ref() else { return };
+        if id == menus::TOGGLE_SIDEBAR {
+            return ipc::send_toggle_sidebar(main);
+        }
+        let Some(browser) = main.browser() else {
+            return;
+        };
+        let _ = match id {
+            menus::NEW_TAB => tabs::new_tab(&browser),
+            menus::CLOSE_TAB => match browser.active_tab() {
+                Some(tab) => tabs::close(&browser, &[tab]),
+                None => Ok(()),
+            },
+            _ => Ok(()),
+        };
     }
 
     fn browser_closed(&self, mt: MainThread, browser: Browser) {

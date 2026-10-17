@@ -2,7 +2,9 @@ mod app;
 mod dev_server;
 mod ipc;
 mod main_window;
+mod menus;
 mod pages;
+mod tabs;
 mod window;
 
 use std::rc::Rc;

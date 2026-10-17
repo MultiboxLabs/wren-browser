@@ -9,6 +9,8 @@ src/main/            the main process (Rust)
   app.rs             the app's state and Wren's callbacks
   pages.rs           the pages, and serving wren://
   main_window.rs     the browser's window: its page and a Browser per Profile
+  menus.rs           the main menu
+  tabs.rs            what the app does to a Browser's tabs
   window.rs          a window showing one page
   dev_server.rs      wren:// from Vite's dev server, in development
 src/renderer/        the renderer (Vite root): one entry for every page

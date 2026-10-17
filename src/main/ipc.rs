@@ -11,6 +11,7 @@ use wren::{Browser, BrowserTab, MainThread, TabCrash, WebView};
 
 use crate::app::State;
 use crate::main_window::MainWindow;
+use crate::tabs;
 use crate::window::PageWindow;
 
 /// A tab as the sidebar draws it. Its favicon comes apart ("tab.favicon").
@@ -83,7 +84,7 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     // The tabs; "browser.tabs" says when they change.
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("browser.tabs", move |()| {
-        with_browser(&weak, |_, browser| Ok(tabs(browser)))
+        with_browser(&weak, |_, browser| Ok(tab_list(browser)))
     });
 
     // A tab's favicon as a data: URL, or null; "tab.favicon" says when it
@@ -100,9 +101,7 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     // A tab on the New Tab page, at the top of the list.
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("tabs.new", move |()| {
-        with_browser(&weak, |_, browser| {
-            browser.add_tab("", Some(0), true).map(drop).map_err(failed)
-        })
+        with_browser(&weak, |_, browser| tabs::new_tab(browser).map_err(failed))
     });
 
     let weak = Rc::downgrade(state);
@@ -115,13 +114,7 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("tabs.close", move |id: i32| {
         with_browser(&weak, |_, browser| {
-            let tab = tab(mt, browser, id)?;
-            // Chromium closes a Browser with its last tab; the window keeps
-            // one, on the New Tab page.
-            if browser.tabs().len() == 1 {
-                browser.add_tab("", None, true).map_err(failed)?;
-            }
-            tab.close().map_err(failed)
+            tabs::close(browser, &[tab(mt, browser, id)?]).map_err(failed)
         })
     });
 
@@ -190,10 +183,15 @@ fn side_panel(browser: &Browser) -> SidePanel {
     }
 }
 
+/// Tells the page to show or hide the sidebar, as the main menu asks.
+pub fn send_toggle_sidebar(main: &MainWindow) {
+    let _ = main.page.web_view.send("sidebar.toggle", &());
+}
+
 /// Tells the page the tabs changed: which there are, their order, a tab's
 /// title, address, or state, or which is active.
 pub fn send_tabs(main: &MainWindow, browser: &Browser) {
-    let _ = main.page.web_view.send("browser.tabs", &tabs(browser));
+    let _ = main.page.web_view.send("browser.tabs", &tab_list(browser));
 }
 
 /// Tells the page a tab's favicon changed, for it to ask again.
@@ -201,7 +199,7 @@ pub fn send_favicon(main: &MainWindow, tab: BrowserTab) {
     let _ = main.page.web_view.send("tab.favicon", &tab.id());
 }
 
-fn tabs(browser: &Browser) -> Tabs {
+fn tab_list(browser: &Browser) -> Tabs {
     let tabs = browser
         .tabs()
         .into_iter()

@@ -76,3 +76,8 @@ export const sidePanel = {
   /** The width the user drags the panel to, as they drag. */
   setWidth: (width: number) => wren.invoke<null>("sidePanel.setWidth", width)
 };
+
+export const menu = {
+  /** The main menu's Toggle Sidebar (⌘S), which has the key while a tab has the keyboard too. */
+  onToggleSidebar: (listener: () => void) => wren.on<null>("sidebar.toggle", listener)
+};

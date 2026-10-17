@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { appWindow, browser, hasApp, sidePanel } from "../../ipc";
+import { appWindow, browser, hasApp, menu, sidePanel } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { useBrowser, useSidePanel } from "./browser";
@@ -73,17 +73,7 @@ export function App() {
     const hovered = sidebarRef.current?.matches(":hover") ?? false;
     setPresentation((shown) => (shown !== "anchored" ? "anchored" : hovered ? "floating" : "hidden"));
   };
-  useEffect(() => {
-    const keydown = (event: KeyboardEvent) => {
-      const primary = document.documentElement.dataset.platform === "mac" ? event.metaKey : event.ctrlKey;
-      if (primary && !event.shiftKey && !event.altKey && event.key === "s") {
-        event.preventDefault();
-        toggleSidebar();
-      }
-    };
-    addEventListener("keydown", keydown);
-    return () => removeEventListener("keydown", keydown);
-  }, []);
+  useEffect(() => (hasApp ? menu.onToggleSidebar(toggleSidebar) : undefined), []);
 
   const toggleFolder = (folder: Folder) =>
     setSpace((space) => ({
