@@ -5,7 +5,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use wren::{App, Browser, BrowserType, Change, ChangeKind, MainThread, Profile, TabFields};
+use wren::{
+    App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
+    PopoverRequest, Profile, TabFields,
+};
 
 use crate::ipc::{self, OmniboxTarget};
 use crate::menus;
@@ -126,6 +129,7 @@ impl State {
             ipc::send_site(main, &browser);
             ipc::send_extensions(main, &browser);
             ipc::send_anchors(main, &browser);
+            ipc::send_toast(main, &browser);
         }
     }
 }
@@ -238,6 +242,9 @@ impl App for Wren {
                 ChangeKind::ExtensionActions => extensions_changed = true,
                 ChangeKind::Anchors => ipc::send_anchors(main, &browser),
                 ChangeKind::Omnibox => ipc::send_omnibox(main, &browser),
+                // One the app answered has gone: Chromium's time for it is
+                // up, the tab switched, or another came.
+                ChangeKind::Popover => ipc::send_toast(main, &browser),
                 ChangeKind::Tab => {
                     let Some(tab) = change.tab else { continue };
                     tabs_changed |= change.tab_fields.intersects(drawn);
@@ -311,8 +318,30 @@ impl App for Wren {
                 Some(tab) => tabs::close(&browser, &[tab]),
                 None => Ok(()),
             },
+            menus::COPY_URL => tabs::copy_url(&browser),
             _ => Ok(()),
         };
+    }
+
+    // Toasts are the page's, at the window's top right: Chromium's
+    // and the app's own alike. The page hears of one once Chromium's call
+    // is over, when the request is open. The rest of Chromium's popovers
+    // are its own still.
+    fn popover(&self, mt: MainThread, request: &PopoverRequest) -> PopoverAnswer {
+        if request.kind != PopoverKind::Toast {
+            return PopoverAnswer::Chromium;
+        }
+        let state = Rc::downgrade(&self.state);
+        let browser = request.browser.clone();
+        mt.later(move |_| {
+            let Some(state) = state.upgrade() else { return };
+            if let Some(main) = state.main.borrow().as_ref()
+                && main.is_front(&browser)
+            {
+                ipc::send_toast(main, &browser);
+            }
+        });
+        PopoverAnswer::App
     }
 
     // Chromium wants the address field: the omnibox opens on the active

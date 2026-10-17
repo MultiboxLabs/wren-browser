@@ -12,4 +12,5 @@ export * from "./side-panel";
 export * from "./sidebar";
 export * from "./site";
 export * from "./splits";
+export * from "./toast";
 export * from "./window";

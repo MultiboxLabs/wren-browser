@@ -465,3 +465,26 @@ body,
     0 0 0 0.5px var(--card-edge),
     0 0 6px rgb(0 0 0 / 0.12);
 }
+
+/* A toast (components/ui/toast.tsx): a gradient of the space's
+   colour, lighter and calmer at the top, deeper at the bottom, with black
+   text; dark enough for it at the bottom, and light enough at the top,
+   whatever the space. A darker ring for an edge, the gradient's own colour
+   darkened. Its icon (or button) sits on a frosted tile with a faint ring. */
+:root[data-scheme] .toast {
+  color: rgb(0 0 0);
+  background: linear-gradient(
+    oklch(from var(--space) clamp(0.7, l + 0.16, 0.95) calc(c * 0.56) h),
+    oklch(from var(--space) clamp(0.62, l + 0.07, 0.88) calc(c * 0.72) h)
+  );
+  border-radius: var(--radius-panel);
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.3),
+    0 4px 14px rgb(0 0 0 / 0.22);
+}
+.toast-tile {
+  border-radius: var(--radius-control);
+  background: linear-gradient(rgb(255 255 255 / 0.65), rgb(255 255 255 / 0.58));
+  font-size: var(--text-subtitle);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.2);
+}

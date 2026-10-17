@@ -18,6 +18,7 @@ pub use tab::show_tab_menu;
 pub const NEW_TAB: &str = "new-tab";
 pub const OPEN_LOCATION: &str = "open-location";
 pub const CLOSE_TAB: &str = "close-tab";
+pub const COPY_URL: &str = "copy-url";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 
@@ -64,6 +65,9 @@ pub fn set_main_menu(mt: MainThread) {
                 MenuItem::Separator,
                 MenuItem::role(MenuRole::Cut),
                 MenuItem::role(MenuRole::Copy),
+                // The active tab's address, with a toast saying so.
+                // An upper-case key is the key with Shift: ⇧⌘C.
+                keyed(COPY_URL, "Copy URL", "C", MenuModifiers::PRIMARY),
                 MenuItem::role(MenuRole::Paste),
                 MenuItem::role(MenuRole::PasteAndMatchStyle),
                 MenuItem::role(MenuRole::Delete),

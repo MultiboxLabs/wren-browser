@@ -12,6 +12,7 @@ import { type Presentation, useSidebarMotion } from "./sidebar-motion";
 import { useSaveSidebar, useSavedSidebar } from "./sidebar-state";
 import { cssColor, type Folder, personal, schemeFor, type Space, type Tab } from "./space";
 import { TabView } from "./tab-view";
+import { BrowserToast } from "./toast";
 import { useFullScreen, useWindowActive } from "./window";
 
 // Waits for the sidebar's saved state, so it opens as it was left.
@@ -254,6 +255,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
             onEnd={() => save({ open: sidebarOpen, width: sidebarWidth })}
           />
         )}
+        <BrowserToast />
         <AnimatePresence>
           {omnibox.shown && (
             <Omnibox

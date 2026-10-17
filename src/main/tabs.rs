@@ -3,6 +3,9 @@
 
 use wren::{Browser, BrowserTab, Error, TabGroup};
 
+use crate::ipc::{self, OwnToast};
+use crate::menus;
+
 /// A tab on `url`, at the top of the list, as the sidebar shows new tabs.
 pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
     browser.add_tab(url, Some(0), true).map(drop)
@@ -18,6 +21,20 @@ pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
         tab.close()?;
     }
     Ok(())
+}
+
+/// Puts the active tab's address on the clipboard, and says so in a toast.
+/// Chromium's New Tab page has none to copy (as `isNewTab` in
+/// pages/ui/address.ts).
+pub fn copy_url(browser: &Browser) -> Result<(), Error> {
+    let Some(url) = browser.active_tab().map(|tab| tab.url()) else {
+        return Ok(());
+    };
+    if url.is_empty() || url.starts_with("chrome://newtab") {
+        return Ok(());
+    }
+    menus::copy(&url);
+    ipc::show_toast(browser, OwnToast::UrlCopied)
 }
 
 /// The tabs of `group`, in their order.

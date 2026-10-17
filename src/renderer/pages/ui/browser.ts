@@ -9,7 +9,9 @@ import {
   type SidePanelState,
   type Site,
   sidePanel,
-  site
+  site,
+  type Toast,
+  toast
 } from "../../ipc";
 
 /**
@@ -74,6 +76,9 @@ export const useExtensionActions = () => useFromApp<ExtensionAction[]>(extension
 
 /** The page's marks that one of Chromium's bubbles hangs off now. */
 export const useShowingAnchors = () => useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
+
+/** The toast showing, Chromium's or the app's own; null while there is none. */
+export const useToastShown = () => useFromApp<Toast | null>(toast.state, toast.onState) ?? null;
 
 /**
  * A value the app keeps, asked for once and heard whenever it changes. Null

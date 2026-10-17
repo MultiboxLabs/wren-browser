@@ -12,6 +12,7 @@ mod side_panel;
 mod sidebar;
 mod site;
 mod splits;
+mod toast;
 mod window;
 
 use std::rc::{Rc, Weak};
@@ -32,6 +33,7 @@ pub use menu::send_toggle_sidebar;
 pub use omnibox::{OmniboxTarget, send_omnibox, send_show_omnibox};
 pub use side_panel::send_side_panel;
 pub use site::send_site;
+pub use toast::{OwnToast, send_toast, show_toast};
 pub use window::{send_active, send_full_screen};
 
 pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
@@ -45,6 +47,7 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     extensions::handle(web_view, state);
     anchors::handle(web_view, state);
     omnibox::handle(web_view, state);
+    toast::handle(web_view, state);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),
