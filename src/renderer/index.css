@@ -373,6 +373,90 @@ body,
   --omnibox-text-selection: rgb(0 0 0 / 0.15);
 }
 
+/* The pulse as the field enters a search engine's keyword mode:
+   the panel flashes the space's colour, and a glow spreads out from it and
+   fades. Its shape is measured from a reference recording; its glow comes on
+   sooner and stronger. Behind the panel's content, in its stacking context.
+   Two layers, each drawn once, whose opacity alone animates, on the GPU: a
+   tight flash (a tint, an edge and a close glow), and a wide glow just
+   after it, so the glow seems to spread. The panel dips in scale with it
+   (omnibox.tsx). */
+.omnibox-pulse,
+.omnibox-pulse > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.omnibox-pulse {
+  z-index: -1;
+}
+.omnibox-pulse > span {
+  opacity: 0;
+  will-change: opacity;
+  /* Not the shorthand, which would take each layer's animation-name. */
+  animation-duration: 0.5s;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+.omnibox-pulse-flash {
+  background: color-mix(in oklab, var(--omnibox-selected) 15%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--omnibox-selected) 65%, transparent),
+    0 0 6px 0 color-mix(in oklab, var(--omnibox-selected) 50%, transparent);
+  animation-name: omnibox-pulse-flash;
+}
+.omnibox-pulse-glow {
+  box-shadow: 0 0 56px 9px color-mix(in oklab, var(--omnibox-selected) 62%, transparent);
+  animation-name: omnibox-pulse-glow;
+}
+@keyframes omnibox-pulse-flash {
+  0%,
+  8% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0.75;
+  }
+  45% {
+    opacity: 0.4;
+  }
+  65% {
+    opacity: 0.15;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes omnibox-pulse-glow {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.5;
+  }
+  15% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.45;
+  }
+  70% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .omnibox-pulse {
+    display: none;
+  }
+}
+
 /* Where a tab's page or a side panel will show (<wren-view>). */
 .card {
   background: var(--card);

@@ -7,8 +7,8 @@
 // list's omnibox-items.ts's, and when it is open omnibox-shown.ts's.
 
 import { Search } from "lucide-react";
-import { motion } from "motion/react";
-import { useRef } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 import type { OmniboxTarget } from "../../ipc";
 import { SEARCH_PLACEHOLDER } from "./address";
 import { Favicon } from "./favicon";
@@ -27,6 +27,9 @@ const sizes = {
   center: { width: 763, maxHeight: 326, field: 62 },
   anchored: { width: 346, maxHeight: 307, field: 49 }
 };
+
+// How far the panel dips as it pulses into keyword mode: 1%.
+const PULSE_SCALE = 0.99;
 
 export function Omnibox({
   target,
@@ -60,6 +63,28 @@ export function Omnibox({
   const engine =
     !field.keyword && chosen?.type === "suggestion" && chosen.suggestion.keyword ? chosen.suggestion.keywordName : null;
 
+  // Entering a search engine's keyword mode pulses it: a glow of
+  // the space's colour (.omnibox-pulse), and a slight dip in scale and
+  // back. Both run on the compositor, so the page's work as the mode starts
+  // cannot make them stutter: the glow by its layers' opacity, the dip by
+  // the `scale` property, apart from the transform Motion opens it with.
+  const panel = useRef<HTMLDivElement>(null);
+  const dip = useRef<Animation>(null);
+  const still = useReducedMotion();
+  const [pulses, setPulses] = useState(0);
+  useEffect(() => {
+    if (!field.keyword) return;
+    setPulses((count) => count + 1);
+    if (still) return;
+    dip.current?.cancel();
+    dip.current =
+      panel.current?.animate(
+        { scale: ["1", String(PULSE_SCALE), "1"], offset: [0, 0.4, 1], easing: ["ease-out", "ease-in-out"] },
+        // Eased by halves, so it is lowest at 0.06s.
+        { duration: 150 }
+      ) ?? null;
+  }, [field.keyword?.keyword]);
+
   return (
     // Over everything, the page too: a press anywhere else closes it.
     <div
@@ -67,6 +92,7 @@ export function Omnibox({
       onPointerDown={(event) => event.target === event.currentTarget && close()}
     >
       <motion.div
+        ref={panel}
         role="dialog"
         aria-label={target === "new-tab" ? "New Tab" : "Open Location"}
         initial={{ opacity: 0, scale: 0.98 }}
@@ -80,8 +106,15 @@ export function Omnibox({
             ? { left: place.left, top: place.top, transformOrigin: "top left" }
             : { top: `max(20px, 50% - ${size.maxHeight / 2}px)`, transformOrigin: "top center" })
         }}
-        className={`omnibox absolute flex flex-col overflow-hidden ${anchored ? "" : "left-1/2 -translate-x-1/2"}`}
+        // Not clipped: the pulse's glow spreads out past its edges.
+        className={`omnibox absolute isolate flex flex-col ${anchored ? "" : "left-1/2 -translate-x-1/2"}`}
       >
+        {pulses > 0 && (
+          <span key={pulses} aria-hidden className="omnibox-pulse">
+            <span className="omnibox-pulse-flash" />
+            <span className="omnibox-pulse-glow" />
+          </span>
+        )}
         {/* The field: its icon in the rows' icon column, its text where
             theirs starts. */}
         <div
@@ -111,7 +144,7 @@ export function Omnibox({
             readOnly={!ready}
             onChange={onChange}
             onKeyDown={onKeyDown}
-            placeholder={field.keyword ? "" : SEARCH_PLACEHOLDER}
+            placeholder={field.keyword ? "Search…" : SEARCH_PLACEHOLDER}
             aria-label="Address and Search"
             aria-autocomplete="both"
             aria-controls="omnibox-list"
