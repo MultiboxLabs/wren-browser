@@ -11,12 +11,15 @@ import { type ExtensionAction, extensions } from "../../ipc";
 import { Anchor } from "../ui/anchor";
 import { Button } from "../ui/button";
 import { Popover } from "../ui/popover";
-import { address, isNewTab, SEARCH_PLACEHOLDER } from "./address";
+import { address, isNewTab } from "../../utils/url";
 import { useExtensionActions, useShowingAnchors, useSite } from "../../state/browser";
 import { PageInfoIcon } from "../icons";
 import { ExtensionIcon, PageInfo } from "./page-info";
 import type { SidePanelId } from "../side-panel";
 import type { Tab } from "../../state/space";
+
+/** What an empty address field says, and the omnibox's. */
+export const SEARCH_PLACEHOLDER = "Search or Enter URL…";
 
 export function AddressField({
   tab,

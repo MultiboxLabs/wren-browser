@@ -10,7 +10,7 @@ import { Search } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { OmniboxTarget } from "../../ipc";
-import { SEARCH_PLACEHOLDER } from "../address/address";
+import { SEARCH_PLACEHOLDER } from "../address/field";
 import { Favicon } from "../favicon";
 import { useOmniboxField } from "./field";
 import type { OmniboxTabs } from "./items";

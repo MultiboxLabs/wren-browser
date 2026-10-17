@@ -1,3 +1,5 @@
+import { host } from "../utils/url";
+
 /** A site's icon: the tab's own, or else its first letter on a colour from its address. */
 export function Favicon({
   url,
@@ -27,13 +29,4 @@ export function Favicon({
       {title[0]}
     </span>
   );
-}
-
-/** An address's host, or the address itself if it has none. */
-export function host(url: string) {
-  try {
-    return new URL(url).host || url;
-  } catch {
-    return url;
-  }
 }

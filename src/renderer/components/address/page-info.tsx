@@ -41,7 +41,7 @@ import { browser, type ExtensionAction, extensions, type Site, site, type SitePe
 import { Button, type Icon } from "../ui/button";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
-import { isNewTab } from "./address";
+import { isNewTab } from "../../utils/url";
 import { InsecureIcon } from "../icons";
 import { type SidePanelId, sidePanels } from "../side-panel";
 import type { Tab } from "../../state/space";

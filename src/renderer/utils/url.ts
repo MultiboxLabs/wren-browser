@@ -1,4 +1,13 @@
-// A tab's address, as the address field shows it.
+// A tab's address, as the page shows it.
+
+/** An address's host, or the address itself if it has none. */
+export function host(url: string) {
+  try {
+    return new URL(url).host || url;
+  } catch {
+    return url;
+  }
+}
 
 /**
  * A web page's address shows as its host; any other's (wren://game,
@@ -16,6 +25,3 @@ export function address(url: string) {
 
 /** Chromium's New Tab page, which has no address to show. */
 export const isNewTab = (url: string) => url === "" || url.startsWith("chrome://newtab");
-
-/** What an empty address field says, and the omnibox's. */
-export const SEARCH_PLACEHOLDER = "Search or Enter URL…";
