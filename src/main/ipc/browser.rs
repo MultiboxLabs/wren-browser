@@ -57,12 +57,6 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
         })
     });
 
-    // A tab on the New Tab page, at the top of the list.
-    let weak = Rc::downgrade(state);
-    let _ = web_view.handle("tabs.new", move |()| {
-        with_browser(&weak, |_, browser| tabs::new_tab(browser).map_err(failed))
-    });
-
     // A tab on an address, at the top of the list.
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("tabs.open", move |url: String| {

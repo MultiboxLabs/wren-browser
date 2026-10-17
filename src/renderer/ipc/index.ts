@@ -7,6 +7,7 @@ export * from "./browser";
 export * from "./extensions";
 export * from "./groups";
 export * from "./menu";
+export * from "./omnibox";
 export * from "./side-panel";
 export * from "./sidebar";
 export * from "./site";

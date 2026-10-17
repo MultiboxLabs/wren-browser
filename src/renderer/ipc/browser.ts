@@ -36,8 +36,6 @@ export const browser = {
   favicon: (id: number) => wren.invoke<string | null>("tab.favicon", id),
   /** Hears which tab's favicon changed, to ask for it again. */
   onFavicon: (listener: (id: number) => void) => wren.on<number>("tab.favicon", listener),
-  /** A tab on the New Tab page, at the top. */
-  newTab: () => wren.invoke<null>("tabs.new"),
   /** A tab on an address, at the top. */
   open: (url: string) => wren.invoke<null>("tabs.open", url),
   /** Puts the active tab's address on the clipboard. */

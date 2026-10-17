@@ -1,0 +1,276 @@
+// The omnibox: Chromium's suggestions for what is typed in the page's field,
+// and opening one as Chrome does, so history and search engines learn from
+// it. The page draws the field and the list (pages/ui/omnibox.tsx); the main
+// menu and Chromium ask it to open (`send_show_omnibox`).
+
+use std::rc::Rc;
+
+use serde::{Deserialize, Serialize};
+use wren::{
+    Browser, LocationText, OmniboxFlags, OmniboxResult, OpenDisposition, SuggestionKind,
+    SuggestionText, WebView,
+};
+
+use super::{failed, png_url, with_browser};
+use crate::app::State;
+use crate::window::MainWindow;
+
+/// What the page asks suggestions for.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Query {
+    text: String,
+    /// The caret, in UTF-16 units.
+    cursor: usize,
+    /// The search engine keyword the field is in, if it is in one.
+    keyword: Option<String>,
+    /// Do not complete inline: the user deleted or pasted.
+    no_inline: bool,
+    /// The field has just opened, not been edited.
+    on_focus: bool,
+}
+
+/// A suggestion the page chose, in the set it was read from.
+#[derive(Deserialize)]
+struct Chosen {
+    /// `Suggestions::result`.
+    result: String,
+    index: usize,
+}
+
+impl Chosen {
+    fn result(&self) -> Result<OmniboxResult, String> {
+        self.result
+            .parse()
+            .map_err(|_| "There is no such set of suggestions.".into())
+    }
+}
+
+/// A suggestion to open, and how.
+#[derive(Deserialize)]
+struct Open {
+    #[serde(flatten)]
+    chosen: Chosen,
+    disposition: Disposition,
+}
+
+/// How a suggestion opens: in the active tab, in a new one at the top of
+/// the sidebar's list, or by switching to the tab that has its page.
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum Disposition {
+    Current,
+    NewTab,
+    Switch,
+}
+
+/// What the omnibox is for: a new tab, as the New Tab command opens it, or
+/// the active tab's address, as Open Location does.
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OmniboxTarget {
+    NewTab,
+    Current,
+}
+
+/// Chromium's suggestions for the text the page last asked about.
+#[derive(Serialize)]
+pub struct Suggestions {
+    /// The set they are, as text: a u64, which a JS number cannot hold.
+    result: String,
+    suggestions: Vec<Suggestion>,
+}
+
+/// A suggestion as the page draws it, its text as Chromium's list has it.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Suggestion {
+    kind: &'static str,
+    /// Return opens it; its inline completion follows the caret.
+    is_default: bool,
+    /// `omnibox.delete` removes it.
+    deletable: bool,
+    /// Its page is open in a tab, which it can switch to.
+    has_tab: bool,
+    /// The description goes first: an answer to a search.
+    swap: bool,
+    /// The main line: "youtube.com", "weather paris".
+    contents: String,
+    /// The second part: the page's title, "Google Search".
+    description: String,
+    /// What the field shows while it is selected.
+    fill: String,
+    /// For the default: the text to add after the caret, selected.
+    inline: String,
+    /// The keyword Tab enters keyword mode with, and its chip's name.
+    keyword: String,
+    keyword_name: String,
+    /// Its page's favicon as a data: URL, if it has one yet.
+    icon: Option<String>,
+}
+
+pub fn handle(web_view: &WebView, state: &Rc<State>) {
+    // The active tab's address as the field shows it to be edited, or ""
+    // on a page with none to show (the New Tab page).
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("omnibox.location", move |()| {
+        with_browser(&weak, |_, browser| {
+            let shown = browser.location_state().is_ok_and(|state| state.show_url);
+            Ok(if shown {
+                browser.location_text(LocationText::Edit)
+            } else {
+                String::new()
+            })
+        })
+    });
+
+    // Asks for suggestions, and answers with those Chromium has at once;
+    // "omnibox.suggestions" brings the rest as they arrive.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("omnibox.query", move |query: Query| {
+        with_browser(&weak, |_, browser| {
+            let mut flags = OmniboxFlags::empty();
+            if query.no_inline {
+                flags |= OmniboxFlags::NO_INLINE;
+            }
+            if query.on_focus {
+                flags |= OmniboxFlags::ON_FOCUS;
+            }
+            browser
+                .omnibox_query(&query.text, query.cursor, query.keyword.as_deref(), flags)
+                .map_err(failed)?;
+            Ok(suggestions(browser))
+        })
+    });
+
+    // Opens a suggestion, then clears the list, as Chrome reverts its field.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("omnibox.open", move |open: Open| {
+        with_browser(&weak, |_, browser| {
+            let (result, index) = (open.chosen.result()?, open.chosen.index);
+            let opened = match open.disposition {
+                Disposition::Current => {
+                    browser.open_suggestion(result, index, OpenDisposition::CurrentTab)
+                }
+                Disposition::NewTab => open_in_new_tab(browser, result, index),
+                Disposition::Switch => {
+                    browser.open_suggestion(result, index, OpenDisposition::SwitchToTab)
+                }
+            };
+            let _ = browser.omnibox_stop();
+            opened.map_err(failed)?;
+            // A new tab gets it as it arrives in its element (App::changed).
+            give_back_keyboard(browser);
+            Ok(())
+        })
+    });
+
+    // Removes a suggestion from history or a search engine's record, as
+    // Chrome's X does; "omnibox.suggestions" brings the list without it.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("omnibox.delete", move |chosen: Chosen| {
+        with_browser(&weak, |_, browser| {
+            browser
+                .delete_suggestion(chosen.result()?, chosen.index)
+                .map_err(failed)
+        })
+    });
+
+    // Closes the list, and gives the active tab's page the keyboard back.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("omnibox.close", move |()| {
+        with_browser(&weak, |_, browser| {
+            browser.omnibox_stop().map_err(failed)?;
+            give_back_keyboard(browser);
+            Ok(())
+        })
+    });
+}
+
+/// Tells the page Chromium's suggestions changed: more arrived, or an icon.
+pub fn send_omnibox(main: &MainWindow, browser: &Browser) {
+    let _ = main
+        .page
+        .web_view
+        .send("omnibox.suggestions", &suggestions(browser));
+}
+
+/// Tells the page to open the omnibox for `target`; and, if `toggles`, to
+/// close it instead if that one is open, as the main menu's shortcuts do.
+/// The page takes the keyboard from the tab for it.
+pub fn send_show_omnibox(main: &MainWindow, target: OmniboxTarget, toggles: bool) {
+    #[derive(Serialize)]
+    struct Show {
+        target: OmniboxTarget,
+        toggles: bool,
+    }
+    let _ = main.page.web_view.focus();
+    let _ = main
+        .page
+        .web_view
+        .send("omnibox.show", &Show { target, toggles });
+}
+
+// The active tab's page has the keyboard back, as the omnibox closes.
+fn give_back_keyboard(browser: &Browser) {
+    if let Some(tab) = browser.active_tab() {
+        let _ = tab.focus();
+    }
+}
+
+// A new tab goes at the top of the sidebar's list, where Chromium's would
+// not: it is the one opening the suggestion added.
+fn open_in_new_tab(
+    browser: &Browser,
+    result: OmniboxResult,
+    index: usize,
+) -> Result<(), wren::Error> {
+    let before = browser.tabs();
+    browser.open_suggestion(result, index, OpenDisposition::NewTab)?;
+    match browser.tabs().into_iter().find(|tab| !before.contains(tab)) {
+        Some(tab) => tab.move_to(0),
+        None => Ok(()),
+    }
+}
+
+fn suggestions(browser: &Browser) -> Option<Suggestions> {
+    let state = browser.omnibox_state().ok()?;
+    let suggestions = (0..state.suggestion_count)
+        .filter_map(|index| {
+            let suggestion = browser.suggestion(index).ok()?;
+            let text = |text| browser.suggestion_text(index, text);
+            Some(Suggestion {
+                kind: kind(suggestion.kind),
+                is_default: suggestion.is_default,
+                deletable: suggestion.deletable,
+                has_tab: suggestion.has_tab,
+                swap: suggestion.swap_contents_and_description,
+                contents: text(SuggestionText::Contents),
+                description: text(SuggestionText::Description),
+                fill: text(SuggestionText::Fill),
+                inline: text(SuggestionText::Inline),
+                keyword: text(SuggestionText::Keyword),
+                keyword_name: text(SuggestionText::KeywordName),
+                icon: browser.suggestion_icon_png(index).map(png_url),
+            })
+        })
+        .collect();
+    Some(Suggestions {
+        result: state.result.to_string(),
+        suggestions,
+    })
+}
+
+fn kind(kind: SuggestionKind) -> &'static str {
+    match kind {
+        SuggestionKind::Search => "search",
+        SuggestionKind::SearchHistory => "search-history",
+        SuggestionKind::Url => "url",
+        SuggestionKind::History => "history",
+        SuggestionKind::Bookmark => "bookmark",
+        SuggestionKind::OpenTab => "open-tab",
+        SuggestionKind::Calculator => "calculator",
+        SuggestionKind::Clipboard => "clipboard",
+        SuggestionKind::Other => "other",
+    }
+}

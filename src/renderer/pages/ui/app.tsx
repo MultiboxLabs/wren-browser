@@ -1,9 +1,11 @@
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { appWindow, browser, groups, hasApp, menu, sidePanel, type SidebarState } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { useBrowser, useShowingAnchors, useSidePanel } from "./browser";
+import { Omnibox } from "./omnibox";
+import { useShownOmnibox } from "./omnibox-shown";
 import { SIDE_PANEL_WIDTH, SidePanel } from "./side-panel";
 import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
 import { type Presentation, useSidebarMotion } from "./sidebar-motion";
@@ -90,14 +92,19 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   };
   useEffect(() => (hasApp ? menu.onToggleSidebar(toggleSidebar) : undefined), []);
 
+  // The omnibox, for a new tab or over the address field.
+  const addressRef = useRef<HTMLDivElement>(null);
+  const omnibox = useShownOmnibox(addressRef);
+
   // Something of the sidebar's that is open keeps it out while it floats,
   // though the pointer goes over to it: the page info popover, one of
-  // Chromium's bubbles hanging off its buttons, a tab's or a group's menu.
-  // Once that closes, the sidebar goes, unless the pointer is back over it.
+  // Chromium's bubbles hanging off its buttons, a tab's or a group's menu,
+  // the omnibox over its address field. Once that closes, the sidebar goes,
+  // unless the pointer is back over it.
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [menusOpen, setMenusOpen] = useState(0);
   const bubbleOpen = useShowingAnchors().length > 0;
-  const held = popoverOpen || bubbleOpen || menusOpen > 0;
+  const held = popoverOpen || bubbleOpen || menusOpen > 0 || omnibox.shown !== null;
   const whileOpen = <T,>(shown: Promise<T>) => {
     setMenusOpen((open) => open + 1);
     const closed = () => setMenusOpen((open) => open - 1);
@@ -133,7 +140,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
       const id = real(tab);
       if (id !== undefined) browser.activate(id);
     },
-    onNewTab: () => browser.newTab(),
+    onNewTab: () => omnibox.toggle("new-tab"),
+    newTabOpen: omnibox.shown?.target === "new-tab",
     onClose: (tab) => {
       const id = real(tab);
       if (id !== undefined) browser.close(id);
@@ -166,7 +174,9 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     onToggleSidebar: toggleSidebar,
     sidePanel: panelOpen && panel ? panel.id : null,
     onToggleSidePanel: (id) => (panelOpen && panel?.id === id ? sidePanel.close() : sidePanel.show(id)),
-    onPopoverOpenChange: setPopoverOpen
+    onPopoverOpenChange: setPopoverOpen,
+    addressRef,
+    onOpenLocation: () => omnibox.toggle("current")
   };
 
   return (
@@ -244,6 +254,17 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
             onEnd={() => save({ open: sidebarOpen, width: sidebarWidth })}
           />
         )}
+        <AnimatePresence>
+          {omnibox.shown && (
+            <Omnibox
+              key={omnibox.shown.key}
+              target={omnibox.shown.target}
+              place={omnibox.shown.place}
+              tabs={{ list: tabs, active: current?.id }}
+              onDone={omnibox.done}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </TooltipProvider>
   );

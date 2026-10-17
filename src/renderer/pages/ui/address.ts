@@ -16,3 +16,6 @@ export function address(url: string) {
 
 /** Chromium's New Tab page, which has no address to show. */
 export const isNewTab = (url: string) => url === "" || url.startsWith("chrome://newtab");
+
+/** What an empty address field says, and the omnibox's. */
+export const SEARCH_PLACEHOLDER = "Search or Enter URL…";

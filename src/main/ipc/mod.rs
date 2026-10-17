@@ -7,6 +7,7 @@ mod browser;
 mod extensions;
 mod groups;
 mod menu;
+mod omnibox;
 mod side_panel;
 mod sidebar;
 mod site;
@@ -28,6 +29,7 @@ pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_tabs};
 pub use extensions::send_extensions;
 pub use menu::send_toggle_sidebar;
+pub use omnibox::{OmniboxTarget, send_omnibox, send_show_omnibox};
 pub use side_panel::send_side_panel;
 pub use site::send_site;
 pub use window::{send_active, send_full_screen};
@@ -42,6 +44,7 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     site::handle(web_view, state, mt);
     extensions::handle(web_view, state);
     anchors::handle(web_view, state);
+    omnibox::handle(web_view, state);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),

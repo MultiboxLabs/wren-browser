@@ -32,6 +32,11 @@ body,
      corners at its padding. */
   --radius-popover: 18px;
   --radius-tile: 8px;
+  /* The omnibox over the window, its rows, and the tile a selected row's
+     favicon sits on. */
+  --radius-omnibox: 12px;
+  --radius-omnibox-row: 8px;
+  --radius-omnibox-icon: 5px;
 
   --text-ui: 13.5px;
   /* Not --text-menu: text-menu would also take --color-menu, the menu's
@@ -40,6 +45,10 @@ body,
   --text-caption: 11px;
   /* A row's second line: a permission's state. */
   --text-subtitle: 12px;
+  /* The omnibox's rows, and its field in the middle of the window. Not
+     --text-omnibox-fg and the like, which would clash with its colours. */
+  --text-omnibox-row: 13px;
+  --text-omnibox-large: 18px;
 
   --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.15);
   --shadow-menu: 0 6px 20px rgb(0 0 0 / 0.2);
@@ -65,6 +74,18 @@ body,
   --color-raised: var(--raised);
   --color-raised-hover: var(--raised-hover);
   --shadow-raised: var(--raised-edge);
+  --color-omnibox-fg: var(--omnibox-fg);
+  --color-omnibox-typed: var(--omnibox-typed);
+  --color-omnibox-glyph: var(--omnibox-glyph);
+  --color-omnibox-placeholder: var(--omnibox-placeholder);
+  --color-omnibox-dim: var(--omnibox-dim);
+  --color-omnibox-separator: var(--omnibox-separator);
+  --color-omnibox-hover: var(--omnibox-hover);
+  --color-omnibox-tile: var(--omnibox-tile);
+  --color-omnibox-arrow: var(--omnibox-arrow);
+  --color-omnibox-text-selection: var(--omnibox-text-selection);
+  --color-omnibox-selected: var(--omnibox-selected);
+  --shadow-omnibox-chip: 0 0 10px var(--omnibox-glow);
   --color-inverse: var(--inverse);
   --color-on-inverse: var(--on-inverse);
 }
@@ -300,6 +321,56 @@ body,
     opacity: 0;
     transform: scale(0.97);
   }
+}
+
+/* The omnibox (pages/ui/omnibox.tsx), a command bar: neutral, not
+   the space's, but for its selected row, which is the space's colour. A
+   little of what is under it shows through, blurred. A
+   light inner edge and a dark outer one. */
+:root[data-scheme] .omnibox {
+  /* Calmed: a vivid space's colour would glare as a row. */
+  --omnibox-selected: oklch(from var(--space) min(l, 0.5) min(c, 0.25) h);
+  --omnibox-glow: color-mix(in oklab, var(--omnibox-selected) 60%, transparent);
+  border-radius: var(--radius-omnibox);
+  background: var(--omnibox-bg);
+  backdrop-filter: blur(10px) saturate(1.6);
+  box-shadow:
+    inset 0 0 0 1px var(--omnibox-edge),
+    0 0 0 0.5px var(--omnibox-outline),
+    0 20px 56px rgb(0 0 0 / 0.4);
+}
+/* Its palette: rows' text (fg), the field's text and its icon (typed), the
+   list's glyphs, what is dim (an address, "Switch to Tab"), and the faint
+   tiles behind a glyph or the Tab key. */
+:root[data-scheme="dark"] .omnibox {
+  --omnibox-bg: rgb(26 26 28 / 0.88);
+  --omnibox-edge: rgb(255 255 255 / 0.22);
+  --omnibox-outline: rgb(0 0 0 / 0.9);
+  --omnibox-fg: rgb(255 255 255 / 0.82);
+  --omnibox-typed: rgb(255 255 255 / 0.9);
+  --omnibox-glyph: rgb(255 255 255 / 0.72);
+  --omnibox-placeholder: rgb(255 255 255 / 0.55);
+  --omnibox-dim: rgb(255 255 255 / 0.33);
+  --omnibox-separator: rgb(255 255 255 / 0.1);
+  --omnibox-hover: rgb(255 255 255 / 0.04);
+  --omnibox-tile: rgb(255 255 255 / 0.05);
+  --omnibox-arrow: rgb(255 255 255 / 0.7);
+  --omnibox-text-selection: rgb(255 255 255 / 0.35);
+}
+:root[data-scheme="light"] .omnibox {
+  --omnibox-bg: rgb(250 250 250 / 0.86);
+  --omnibox-edge: rgb(255 255 255 / 0.7);
+  --omnibox-outline: rgb(0 0 0 / 0.18);
+  --omnibox-fg: rgb(0 0 0 / 0.82);
+  --omnibox-typed: rgb(0 0 0 / 0.88);
+  --omnibox-glyph: rgb(0 0 0 / 0.6);
+  --omnibox-placeholder: rgb(0 0 0 / 0.4);
+  --omnibox-dim: rgb(0 0 0 / 0.38);
+  --omnibox-separator: rgb(0 0 0 / 0.08);
+  --omnibox-hover: rgb(0 0 0 / 0.04);
+  --omnibox-tile: rgb(0 0 0 / 0.05);
+  --omnibox-arrow: rgb(0 0 0 / 0.6);
+  --omnibox-text-selection: rgb(0 0 0 / 0.15);
 }
 
 /* Where a tab's page or a side panel will show (<wren-view>). */

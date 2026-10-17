@@ -3,7 +3,7 @@
 
 import { Archive, ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, Orbit, Plus, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
+import { type MouseEvent, type PointerEvent, type ReactNode, type RefObject, useRef } from "react";
 import type { GroupColor, TabGroup, TabSplit } from "../../ipc";
 import { Button } from "../../components/ui/button";
 import { press } from "../../components/ui/press";
@@ -25,6 +25,8 @@ export type SidebarProps = {
   selected?: Tab["id"];
   onSelect: (tab: Tab) => void;
   onNewTab: () => void;
+  /** The omnibox for a new tab is open: the New Tab row shows as selected. */
+  newTabOpen: boolean;
   onClose: (tab: Tab) => void;
   /** A right click on a tab, at a point in the page. */
   onTabMenu: (tab: Tab, x: number, y: number) => void;
@@ -50,6 +52,10 @@ export type SidebarProps = {
   onToggleSidePanel: (panel: SidePanelId) => void;
   /** Whether the page info popover is open, which keeps the floating sidebar out. */
   onPopoverOpenChange: (open: boolean) => void;
+  /** The address field's box, which the omnibox opens over. */
+  addressRef: RefObject<HTMLDivElement | null>;
+  /** A click on the address: the omnibox, on the active tab's address. */
+  onOpenLocation: () => void;
 };
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
@@ -97,6 +103,8 @@ export function Sidebar(props: SidebarProps) {
         sidePanel={props.sidePanel}
         onToggleSidePanel={props.onToggleSidePanel}
         onPopoverOpenChange={props.onPopoverOpenChange}
+        ref={props.addressRef}
+        onOpenLocation={props.onOpenLocation}
       />
 
       <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
@@ -134,8 +142,8 @@ export function Sidebar(props: SidebarProps) {
 
           <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
 
-          <Row className="text-fg-3" onPress={props.onNewTab}>
-            <Plus size={14} strokeWidth={2} className="mx-px glyph-3" />
+          <Row selected={props.newTabOpen} className={props.newTabOpen ? "" : "text-fg-3"} onPress={props.onNewTab}>
+            <Plus size={14} strokeWidth={2} className={`mx-px ${props.newTabOpen ? "glyph-1" : "glyph-3"}`} />
             New Tab
           </Row>
 

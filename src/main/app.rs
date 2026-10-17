@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use wren::{App, Browser, BrowserType, Change, ChangeKind, MainThread, Profile, TabFields};
 
-use crate::ipc;
+use crate::ipc::{self, OmniboxTarget};
 use crate::menus;
 use crate::pages::{SCHEME, Source, UI, serve_page};
 use crate::sidebar::SidebarStore;
@@ -237,6 +237,7 @@ impl App for Wren {
                 ChangeKind::Site => site_changed = true,
                 ChangeKind::ExtensionActions => extensions_changed = true,
                 ChangeKind::Anchors => ipc::send_anchors(main, &browser),
+                ChangeKind::Omnibox => ipc::send_omnibox(main, &browser),
                 ChangeKind::Tab => {
                     let Some(tab) = change.tab else { continue };
                     tabs_changed |= change.tab_fields.intersects(drawn);
@@ -277,6 +278,12 @@ impl App for Wren {
         if id == menus::TOGGLE_SIDEBAR {
             return ipc::send_toggle_sidebar(main);
         }
+        if id == menus::NEW_TAB {
+            return ipc::send_show_omnibox(main, OmniboxTarget::NewTab, true);
+        }
+        if id == menus::OPEN_LOCATION {
+            return ipc::send_show_omnibox(main, OmniboxTarget::Current, true);
+        }
         if id == menus::TOGGLE_UI_DEVTOOLS {
             // UI DevTools uses the UI's separate Profile, so site DevTools
             // stays open when this item is toggled.
@@ -300,13 +307,21 @@ impl App for Wren {
             return;
         };
         let _ = match id {
-            menus::NEW_TAB => tabs::new_tab(&browser),
             menus::CLOSE_TAB => match browser.active_tab() {
                 Some(tab) => tabs::close(&browser, &[tab]),
                 None => Ok(()),
             },
             _ => Ok(()),
         };
+    }
+
+    // Chromium wants the address field: the omnibox opens on the active
+    // tab's address, and stays open if it is.
+    fn focus_location_bar(&self, _: MainThread, browser: Browser) {
+        let main = self.state.main.borrow();
+        if let Some(main) = main.as_ref().filter(|main| main.is_front(&browser)) {
+            ipc::send_show_omnibox(main, OmniboxTarget::Current, false);
+        }
     }
 
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
