@@ -2,7 +2,7 @@
 // favourites, and the space's tabs.
 
 import { Archive, Folder as FolderIcon, FolderOpen, Orbit, PanelRight, Plus, Search, X } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { IconButton } from "../../components/ui/icon-button";
 import { press } from "../../components/ui/press";
@@ -18,6 +18,7 @@ export type SidebarProps = {
   space: Space;
   selected?: string;
   onSelect: (tab: Tab) => void;
+  onNewTab: () => void;
   onClose: (tab: Tab) => void;
   onToggleFolder: (folder: Folder) => void;
   sidebarOpen: boolean;
@@ -25,6 +26,11 @@ export type SidebarProps = {
   sidePanelOpen: boolean;
   onToggleSidePanel: () => void;
 };
+
+// Tabs come and go as a list's rows do on macOS: one fades in or out where
+// it stands, unclipped, while the rows below slide to make room or close
+// the gap, in 0.12s.
+const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
 
 const shortcut = (key: string) => (document.documentElement.dataset.platform === "mac" ? `⌘${key}` : `Ctrl+${key}`);
 
@@ -109,14 +115,31 @@ export function Sidebar(props: SidebarProps) {
 
           <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
 
-          <Row className="text-fg-3" onPress={() => {}}>
+          <Row className="text-fg-3" onPress={props.onNewTab}>
             <Plus size={14} strokeWidth={2} className="mx-px glyph-3" />
             New Tab
           </Row>
 
-          {space.tabs.map((tab) => (
-            <TabRow key={tab.id} tab={tab} closable {...props} />
-          ))}
+          {/* Each tab brings its gap with it, so the list's gap goes from
+              under the first. */}
+          <div className="-mt-1.25 flex flex-col">
+            <AnimatePresence initial={false}>
+              {space.tabs.map((tab) => (
+                <motion.div
+                  key={tab.id}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={tabTransition}
+                  className="shrink-0"
+                >
+                  <div className="pt-1.25">
+                    <TabRow tab={tab} closable {...props} />
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 

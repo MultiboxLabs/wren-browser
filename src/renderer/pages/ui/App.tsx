@@ -74,6 +74,13 @@ export function App() {
     space,
     selected,
     onSelect: (tab) => setSelected(tab.id),
+    // Opens at the top of the space's tabs. Until there are real pages,
+    // every new tab is the same one.
+    onNewTab: () => {
+      const tab = { id: crypto.randomUUID(), title: "Example Domain", url: "https://example.com/" };
+      setSpace((space) => ({ ...space, tabs: [tab, ...space.tabs] }));
+      setSelected(tab.id);
+    },
     onClose: (tab) => setSpace((space) => ({ ...space, tabs: space.tabs.filter((each) => each !== tab) })),
     onToggleFolder: toggleFolder,
     sidebarOpen,
