@@ -139,8 +139,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     onReload: () => browser.reload(),
     sidebarOpen,
     onToggleSidebar: toggleSidebar,
-    sidePanelOpen: panelOpen,
-    onToggleSidePanel: () => (panelOpen ? sidePanel.close() : sidePanel.show("ReadingList"))
+    sidePanel: panelOpen && panel ? panel.id : null,
+    onToggleSidePanel: (id) => (panelOpen && panel?.id === id ? sidePanel.close() : sidePanel.show(id))
   };
 
   return (

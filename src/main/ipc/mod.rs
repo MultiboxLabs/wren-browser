@@ -2,16 +2,21 @@
 // the messages the app sends it (`wren.on`): one file for each part of the
 // app. src/renderer/ipc/ is the page's side; keep the two together.
 
+mod anchors;
 mod browser;
+mod extensions;
 mod groups;
 mod menu;
 mod side_panel;
 mod sidebar;
+mod site;
 mod splits;
 mod window;
 
 use std::rc::{Rc, Weak};
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
@@ -19,9 +24,12 @@ use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 use crate::app::State;
 use crate::main_window::MainWindow;
 
+pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_tabs};
+pub use extensions::send_extensions;
 pub use menu::send_toggle_sidebar;
 pub use side_panel::send_side_panel;
+pub use site::send_site;
 pub use window::{send_active, send_full_screen};
 
 pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
@@ -31,6 +39,9 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     groups::handle(web_view, state, mt);
     splits::handle(web_view, state, mt);
     side_panel::handle(web_view, state);
+    site::handle(web_view, state, mt);
+    extensions::handle(web_view, state);
+    anchors::handle(web_view, state);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),
@@ -78,6 +89,11 @@ fn menu_call<Id: DeserializeOwned>(
     if let Err(error) = show(view, &browser, at, done) {
         eprintln!("Wren showed no menu: {error}");
     }
+}
+
+// A PNG of Wren's (a favicon, an extension's icon) as the page shows it.
+fn png_url(png: Vec<u8>) -> String {
+    format!("data:image/png;base64,{}", BASE64.encode(png))
 }
 
 fn failed(error: wren::Error) -> String {

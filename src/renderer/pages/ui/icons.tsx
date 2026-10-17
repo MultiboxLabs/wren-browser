@@ -1,5 +1,5 @@
 // Icons of our own, drawn in the text colour like Lucide's, so they take the
-// same props (Icon, components/ui/icon-button.tsx). `size` is the width in
+// same props (Icon, components/ui/button.tsx). `size` is the width in
 // points; each keeps its own stroke, as heavy as the system's toolbar icons.
 
 type Props = { size?: number; strokeWidth?: number };
@@ -42,6 +42,33 @@ export function ReloadIcon({ size = 15 }: Props) {
       <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M11.4 6.5A6 6 0 1 1 7.5 4.6" />
         <path d="M5.2 2.1 7.6 4.6 5.2 7.1" />
+      </g>
+    </svg>
+  );
+}
+
+/** Page info: a rounded square with two sliders in it, their knobs apart. */
+export function PageInfoIcon({ size = 18 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden>
+      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        <rect x="1.25" y="1.25" width="15.5" height="15.5" rx="4.5" />
+        <path d="M5.25 6.75h7.5M5.25 11.25h7.5" />
+      </g>
+      <circle cx="10.9" cy="6.75" r="1.75" fill="currentColor" />
+      <circle cx="7.1" cy="11.25" r="1.75" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Not secure: Lucide's lock, struck through. */
+export function InsecureIcon({ size = 24, strokeWidth = 2 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <g stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        <path d="M2 2l20 20" />
       </g>
     </svg>
   );

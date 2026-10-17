@@ -28,12 +28,18 @@ body,
   --radius-panel: 10px;
   /* The address field, favourites. */
   --radius-field: 11px;
+  /* The page info popover, and the tiles in it, whose corners nest in its
+     corners at its padding. */
+  --radius-popover: 18px;
+  --radius-tile: 8px;
 
   --text-ui: 13.5px;
   /* Not --text-menu: text-menu would also take --color-menu, the menu's
      background, as the text colour. */
   --text-menu-item: 13px;
   --text-caption: 11px;
+  /* A row's second line: a permission's state. */
+  --text-subtitle: 12px;
 
   --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.15);
   --shadow-menu: 0 6px 20px rgb(0 0 0 / 0.2);
@@ -50,10 +56,17 @@ body,
   --color-separator: var(--separator);
   --color-selected: var(--selected);
   --color-accent: var(--accent);
+  --color-danger: var(--danger);
   --color-card: var(--card);
   --color-menu: var(--menu);
+  --color-menu-fg: var(--menu-fg);
   --color-menu-border: var(--menu-border);
   --color-menu-highlight: var(--menu-highlight);
+  --color-raised: var(--raised);
+  --color-raised-hover: var(--raised-hover);
+  --shadow-raised: var(--raised-edge);
+  --color-inverse: var(--inverse);
+  --color-on-inverse: var(--on-inverse);
 }
 
 :root {
@@ -104,10 +117,25 @@ body,
   --separator: rgb(0 0 0 / 0.15);
   --card: color-mix(in oklab, var(--space) 4%, white);
   --accent: oklch(from var(--space) 0.5 calc(c * 1.4) h);
+  /* A site that is not secure. */
+  --danger: oklch(0.52 0.2 27);
   --card-edge: rgb(0 0 0 / 0.08);
   --menu: rgb(246 246 246 / 0.92);
+  /* Text in menus, tooltips and popovers: neutral, not the space's. */
+  --menu-fg: rgb(0 0 0 / 0.85);
   --menu-border: rgb(0 0 0 / 0.12);
   --menu-highlight: oklch(from var(--space) 0.55 c h);
+  --popover: rgb(246 246 246);
+  --popover-edge: rgb(0 0 0 / 0.14);
+  --popover-highlight: rgb(255 255 255 / 0.6);
+  /* What stands out of the popover: an allowed permission's circle. */
+  --inverse: rgb(28 28 30 / 0.88);
+  --on-inverse: rgb(255 255 255);
+  /* A button standing on the popover (Button's raised): its own fill, a
+     light top edge and a shadow below, as macOS draws a bezel. */
+  --raised: rgb(255 255 255);
+  --raised-hover: rgb(250 250 250);
+  --raised-edge: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.1);
 }
 
 :root[data-scheme="dark"] {
@@ -124,10 +152,20 @@ body,
   --separator: rgb(255 255 255 / 0.15);
   --card: color-mix(in oklab, var(--space) 6%, rgb(22 22 24));
   --accent: var(--fg);
+  --danger: oklch(0.78 0.15 27);
   --card-edge: rgb(0 0 0 / 0.25);
   --menu: rgb(40 40 42 / 0.92);
+  --menu-fg: rgb(255 255 255 / 0.9);
   --menu-border: rgb(255 255 255 / 0.12);
   --menu-highlight: oklch(from var(--space) 0.55 c h);
+  --popover: rgb(40 40 42);
+  --popover-edge: rgb(0 0 0 / 0.5);
+  --popover-highlight: rgb(255 255 255 / 0.12);
+  --inverse: rgb(255 255 255 / 0.92);
+  --on-inverse: rgb(28 28 30);
+  --raised: rgb(255 255 255 / 0.1);
+  --raised-hover: rgb(255 255 255 / 0.14);
+  --raised-edge: inset 0 0.5px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.35);
 }
 
 :root[data-scheme] {
@@ -227,6 +265,41 @@ body,
   box-shadow:
     inset 0 0 0 1px rgb(255 255 255 / 0.28),
     0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+/* A popover (components/ui/popover.tsx): the system's neutral colours, as
+   menus' and tooltips' are, not the space's; light or dark with the scheme,
+   and solid: backdrop-filter blurs nothing in the window's page, so a
+   see-through one only shows what is under it, sharp. Its text is neutral
+   too, not the space's title colour. A light inner edge
+   and a dark outer one, as a native popover's. It grows in from where it
+   hangs, and fades as it goes. */
+.popover {
+  --fg: var(--menu-fg);
+  color: var(--fg);
+  background: var(--popover);
+  border-radius: var(--radius-popover);
+  box-shadow:
+    inset 0 0 0 1px var(--popover-highlight),
+    0 0 0 0.5px var(--popover-edge),
+    0 12px 32px rgb(0 0 0 / 0.28);
+  transform-origin: var(--radix-popover-content-transform-origin);
+  animation: popover-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.popover[data-state="closed"] {
+  animation: popover-out 0.1s ease-in forwards;
+}
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+@keyframes popover-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
 }
 
 /* Where a tab's page or a side panel will show (<wren-view>). */

@@ -121,6 +121,9 @@ impl State {
         if main.is_front(&browser) {
             ipc::send_tabs(main, &browser);
             ipc::send_side_panel(main, &browser);
+            ipc::send_site(main, &browser);
+            ipc::send_extensions(main, &browser);
+            ipc::send_anchors(main, &browser);
         }
     }
 }
@@ -195,16 +198,35 @@ impl App for Wren {
             | TabFields::GROUP
             | TabFields::SPLIT;
         let mut tabs_changed = false;
+        // The site is the active tab's, which a switch or a navigation
+        // changes as well as Chromium's word on it.
+        let mut site_changed = false;
+        let mut extensions_changed = false;
         for change in changes {
+            // A pin moves an extension's anchor, in the background too.
+            if change.kind == ChangeKind::ExtensionActions
+                && let Some(changed) = &change.browser
+            {
+                main.name_anchors(changed);
+            }
             if change.browser.as_ref() != Some(&browser) {
                 continue;
             }
             match change.kind {
-                ChangeKind::Tabs | ChangeKind::Group | ChangeKind::Split => tabs_changed = true,
+                ChangeKind::Tabs => {
+                    tabs_changed = true;
+                    site_changed = true;
+                }
+                ChangeKind::Group | ChangeKind::Split => tabs_changed = true,
                 ChangeKind::SidePanel => ipc::send_side_panel(main, &browser),
+                ChangeKind::Site => site_changed = true,
+                ChangeKind::ExtensionActions => extensions_changed = true,
+                ChangeKind::Anchors => ipc::send_anchors(main, &browser),
                 ChangeKind::Tab => {
                     let Some(tab) = change.tab else { continue };
                     tabs_changed |= change.tab_fields.intersects(drawn);
+                    site_changed |= change.tab_fields.contains(TabFields::URL)
+                        && browser.active_tab() == Some(tab);
                     if change.tab_fields.contains(TabFields::FAVICON) {
                         ipc::send_favicon(main, tab);
                     }
@@ -223,6 +245,14 @@ impl App for Wren {
         }
         if tabs_changed {
             ipc::send_tabs(main, &browser);
+        }
+        if site_changed {
+            ipc::send_site(main, &browser);
+        }
+        // A pin moves an extension's anchor to another mark.
+        if extensions_changed {
+            ipc::send_extensions(main, &browser);
+            ipc::send_anchors(main, &browser);
         }
     }
 

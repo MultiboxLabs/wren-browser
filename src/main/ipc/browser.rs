@@ -1,13 +1,11 @@
 use std::rc::Rc;
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::Serialize;
 use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, WebView};
 
 use super::groups::Group;
 use super::splits::Split;
-use super::{MenuAt, failed, menu_call, with_browser};
+use super::{MenuAt, failed, menu_call, png_url, with_browser};
 use crate::app::State;
 use crate::main_window::MainWindow;
 use crate::menus;
@@ -55,9 +53,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("tab.favicon", move |id: i32| {
         with_browser(&weak, |_, browser| {
-            Ok(tab(mt, browser, id)?
-                .favicon_png()
-                .map(|png| format!("data:image/png;base64,{}", BASE64.encode(png))))
+            Ok(tab(mt, browser, id)?.favicon_png().map(png_url))
         })
     });
 
@@ -65,6 +61,24 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("tabs.new", move |()| {
         with_browser(&weak, |_, browser| tabs::new_tab(browser).map_err(failed))
+    });
+
+    // A tab on an address, at the top of the list.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("tabs.open", move |url: String| {
+        with_browser(&weak, |_, browser| {
+            tabs::open(browser, &url).map_err(failed)
+        })
+    });
+
+    // The active tab's address, on the clipboard.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("tabs.copyLink", move |()| {
+        with_browser(&weak, |_, browser| {
+            let tab = browser.active_tab().ok_or("There is no tab.")?;
+            menus::copy(&tab.url());
+            Ok(())
+        })
     });
 
     let weak = Rc::downgrade(state);

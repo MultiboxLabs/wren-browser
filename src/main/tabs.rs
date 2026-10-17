@@ -6,7 +6,12 @@ use wren::{Browser, BrowserTab, Error, TabGroup};
 /// A tab on the New Tab page, at the top of the list, as the sidebar
 /// shows new tabs.
 pub fn new_tab(browser: &Browser) -> Result<(), Error> {
-    browser.add_tab("", Some(0), true).map(drop)
+    open(browser, "")
+}
+
+/// A tab on `url`, at the top of the list, as a new tab is.
+pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
+    browser.add_tab(url, Some(0), true).map(drop)
 }
 
 /// Closes `tabs`. Chromium closes a Browser with its last tab, so the

@@ -2,6 +2,7 @@
 // one above the other, with a divider between them.
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
+import { Button } from "../../components/ui/button";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { browser, type BrowserTab, splits, type TabSplit } from "../../ipc";
 
@@ -74,15 +75,15 @@ function Crashed({ tab }: { tab: BrowserTab }) {
     <div className="absolute inset-0 grid place-items-center bg-card">
       <div className="flex flex-col items-center gap-3 text-fg-2">
         <p className="font-semibold">This page stopped working.</p>
-        <button
-          type="button"
+        <Button
+          variant="filled"
           // Reload acts on the active tab, which the other side of a split
           // may not be.
           onClick={() => browser.activate(tab.id).then(() => browser.reload())}
-          className="h-7 rounded-control bg-fill px-3 font-semibold hover:bg-hover active:bg-pressed"
+          className="font-semibold"
         >
           Reload
-        </button>
+        </Button>
       </div>
     </div>
   );

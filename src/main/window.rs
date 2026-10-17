@@ -79,6 +79,7 @@ impl PageWindow {
             kind: WebViewKind::BrowserUi,
             messages: page.messages,
             embeds_views: page.embeds_views,
+            anchors: page.anchors,
             drags_window: true,
             transparent: true,
             ..Default::default()

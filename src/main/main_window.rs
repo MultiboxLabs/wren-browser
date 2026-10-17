@@ -5,9 +5,15 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use wren::{Browser, Profile};
+use wren::{Browser, BubbleAnchor, Profile};
 
 use crate::window::PageWindow;
+
+/// The page's mark on its page info button, which the site's bubbles (page
+/// info, permission prompts), the extensions menu and unpinned extensions'
+/// popups hang off. A pinned extension's button is marked
+/// "extension:<id>" (address-field.tsx).
+const PAGE_INFO: &str = "page-info";
 
 pub struct MainWindow {
     pub page: PageWindow,
@@ -44,6 +50,7 @@ impl MainWindow {
     /// window has none there yet, otherwise in the background.
     pub fn add(&self, profile: Profile, browser: Browser) {
         browser.attach_to_view(Some(self.page.web_view.view()));
+        self.name_anchors(&browser);
         let id = profile.id();
         let mut front = self.front.borrow_mut();
         if front.is_none() {
@@ -52,6 +59,19 @@ impl MainWindow {
             let _ = browser.set_backgrounded(true);
         }
         self.browsers.borrow_mut().insert(id, (profile, browser));
+    }
+
+    /// Names the page's marks as `browser`'s anchors. An extension's popup
+    /// opens below its own button while it is pinned to the address field,
+    /// and below the page info button, which lists it, while it is not; so
+    /// its anchor is named again as its pin changes.
+    pub fn name_anchors(&self, browser: &Browser) {
+        for (anchor, mark) in marks(browser) {
+            let named = browser.set_anchor_element(&anchor, &self.page.web_view, Some(&mark));
+            if let Err(error) = named {
+                eprintln!("Wren named no anchor {}: {error:?}", anchor.name());
+            }
+        }
     }
 
     /// Forgets a Browser that has closed; whether it was this window's.
@@ -84,4 +104,24 @@ impl MainWindow {
     pub fn is_empty(&self) -> bool {
         self.browsers.borrow().is_empty()
     }
+}
+
+/// `browser`'s anchors, each with the name of the page's mark it is.
+pub fn marks(browser: &Browser) -> Vec<(BubbleAnchor, String)> {
+    let mut marks = vec![
+        (BubbleAnchor::LOCATION, PAGE_INFO.to_owned()),
+        (BubbleAnchor::EXTENSIONS, PAGE_INFO.to_owned()),
+    ];
+    marks.extend(browser.extension_action_ids().into_iter().map(|id| {
+        let pinned = browser
+            .extension_action_state(&id)
+            .is_ok_and(|state| state.pinned || state.force_pinned);
+        let mark = if pinned {
+            format!("extension:{id}")
+        } else {
+            PAGE_INFO.to_owned()
+        };
+        (BubbleAnchor::extension_action(&id), mark)
+    }));
+    marks
 }

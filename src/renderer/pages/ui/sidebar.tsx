@@ -1,26 +1,16 @@
 // The sidebar: the toolbar beside the window's buttons, the address, the
 // favourites, and the space's tabs.
 
-import {
-  Archive,
-  ChevronDown,
-  ChevronRight,
-  Folder as FolderIcon,
-  FolderOpen,
-  Orbit,
-  PanelRight,
-  Plus,
-  Search,
-  X
-} from "lucide-react";
+import { Archive, ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, Orbit, Plus, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import type { GroupColor, TabGroup, TabSplit } from "../../ipc";
-import { IconButton } from "../../components/ui/icon-button";
+import { Button } from "../../components/ui/button";
 import { press } from "../../components/ui/press";
-import { Tooltip } from "../../components/ui/tooltip";
+import { AddressField } from "./address-field";
 import { Favicon } from "./favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "./icons";
+import type { SidePanelId } from "./side-panel";
 import { type Folder, isFolder, type Space, type Tab } from "./space";
 
 /** The docked sidebar's width, its left padding in it. */
@@ -54,8 +44,10 @@ export type SidebarProps = {
   onReload: () => void;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
-  sidePanelOpen: boolean;
-  onToggleSidePanel: () => void;
+  /** The open side panel's ID, if one is open. */
+  sidePanel: string | null;
+  /** Opens a side panel, or closes it if it is the one open. */
+  onToggleSidePanel: (panel: SidePanelId) => void;
 };
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
@@ -64,21 +56,6 @@ export type SidebarProps = {
 const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
 
 const shortcut = (key: string) => (document.documentElement.dataset.platform === "mac" ? `⌘${key}` : `Ctrl+${key}`);
-
-// A web page's address shows as its host; any other's (wren://game,
-// chrome://settings) with its scheme, so it reads as what it is.
-function address(url: string) {
-  try {
-    const { protocol, host } = new URL(url);
-    if (protocol === "http:" || protocol === "https:") return host;
-    return host ? `${protocol}//${host}` : url;
-  } catch {
-    return url;
-  }
-}
-
-// Chromium's New Tab page has no address to show.
-const isNewTab = (url: string) => url === "" || url.startsWith("chrome://newtab");
 
 export function Sidebar(props: SidebarProps) {
   const { space, tabs, selected, onSelect } = props;
@@ -92,59 +69,42 @@ export function Sidebar(props: SidebarProps) {
     <div className="flex h-full flex-col">
       <div className="flex h-10 shrink-0 items-center">
         <div className="w-[calc(var(--window-buttons)-8px)] shrink-0" />
-        <IconButton
+        <Button
           icon={SidebarIcon}
           label={`${props.sidebarOpen ? "Hide" : "Keep"} Sidebar (${shortcut("S")})`}
-          size={19}
+          iconSize={19}
           className="ml-1.75"
           onClick={props.onToggleSidebar}
         />
         <div className="flex-1" />
         <div className="flex gap-1.5">
-          <IconButton icon={BackIcon} label="Back" size={17} disabled={!props.canGoBack} onClick={props.onBack} />
-          <IconButton
+          <Button icon={BackIcon} label="Back" iconSize={17} disabled={!props.canGoBack} onClick={props.onBack} />
+          <Button
             icon={ForwardIcon}
             label="Forward"
-            size={17}
+            iconSize={17}
             disabled={!props.canGoForward}
             onClick={props.onForward}
           />
-          <IconButton icon={ReloadIcon} label="Reload" size={15} onClick={props.onReload} />
+          <Button icon={ReloadIcon} label="Reload" iconSize={15} onClick={props.onReload} />
         </div>
       </div>
 
-      <div className="no-drag mt-0.5 flex h-9 shrink-0 items-center rounded-field bg-fill pr-1 text-fg-2">
-        {current && !isNewTab(current.url) ? (
-          <span className="flex-1 truncate pl-3.25">{address(current.url)}</span>
-        ) : (
-          <>
-            <Search size={12} strokeWidth={2.25} className="ml-3 shrink-0 glyph-2" />
-            <span className="flex-1 truncate pl-2.5 text-fg-3">Search or Enter URL…</span>
-          </>
-        )}
-        <IconButton
-          icon={PanelRight}
-          label={props.sidePanelOpen ? "Close Side Panel" : "Show Side Panel"}
-          size={15}
-          onClick={props.onToggleSidePanel}
-        />
-      </div>
+      <AddressField tab={current} sidePanel={props.sidePanel} onToggleSidePanel={props.onToggleSidePanel} />
 
       <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
         {space.favorites.map((tab) => (
-          <Tooltip key={tab.id} label={tab.title}>
-            <motion.button
-              {...press(0.97)}
-              type="button"
-              aria-label={tab.title}
-              onPointerDown={() => onSelect(tab)}
-              className={`no-drag grid h-11.75 place-items-center rounded-field ${
-                tab.id === selected ? "bg-selected" : "bg-fill hover:bg-hover"
-              }`}
-            >
-              <Favicon url={tab.url} title={tab.title} />
-            </motion.button>
-          </Tooltip>
+          <Button
+            key={tab.id}
+            variant="filled"
+            shape="none"
+            label={tab.title}
+            pressed={tab.id === selected}
+            onPointerDown={() => onSelect(tab)}
+            className="grid h-11.75 place-items-center rounded-field"
+          >
+            <Favicon url={tab.url} title={tab.title} />
+          </Button>
         ))}
       </div>
 
@@ -195,19 +155,11 @@ export function Sidebar(props: SidebarProps) {
       </div>
 
       <div className="flex h-12.5 shrink-0 items-center">
-        <IconButton icon={Archive} label="Archived Tabs" />
+        <Button icon={Archive} label="Archived Tabs" />
         <div className="flex flex-1 justify-center">
-          <Tooltip label={space.name}>
-            <button
-              type="button"
-              aria-label={space.name}
-              className="no-drag grid size-7 place-items-center rounded-control text-accent hover:bg-hover"
-            >
-              <Orbit size={15} strokeWidth={2} />
-            </button>
-          </Tooltip>
+          <Button icon={Orbit} iconSize={15} iconTone="inherit" label={space.name} className="text-accent" />
         </div>
-        <IconButton icon={Plus} label="New Space" />
+        <Button icon={Plus} label="New Space" />
       </div>
     </div>
   );
@@ -308,22 +260,19 @@ function TabRow({
 // Shown over a tab's row while it is hovered.
 function CloseButton({ onClose }: { onClose: () => void }) {
   return (
-    <motion.button
-      {...press(0.9)}
+    <Button
+      icon={X}
+      iconSize={18}
+      shape="none"
+      label="Close Tab"
+      scale={0.9}
       // Pressed alone, without the row around it.
       propagate={{ tap: false }}
-      type="button"
-      aria-label="Close Tab"
       onPointerDown={(event) => event.stopPropagation()}
       onClick={onClose}
-      // Hovered, a fill of its own over the row's; the cross fades (not
-      // the fill) so the two don't stack.
-      className="group/close hidden size-5.5 shrink-0 place-items-center rounded-control group-hover:grid hover:bg-hover active:bg-pressed"
-    >
-      <span className="grid glyph-2 group-hover/close:glyph-1">
-        <X size={18} strokeWidth={1.75} />
-      </span>
-    </motion.button>
+      // Hovered, a fill of its own over the row's, and the cross full.
+      className="hidden size-5.5 place-items-center rounded-control group-hover:grid hover:[&>span]:glyph-1"
+    />
   );
 }
 

@@ -16,6 +16,9 @@ pub struct Page {
     pub messages: bool,
     /// Its page may show tabs and side panels (`<wren-view>`).
     pub embeds_views: bool,
+    /// Its page may mark elements for Chromium's bubbles to hang off
+    /// (`<embed type="application/x-wren-anchor">`).
+    pub anchors: bool,
     /// A tab may load it (a typed address); otherwise only the app's own web
     /// views get it.
     pub in_tabs: bool,
@@ -25,6 +28,7 @@ pub const UI: Page = Page {
     host: "ui",
     messages: true,
     embeds_views: true,
+    anchors: true,
     in_tabs: false,
 };
 
@@ -32,6 +36,7 @@ pub const GAME: Page = Page {
     host: "game",
     messages: false,
     embeds_views: false,
+    anchors: false,
     in_tabs: true,
 };
 

@@ -24,7 +24,7 @@ export function Tooltip({ label, children }: { label?: string; children: ReactNo
           side="bottom"
           sideOffset={6}
           collisionPadding={6}
-          className="z-50 rounded-tooltip border border-menu-border bg-menu px-1.75 py-0.75 text-caption text-fg shadow-tooltip backdrop-blur-xl"
+          className="z-50 rounded-tooltip border border-menu-border bg-menu px-1.75 py-0.75 text-caption text-menu-fg shadow-tooltip backdrop-blur-xl"
         >
           {label}
         </Radix.Content>

@@ -3,7 +3,7 @@
 
 import { DropdownMenu } from "radix-ui";
 import type { ReactNode } from "react";
-import type { Icon } from "./icon-button";
+import type { Icon } from "./button";
 
 export type MenuItem<Id extends string> = { id: Id; label: string; icon?: Icon };
 
@@ -27,7 +27,7 @@ export function Menu<Id extends string>({
           align="start"
           sideOffset={4}
           collisionPadding={6}
-          className="z-50 min-w-45 rounded-menu border border-menu-border bg-menu p-1.25 text-menu-item text-fg shadow-menu backdrop-blur-xl"
+          className="z-50 min-w-45 rounded-menu border border-menu-border bg-menu p-1.25 text-menu-item text-menu-fg shadow-menu backdrop-blur-xl"
         >
           {items.map(({ id, label, icon: Icon }) => (
             <DropdownMenu.Item

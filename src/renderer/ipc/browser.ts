@@ -38,6 +38,10 @@ export const browser = {
   onFavicon: (listener: (id: number) => void) => wren.on<number>("tab.favicon", listener),
   /** A tab on the New Tab page, at the top. */
   newTab: () => wren.invoke<null>("tabs.new"),
+  /** A tab on an address, at the top. */
+  open: (url: string) => wren.invoke<null>("tabs.open", url),
+  /** Puts the active tab's address on the clipboard. */
+  copyLink: () => wren.invoke<null>("tabs.copyLink"),
   activate: (id: number) => wren.invoke<null>("tabs.activate", id),
   close: (id: number) => wren.invoke<null>("tabs.close", id),
   /** Shows a tab's context menu at a point in the page; the app does what is chosen, then answers with its ID. */

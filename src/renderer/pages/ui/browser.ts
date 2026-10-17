@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { browser, type BrowserTabs, hasApp, sidePanel, type SidePanelState } from "../../ipc";
+import {
+  anchors,
+  browser,
+  type BrowserTabs,
+  type ExtensionAction,
+  extensions,
+  hasApp,
+  type SidePanelState,
+  type Site,
+  sidePanel,
+  site
+} from "../../ipc";
 
 /**
  * The window's tabs and their favicons, as the app last said. Null until
@@ -53,20 +64,36 @@ export function useBrowser() {
 }
 
 /** The side panel, as the app last said; it opens from Chromium too. */
-export function useSidePanel() {
-  const [state, setState] = useState<SidePanelState | null>(null);
+export const useSidePanel = () => useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
+
+/** The active tab's site, as the app last said; null before it has shown a page. */
+export const useSite = () => useFromApp<Site | null>(site.state, site.onState) ?? null;
+
+/** The extensions' actions, as the app last said. */
+export const useExtensionActions = () => useFromApp<ExtensionAction[]>(extensions.actions, extensions.onActions) ?? [];
+
+/** The page's marks that one of Chromium's bubbles hangs off now. */
+export const useShowingAnchors = () => useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
+
+/**
+ * A value the app keeps, asked for once and heard whenever it changes. Null
+ * until the app has said, and outside the app.
+ */
+function useFromApp<T>(read: () => Promise<T>, listen: (listener: (value: T) => void) => () => void) {
+  const [value, setValue] = useState<T | null>(null);
   useEffect(() => {
     if (!hasApp) return;
     let heard = false;
-    const stop = sidePanel.onState((next) => {
+    const stop = listen((next) => {
       heard = true;
-      setState(next);
+      setValue(next);
     });
-    sidePanel.state().then(
-      (next) => heard || setState(next),
+    // Fails while the window has no Browser; the message follows then.
+    read().then(
+      (next) => heard || setValue(next),
       () => {}
     );
     return stop;
   }, []);
-  return state;
+  return value;
 }

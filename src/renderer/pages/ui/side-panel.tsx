@@ -2,7 +2,7 @@
 // panel itself below it, in a <wren-view>.
 
 import { BookOpen, Bookmark, ChevronDown, Glasses, History, PanelRight, X } from "lucide-react";
-import { IconButton } from "../../components/ui/icon-button";
+import { Button } from "../../components/ui/button";
 import { Menu } from "../../components/ui/menu";
 
 /** The panels the menu offers, by Chromium's names for them. */
@@ -44,18 +44,14 @@ export function SidePanel({
           checked={panel as SidePanelId}
           onSelect={onSwitch}
           trigger={
-            <button
-              type="button"
-              className="flex h-7 items-center gap-1.75 rounded-control px-2 font-semibold hover:bg-hover data-[state=open]:bg-pressed"
-            >
-              <Icon size={15} strokeWidth={1.75} className="glyph-2" />
+            <Button icon={Icon} iconSize={15} className="font-semibold">
               {label}
               <ChevronDown size={13} strokeWidth={2} className="glyph-2" />
-            </button>
+            </Button>
           }
         />
         <div className="flex-1" />
-        <IconButton icon={X} label="Close Side Panel" size={15} onClick={onClose} />
+        <Button icon={X} label="Close Side Panel" iconSize={15} onClick={onClose} />
       </header>
       <wren-view data-id={`sidepanel-${browser}`} className="block min-h-0 flex-1" />
     </section>
