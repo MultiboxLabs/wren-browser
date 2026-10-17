@@ -193,16 +193,20 @@ body,
   -webkit-user-drag: none;
 }
 
-:root[data-scheme] :focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  outline-offset: -1px;
-}
-:root[data-scheme] :focus:not(:focus-visible) {
-  outline: none;
-}
-/* A menu's items show focus by their highlight. */
-:root[data-scheme] [role^="menuitem"]:focus-visible {
-  outline: none;
+/* In the base layer, so a control's own outline (outline-none on a field
+   edited in place) wins over the ring. */
+@layer base {
+  :root[data-scheme] :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    outline-offset: -1px;
+  }
+  :root[data-scheme] :focus:not(:focus-visible) {
+    outline: none;
+  }
+  /* A menu's items show focus by their highlight. */
+  :root[data-scheme] [role^="menuitem"]:focus-visible {
+    outline: none;
+  }
 }
 
 /* The page is the title bar: its background moves the window, and what

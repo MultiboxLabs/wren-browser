@@ -361,36 +361,48 @@ function BrowserRow(props: SidebarProps & { row: BrowserRowItem; indent?: number
   );
 }
 
-// A split's two tabs side by side in one row, as they show in the window.
+// A split's two tabs side by side in one row, as they show in the window:
+// one tab to the list, hovered whole with both close buttons, though a
+// press on either half selects that half's tab. Selected, the halves show
+// as two, each filled over the row's fill; otherwise a line parts them.
 function SplitRow(props: SidebarProps & { split: TabSplit; first: Tab; second: Tab; indent?: number }) {
   const { first, second, selected } = props;
+  const active = first.id === selected || second.id === selected;
   return (
-    <div
+    <motion.div
+      {...press(0.985)}
+      role="group"
       style={{ marginLeft: props.indent }}
-      className="no-drag flex shrink-0 gap-1 rounded-[calc(var(--radius-row)+4px)] bg-fill p-1"
+      className={`no-drag group flex h-9 shrink-0 items-center rounded-row p-1 ${
+        active ? "bg-selected" : "hover:bg-hover"
+      }`}
     >
-      {[first, second].map((tab) => (
-        <motion.div
-          key={tab.id}
-          {...press(0.985)}
-          role="button"
-          tabIndex={-1}
-          aria-pressed={tab.id === selected}
-          onPointerDown={(event) => event.button === 0 && props.onSelect(tab)}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            props.onTabMenu(tab, event.clientX, event.clientY);
-          }}
-          className={`group flex h-8 min-w-0 flex-1 items-center gap-2.25 rounded-row pr-1 pl-2 ${
-            tab.id === selected ? "bg-selected" : "bg-fill hover:bg-hover"
-          }`}
-        >
-          <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
-          <span className="min-w-0 flex-1 truncate">{tab.title}</span>
-          <CloseButton onClose={() => props.onClose(tab)} />
-        </motion.div>
+      {[first, second].map((tab, index) => (
+        <div key={tab.id} className="contents">
+          {index > 0 && <div className={`mx-[1.5px] h-4 w-px shrink-0 ${active ? "" : "bg-separator"}`} />}
+          <div
+            role="button"
+            tabIndex={-1}
+            aria-pressed={tab.id === selected}
+            onPointerDown={(event) => event.button === 0 && props.onSelect(tab)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              props.onTabMenu(tab, event.clientX, event.clientY);
+            }}
+            // Its content in from the row's padding as far as a lone tab's;
+            // the close button as far from its right edge as its top and
+            // bottom.
+            className={`flex h-full min-w-0 flex-1 items-center gap-2.75 rounded-[calc(var(--radius-row)-4px)] pr-0.75 pl-1.5 ${
+              active ? "bg-fill" : ""
+            }`}
+          >
+            <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
+            <span className="min-w-0 flex-1 truncate">{tab.title}</span>
+            <CloseButton onClose={() => props.onClose(tab)} />
+          </div>
+        </div>
       ))}
-    </div>
+    </motion.div>
   );
 }
 
