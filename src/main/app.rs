@@ -52,11 +52,11 @@ impl State {
         });
         *self.main.borrow_mut() = Some(MainWindow::new(page));
 
-        // The user's own Profile, the one Chromium starts with, and a
-        // Browser of it in the window, on the New Tab page.
+        // The user's own Profile, the one Chromium starts with, with the
+        // tabs it had when the app last quit.
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
-            Ok(profile) => state.open_browser(mt, profile),
+            Ok(profile) => state.restore(mt, profile),
             Err(error) => {
                 eprintln!("Wren opened no Profile: {error:?}");
                 mt.quit();
@@ -64,29 +64,53 @@ impl State {
         });
     }
 
-    // Adds a Browser of `profile` to the main window.
-    fn open_browser(self: &Rc<Self>, mt: MainThread, profile: Profile) {
+    // Restores `profile`'s last session, whose window arrives in
+    // `browser_opened`; or, with nothing to restore, opens a Browser of it
+    // on the New Tab page.
+    fn restore(self: &Rc<Self>, mt: MainThread, profile: Profile) {
         let state = self.clone();
-        profile.clone().create_browser("", move |result| {
-            let browser = match result {
-                Ok(browser) => browser,
-                Err(error) => {
-                    eprintln!("Wren opened no Browser: {error:?}");
-                    return mt.quit();
-                }
-            };
-            let main = state.main.borrow();
-            let Some(main) = main.as_ref() else {
-                let _ = browser.close();
-                return;
-            };
-            main.add(profile, browser.clone());
-            // The page asked before there was a Browser.
-            if main.is_front(&browser) {
-                ipc::send_tabs(main, &browser);
-                ipc::send_side_panel(main, &browser);
+        profile.clone().restore_last_session(move |result| {
+            if let Err(error) = result {
+                eprintln!("Wren restored no session: {error:?}");
+            }
+            let restored = state
+                .main
+                .borrow()
+                .as_ref()
+                .is_some_and(|main| main.has_profile(&profile));
+            if !restored {
+                state.open_browser(mt, profile);
             }
         });
+    }
+
+    // Adds a new Browser of `profile` to the main window.
+    fn open_browser(self: &Rc<Self>, mt: MainThread, profile: Profile) {
+        let state = self.clone();
+        profile
+            .clone()
+            .create_browser("", move |result| match result {
+                Ok(browser) => state.show(profile, browser),
+                Err(error) => {
+                    eprintln!("Wren opened no Browser: {error:?}");
+                    mt.quit();
+                }
+            });
+    }
+
+    // Shows `browser` in the main window as `profile`'s.
+    fn show(&self, profile: Profile, browser: Browser) {
+        let main = self.main.borrow();
+        let Some(main) = main.as_ref() else {
+            let _ = browser.close();
+            return;
+        };
+        main.add(profile, browser.clone());
+        // The page asked before there was a Browser.
+        if main.is_front(&browser) {
+            ipc::send_tabs(main, &browser);
+            ipc::send_side_panel(main, &browser);
+        }
     }
 }
 
@@ -115,10 +139,34 @@ impl App for Wren {
         });
     }
 
-    // Required: Chromium opened a Browser of its own (a popup, DevTools).
-    // The app shows only its own Browsers yet, so it closes them.
-    fn browser_opened(&self, _: MainThread, opened: Browser, _: BrowserType, _: Option<Browser>) {
-        let _ = opened.close();
+    // Required: Chromium opened a Browser of its own. A restored window
+    // becomes its Profile's Browser in the main window, if the window has
+    // none of that Profile yet. The window shows one Browser for each, so
+    // the rest (a second restored window; popups and DevTools, which the
+    // app does not show yet) close.
+    fn browser_opened(
+        &self,
+        _: MainThread,
+        opened: Browser,
+        kind: BrowserType,
+        _: Option<Browser>,
+    ) {
+        let wanted = (kind == BrowserType::Normal)
+            .then(|| opened.profile())
+            .flatten()
+            .filter(|profile| {
+                self.state
+                    .main
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(|main| !main.has_profile(profile))
+            });
+        match wanted {
+            Some(profile) => self.state.show(profile, opened),
+            None => {
+                let _ = opened.close();
+            }
+        }
     }
 
     fn changed(&self, _: MainThread, changes: &[Change]) {

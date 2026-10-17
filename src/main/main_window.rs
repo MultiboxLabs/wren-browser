@@ -76,6 +76,11 @@ impl MainWindow {
         true
     }
 
+    /// Whether the window has a Browser of `profile`.
+    pub fn has_profile(&self, profile: &Profile) -> bool {
+        self.browsers.borrow().contains_key(&profile.id())
+    }
+
     pub fn is_empty(&self) -> bool {
         self.browsers.borrow().is_empty()
     }
