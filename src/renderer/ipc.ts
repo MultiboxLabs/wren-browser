@@ -124,6 +124,20 @@ export const sidePanel = {
   setWidth: (width: number) => wren.invoke<null>("sidePanel.setWidth", width)
 };
 
+/** The sidebar as the user left it, for the next run. */
+export type SidebarState = {
+  /** Docked beside the page, rather than away. */
+  open: boolean;
+  /** The docked sidebar's width. */
+  width: number;
+};
+
+export const sidebar = {
+  /** What was saved, or null for nothing yet. */
+  state: () => wren.invoke<SidebarState | null>("sidebar.state"),
+  save: (state: SidebarState) => wren.invoke<null>("sidebar.save", state)
+};
+
 export const menu = {
   /** The main menu's Toggle Sidebar (⌘S), which has the key while a tab has the keyboard too. */
   onToggleSidebar: (listener: () => void) => wren.on<null>("sidebar.toggle", listener)

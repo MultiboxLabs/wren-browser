@@ -1,18 +1,25 @@
 import { motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { appWindow, browser, groups, hasApp, menu, sidePanel } from "../../ipc";
+import { appWindow, browser, groups, hasApp, menu, sidePanel, type SidebarState } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { useBrowser, useSidePanel } from "./browser";
 import { SIDE_PANEL_WIDTH, SidePanel } from "./side-panel";
 import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
 import { type Presentation, useSidebarMotion } from "./sidebar-motion";
+import { useSaveSidebar, useSavedSidebar } from "./sidebar-state";
 import { cssColor, type Folder, personal, schemeFor, type Space, type Tab } from "./space";
 import { TabView } from "./tab-view";
 import { useFullScreen, useWindowActive } from "./window";
 
-// The browser's window: the sidebar, the page, and the side panel.
+// Waits for the sidebar's saved state, so it opens as it was left.
 export function App() {
+  const saved = useSavedSidebar();
+  return saved === undefined ? null : <BrowserWindow saved={saved} />;
+}
+
+// The browser's window: the sidebar, the page, and the side panel.
+function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const active = useWindowActive();
   const fullScreen = useFullScreen();
   const [space, setSpace] = useState<Space>(personal);
@@ -20,7 +27,7 @@ export function App() {
   const current = browserTabs?.tabs.find((tab) => tab.id === browserTabs.active);
   const tabs: Tab[] = (browserTabs?.tabs ?? []).map((tab) => ({ ...tab, favicon: favicons[tab.id] }));
   const [renaming, setRenaming] = useState<string | null>(null);
-  const [presentation, setPresentation] = useState<Presentation>("anchored");
+  const [presentation, setPresentation] = useState<Presentation>(saved?.open === false ? "hidden" : "anchored");
   const sidebarOpen = presentation === "anchored";
   const panel = useSidePanel();
   const panelOpen = (panel?.open ?? false) && browserTabs !== null;
@@ -30,7 +37,13 @@ export function App() {
   useEffect(() => {
     if (panel?.open && panel.width > 0) setSidePanelWidth(panel.width);
   }, [panel?.open, panel?.width]);
-  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH.initial);
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    Math.min(SIDEBAR_WIDTH.max, Math.max(SIDEBAR_WIDTH.min, saved?.width ?? SIDEBAR_WIDTH.initial))
+  );
+  // Floating is only for a moment, so it is kept as hidden; the width, once
+  // the drag that sets it is over.
+  const save = useSaveSidebar(saved);
+  useEffect(() => save({ open: sidebarOpen, width: sidebarWidth }), [sidebarOpen]);
   const motionValues = useSidebarMotion(presentation, sidebarWidth);
   const sidebarRef = useRef<HTMLElement>(null);
 
@@ -202,6 +215,7 @@ export function App() {
             style={{ left: sidebarWidth }}
             className="fixed inset-y-0 w-2"
             onResize={setSidebarWidth}
+            onEnd={() => save({ open: sidebarOpen, width: sidebarWidth })}
           />
         )}
       </div>
