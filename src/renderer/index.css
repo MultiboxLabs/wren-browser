@@ -30,7 +30,9 @@ body,
   --radius-field: 11px;
 
   --text-ui: 13.5px;
-  --text-menu: 13px;
+  /* Not --text-menu: text-menu would also take --color-menu, the menu's
+     background, as the text colour. */
+  --text-menu-item: 13px;
   --text-caption: 11px;
 
   --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.15);
@@ -185,6 +187,10 @@ body,
   outline-offset: -1px;
 }
 :root[data-scheme] :focus:not(:focus-visible) {
+  outline: none;
+}
+/* A menu's items show focus by their highlight. */
+:root[data-scheme] [role^="menuitem"]:focus-visible {
   outline: none;
 }
 
