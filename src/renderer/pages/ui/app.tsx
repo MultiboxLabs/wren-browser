@@ -90,6 +90,24 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   };
   useEffect(() => (hasApp ? menu.onToggleSidebar(toggleSidebar) : undefined), []);
 
+  // Something of the sidebar's that is open keeps it out while it floats,
+  // though the pointer goes over to it: the page info popover, one of
+  // Chromium's bubbles hanging off its buttons, a tab's or a group's menu.
+  // Once that closes, the sidebar goes, unless the pointer is back over it.
+  const [fieldHeld, setFieldHeld] = useState(false);
+  const [menusOpen, setMenusOpen] = useState(0);
+  const held = fieldHeld || menusOpen > 0;
+  const whileOpen = <T,>(shown: Promise<T>) => {
+    setMenusOpen((open) => open + 1);
+    const closed = () => setMenusOpen((open) => open - 1);
+    shown.then(closed, closed);
+    return shown;
+  };
+  useEffect(() => {
+    if (held || sidebarRef.current?.matches(":hover")) return;
+    setPresentation((shown) => (shown === "floating" ? "hidden" : shown));
+  }, [held]);
+
   const toggleFolder = (folder: Folder) =>
     setSpace((space) => ({
       ...space,
@@ -115,13 +133,13 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     },
     onTabMenu: (tab, x, y) => {
       const id = real(tab);
-      if (id !== undefined) browser.menu(id, x, y);
+      if (id !== undefined) whileOpen(browser.menu(id, x, y));
     },
     groups: browserTabs?.groups ?? [],
     splits: browserTabs?.splits ?? [],
     onToggleGroup: (group) => groups.toggle(group.id),
     onGroupMenu: (group, x, y) =>
-      groups.menu(group.id, x, y).then(
+      whileOpen(groups.menu(group.id, x, y)).then(
         (chosen) => chosen === "rename" && setRenaming(group.id),
         () => {}
       ),
@@ -140,7 +158,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     sidebarOpen,
     onToggleSidebar: toggleSidebar,
     sidePanel: panelOpen && panel ? panel.id : null,
-    onToggleSidePanel: (id) => (panelOpen && panel?.id === id ? sidePanel.close() : sidePanel.show(id))
+    onToggleSidePanel: (id) => (panelOpen && panel?.id === id ? sidePanel.close() : sidePanel.show(id)),
+    onHold: setFieldHeld
   };
 
   return (
@@ -197,7 +216,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           inert={presentation === "hidden"}
           style={motionValues.box}
           className={`fixed left-0 pl-2 ${sidebarOpen ? "" : "no-drag"}`}
-          onPointerLeave={() => setPresentation((shown) => (shown === "floating" ? "hidden" : shown))}
+          onPointerLeave={() => held || setPresentation((shown) => (shown === "floating" ? "hidden" : shown))}
         >
           <motion.div style={motionValues.panel} className="peek pointer-events-none absolute inset-0 rounded-panel" />
           <div className="relative h-full">
