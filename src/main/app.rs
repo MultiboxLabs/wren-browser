@@ -6,7 +6,7 @@ use std::rc::{Rc, Weak};
 
 use wren::{App, Browser, BrowserType, MainThread, Profile};
 
-use crate::pages::{GAME, UI, renderer_root, schemes, serve_page};
+use crate::pages::{GAME, SCHEME, Source, UI, serve_page};
 use crate::window::PageWindow;
 
 // What the app holds, shared with the closures it hands Wren.
@@ -63,21 +63,21 @@ impl State {
     }
 }
 
-pub struct Wren(pub Rc<State>);
+pub struct Wren {
+    pub state: Rc<State>,
+    pub source: Source,
+}
 
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
-        let root = Rc::new(renderer_root());
-        for scheme in schemes() {
-            let root = root.clone();
-            let _ = mt.set_scheme_handler(
-                scheme,
-                Some(Box::new(move |request| serve_page(request, &root))),
-            );
-        }
+        let source = self.source.clone();
+        let _ = mt.set_scheme_handler(
+            SCHEME,
+            Some(Box::new(move |request| serve_page(request, &source))),
+        );
         // The pages get a Profile of their own, so their storage is not
         // among the user's sites'.
-        let state = self.0.clone();
+        let state = self.state.clone();
         mt.create_ephemeral_profile(move |result| match result {
             Ok(profile) => {
                 *state.profile.borrow_mut() = Some(profile);

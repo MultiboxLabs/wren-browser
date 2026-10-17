@@ -1,25 +1,20 @@
-import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// Each page is a folder of src/renderer with an index.html, which the app
-// serves as <scheme>://<folder>/ (PAGES in src/main/main.rs). The pages
-// share dist/renderer/assets.
-const pages = ["ui", "game"];
-
+// The renderer: one entry, src/renderer/index.html, which the app serves for
+// every page as wren://<page>/. A debug build started with WREN_DEV_URL
+// fetches it from this dev server instead (src/main/dev_server.rs).
 export default defineConfig({
   root: "src/renderer",
   base: "/",
   plugins: [react(), tailwindcss()],
-  build: {
-    outDir: "../../dist/renderer",
-    emptyOutDir: true,
-    rollupOptions: {
-      input: Object.fromEntries(
-        pages.map((page) => [page, resolve(import.meta.dirname, "src/renderer", page, "index.html")])
-      )
-    }
-  },
-  server: { port: 5173, strictPort: true }
+  build: { outDir: "../../dist/renderer", emptyOutDir: true },
+  server: {
+    port: 5173,
+    strictPort: true,
+    // The pages are on wren://, so tell Vite's client where its live
+    // updates come from.
+    hmr: { protocol: "ws", host: "localhost", clientPort: 5173 }
+  }
 });

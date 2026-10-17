@@ -10,7 +10,7 @@ use objc2_app_kit::{
 use objc2_foundation::{NSObjectProtocol, NSPoint, NSRect, NSSize, NSString};
 use wren::{Profile, TabCrash, WebView, WebViewKind, WebViewOptions};
 
-use crate::pages::{Page, dev_url};
+use crate::pages::Page;
 
 /// A window showing one page. Its web view drops first, which takes the page
 /// out of the window.
@@ -32,9 +32,6 @@ impl PageWindow {
         let options = WebViewOptions {
             kind: WebViewKind::BrowserUi,
             messages: page.messages,
-            // Trust the dev server only when asked to, and only for a page
-            // that needs it: a trusted origin with no option on is refused.
-            trusted_origins: dev_url().filter(|_| page.messages).into_iter().collect(),
             ..Default::default()
         };
         let web_view = WebView::new(profile, &page.url(), &options)?;

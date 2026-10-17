@@ -4,30 +4,39 @@ A [Wren](https://github.com/MultiboxLabs/wren-runtime) app: a Rust main process
 showing pages written in React and Tailwind, built with Vite.
 
 ```
-src/main/       the main process (Rust): windows, schemes, the pages' calls
-src/renderer/   the pages (Vite root), one folder each
-  ui/           app://ui     the main window
-  game/         wren://game  Twig & Trill, a little game
-  shared/       what the pages share (Tailwind)
+src/main/            the main process (Rust)
+  main.rs            startup
+  app.rs             the app's state and Wren's callbacks
+  pages.rs           the pages, and serving wren://
+  window.rs          a window showing one page
+  dev_server.rs      wren:// from Vite's dev server, in development
+src/renderer/        the renderer (Vite root): one entry for every page
+  main.tsx           shows the page wren://<page>/ names
+  pages/ui/          wren://ui    the main window
+  pages/game/        wren://game  Twig & Trill, a little game
 ```
 
 Needs the `wren` command on your `PATH`, Rust 1.85+, and Bun.
 
 ```sh
 bun install
-bun run start   # build the pages and the app, bundle Wren.app, and run it
-bun run dev     # run against Vite's dev server: page edits show live
+bun run start   # build the renderer and the app, bundle Wren.app, and run it
+bun run dev     # the same pages, from Vite's dev server: edits show live
 bun run build   # just build and bundle Wren.app
 ```
 
 ## Adding a page
 
-1. Add a folder to `src/renderer` with an `index.html`.
-2. Add its name to `pages` in `vite.config.ts`.
-3. Add a `Page` to `PAGES` in `src/main/main.rs`, with its scheme and host.
+1. Add `src/renderer/pages/<name>/` and its component to `pages` in
+   `src/renderer/main.tsx`.
+2. Add a `Page` with host `<name>` to `PAGES` in `src/main/pages.rs`.
 
-Vite builds the pages into `dist/renderer`, which `wren-app.json` copies into
-the bundle. The app serves `<scheme>://<host>/` from `renderer/<host>`, and
-`/assets/` from the files all pages share. In `dev`, each page loads from
-`WREN_DEV_URL/<host>/` instead, and a page with messages trusts that origin
-for that run only.
+## How pages are served
+
+Every page is `wren://<page>/`, in development too. A built app answers from
+the renderer `wren bundle` copied into `Contents/Resources/renderer`. A debug
+build started with `WREN_DEV_URL` (as `bun run dev` does) answers by fetching
+from Vite's dev server instead, so pages keep their addresses while Vite's live
+updates work. In that mode Chromium's Local Network Access checks are off, so
+pages may reach Vite's WebSocket on localhost, and pages' console messages go
+to the terminal. A release build ignores `WREN_DEV_URL`.
