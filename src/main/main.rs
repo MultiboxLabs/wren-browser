@@ -1,7 +1,5 @@
 mod app;
-mod dev_server;
 mod ipc;
-mod main_window;
 mod menus;
 mod pages;
 mod sidebar;

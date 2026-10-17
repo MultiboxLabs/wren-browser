@@ -5,7 +5,7 @@ use wren::{Browser, WebView};
 
 use super::{failed, with_browser};
 use crate::app::State;
-use crate::main_window::MainWindow;
+use crate::window::MainWindow;
 
 /// The Browser's side panel: which is open, if one is, and how wide.
 #[derive(Serialize)]

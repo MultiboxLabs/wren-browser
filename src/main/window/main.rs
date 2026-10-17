@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use wren::{Browser, BubbleAnchor, Profile};
 
-use crate::window::PageWindow;
+use super::PageWindow;
 
 /// The page's mark on its page info button, which the site's bubbles (page
 /// info, permission prompts), the extensions menu and unpinned extensions'

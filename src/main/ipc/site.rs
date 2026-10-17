@@ -6,8 +6,8 @@ use wren::{Browser, MainThread, PermissionSetting, SiteAction, SiteSecurity, Web
 
 use super::{MenuAt, failed, menu_call, with_browser};
 use crate::app::State;
-use crate::main_window::MainWindow;
 use crate::menus;
+use crate::window::MainWindow;
 
 /// The active tab's site, as the page info popover shows it.
 #[derive(Serialize)]

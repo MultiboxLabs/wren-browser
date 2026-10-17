@@ -7,12 +7,11 @@ use std::rc::Rc;
 use wren::{App, Browser, BrowserType, Change, ChangeKind, MainThread, Profile, TabFields};
 
 use crate::ipc;
-use crate::main_window::MainWindow;
 use crate::menus;
 use crate::pages::{SCHEME, Source, UI, serve_page};
 use crate::sidebar::SidebarStore;
 use crate::tabs;
-use crate::window::PageWindow;
+use crate::window::{MainWindow, PageWindow};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {

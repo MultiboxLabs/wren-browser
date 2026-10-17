@@ -1,6 +1,9 @@
 // A window showing one page in a web view: the browser's own window, whose
 // title bar, sidebar and panels are the page's.
 
+pub mod main;
+mod title_bar;
+
 use std::cell::{Cell, RefCell};
 use std::ptr::NonNull;
 use std::rc::Rc;
@@ -13,13 +16,12 @@ use objc2_app_kit::{
     NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
     NSApplication, NSApplicationDidBecomeActiveNotification,
     NSApplicationDidResignActiveNotification, NSAutoresizingMaskOptions, NSBackingStoreType,
-    NSButton, NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial,
-    NSVisualEffectState, NSVisualEffectView, NSWindow, NSWindowButton, NSWindowDelegate,
-    NSWindowDidBecomeKeyNotification, NSWindowDidBecomeMainNotification,
-    NSWindowDidEndLiveResizeNotification, NSWindowDidExitFullScreenNotification,
-    NSWindowDidResignKeyNotification, NSWindowDidResignMainNotification,
-    NSWindowDidResizeNotification, NSWindowStyleMask, NSWindowTitleVisibility,
-    NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
+    NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState,
+    NSVisualEffectView, NSWindow, NSWindowDelegate, NSWindowDidBecomeKeyNotification,
+    NSWindowDidBecomeMainNotification, NSWindowDidEndLiveResizeNotification,
+    NSWindowDidExitFullScreenNotification, NSWindowDidResignKeyNotification,
+    NSWindowDidResignMainNotification, NSWindowDidResizeNotification, NSWindowStyleMask,
+    NSWindowTitleVisibility, NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
     NSWindowWillExitFullScreenNotification,
 };
 use objc2_foundation::{
@@ -28,6 +30,9 @@ use objc2_foundation::{
 use wren::{MainThread, Profile, TabCrash, WebView, WebViewKind, WebViewOptions};
 
 use crate::pages::Page;
+
+pub use main::MainWindow;
+use title_bar::TitleBar;
 
 /// A window showing one page. Its web view drops first, which takes the page
 /// out of the window.
@@ -40,29 +45,6 @@ pub struct PageWindow {
     _delegate: Retained<WindowDelegate>,
     observers: RefCell<Vec<Retained<ProtocolObject<dyn NSObjectProtocol>>>>,
     title_bar: Rc<TitleBar>,
-}
-
-// The window's buttons as the page wants them, and whether the window is
-// full screen, where AppKit shows them in a title bar of its own instead.
-#[derive(Default)]
-struct TitleBar {
-    full_screen: Cell<bool>,
-    buttons_at: Cell<Option<(f64, f64)>>,
-    buttons_hidden: Cell<bool>,
-}
-
-impl TitleBar {
-    // Puts the buttons where the page wants them; full screen, leaves them
-    // to AppKit, shown.
-    fn apply(&self, window: &NSWindow) {
-        let full_screen = self.full_screen.get();
-        for button in buttons(window).into_iter().flatten() {
-            button.setHidden(!full_screen && self.buttons_hidden.get());
-        }
-        if let (false, Some(at)) = (full_screen, self.buttons_at.get()) {
-            place_buttons(window, at);
-        }
-    }
 }
 
 impl PageWindow {
@@ -311,33 +293,6 @@ fn observe(
             None,
             &block,
         )
-    }
-}
-
-// The close, minimise and zoom buttons.
-fn buttons(window: &NSWindow) -> [Option<Retained<NSButton>>; 3] {
-    [
-        NSWindowButton::CloseButton,
-        NSWindowButton::MiniaturizeButton,
-        NSWindowButton::ZoomButton,
-    ]
-    .map(|kind| window.standardWindowButton(kind))
-}
-
-fn place_buttons(window: &NSWindow, (x, y): (f64, f64)) {
-    let [Some(close), Some(minimise), Some(zoom)] = buttons(window) else {
-        return;
-    };
-    // Keeps AppKit's spacing between them.
-    let spacing = minimise.frame().origin.x - close.frame().origin.x;
-    let height = window.frame().size.height;
-    for (index, button) in [close, minimise, zoom].iter().enumerate() {
-        let Some(superview) = (unsafe { button.superview() }) else {
-            continue;
-        };
-        let size = button.frame().size;
-        let in_window = NSPoint::new(x + spacing * index as f64, height - y - size.height);
-        button.setFrameOrigin(superview.convertPoint_fromView(in_window, None));
     }
 }
 

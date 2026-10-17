@@ -7,12 +7,15 @@ showing pages written in React and Tailwind, built with Vite.
 src/main/            the main process (Rust)
   main.rs            startup
   app.rs             the app's state and Wren's callbacks
-  pages.rs           the pages, and serving wren://
-  main_window.rs     the browser's window: its page and a Browser per Profile
-  menus.rs           the main menu
+  ipc/               the main window's page's calls and messages, by part
+  menus/             the main menu, and the menus the page asks for
+  pages/             the pages, and serving wren://
+    dev_server.rs    wren:// from Vite's dev server, in development
+  window/            a window showing one page
+    main.rs          the browser's window: its page and a Browser per Profile
+    title_bar.rs     the window's buttons, where the page puts them
+  sidebar.rs         the sidebar's state, kept between runs
   tabs.rs            what the app does to a Browser's tabs
-  window.rs          a window showing one page
-  dev_server.rs      wren:// from Vite's dev server, in development
 src/renderer/        the renderer (Vite root): one entry for every page
   main.tsx           shows the page wren://<page>/ names
   pages/ui/          wren://ui    the main window
@@ -32,7 +35,7 @@ bun run build   # just build and bundle Wren.app
 
 1. Add `src/renderer/pages/<name>/` and its component to `pages` in
    `src/renderer/main.tsx`.
-2. Add a `Page` with host `<name>` to `PAGES` in `src/main/pages.rs`.
+2. Add a `Page` with host `<name>` to `PAGES` in `src/main/pages/mod.rs`.
 
 ## How pages are served
 

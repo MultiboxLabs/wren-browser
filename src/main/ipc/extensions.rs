@@ -5,7 +5,7 @@ use wren::{Browser, WebView};
 
 use super::{failed, png_url, with_browser};
 use crate::app::State;
-use crate::main_window::MainWindow;
+use crate::window::MainWindow;
 
 /// An extension's action, as the page info popover lists it and the
 /// address field shows it while it is pinned.

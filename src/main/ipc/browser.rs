@@ -7,9 +7,9 @@ use super::groups::Group;
 use super::splits::Split;
 use super::{MenuAt, failed, menu_call, png_url, with_browser};
 use crate::app::State;
-use crate::main_window::MainWindow;
 use crate::menus;
 use crate::tabs;
+use crate::window::MainWindow;
 
 /// A tab as the sidebar draws it. Its favicon comes apart ("tab.favicon").
 #[derive(Serialize)]

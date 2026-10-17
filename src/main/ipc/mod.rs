@@ -22,7 +22,7 @@ use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
-use crate::main_window::MainWindow;
+use crate::window::MainWindow;
 
 pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_tabs};

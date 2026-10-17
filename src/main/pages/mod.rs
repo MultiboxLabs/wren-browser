@@ -1,10 +1,10 @@
 // The renderer's pages, all on the app's scheme, and serving them.
 
+mod dev_server;
+
 use std::path::{Component, Path, PathBuf};
 
 use wren::{SchemeFailure, SchemeRequest, SchemeResponse};
-
-use crate::dev_server;
 
 pub const SCHEME: &str = "wren";
 

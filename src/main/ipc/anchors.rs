@@ -4,7 +4,7 @@ use wren::{Browser, WebView};
 
 use super::with_browser;
 use crate::app::State;
-use crate::main_window::{self, MainWindow};
+use crate::window::{MainWindow, main};
 
 pub fn handle(web_view: &WebView, state: &Rc<State>) {
     // The page's marks that one of Chromium's bubbles hangs off now, so
@@ -25,7 +25,7 @@ pub fn send_anchors(main: &MainWindow, browser: &Browser) {
 }
 
 fn showing(browser: &Browser) -> Vec<String> {
-    let mut marks: Vec<String> = main_window::marks(browser)
+    let mut marks: Vec<String> = main::marks(browser)
         .into_iter()
         .filter(|(anchor, _)| {
             browser
