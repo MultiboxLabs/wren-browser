@@ -224,10 +224,10 @@ function TabRow({
           onClick={() => onClose(tab)}
           // Hovered, a fill of its own over the row's; the cross fades (not
           // the fill) so the two don't stack.
-          className="group/close hidden size-6 place-items-center rounded-control group-hover:grid hover:bg-hover active:bg-pressed"
+          className="group/close hidden size-5.5 place-items-center rounded-control group-hover:grid hover:bg-hover active:bg-pressed"
         >
           <span className="grid glyph-2 group-hover/close:glyph-1">
-            <X size={21} strokeWidth={1.75} />
+            <X size={18} strokeWidth={1.75} />
           </span>
         </motion.button>
       )}

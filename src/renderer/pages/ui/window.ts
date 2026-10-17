@@ -21,18 +21,34 @@ export function useWindowActive() {
         removeEventListener("blur", blur);
       };
     }
-    // The page asks first; a change heard before the answer is newer.
-    let heard = false;
-    const stop = appWindow.onActive((next) => {
-      heard = true;
-      setActive(next);
-    });
-    appWindow.active().then(
-      (now) => heard || setActive(now),
-      () => {}
-    );
-    return stop;
+    return follow(appWindow.active, appWindow.onActive, setActive);
   }, []);
 
   return active;
+}
+
+/** Whether the window is full screen, from as it starts to go until it starts to come back. */
+export function useFullScreen() {
+  const [fullScreen, setFullScreen] = useState(false);
+  useEffect(() => (hasApp ? follow(appWindow.fullScreen, appWindow.onFullScreen, setFullScreen) : undefined), []);
+  return fullScreen;
+}
+
+// Keeps `set` to the app's value: the page asks first, and a change heard
+// before the answer is newer.
+function follow<T>(
+  ask: () => Promise<T>,
+  listen: (listener: (value: T) => void) => () => void,
+  set: (value: T) => void
+) {
+  let heard = false;
+  const stop = listen((value) => {
+    heard = true;
+    set(value);
+  });
+  ask().then(
+    (value) => heard || set(value),
+    () => {}
+  );
+  return stop;
 }

@@ -5,7 +5,7 @@ import { ResizeHandle } from "../../components/ui/resize-handle";
 import { SIDE_PANEL_WIDTH, SidePanel, type SidePanelId } from "./side-panel";
 import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
 import { cssColor, type Folder, personal, schemeFor, type Space } from "./space";
-import { useWindowActive } from "./window";
+import { useFullScreen, useWindowActive } from "./window";
 
 // How far in from the window's edges the sidebar floats while it peeks.
 const PEEK_INSET = 5;
@@ -13,6 +13,7 @@ const PEEK_INSET = 5;
 // The browser's window: the sidebar, the page, and the side panel.
 export function App() {
   const active = useWindowActive();
+  const fullScreen = useFullScreen();
   const [space, setSpace] = useState<Space>(personal);
   const [selected, setSelected] = useState<string | undefined>(personal.pinned[2].id);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -29,7 +30,8 @@ export function App() {
     root.style.setProperty("--space", cssColor(space.color));
     root.dataset.scheme = scheme;
     root.dataset.active = String(active);
-  }, [space.color, scheme, active]);
+    root.toggleAttribute("data-full-screen", fullScreen);
+  }, [space.color, scheme, active, fullScreen]);
   useEffect(() => {
     if (hasApp) appWindow.setDark(scheme === "dark");
   }, [scheme]);

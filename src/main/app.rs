@@ -39,6 +39,13 @@ impl State {
                 ipc::send_active(main, active);
             }
         });
+        let state = Rc::downgrade(self);
+        main.watch_full_screen(move |full_screen| {
+            let Some(state) = state.upgrade() else { return };
+            if let Some(main) = state.main.borrow().as_ref() {
+                ipc::send_full_screen(main, full_screen);
+            }
+        });
         *self.main.borrow_mut() = Some(main);
     }
 }

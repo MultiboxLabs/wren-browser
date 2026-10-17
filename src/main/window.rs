@@ -13,13 +13,14 @@ use objc2_app_kit::{
     NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
     NSApplication, NSApplicationDidBecomeActiveNotification,
     NSApplicationDidResignActiveNotification, NSAutoresizingMaskOptions, NSBackingStoreType,
-    NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState,
-    NSVisualEffectView, NSWindow, NSWindowButton, NSWindowDelegate,
+    NSButton, NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial,
+    NSVisualEffectState, NSVisualEffectView, NSWindow, NSWindowButton, NSWindowDelegate,
     NSWindowDidBecomeKeyNotification, NSWindowDidBecomeMainNotification,
     NSWindowDidEndLiveResizeNotification, NSWindowDidExitFullScreenNotification,
     NSWindowDidResignKeyNotification, NSWindowDidResignMainNotification,
     NSWindowDidResizeNotification, NSWindowStyleMask, NSWindowTitleVisibility,
-    NSWindowToolbarStyle,
+    NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
+    NSWindowWillExitFullScreenNotification,
 };
 use objc2_foundation::{
     NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString, ns_string,
@@ -38,8 +39,30 @@ pub struct PageWindow {
     // A window holds its delegate weakly.
     _delegate: Retained<WindowDelegate>,
     observers: RefCell<Vec<Retained<ProtocolObject<dyn NSObjectProtocol>>>>,
-    // Where the page wants the window's buttons (set_buttons_position).
-    buttons_at: Rc<Cell<Option<(f64, f64)>>>,
+    title_bar: Rc<TitleBar>,
+}
+
+// The window's buttons as the page wants them, and whether the window is
+// full screen, where AppKit shows them in a title bar of its own instead.
+#[derive(Default)]
+struct TitleBar {
+    full_screen: Cell<bool>,
+    buttons_at: Cell<Option<(f64, f64)>>,
+    buttons_hidden: Cell<bool>,
+}
+
+impl TitleBar {
+    // Puts the buttons where the page wants them; full screen, leaves them
+    // to AppKit, shown.
+    fn apply(&self, window: &NSWindow) {
+        let full_screen = self.full_screen.get();
+        for button in buttons(window).into_iter().flatten() {
+            button.setHidden(!full_screen && self.buttons_hidden.get());
+        }
+        if let (false, Some(at)) = (full_screen, self.buttons_at.get()) {
+            place_buttons(window, at);
+        }
+    }
 }
 
 impl PageWindow {
@@ -124,37 +147,31 @@ impl PageWindow {
 
         // AppKit puts the buttons back whenever it lays the title bar out
         // again, so they go where the page wants them after each time.
-        let buttons_at = Rc::new(Cell::new(None));
-        let center = NSNotificationCenter::defaultCenter();
-        let object: &AnyObject = &window;
-        let names = unsafe {
+        // Full screen, the toolbar would get a bar of its own above the
+        // page, so the window has none while it is.
+        let title_bar = Rc::new(TitleBar::default());
+        let observers = unsafe {
             [
-                NSWindowDidResizeNotification,
-                NSWindowDidEndLiveResizeNotification,
-                NSWindowDidExitFullScreenNotification,
-                NSWindowDidBecomeKeyNotification,
-                NSWindowDidResignKeyNotification,
+                (NSWindowDidResizeNotification, None),
+                (NSWindowDidEndLiveResizeNotification, None),
+                (NSWindowDidBecomeKeyNotification, None),
+                (NSWindowDidResignKeyNotification, None),
+                (NSWindowWillEnterFullScreenNotification, Some(true)),
+                (NSWindowDidExitFullScreenNotification, Some(false)),
             ]
-        };
-        let observers = names
-            .into_iter()
-            .map(|name| {
-                let (window, buttons_at) = (window.clone(), buttons_at.clone());
-                let block = RcBlock::new(move |_: NonNull<NSNotification>| {
-                    if let Some(at) = buttons_at.get() {
-                        place_buttons(&window, at);
-                    }
-                });
-                unsafe {
-                    center.addObserverForName_object_queue_usingBlock(
-                        Some(name),
-                        Some(object),
-                        None,
-                        &block,
-                    )
+        }
+        .into_iter()
+        .map(|(name, full_screen)| {
+            let (window, toolbar, title_bar) = (window.clone(), toolbar.clone(), title_bar.clone());
+            observe(name, &window.clone(), move || {
+                if let Some(full_screen) = full_screen {
+                    title_bar.full_screen.set(full_screen);
+                    window.setToolbar((!full_screen).then_some(&*toolbar));
                 }
+                title_bar.apply(&window);
             })
-            .collect();
+        })
+        .collect();
 
         Some(PageWindow {
             web_view,
@@ -162,7 +179,7 @@ impl PageWindow {
             backdrop,
             _delegate: delegate,
             observers: RefCell::new(observers),
-            buttons_at,
+            title_bar,
         })
     }
 
@@ -210,6 +227,27 @@ impl PageWindow {
         }
     }
 
+    /// Whether the window is full screen, or going to be.
+    pub fn is_full_screen(&self) -> bool {
+        self.title_bar.full_screen.get()
+    }
+
+    /// Calls `changed` as the window starts to go full screen and to come
+    /// back, so the page can lay itself out for it as it does.
+    pub fn watch_full_screen(&self, changed: impl Fn(bool) + 'static) {
+        let changed = Rc::new(changed);
+        let mut observers = self.observers.borrow_mut();
+        for (name, full_screen) in unsafe {
+            [
+                (NSWindowWillEnterFullScreenNotification, true),
+                (NSWindowWillExitFullScreenNotification, false),
+            ]
+        } {
+            let changed = changed.clone();
+            observers.push(observe(name, &self.window, move || changed(full_screen)));
+        }
+    }
+
     /// Draws the backdrop as in use or not, as the page draws itself.
     pub fn set_active(&self, active: bool) {
         self.backdrop.setState(if active {
@@ -235,33 +273,48 @@ impl PageWindow {
     /// left at (x, y), in points from the window's top left, and keeps them
     /// there.
     pub fn set_buttons_position(&self, x: f64, y: f64) {
-        self.buttons_at.set(Some((x, y)));
-        place_buttons(&self.window, (x, y));
+        self.title_bar.buttons_at.set(Some((x, y)));
+        self.title_bar.apply(&self.window);
     }
 
-    /// Shows or hides the close, minimise and zoom buttons.
+    /// Shows or hides the close, minimise and zoom buttons (full screen,
+    /// once the window is back).
     pub fn set_buttons_visible(&self, visible: bool) {
-        for kind in [
-            NSWindowButton::CloseButton,
-            NSWindowButton::MiniaturizeButton,
-            NSWindowButton::ZoomButton,
-        ] {
-            if let Some(button) = self.window.standardWindowButton(kind) {
-                button.setHidden(!visible);
-            }
-        }
+        self.title_bar.buttons_hidden.set(!visible);
+        self.title_bar.apply(&self.window);
     }
 }
 
-fn place_buttons(window: &NSWindow, (x, y): (f64, f64)) {
-    let kinds = [
+// Runs `run` on each of the window's notifications by that name.
+fn observe(
+    name: &NSString,
+    window: &NSWindow,
+    run: impl Fn() + 'static,
+) -> Retained<ProtocolObject<dyn NSObjectProtocol>> {
+    let block = RcBlock::new(move |_: NonNull<NSNotification>| run());
+    let object: &AnyObject = window;
+    unsafe {
+        NSNotificationCenter::defaultCenter().addObserverForName_object_queue_usingBlock(
+            Some(name),
+            Some(object),
+            None,
+            &block,
+        )
+    }
+}
+
+// The close, minimise and zoom buttons.
+fn buttons(window: &NSWindow) -> [Option<Retained<NSButton>>; 3] {
+    [
         NSWindowButton::CloseButton,
         NSWindowButton::MiniaturizeButton,
         NSWindowButton::ZoomButton,
-    ];
-    let [Some(close), Some(minimise), Some(zoom)] =
-        kinds.map(|kind| window.standardWindowButton(kind))
-    else {
+    ]
+    .map(|kind| window.standardWindowButton(kind))
+}
+
+fn place_buttons(window: &NSWindow, (x, y): (f64, f64)) {
+    let [Some(close), Some(minimise), Some(zoom)] = buttons(window) else {
         return;
     };
     // Keeps AppKit's spacing between them.

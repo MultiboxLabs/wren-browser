@@ -71,6 +71,11 @@ body,
 :root[data-platform="mac"] {
   --window-buttons: 72px;
 }
+/* Full screen, the buttons are in a title bar of the system's, shown over
+   the page from the top of the screen. */
+:root[data-platform="mac"][data-full-screen] {
+  --window-buttons: 0px;
+}
 
 /* Text and fills (the named colours, and each space's title
    colour). Tab titles are the space's title colour: solid, and tinted

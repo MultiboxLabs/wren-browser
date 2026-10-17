@@ -16,6 +16,13 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>) {
         with_main(&weak, |main| Ok(main.is_active()))
     });
 
+    // Whether the window is full screen; "window.fullScreen" says when it
+    // starts to go or to come back.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("window.fullScreen", move |()| {
+        with_main(&weak, |main| Ok(main.is_full_screen()))
+    });
+
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("window.setDark", move |dark: bool| {
         with_main(&weak, |main| Ok(main.set_dark(dark)))
@@ -41,6 +48,11 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>) {
 pub fn send_active(main: &PageWindow, active: bool) {
     // Fails only while the page is loading; it asks first once it is there.
     let _ = main.web_view.send("window.active", &active);
+}
+
+/// Tells the page the window is going full screen, or coming back.
+pub fn send_full_screen(main: &PageWindow, full_screen: bool) {
+    let _ = main.web_view.send("window.fullScreen", &full_screen);
 }
 
 // Runs a handler with the main window, or fails the call once it is gone.
