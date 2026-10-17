@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { appWindow, hasApp } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
-import { SIDE_PANEL_WIDTH, SidePanel, type SidePanelId } from "./SidePanel";
-import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./Sidebar";
+import { SIDE_PANEL_WIDTH, SidePanel, type SidePanelId } from "./side-panel";
+import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
 import { cssColor, type Folder, personal, schemeFor, type Space } from "./space";
 import { useWindowActive } from "./window";
 

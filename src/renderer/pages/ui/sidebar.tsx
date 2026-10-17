@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { IconButton } from "../../components/ui/icon-button";
 import { press } from "../../components/ui/press";
 import { Tooltip } from "../../components/ui/tooltip";
-import { Favicon } from "./Favicon";
+import { Favicon } from "./favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "./icons";
 import { type Folder, isFolder, type Space, type Tab } from "./space";
 

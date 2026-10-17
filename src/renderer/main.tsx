@@ -5,8 +5,8 @@ import "./index.css";
 // Every page is served from this one entry, as wren://<page>/: the host says
 // which to show. Each page's code loads only when it is shown.
 const pages: Record<string, () => Promise<ComponentType>> = {
-  ui: () => import("./pages/ui/App").then((page) => page.App),
-  game: () => import("./pages/game/Game").then((page) => page.Game)
+  ui: () => import("./pages/ui/app").then((page) => page.App),
+  game: () => import("./pages/game/game").then((page) => page.Game)
 };
 
 // Styles that differ by platform key off this.
