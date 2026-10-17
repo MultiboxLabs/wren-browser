@@ -2,7 +2,6 @@
 // panel itself below it (a <wren-view>, once there is a Browser).
 
 import { BookOpen, Bookmark, ChevronDown, Glasses, History, X } from "lucide-react";
-import { useRef } from "react";
 import { IconButton } from "../../components/ui/icon-button";
 import { Menu } from "../../components/ui/menu";
 
@@ -53,31 +52,5 @@ export function SidePanel({
       {/* The panel's page goes here. */}
       <div className="min-h-0 flex-1" />
     </section>
-  );
-}
-
-/** The gap between the page and the side panel, which resizes the panel. */
-export function SidePanelHandle({ onResize }: { onResize: (width: number) => void }) {
-  const start = useRef<{ x: number; width: number } | null>(null);
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      className="no-drag group grid w-2.5 shrink-0 cursor-col-resize place-items-center"
-      onPointerDown={(event) => {
-        const panel = event.currentTarget.nextElementSibling as HTMLElement;
-        start.current = { x: event.clientX, width: panel.offsetWidth };
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }}
-      onPointerMove={(event) => {
-        if (!start.current) return;
-        const width = start.current.width + start.current.x - event.clientX;
-        onResize(Math.round(Math.min(SIDE_PANEL_WIDTH.max, Math.max(SIDE_PANEL_WIDTH.min, width))));
-      }}
-      onPointerUp={() => (start.current = null)}
-      onPointerCancel={() => (start.current = null)}
-    >
-      <div className="h-7 w-0.75 rounded-full bg-fg-3 opacity-0 group-hover:opacity-100 group-active:opacity-100" />
-    </div>
   );
 }

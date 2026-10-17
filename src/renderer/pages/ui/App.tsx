@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { appWindow, hasApp } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
-import { SIDE_PANEL_WIDTH, SidePanel, SidePanelHandle, type SidePanelId } from "./SidePanel";
-import { Sidebar, type SidebarProps } from "./Sidebar";
+import { ResizeHandle } from "../../components/ui/resize-handle";
+import { SIDE_PANEL_WIDTH, SidePanel, type SidePanelId } from "./SidePanel";
+import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./Sidebar";
 import { cssColor, type Folder, personal, schemeFor, type Space } from "./space";
 import { useWindowActive } from "./window";
 
@@ -19,6 +20,7 @@ export function App() {
   const [peeking, setPeeking] = useState(false);
   const [sidePanel, setSidePanel] = useState<SidePanelId | null>("reading-list");
   const [sidePanelWidth, setSidePanelWidth] = useState(SIDE_PANEL_WIDTH.initial);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH.initial);
 
   const scheme = schemeFor(space.color);
   // On <html>, so the colours made from them reach menus and tooltips too.
@@ -84,17 +86,34 @@ export function App() {
     <TooltipProvider>
       <div className="browser drag flex h-full">
         {sidebarOpen && (
-          <aside className="w-80 shrink-0 pl-2">
-            <Sidebar {...sidebar} />
-          </aside>
+          <>
+            <aside style={{ width: sidebarWidth }} className="shrink-0 pl-2">
+              <Sidebar {...sidebar} />
+            </aside>
+            {/* The gap to the page. */}
+            <ResizeHandle
+              width={sidebarWidth}
+              range={SIDEBAR_WIDTH}
+              edge="right"
+              className="w-2"
+              onResize={setSidebarWidth}
+            />
+          </>
         )}
 
-        <main className={`flex min-w-0 flex-1 py-2.5 pr-2.5 ${sidebarOpen ? "pl-2" : "pl-2.5"}`}>
+        <main className={`flex min-w-0 flex-1 py-2.5 pr-2.5 ${sidebarOpen ? "" : "pl-2.5"}`}>
           {/* The active tab's page goes here. */}
           <div className="card no-drag min-w-0 flex-1" />
           {sidePanel && (
             <>
-              <SidePanelHandle onResize={setSidePanelWidth} />
+              <ResizeHandle
+                width={sidePanelWidth}
+                range={SIDE_PANEL_WIDTH}
+                edge="left"
+                grip
+                className="w-2.5"
+                onResize={setSidePanelWidth}
+              />
               <SidePanel
                 panel={sidePanel}
                 width={sidePanelWidth}
@@ -110,8 +129,9 @@ export function App() {
             <div className="no-drag fixed inset-y-0 left-0 w-2.5" onPointerEnter={() => setPeeking(true)} />
             {peeking && (
               <aside
-                style={{ inset: `${PEEK_INSET}px auto ${PEEK_INSET}px ${PEEK_INSET}px` }}
-                className="peek no-drag fixed w-82 rounded-panel px-2"
+                // As wide as the docked sidebar, with even padding.
+                style={{ inset: `${PEEK_INSET}px auto ${PEEK_INSET}px ${PEEK_INSET}px`, width: sidebarWidth + 8 }}
+                className="peek no-drag fixed rounded-panel px-2"
                 onPointerLeave={() => setPeeking(false)}
               >
                 <Sidebar {...sidebar} />

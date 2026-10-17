@@ -11,6 +11,9 @@ import { Favicon } from "./Favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "./icons";
 import { type Folder, isFolder, type Space, type Tab } from "./space";
 
+/** The docked sidebar's width, its left padding in it. */
+export const SIDEBAR_WIDTH = { min: 240, max: 480, initial: 320 };
+
 export type SidebarProps = {
   space: Space;
   selected?: string;
