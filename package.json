@@ -6,7 +6,8 @@
     "dev": "bun run scripts/dev.ts",
     "build": "bun run scripts/build.ts",
     "start": "bun run build && ./Wren.app/Contents/MacOS/Wren",
-    "check": "cargo check && tsc"
+    "check": "cargo check && tsc",
+    "format": "prettier --write ."
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -14,6 +15,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",
     "typescript": "5",
     "vite": "^8.3.4"

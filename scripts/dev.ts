@@ -13,7 +13,12 @@ await $`cargo build`;
 await $`wren bundle --executable target/debug/wren-browser --manifest wren-app.json --output Wren.app`;
 
 const vite = Bun.spawn(["bunx", "vite"], { stdout: "inherit", stderr: "inherit" });
-while (!(await fetch(url).then((response) => response.ok, () => false))) {
+while (
+  !(await fetch(url).then(
+    (response) => response.ok,
+    () => false
+  ))
+) {
   await Bun.sleep(100);
 }
 

@@ -9,7 +9,14 @@ export class Sound {
     void this.context.resume();
   }
 
-  private tone(from: number, to: number, start: number, duration: number, type: OscillatorType = "sine", volume = 0.12) {
+  private tone(
+    from: number,
+    to: number,
+    start: number,
+    duration: number,
+    type: OscillatorType = "sine",
+    volume = 0.12
+  ) {
     const context = this.context;
     if (!context || this.muted) return;
     const time = context.currentTime + start;
