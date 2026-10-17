@@ -339,6 +339,7 @@ body,
     0 0 0 0.5px var(--omnibox-outline),
     0 20px 56px rgb(0 0 0 / 0.4);
 }
+
 /* Its palette: rows' text (fg), the field's text and its icon (typed), the
    list's glyphs, what is dim (an address, "Switch to Tab"), and the faint
    tiles behind a glyph or the Tab key. */
