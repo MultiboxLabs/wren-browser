@@ -458,8 +458,12 @@ body,
   }
 }
 
-/* Where a tab's page or a side panel will show (<wren-view>). */
+/* Where a tab's page or a side panel will show (<wren-view>). Its text is
+   neutral, as a popover's, not the space's title colour: that is for text
+   on the window itself. */
 .card {
+  --fg: var(--glyph);
+  color: var(--fg);
   background: var(--card);
   border-radius: var(--radius-card);
   box-shadow:
