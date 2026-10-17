@@ -135,10 +135,19 @@ impl PageWindow {
         // Shows the window once the page has drawn, so it never opens blank;
         // on a failed load or a crash too, or it would never open.
         let shown = window.clone();
+        let nudged = view.clone();
         web_view.set_changed(Some(Box::new(move |state| {
             if (state.drawn || state.load_error != 0 || state.crash != TabCrash::None)
                 && !shown.isVisible()
             {
+                // Until its first resize, the view is not see-through for
+                // about 4 seconds, and the space's colour shows over white
+                // instead of the backdrop. A resize makes it so at once.
+                // TODO: Remove after the next Wren runtime release, which
+                // fixes this.
+                let size = nudged.frame().size;
+                nudged.setFrameSize(NSSize::new(size.width + 1.0, size.height));
+                nudged.setFrameSize(size);
                 shown.makeKeyAndOrderFront(None);
                 NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).activate();
             }
