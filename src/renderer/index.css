@@ -68,6 +68,12 @@ body,
   --window-buttons: 0px;
 }
 
+/* Unfocused, the space's colour is paler: lighter, and less of it, as a
+   window in the background fades. */
+:root[data-active="false"] {
+  --space-shown: oklch(from var(--space) 0.58 calc(c * 0.5) h);
+}
+
 :root[data-platform="mac"] {
   --window-buttons: 72px;
 }
@@ -202,10 +208,10 @@ body,
 /* The page is the title bar: its background moves the window, and what
    takes clicks says so. (app-region is inherited.) */
 .drag {
-  app-region: drag;
+  -webkit-app-region: drag;
 }
 .no-drag {
-  app-region: no-drag;
+  -webkit-app-region: no-drag;
 }
 
 /* The sidebar while it floats over the page: the space's colour over the
