@@ -21,14 +21,14 @@ export function AddressField({
   tab,
   sidePanel,
   onToggleSidePanel,
-  onHold
+  onPopoverOpenChange
 }: {
   tab?: Tab;
   /** The open side panel's ID, if one is open. */
   sidePanel: string | null;
   onToggleSidePanel: (panel: SidePanelId) => void;
-  /** Whether the popover, or one of Chromium's bubbles off a button here, is open. */
-  onHold: (held: boolean) => void;
+  /** Whether the page info popover is open, which keeps the floating sidebar out. */
+  onPopoverOpenChange: (open: boolean) => void;
 }) {
   const site = useSite();
   const actions = useExtensionActions();
@@ -36,8 +36,7 @@ export function AddressField({
   // of Chromium's bubbles hanging off its mark.
   const showing = useShowingAnchors();
   const [open, setOpen] = useState(false);
-  const held = open || showing.length > 0;
-  useEffect(() => onHold(held), [held]);
+  useEffect(() => onPopoverOpenChange(open), [open]);
   return (
     <div className="no-drag mt-0.5 flex h-9 shrink-0 items-center rounded-field bg-fill pr-1 text-fg-2">
       {tab && !isNewTab(tab.url) ? (

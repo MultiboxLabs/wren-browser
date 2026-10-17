@@ -48,8 +48,8 @@ export type SidebarProps = {
   sidePanel: string | null;
   /** Opens a side panel, or closes it if it is the one open. */
   onToggleSidePanel: (panel: SidePanelId) => void;
-  /** Whether something the address field opened is open, which keeps the floating sidebar out. */
-  onHold: (held: boolean) => void;
+  /** Whether the page info popover is open, which keeps the floating sidebar out. */
+  onPopoverOpenChange: (open: boolean) => void;
 };
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
@@ -96,7 +96,7 @@ export function Sidebar(props: SidebarProps) {
         tab={current}
         sidePanel={props.sidePanel}
         onToggleSidePanel={props.onToggleSidePanel}
-        onHold={props.onHold}
+        onPopoverOpenChange={props.onPopoverOpenChange}
       />
 
       <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">

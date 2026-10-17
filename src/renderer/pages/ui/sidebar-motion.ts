@@ -57,13 +57,17 @@ export function useSidebarMotion(presentation: Presentation, width: number) {
   const inset = useTransform(() => PEEK_INSET * floating.get());
   // Floating, it is as wide again as its left padding, to pad its right.
   const padding = useTransform(() => 8 * floating.get());
-  const hiddenX = useTransform(() => -(sidebarWidth.get() + 8 + PEEK_INSET + SHADOW_REACH));
+  const hiddenLeft = useTransform(() => -(sidebarWidth.get() + 8 + PEEK_INSET + SHADOW_REACH));
   return {
     /** The room left of the page: the docked sidebar and the gap after it, or the page's inset. */
     slot: useTransform(() => PAGE_INSET + (sidebarWidth.get() + 8 - PAGE_INSET) * docked.get()),
-    /** The sidebar's place and size, its panel in it. */
+    /**
+     * The sidebar's place and size, its panel in it. It slides by `left`
+     * rather than a transform, which Chromium would not follow with the
+     * bubbles hanging off its buttons until the page next laid out.
+     */
     box: {
-      x: useTransform(() => hiddenX.get() + (inset.get() - hiddenX.get()) * shown.get()),
+      left: useTransform(() => hiddenLeft.get() + (inset.get() - hiddenLeft.get()) * shown.get()),
       top: inset,
       bottom: inset,
       width: useTransform(() => sidebarWidth.get() + padding.get()),

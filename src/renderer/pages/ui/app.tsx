@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { appWindow, browser, groups, hasApp, menu, sidePanel, type SidebarState } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
-import { useBrowser, useSidePanel } from "./browser";
+import { useBrowser, useShowingAnchors, useSidePanel } from "./browser";
 import { SIDE_PANEL_WIDTH, SidePanel } from "./side-panel";
 import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
 import { type Presentation, useSidebarMotion } from "./sidebar-motion";
@@ -68,17 +68,17 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   // floats. Hidden once the 72px they take is past the window's edge.
   useEffect(() => {
     if (!hasApp) return;
-    const { x, top } = motionValues.box;
+    const { left, top } = motionValues.box;
     const half = (value: number) => Math.round(value * 2) / 2;
     let sent = { visible: false, x: NaN, y: NaN };
     const update = () => {
-      const now = { visible: x.get() > -72, x: 13 + half(x.get()), y: 13 + half(top.get()) };
+      const now = { visible: left.get() > -72, x: 13 + half(left.get()), y: 13 + half(top.get()) };
       if (now.visible !== sent.visible) appWindow.setButtonsVisible(now.visible);
       if (now.visible && (now.x !== sent.x || now.y !== sent.y)) appWindow.setButtonsPosition(now.x, now.y);
       sent = now;
     };
     update();
-    const stops = [x.on("change", update), top.on("change", update)];
+    const stops = [left.on("change", update), top.on("change", update)];
     return () => stops.forEach((stop) => stop());
   }, []);
 
@@ -94,9 +94,10 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   // though the pointer goes over to it: the page info popover, one of
   // Chromium's bubbles hanging off its buttons, a tab's or a group's menu.
   // Once that closes, the sidebar goes, unless the pointer is back over it.
-  const [fieldHeld, setFieldHeld] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [menusOpen, setMenusOpen] = useState(0);
-  const held = fieldHeld || menusOpen > 0;
+  const bubbleOpen = useShowingAnchors().length > 0;
+  const held = popoverOpen || bubbleOpen || menusOpen > 0;
   const whileOpen = <T,>(shown: Promise<T>) => {
     setMenusOpen((open) => open + 1);
     const closed = () => setMenusOpen((open) => open - 1);
@@ -107,6 +108,12 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     if (held || sidebarRef.current?.matches(":hover")) return;
     setPresentation((shown) => (shown === "floating" ? "hidden" : shown));
   }, [held]);
+  // A bubble that opens off one of its buttons while it is hidden (a
+  // permission prompt, an extension's popup from its shortcut) brings it
+  // out floating, for the bubble to hang off.
+  useEffect(() => {
+    if (bubbleOpen) setPresentation((shown) => (shown === "hidden" ? "floating" : shown));
+  }, [bubbleOpen]);
 
   const toggleFolder = (folder: Folder) =>
     setSpace((space) => ({
@@ -159,7 +166,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     onToggleSidebar: toggleSidebar,
     sidePanel: panelOpen && panel ? panel.id : null,
     onToggleSidePanel: (id) => (panelOpen && panel?.id === id ? sidePanel.close() : sidePanel.show(id)),
-    onHold: setFieldHeld
+    onPopoverOpenChange: setPopoverOpen
   };
 
   return (
@@ -215,7 +222,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           // Kept while hidden, so it slides away and back as it was.
           inert={presentation === "hidden"}
           style={motionValues.box}
-          className={`fixed left-0 pl-2 ${sidebarOpen ? "" : "no-drag"}`}
+          className={`fixed pl-2 ${sidebarOpen ? "" : "no-drag"}`}
           onPointerLeave={() => held || setPresentation((shown) => (shown === "floating" ? "hidden" : shown))}
         >
           <motion.div style={motionValues.panel} className="peek pointer-events-none absolute inset-0 rounded-panel" />
