@@ -22,8 +22,21 @@ while (
   await Bun.sleep(100);
 }
 
-const app = Bun.spawn(["./Wren.app/Contents/MacOS/Wren"], {
-  env: { ...process.env, WREN_DEV_URL: url },
+// Started with open, as Finder does, so macOS counts it as launched by the
+// user and gives it the focus; as a child of the terminal it is left behind.
+// open has the app write to this terminal, and Ctrl-C stops it by hand, as it
+// is not in the terminal's process group.
+const bundle = `${process.cwd()}/Wren.app`;
+const terminal = await new Response(Bun.spawn(["tty"], { stdin: "inherit", stdout: "pipe" }).stdout).text();
+const output = terminal.trim().startsWith("/dev/") ? terminal.trim() : "/dev/null";
+const stop = async () => {
+  await $`pkill -INT -f ${bundle}/Contents/MacOS/Wren`.nothrow().quiet();
+  vite.kill();
+  process.exit();
+};
+process.on("SIGINT", stop);
+
+const app = Bun.spawn(["open", "-W", bundle, "--env", `WREN_DEV_URL=${url}`, "--stdout", output, "--stderr", output], {
   stdout: "inherit",
   stderr: "inherit"
 });
