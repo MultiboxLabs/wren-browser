@@ -9,8 +9,8 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use wren::{
-    Browser, BrowserTab, MainThread, NativeView, PageCall, TabCrash, TabGroup, TabGroupColor,
-    WebView,
+    Browser, BrowserTab, MainThread, NativeView, PageCall, SplitLayout, TabCrash, TabGroup,
+    TabGroupColor, TabSplit, WebView,
 };
 
 use crate::app::State;
@@ -32,6 +32,8 @@ pub struct Tab {
     crashed: bool,
     /// Its group's ID, if it is in one.
     group: Option<String>,
+    /// Its split's ID, if it is in one.
+    split: Option<String>,
 }
 
 /// The tabs of the Browser in front, in its order, and which is active.
@@ -43,6 +45,29 @@ pub struct Tabs {
     active: Option<i32>,
     /// The groups of `tabs`, in their order.
     groups: Vec<Group>,
+    /// The splits of `tabs`, in their order.
+    splits: Vec<Split>,
+}
+
+/// Two tabs shown side by side, or one above the other, as one.
+#[derive(Serialize)]
+pub struct Split {
+    id: String,
+    /// The left or top tab's ID.
+    first: i32,
+    second: i32,
+    /// The first tab's share, between 0 and 1.
+    ratio: f64,
+    /// One above the other.
+    stacked: bool,
+}
+
+#[derive(Deserialize)]
+struct Ratio {
+    id: String,
+    ratio: f64,
+    /// While the divider is still being dragged.
+    dragging: bool,
 }
 
 /// A tab group, as the sidebar heads its tabs.
@@ -195,6 +220,22 @@ pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
         })
     });
 
+    // The divider between a split's tabs, as it is dragged.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("splits.setRatio", move |to: Ratio| {
+        with_browser(&weak, |_, browser| {
+            let split = TabSplit::parse(mt, &to.id)
+                .filter(|split| {
+                    let first = split.state().ok().and_then(|state| state.first);
+                    first.and_then(BrowserTab::browser).as_ref() == Some(browser)
+                })
+                .ok_or("There is no such split.")?;
+            split
+                .set_ratio(to.ratio.clamp(0.0, 1.0), to.dragging)
+                .map_err(failed)
+        })
+    });
+
     // Back, forward and reload, in the active tab.
     for (name, run) in [
         ("tabs.back", BrowserTab::go_back as fn(BrowserTab) -> _),
@@ -278,6 +319,7 @@ pub fn send_favicon(main: &MainWindow, tab: BrowserTab) {
 
 fn tab_list(browser: &Browser) -> Tabs {
     let mut groups: Vec<TabGroup> = Vec::new();
+    let mut splits: Vec<TabSplit> = Vec::new();
     let tabs = browser
         .tabs()
         .into_iter()
@@ -286,6 +328,10 @@ fn tab_list(browser: &Browser) -> Tabs {
             let group = state.and_then(|state| state.group);
             if let Some(group) = group.filter(|group| !groups.contains(group)) {
                 groups.push(group);
+            }
+            let split = state.and_then(|state| state.split);
+            if let Some(split) = split.filter(|split| !splits.contains(split)) {
+                splits.push(split);
             }
             Tab {
                 id: tab.id(),
@@ -296,6 +342,7 @@ fn tab_list(browser: &Browser) -> Tabs {
                 can_go_forward: state.is_some_and(|state| state.can_go_forward),
                 crashed: state.is_some_and(|state| state.crash != TabCrash::None),
                 group: group.map(|group| group.to_string()),
+                split: split.map(|split| split.to_string()),
             }
         })
         .collect();
@@ -311,11 +358,25 @@ fn tab_list(browser: &Browser) -> Tabs {
             }
         })
         .collect();
+    let splits = splits
+        .into_iter()
+        .filter_map(|split| {
+            let state = split.state().ok()?;
+            Some(Split {
+                id: split.to_string(),
+                first: state.first?.id(),
+                second: state.second?.id(),
+                ratio: state.ratio,
+                stacked: state.layout == SplitLayout::Stacked,
+            })
+        })
+        .collect();
     Tabs {
         browser: browser.id(),
         tabs,
         active: browser.active_tab().map(BrowserTab::id),
         groups,
+        splits,
     }
 }
 

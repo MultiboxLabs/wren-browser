@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type ReactNode, useRef } from "react";
-import type { GroupColor, TabGroup } from "../../ipc";
+import type { GroupColor, TabGroup, TabSplit } from "../../ipc";
 import { IconButton } from "../../components/ui/icon-button";
 import { press } from "../../components/ui/press";
 import { Tooltip } from "../../components/ui/tooltip";
@@ -31,6 +31,7 @@ export type SidebarProps = {
   /** The Browser's tabs, below the space's pinned ones, and their groups. */
   tabs: Tab[];
   groups: TabGroup[];
+  splits: TabSplit[];
   selected?: Tab["id"];
   onSelect: (tab: Tab) => void;
   onNewTab: () => void;
@@ -181,9 +182,11 @@ export function Sidebar(props: SidebarProps) {
                     <GroupRows {...props} group={entry.group} members={entry.tabs} />
                   </Appear>
                 ) : (
-                  <Appear key={entry.tab.id}>
-                    <TabRow tab={entry.tab} closable {...props} />
-                  </Appear>
+                  rows(entry.tabs, props.splits).map((row) => (
+                    <Appear key={row.split ? `split-${row.split.id}` : row.tab.id}>
+                      <BrowserRow {...props} row={row} />
+                    </Appear>
+                  ))
                 )
               )}
             </AnimatePresence>
@@ -274,25 +277,30 @@ function TabRow({
     >
       <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
       <span className="min-w-0 flex-1 truncate">{tab.title}</span>
-      {closable && (
-        <motion.button
-          {...press(0.9)}
-          // Pressed alone, without the row around it.
-          propagate={{ tap: false }}
-          type="button"
-          aria-label="Close Tab"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => onClose(tab)}
-          // Hovered, a fill of its own over the row's; the cross fades (not
-          // the fill) so the two don't stack.
-          className="group/close hidden size-5.5 place-items-center rounded-control group-hover:grid hover:bg-hover active:bg-pressed"
-        >
-          <span className="grid glyph-2 group-hover/close:glyph-1">
-            <X size={18} strokeWidth={1.75} />
-          </span>
-        </motion.button>
-      )}
+      {closable && <CloseButton onClose={() => onClose(tab)} />}
     </Row>
+  );
+}
+
+// Shown over a tab's row while it is hovered.
+function CloseButton({ onClose }: { onClose: () => void }) {
+  return (
+    <motion.button
+      {...press(0.9)}
+      // Pressed alone, without the row around it.
+      propagate={{ tap: false }}
+      type="button"
+      aria-label="Close Tab"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={onClose}
+      // Hovered, a fill of its own over the row's; the cross fades (not
+      // the fill) so the two don't stack.
+      className="group/close hidden size-5.5 shrink-0 place-items-center rounded-control group-hover:grid hover:bg-hover active:bg-pressed"
+    >
+      <span className="grid glyph-2 group-hover/close:glyph-1">
+        <X size={18} strokeWidth={1.75} />
+      </span>
+    </motion.button>
   );
 }
 
@@ -312,21 +320,78 @@ function FolderRow(props: SidebarProps & { folder: Folder }) {
   );
 }
 
-// The Browser's tabs as the list shows them: each alone, or with the rest of
-// its group under the group's heading. Chromium keeps a group's tabs
-// together.
-type Entry = { group: TabGroup; tabs: Tab[] } | { group?: undefined; tab: Tab };
+// The Browser's tabs as the list shows them: in runs outside any group, and
+// in runs under a group's heading. Chromium keeps a group's tabs together,
+// and a split's two.
+type Entry = { group?: TabGroup; tabs: Tab[] };
 
 function entries(tabs: Tab[], groups: TabGroup[]): Entry[] {
   const list: Entry[] = [];
   for (const tab of tabs) {
     const last = list[list.length - 1];
     const group = groups.find((group) => group.id === tab.group);
-    if (!group) list.push({ tab });
-    else if (last?.group && last.group.id === group.id) last.tabs.push(tab);
+    if (last && last.group?.id === group?.id) last.tabs.push(tab);
     else list.push({ group, tabs: [tab] });
   }
   return list;
+}
+
+/** A row of tabs: one tab, or the two of a split. */
+type BrowserRowItem = { split?: undefined; tab: Tab } | { split: TabSplit; first: Tab; second: Tab };
+
+function rows(tabs: Tab[], splits: TabSplit[]): BrowserRowItem[] {
+  const list: BrowserRowItem[] = [];
+  for (const tab of tabs) {
+    const split = splits.find((split) => split.id === tab.split);
+    const first = split && tabs.find((each) => each.id === split.first);
+    const second = split && tabs.find((each) => each.id === split.second);
+    if (split && first && second) {
+      if (!list.some((row) => row.split?.id === split.id)) list.push({ split, first, second });
+    } else list.push({ tab });
+  }
+  return list;
+}
+
+function BrowserRow(props: SidebarProps & { row: BrowserRowItem; indent?: number }) {
+  const { row } = props;
+  return row.split ? (
+    <SplitRow {...props} split={row.split} first={row.first} second={row.second} />
+  ) : (
+    <TabRow {...props} tab={row.tab} closable />
+  );
+}
+
+// A split's two tabs side by side in one row, as they show in the window.
+function SplitRow(props: SidebarProps & { split: TabSplit; first: Tab; second: Tab; indent?: number }) {
+  const { first, second, selected } = props;
+  return (
+    <div
+      style={{ marginLeft: props.indent }}
+      className="no-drag flex shrink-0 gap-1 rounded-[calc(var(--radius-row)+4px)] bg-fill p-1"
+    >
+      {[first, second].map((tab) => (
+        <motion.div
+          key={tab.id}
+          {...press(0.985)}
+          role="button"
+          tabIndex={-1}
+          aria-pressed={tab.id === selected}
+          onPointerDown={(event) => event.button === 0 && props.onSelect(tab)}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            props.onTabMenu(tab, event.clientX, event.clientY);
+          }}
+          className={`group flex h-8 min-w-0 flex-1 items-center gap-2.25 rounded-row pr-1 pl-2 ${
+            tab.id === selected ? "bg-selected" : "bg-fill hover:bg-hover"
+          }`}
+        >
+          <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
+          <span className="min-w-0 flex-1 truncate">{tab.title}</span>
+          <CloseButton onClose={() => props.onClose(tab)} />
+        </motion.div>
+      ))}
+    </div>
+  );
 }
 
 /** A row of the Browser's list, fading in and out where it stands while the rows below slide. */
@@ -382,16 +447,16 @@ function GroupRows(props: SidebarProps & { group: TabGroup; members: Tab[] }) {
       </Row>
       <AnimatePresence initial={false}>
         {!group.collapsed &&
-          members.map((tab) => (
+          rows(members, props.splits).map((row) => (
             <motion.div
-              key={tab.id}
+              key={row.split ? `split-${row.split.id}` : row.tab.id}
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={tabTransition}
               className="shrink-0"
             >
-              <TabRow tab={tab} indent={16} closable {...props} />
+              <BrowserRow {...props} row={row} indent={16} />
             </motion.div>
           ))}
       </AnimatePresence>

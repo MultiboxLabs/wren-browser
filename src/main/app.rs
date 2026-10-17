@@ -181,14 +181,15 @@ impl App for Wren {
             | TabFields::LOADING
             | TabFields::HISTORY
             | TabFields::CRASHED
-            | TabFields::GROUP;
+            | TabFields::GROUP
+            | TabFields::SPLIT;
         let mut tabs_changed = false;
         for change in changes {
             if change.browser.as_ref() != Some(&browser) {
                 continue;
             }
             match change.kind {
-                ChangeKind::Tabs | ChangeKind::Group => tabs_changed = true,
+                ChangeKind::Tabs | ChangeKind::Group | ChangeKind::Split => tabs_changed = true,
                 ChangeKind::SidePanel => ipc::send_side_panel(main, &browser),
                 ChangeKind::Tab => {
                     let Some(tab) = change.tab else { continue };

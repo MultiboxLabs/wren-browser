@@ -6,7 +6,7 @@ use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
 use objc2_foundation::NSString;
 use wren::{
     Browser, BrowserTab, ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifiers,
-    MenuRole, NativeView, TabGroup, TabGroupColor,
+    MenuRole, NativeView, SplitLayout, TabGroup, TabGroupColor, TabSplit,
 };
 
 use crate::tabs;
@@ -170,7 +170,9 @@ pub fn show_tab_menu(
 ) -> Result<(), wren::Error> {
     let all = browser.tabs();
     let index = all.iter().position(|each| *each == tab).unwrap_or(0);
-    let in_group = tab.state()?.group;
+    let state = tab.state()?;
+    let in_group = state.group;
+    let active = browser.active_tab();
     // The groups it could join.
     let others: Vec<MenuItem> = groups(browser)
         .into_iter()
@@ -188,6 +190,32 @@ pub fn show_tab_menu(
     }
     if in_group.is_some() {
         items.push(MenuItem::item("ungroup", "Remove from Group"));
+    }
+    items.push(MenuItem::Separator);
+    match state.split {
+        Some(split) => {
+            let stacked = split.state()?.layout == SplitLayout::Stacked;
+            items.extend([
+                MenuItem::item("swap", "Swap Sides"),
+                MenuItem::item(
+                    "layout",
+                    if stacked {
+                        "Show Side by Side"
+                    } else {
+                        "Show Stacked"
+                    },
+                ),
+                MenuItem::item("unsplit", "Exit Split View"),
+            ]);
+        }
+        // Beside the active tab, unless it is that tab or in a split of
+        // its own.
+        None => items.push(enabled(
+            MenuItem::item("split", "Open in Split View"),
+            active.is_some_and(|active| {
+                active != tab && active.state().is_ok_and(|state| state.split.is_none())
+            }),
+        )),
     }
     items.extend([
         MenuItem::Separator,
@@ -211,6 +239,20 @@ pub fn show_tab_menu(
             }
             Some("new-group") => BrowserTab::group(mt, &[tab]).map(drop),
             Some("ungroup") => BrowserTab::ungroup(mt, &[tab]),
+            Some("split") => match active {
+                Some(active) => active.split_with(tab, SplitLayout::SideBySide).map(drop),
+                None => Ok(()),
+            },
+            Some("swap") => split_of(tab).map_or(Ok(()), TabSplit::swap_tabs),
+            Some("layout") => split_of(tab).map_or(Ok(()), |split| {
+                let stacked = split.state()?.layout == SplitLayout::Stacked;
+                split.set_layout(if stacked {
+                    SplitLayout::SideBySide
+                } else {
+                    SplitLayout::Stacked
+                })
+            }),
+            Some("unsplit") => split_of(tab).map_or(Ok(()), TabSplit::unsplit),
             Some(id) if id.starts_with("group:") => match TabGroup::parse(mt, &id[6..]) {
                 Some(group) => group.add(&[tab]),
                 None => Ok(()),
@@ -361,6 +403,10 @@ fn groups(browser: &Browser) -> Vec<TabGroup> {
         }
     }
     groups
+}
+
+fn split_of(tab: BrowserTab) -> Option<TabSplit> {
+    tab.state().ok().and_then(|state| state.split)
 }
 
 fn enabled(mut item: MenuItem, on: bool) -> MenuItem {

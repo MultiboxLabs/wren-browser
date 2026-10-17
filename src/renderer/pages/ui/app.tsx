@@ -8,6 +8,7 @@ import { SIDE_PANEL_WIDTH, SidePanel } from "./side-panel";
 import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
 import { type Presentation, useSidebarMotion } from "./sidebar-motion";
 import { cssColor, type Folder, personal, schemeFor, type Space, type Tab } from "./space";
+import { TabView } from "./tab-view";
 import { useFullScreen, useWindowActive } from "./window";
 
 // The browser's window: the sidebar, the page, and the side panel.
@@ -104,6 +105,7 @@ export function App() {
       if (id !== undefined) browser.menu(id, x, y);
     },
     groups: browserTabs?.groups ?? [],
+    splits: browserTabs?.splits ?? [],
     onToggleGroup: (group) => groups.toggle(group.id),
     onGroupMenu: (group, x, y) =>
       groups.menu(group.id, x, y).then(
@@ -136,10 +138,11 @@ export function App() {
 
         <main className="flex min-w-0 flex-1 py-2.5 pr-2.5">
           {current ? (
-            <div className="card no-drag relative min-w-0 flex-1 overflow-hidden">
-              <wren-view data-id={`tab-${current.id}`} className="absolute inset-0 block" />
-              {current.crashed && <Crashed />}
-            </div>
+            <TabView
+              tab={current}
+              split={browserTabs?.splits.find((split) => split.id === current.split)}
+              tabs={browserTabs?.tabs ?? []}
+            />
           ) : (
             <div className="card no-drag min-w-0 flex-1" />
           )}
@@ -203,23 +206,5 @@ export function App() {
         )}
       </div>
     </TooltipProvider>
-  );
-}
-
-// Over a tab whose page's process has died, which shows nothing.
-function Crashed() {
-  return (
-    <div className="absolute inset-0 grid place-items-center bg-card">
-      <div className="flex flex-col items-center gap-3 text-fg-2">
-        <p className="font-semibold">This page stopped working.</p>
-        <button
-          type="button"
-          onClick={() => browser.reload()}
-          className="h-7 rounded-control bg-fill px-3 font-semibold hover:bg-hover active:bg-pressed"
-        >
-          Reload
-        </button>
-      </div>
-    </div>
   );
 }

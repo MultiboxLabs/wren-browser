@@ -32,6 +32,19 @@ export type BrowserTab = {
   crashed: boolean;
   /** Its group's ID, if it is in one. */
   group: string | null;
+  /** Its split's ID, if it is in one. */
+  split: string | null;
+};
+
+/** Two tabs shown side by side, or one above the other, as one. */
+export type TabSplit = {
+  id: string;
+  /** The left or top tab's ID. */
+  first: number;
+  second: number;
+  /** The first tab's share, between 0 and 1. */
+  ratio: number;
+  stacked: boolean;
 };
 
 /** One of Chromium's group colours. */
@@ -54,6 +67,8 @@ export type BrowserTabs = {
   active: number | null;
   /** The groups of `tabs`, in their order. */
   groups: TabGroup[];
+  /** The splits of `tabs`, in their order. */
+  splits: TabSplit[];
 };
 
 export const browser = {
@@ -91,6 +106,12 @@ export const groups = {
   /** Collapses an open group, or opens a collapsed one. */
   toggle: (id: string) => wren.invoke<null>("groups.toggle", id),
   rename: (id: string, title: string) => wren.invoke<null>("groups.rename", { id, title })
+};
+
+export const splits = {
+  /** The first tab's share, as the divider is dragged and once it is let go. */
+  setRatio: (id: string, ratio: number, dragging: boolean) =>
+    wren.invoke<null>("splits.setRatio", { id, ratio, dragging })
 };
 
 export const sidePanel = {

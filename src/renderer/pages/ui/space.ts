@@ -10,6 +10,8 @@ export type Tab = {
   favicon?: string | null;
   /** A tab of the Browser's group's ID. */
   group?: string | null;
+  /** A tab of the Browser's split's ID. */
+  split?: string | null;
 };
 export type Folder = { id: string; title: string; open: boolean; tabs: Tab[] };
 export type Space = {
