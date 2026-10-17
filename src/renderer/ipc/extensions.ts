@@ -1,10 +1,12 @@
-/** An extension's action: its button, pinned to the address field or listed in page info. */
+/** An extension's action: its button, pinned to the address field (or popped out there) or listed in page info. */
 export type ExtensionAction = {
   id: string;
   name: string;
   pinned: boolean;
   /** Pinned by policy: it cannot be unpinned. */
   forcePinned: boolean;
+  /** Shown in the address field although not pinned, while its popup opens. */
+  poppedOut: boolean;
   /** A data: URL of Chrome's 28-point button: the icon, with its badge. */
   icon: string | null;
 };

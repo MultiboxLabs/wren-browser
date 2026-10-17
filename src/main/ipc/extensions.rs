@@ -8,7 +8,7 @@ use crate::app::State;
 use crate::window::MainWindow;
 
 /// An extension's action, as the page info popover lists it and the
-/// address field shows it while it is pinned.
+/// address field shows it while it is pinned or popped out.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
@@ -17,6 +17,9 @@ pub struct Action {
     pinned: bool,
     /// Pinned by policy: it cannot be unpinned.
     force_pinned: bool,
+    /// Shown in the address field although not pinned, while its popup
+    /// opens, as Chrome pops its button out.
+    popped_out: bool,
     /// As Chrome draws its 28-point button: the icon, with its badge.
     icon: Option<String>,
 }
@@ -43,8 +46,8 @@ pub fn handle(web_view: &WebView, state: &Rc<State>) {
         })
     });
 
-    // Pins it to the address field, or unpins it; its anchor follows
-    // ("extensions.actions" says so, and `App::changed` names it again).
+    // Pins it to the address field, or unpins it; its button follows, with
+    // its mark ("extensions.actions" says so).
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("extensions.setPinned", move |pin: Pin| {
         with_browser(&weak, |_, browser| {
@@ -83,6 +86,7 @@ fn actions(browser: &Browser) -> Vec<Action> {
                 name: browser.extension_action_name(&id),
                 pinned: state.is_some_and(|state| state.pinned || state.force_pinned),
                 force_pinned: state.is_some_and(|state| state.force_pinned),
+                popped_out: state.is_some_and(|state| state.popped_out),
                 icon: browser
                     .extension_action_icon_png(&id, 28, 2.0, true)
                     .map(png_url),

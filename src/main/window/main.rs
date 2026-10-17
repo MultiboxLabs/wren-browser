@@ -61,10 +61,13 @@ impl MainWindow {
         self.browsers.borrow_mut().insert(id, (profile, browser));
     }
 
-    /// Names the page's marks as `browser`'s anchors. An extension's popup
-    /// opens below its own button while it is pinned to the address field,
-    /// and below the page info button, which lists it, while it is not; so
-    /// its anchor is named again as its pin changes.
+    /// Names the page's marks as `browser`'s anchors. An extension's mark is
+    /// named whether or not its button is shown: the page has the mark only
+    /// while the button is pinned or popped out for a popup or dialog, which
+    /// opens below it, and below the extensions anchor, page info's, while
+    /// it has not. Wren pops the button out only for an action with no
+    /// anchor of its own, so an unpinned one must not be named as another
+    /// element. The page's marks are named once per extension.
     pub fn name_anchors(&self, browser: &Browser) {
         for (anchor, mark) in marks(browser) {
             let named = browser.set_anchor_element(&anchor, &self.page.web_view, Some(&mark));
@@ -112,16 +115,11 @@ pub fn marks(browser: &Browser) -> Vec<(BubbleAnchor, String)> {
         (BubbleAnchor::LOCATION, PAGE_INFO.to_owned()),
         (BubbleAnchor::EXTENSIONS, PAGE_INFO.to_owned()),
     ];
-    marks.extend(browser.extension_action_ids().into_iter().map(|id| {
-        let pinned = browser
-            .extension_action_state(&id)
-            .is_ok_and(|state| state.pinned || state.force_pinned);
-        let mark = if pinned {
-            format!("extension:{id}")
-        } else {
-            PAGE_INFO.to_owned()
-        };
-        (BubbleAnchor::extension_action(&id), mark)
-    }));
+    marks.extend(
+        browser
+            .extension_action_ids()
+            .into_iter()
+            .map(|id| (BubbleAnchor::extension_action(&id), format!("extension:{id}"))),
+    );
     marks
 }

@@ -222,7 +222,7 @@ impl App for Wren {
         let mut site_changed = false;
         let mut extensions_changed = false;
         for change in changes {
-            // A pin moves an extension's anchor, in the background too.
+            // A new extension's anchor is named, in the background too.
             if change.kind == ChangeKind::ExtensionActions
                 && let Some(changed) = &change.browser
             {
@@ -272,7 +272,7 @@ impl App for Wren {
         if site_changed {
             ipc::send_site(main, &browser);
         }
-        // A pin moves an extension's anchor to another mark.
+        // A pin or a pop-out shows or hides an extension's button, its mark.
         if extensions_changed {
             ipc::send_extensions(main, &browser);
             ipc::send_anchors(main, &browser);

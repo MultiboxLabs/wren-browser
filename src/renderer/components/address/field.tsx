@@ -1,9 +1,9 @@
 // The address field at the top of the sidebar: the page's address, which a
-// click edits in the omnibox (omnibox.tsx), the extensions pinned to it,
-// and the page info button, which opens the page info popover. Each button
-// carries the mark Chromium hangs its bubbles off (MainWindow::name_anchors):
-// a pinned extension's popup opens below its own button, and the site's
-// bubbles and the rest below page info's.
+// click edits in the omnibox (omnibox.tsx), the extensions pinned to it (or
+// popped out for its popup), and the page info button, which opens the page
+// info popover. Each button carries the mark Chromium hangs its bubbles off
+// (MainWindow::name_anchors): a shown extension's popup opens below its own
+// button, and the site's bubbles and the rest below page info's.
 
 import { Search } from "lucide-react";
 import { type Ref, useEffect, useState } from "react";
@@ -66,7 +66,7 @@ export function AddressField({
         )}
       </div>
       {actions
-        .filter((action) => action.pinned)
+        .filter((action) => action.pinned || action.poppedOut)
         .map((action) => (
           <PinnedAction key={action.id} action={action} showing={showing.includes(`extension:${action.id}`)} />
         ))}
@@ -93,8 +93,9 @@ export function AddressField({
   );
 }
 
-// A pinned extension's button: a click runs it, as in Chrome's toolbar, and
-// a right click is Chromium's menu for it, where it is unpinned.
+// A shown extension's button: a click runs it, as in Chrome's toolbar, and
+// a right click is Chromium's menu for it, where it is unpinned. One only
+// popped out leaves as its popup closes.
 function PinnedAction({ action, showing }: { action: ExtensionAction; showing: boolean }) {
   return (
     <Anchor name={`extension:${action.id}`}>
