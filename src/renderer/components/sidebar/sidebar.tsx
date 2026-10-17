@@ -12,6 +12,7 @@ import { Favicon } from "../favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "../icons";
 import type { SidePanelId } from "../side-panel";
 import { type Folder, isFolder, type Space, type Tab } from "../../state/space";
+import { cn } from "../../utils/cn";
 
 /** The docked sidebar's width, its left padding in it. */
 export const SIDEBAR_WIDTH = { min: 240, max: 480, initial: 320 };
@@ -142,8 +143,8 @@ export function Sidebar(props: SidebarProps) {
 
           <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
 
-          <Row selected={props.newTabOpen} className={props.newTabOpen ? "" : "text-fg-3"} onPress={props.onNewTab}>
-            <Plus size={14} strokeWidth={2} className={`mx-px ${props.newTabOpen ? "glyph-1" : "glyph-3"}`} />
+          <Row selected={props.newTabOpen} className={cn(!props.newTabOpen && "text-fg-3")} onPress={props.onNewTab}>
+            <Plus size={14} strokeWidth={2} className={cn("mx-px", props.newTabOpen ? "glyph-1" : "glyph-3")} />
             New Tab
           </Row>
 
@@ -203,7 +204,7 @@ function pressHandlers(onPress?: () => void, onMiddlePress?: () => void) {
 function Row({
   selected,
   indent = 0,
-  className = "",
+  className,
   onPress,
   onMenu,
   onMiddlePress,
@@ -232,9 +233,11 @@ function Row({
       }}
       // Nested rows are indented whole, their highlight with them.
       style={{ marginLeft: indent }}
-      className={`no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5 ${
-        selected ? "bg-selected" : "hover:bg-hover"
-      } ${className}`}
+      className={cn(
+        "no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5",
+        selected ? "bg-selected" : "hover:bg-hover",
+        className
+      )}
     >
       {children}
     </motion.div>
@@ -360,13 +363,14 @@ function SplitRow(props: SidebarProps & { split: TabSplit; first: Tab; second: T
       {...press(0.985)}
       role="group"
       style={{ marginLeft: props.indent }}
-      className={`no-drag group flex h-9 shrink-0 items-center rounded-row p-1 ${
+      className={cn(
+        "no-drag group flex h-9 shrink-0 items-center rounded-row p-1",
         active ? "bg-selected" : "hover:bg-hover"
-      }`}
+      )}
     >
       {[first, second].map((tab, index) => (
         <div key={tab.id} className="contents">
-          {index > 0 && <div className={`mx-[1.5px] h-4 w-px shrink-0 ${active ? "" : "bg-separator"}`} />}
+          {index > 0 && <div className={cn("mx-[1.5px] h-4 w-px shrink-0", !active && "bg-separator")} />}
           <div
             role="button"
             tabIndex={-1}
@@ -382,9 +386,10 @@ function SplitRow(props: SidebarProps & { split: TabSplit; first: Tab; second: T
             // Its content in from the row's padding as far as a lone tab's;
             // the close button as far from its right edge as its top and
             // bottom.
-            className={`flex h-full min-w-0 flex-1 items-center gap-2.75 rounded-[calc(var(--radius-row)-4px)] pr-0.75 pl-1.5 ${
-              active ? "bg-fill" : ""
-            }`}
+            className={cn(
+              "flex h-full min-w-0 flex-1 items-center gap-2.75 rounded-[calc(var(--radius-row)-4px)] pr-0.75 pl-1.5",
+              active && "bg-fill"
+            )}
           >
             <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
             <span className="min-w-0 flex-1 truncate">{tab.title}</span>
@@ -437,7 +442,7 @@ function GroupRows(props: SidebarProps & { group: TabGroup; members: Tab[] }) {
           <GroupTitleField group={group} onDone={(title) => props.onRename(group, title)} />
         ) : (
           <span
-            className={`min-w-0 flex-1 truncate font-semibold ${group.title ? "" : "text-fg-3"}`}
+            className={cn("min-w-0 flex-1 truncate font-semibold", !group.title && "text-fg-3")}
             onDoubleClick={() => props.onStartRename(group)}
           >
             {group.title || "Unnamed Group"}

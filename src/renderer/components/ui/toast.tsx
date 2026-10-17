@@ -7,6 +7,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import type { Key, ReactNode } from "react";
 import { press } from "./press";
+import { cn } from "../../utils/cn";
 
 /** What a toast shows. Another `key` replaces it, and comes in afresh. */
 export type ToastContent = {
@@ -19,7 +20,7 @@ export type ToastContent = {
 };
 
 /** Shows `toast` until it is null or another; `className` places it. */
-export function Toast({ toast, className = "" }: { toast: ToastContent | null; className?: string }) {
+export function Toast({ toast, className }: { toast: ToastContent | null; className?: string }) {
   const action = toast?.action;
   return (
     <AnimatePresence mode="wait">
@@ -36,7 +37,7 @@ export function Toast({ toast, className = "" }: { toast: ToastContent | null; c
           }}
           style={{ transformOrigin: "top center" }}
           onClick={toast.onClose}
-          className={`toast no-drag flex h-10 items-center gap-2 pr-2 pl-3.5 font-semibold ${className}`}
+          className={cn("toast no-drag flex h-10 items-center gap-2 pr-2 pl-3.5 font-semibold", className)}
         >
           <span className="mr-1 whitespace-nowrap">{toast.text}</span>
           {action && (

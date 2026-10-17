@@ -4,10 +4,11 @@
 // anchors (MainWindow::name_anchors); nothing here measures anything.
 
 import type { ReactNode } from "react";
+import { cn } from "../../utils/cn";
 
-export function Anchor({ name, className = "", children }: { name: string; className?: string; children: ReactNode }) {
+export function Anchor({ name, className, children }: { name: string; className?: string; children: ReactNode }) {
   return (
-    <span className={`relative inline-grid ${className}`}>
+    <span className={cn("relative inline-grid", className)}>
       {children}
       {/* A mark's name is read when the element is made, so another name
           is another element. */}

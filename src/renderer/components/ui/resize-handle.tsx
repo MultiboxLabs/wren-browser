@@ -2,6 +2,7 @@
 // sidebar and the page does. Below a panel, it resizes its height.
 
 import { type CSSProperties, useRef } from "react";
+import { cn } from "../../utils/cn";
 
 export type Range = { min: number; max: number };
 
@@ -11,7 +12,7 @@ export function ResizeHandle({
   edge,
   grip,
   style,
-  className = "",
+  className,
   onResize,
   onEnd
 }: {
@@ -45,7 +46,11 @@ export function ResizeHandle({
       aria-valuemin={range.min}
       aria-valuemax={range.max}
       style={style}
-      className={`no-drag group grid shrink-0 place-items-center ${vertical ? "cursor-row-resize" : "cursor-col-resize"} ${className}`}
+      className={cn(
+        "no-drag group grid shrink-0 place-items-center",
+        vertical ? "cursor-row-resize" : "cursor-col-resize",
+        className
+      )}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         start.current = { x: vertical ? event.clientY : event.clientX, width };
@@ -63,7 +68,10 @@ export function ResizeHandle({
     >
       {grip && (
         <div
-          className={`rounded-full bg-fg-3 opacity-0 group-hover:opacity-100 group-active:opacity-100 ${vertical ? "h-0.75 w-7" : "h-7 w-0.75"}`}
+          className={cn(
+            "rounded-full bg-fg-3 opacity-0 group-hover:opacity-100 group-active:opacity-100",
+            vertical ? "h-0.75 w-7" : "h-7 w-0.75"
+          )}
         />
       )}
     </div>

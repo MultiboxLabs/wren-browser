@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Sound } from "./sound";
 import { ambient, draw, type Hud, type Input, MAX_HEARTS, newWorld, play, TWIGS_PER_EGG, type World } from "./world";
+import { cn } from "../../utils/cn";
 
 type Phase = "title" | "playing" | "paused" | "over";
 
@@ -150,7 +151,7 @@ export function Game() {
           </Pill>
           <Pill>
             {Array.from({ length: MAX_HEARTS }, (_, i) => (
-              <span key={i} className={i < hud.hearts ? "" : "opacity-25 grayscale"}>
+              <span key={i} className={cn(i >= hud.hearts && "opacity-25 grayscale")}>
                 ❤️
               </span>
             ))}

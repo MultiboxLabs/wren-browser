@@ -45,6 +45,7 @@ import { isNewTab } from "../../utils/url";
 import { InsecureIcon } from "../icons";
 import { type SidePanelId, sidePanels } from "../side-panel";
 import type { Tab } from "../../state/space";
+import { cn } from "../../utils/cn";
 
 /** Where the Extensions section's add button goes. */
 const STORE = "https://chromewebstore.google.com";
@@ -267,9 +268,10 @@ function ExtensionTile({ action, onRun }: { action: ExtensionAction; onRun: () =
           aria-pressed={pinned}
           disabled={action.forcePinned}
           onClick={() => extensions.setPinned(action.id, !pinned)}
-          className={`absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full bg-inverse text-on-inverse shadow-tooltip transition-opacity duration-150 ease-out ${
-            pinned ? "" : "opacity-0 group-hover/extension:opacity-40 hover:opacity-70!"
-          }`}
+          className={cn(
+            "absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full bg-inverse text-on-inverse shadow-tooltip transition-opacity duration-150 ease-out",
+            !pinned && "opacity-0 group-hover/extension:opacity-40 hover:opacity-70!"
+          )}
         >
           <Pin size={9} strokeWidth={2.75} fill="currentColor" className="rotate-45" />
         </motion.button>
@@ -300,11 +302,12 @@ function PermissionRow({ permission }: { permission: SitePermission }) {
       className="flex h-10 items-center gap-2.5 rounded-tile p-1.5 text-left"
     >
       <span
-        className={`grid size-7 shrink-0 place-items-center rounded-full group-disabled/button:opacity-50 ${
+        className={cn(
+          "grid size-7 shrink-0 place-items-center rounded-full group-disabled/button:opacity-50",
           permission.allowed ? "bg-inverse text-on-inverse" : "bg-fill"
-        }`}
+        )}
       >
-        <span className={permission.allowed ? "grid" : "grid glyph-1"}>
+        <span className={cn("grid", !permission.allowed && "glyph-1")}>
           <Icon size={14} strokeWidth={2} />
         </span>
       </span>
@@ -372,7 +375,7 @@ function SecurityButton({ site: info, onClose }: { site: Site; onClose: () => vo
         if (certificate) site.certificate();
       }}
       // Quiet, as a status is: a fill only under the pointer.
-      className={`font-medium ${warning ? "text-danger" : "text-fg-2"}`}
+      className={cn("font-medium", warning ? "text-danger" : "text-fg-2")}
     >
       {label}
     </Button>

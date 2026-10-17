@@ -19,6 +19,7 @@ import { useLayoutEffect, useRef } from "react";
 import type { OmniboxTarget, Suggestion, SuggestionKind } from "../../ipc";
 import { Favicon } from "../favicon";
 import { type OmniboxItem, switchesToTab } from "./items";
+import { cn } from "../../utils/cn";
 
 export function OmniboxRow({
   item,
@@ -53,12 +54,16 @@ export function OmniboxRow({
       // Opens on release, as a list's row does.
       onClick={(event) => onOpen(event.metaKey || event.altKey)}
       onAuxClick={(event) => event.button === 1 && onOpen(true)}
-      className={`flex h-11.5 shrink-0 items-center gap-2.25 rounded-omnibox-row pr-3 pl-2.5 text-omnibox-row font-medium ${
+      className={cn(
+        "flex h-11.5 shrink-0 items-center gap-2.25 rounded-omnibox-row pr-3 pl-2.5 text-omnibox-row font-medium",
         selected ? "bg-omnibox-selected text-white" : "text-omnibox-fg hover:bg-omnibox-hover"
-      }`}
+      )}
     >
       <span
-        className={`grid size-6 shrink-0 place-items-center rounded-omnibox-icon ${selected && favicon ? "bg-white" : ""}`}
+        className={cn(
+          "grid size-6 shrink-0 place-items-center rounded-omnibox-icon",
+          selected && favicon && "bg-white"
+        )}
       >
         <OmniboxIcon item={item} glyph={selected ? "text-white" : "text-omnibox-glyph"} />
       </span>
@@ -69,12 +74,13 @@ export function OmniboxRow({
       </span>
       <span className="flex-1" />
       {switches && (
-        <span className={`flex shrink-0 items-center gap-2.25 ${selected ? "text-white" : "text-omnibox-dim"}`}>
+        <span className={cn("flex shrink-0 items-center gap-2.25", selected ? "text-white" : "text-omnibox-dim")}>
           Switch to Tab
           <span
-            className={`grid size-6 place-items-center rounded-control ${
+            className={cn(
+              "grid size-6 place-items-center rounded-control",
               selected ? "bg-white text-omnibox-selected" : "bg-omnibox-tile text-omnibox-arrow"
-            }`}
+            )}
           >
             <ArrowRight size={17} strokeWidth={2} />
           </span>

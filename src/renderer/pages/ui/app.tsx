@@ -15,6 +15,7 @@ import { cssColor, schemeFor } from "../../utils/color";
 import { TabView } from "../../components/tab-view";
 import { BrowserToast } from "../../components/toast";
 import { useFullScreen, useWindowActive } from "../../state/window";
+import { cn } from "../../utils/cn";
 
 // Waits for the sidebar's saved state, so it opens as it was left.
 export function App() {
@@ -234,7 +235,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           // Kept while hidden, so it slides away and back as it was.
           inert={presentation === "hidden"}
           style={motionValues.box}
-          className={`fixed pl-2 ${sidebarOpen ? "" : "no-drag"}`}
+          className={cn("fixed pl-2", !sidebarOpen && "no-drag")}
           onPointerLeave={() => held || setPresentation((shown) => (shown === "floating" ? "hidden" : shown))}
         >
           <motion.div style={motionValues.panel} className="peek pointer-events-none absolute inset-0 rounded-panel" />

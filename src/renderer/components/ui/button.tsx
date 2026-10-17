@@ -6,6 +6,7 @@ import { type HTMLMotionProps, motion } from "motion/react";
 import type { ComponentType, ReactNode } from "react";
 import { press } from "./press";
 import { Tooltip } from "./tooltip";
+import { cn } from "../../utils/cn";
 
 /** A Lucide icon, or one drawn the same way (in currentColor, sized by `size`). */
 export type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
@@ -92,7 +93,7 @@ export function Button({
   label,
   pressed = false,
   scale,
-  className = "",
+  className,
   children,
   ...props
 }: ButtonProps) {
@@ -104,13 +105,16 @@ export function Button({
         {...press(scale ?? shapes[form].scale)}
         type="button"
         aria-label={form === "text" ? undefined : label}
-        className={`group/button no-drag shrink-0 disabled:text-fg-4 ${shapes[form].className} ${
-          pressed ? variants[variant].on : variants[variant].off
-        } ${className}`}
+        className={cn(
+          "group/button no-drag shrink-0 disabled:text-fg-4",
+          shapes[form].className,
+          pressed ? variants[variant].on : variants[variant].off,
+          className
+        )}
         {...props}
       >
         {Icon && (
-          <span className={`grid ${tone} group-disabled/button:glyph-4`}>
+          <span className={cn("grid", tone, "group-disabled/button:glyph-4")}>
             <Icon size={iconSize} strokeWidth={1.75} />
           </span>
         )}

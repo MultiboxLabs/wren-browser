@@ -15,6 +15,7 @@ import { Favicon } from "../favicon";
 import { useOmniboxField } from "./field";
 import type { OmniboxTabs } from "./items";
 import { OmniboxIcon, OmniboxRow } from "./row";
+import { cn } from "../../utils/cn";
 
 /** Where the omnibox is: at the address field's top left, or, without it in view, in the middle of the window. */
 export type OmniboxPlace = { left: number; top: number } | "center";
@@ -107,7 +108,7 @@ export function Omnibox({
             : { top: `max(20px, 50% - ${size.maxHeight / 2}px)`, transformOrigin: "top center" })
         }}
         // Not clipped: the pulse's glow spreads out past its edges.
-        className={`omnibox absolute isolate flex flex-col ${anchored ? "" : "left-1/2 -translate-x-1/2"}`}
+        className={cn("omnibox absolute isolate flex flex-col", !anchored && "left-1/2 -translate-x-1/2")}
       >
         {pulses > 0 && (
           <span key={pulses} aria-hidden className="omnibox-pulse">
@@ -119,7 +120,7 @@ export function Omnibox({
             theirs starts. */}
         <div
           style={{ height: size.field }}
-          className={`flex shrink-0 items-center gap-2.25 pl-4.5 ${anchored ? "pr-3" : "pr-5"}`}
+          className={cn("flex shrink-0 items-center gap-2.25 pl-4.5", anchored ? "pr-3" : "pr-5")}
         >
           <span className="grid size-6 shrink-0 place-items-center">
             {tab ? (
@@ -151,9 +152,10 @@ export function Omnibox({
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
-            className={`min-w-0 flex-1 bg-transparent text-omnibox-typed outline-none select-text selection:bg-omnibox-text-selection placeholder:text-omnibox-placeholder ${
+            className={cn(
+              "min-w-0 flex-1 bg-transparent text-omnibox-typed outline-none select-text selection:bg-omnibox-text-selection placeholder:text-omnibox-placeholder",
               anchored ? "text-omnibox-row" : "text-omnibox-large font-medium"
-            }`}
+            )}
           />
           {engine && (
             <span className="flex shrink-0 items-center gap-2.25 text-omnibox-row font-medium text-omnibox-dim">
@@ -171,9 +173,10 @@ export function Omnibox({
             <div
               id="omnibox-list"
               role="listbox"
-              className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2.5 [scrollbar-width:none] ${
+              className={cn(
+                "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2.5 [scrollbar-width:none]",
                 anchored ? "scroll-pt-0.5 scroll-pb-2.5 pt-0.5" : "scroll-pt-1.5 scroll-pb-2.5 pt-1.5"
-              }`}
+              )}
             >
               {items.map((item, index) => (
                 <OmniboxRow

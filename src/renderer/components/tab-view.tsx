@@ -5,6 +5,7 @@ import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { browser, type BrowserTab, splits, type TabSplit } from "../ipc";
+import { cn } from "../utils/cn";
 
 // The divider's thickness, as the gap beside the side panel.
 const DIVIDER = 10;
@@ -36,7 +37,7 @@ function SplitPanes({ split, first, second }: { split: TabSplit; first: BrowserT
 
   const room = Math.max(0, size - DIVIDER);
   return (
-    <div ref={box} className={`flex min-h-0 min-w-0 flex-1 ${split.stacked ? "flex-col" : ""}`}>
+    <div ref={box} className={cn("flex min-h-0 min-w-0 flex-1", split.stacked && "flex-col")}>
       <TabPane tab={first} style={{ flex: `0 0 calc((100% - ${DIVIDER}px) * ${ratio})` }} />
       <ResizeHandle
         width={Math.round(room * ratio)}
@@ -60,9 +61,9 @@ function SplitPanes({ split, first, second }: { split: TabSplit; first: BrowserT
   );
 }
 
-function TabPane({ tab, className = "", style }: { tab: BrowserTab; className?: string; style?: CSSProperties }) {
+function TabPane({ tab, className, style }: { tab: BrowserTab; className?: string; style?: CSSProperties }) {
   return (
-    <div style={style} className={`card no-drag relative min-h-0 min-w-0 overflow-hidden ${className}`}>
+    <div style={style} className={cn("card no-drag relative min-h-0 min-w-0 overflow-hidden", className)}>
       <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block" />
       {tab.crashed && <Crashed tab={tab} />}
     </div>
