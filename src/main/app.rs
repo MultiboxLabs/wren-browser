@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use wren::{App, Browser, BrowserType, MainThread, Profile};
+use wren::{App, Browser, BrowserType, Change, ChangeKind, MainThread, Profile, TabFields};
 
 use crate::ipc;
 use crate::main_window::MainWindow;
@@ -31,7 +31,7 @@ impl State {
             eprintln!("Wren made no web view.");
             return mt.quit();
         };
-        ipc::handle_ui(&page.web_view, self);
+        ipc::handle_ui(&page.web_view, self, mt);
         // The page and the backdrop are drawn as in use while the window is.
         let state = Rc::downgrade(self);
         page.watch_active(mt, move |active| {
@@ -78,7 +78,11 @@ impl State {
                 let _ = browser.close();
                 return;
             };
-            main.add(profile, browser);
+            main.add(profile, browser.clone());
+            // The page asked before there was a Browser.
+            if main.is_front(&browser) {
+                ipc::send_tabs(main, &browser);
+            }
         });
     }
 }
@@ -111,6 +115,49 @@ impl App for Wren {
     // The app shows only its own Browsers yet, so it closes them.
     fn browser_opened(&self, _: MainThread, opened: Browser, _: BrowserType, _: Option<Browser>) {
         let _ = opened.close();
+    }
+
+    fn changed(&self, _: MainThread, changes: &[Change]) {
+        let main = self.state.main.borrow();
+        let Some(main) = main.as_ref() else { return };
+        let Some(browser) = main.browser() else {
+            return;
+        };
+        // What the sidebar draws of a tab, besides its favicon.
+        let drawn = TabFields::TITLE
+            | TabFields::URL
+            | TabFields::LOADING
+            | TabFields::HISTORY
+            | TabFields::CRASHED;
+        let mut tabs_changed = false;
+        for change in changes {
+            if change.browser.as_ref() != Some(&browser) {
+                continue;
+            }
+            match change.kind {
+                ChangeKind::Tabs => tabs_changed = true,
+                ChangeKind::Tab => {
+                    let Some(tab) = change.tab else { continue };
+                    tabs_changed |= change.tab_fields.intersects(drawn);
+                    if change.tab_fields.contains(TabFields::FAVICON) {
+                        ipc::send_favicon(main, tab);
+                    }
+                    // A newly active tab's page arrives in the page's
+                    // element after the page asks for it, and gets the
+                    // keyboard then.
+                    if change.tab_fields.contains(TabFields::IN_ELEMENT)
+                        && browser.active_tab() == Some(tab)
+                        && tab.state().is_ok_and(|state| state.in_element)
+                    {
+                        let _ = tab.focus();
+                    }
+                }
+                _ => {}
+            }
+        }
+        if tabs_changed {
+            ipc::send_tabs(main, &browser);
+        }
     }
 
     fn browser_closed(&self, mt: MainThread, browser: Browser) {

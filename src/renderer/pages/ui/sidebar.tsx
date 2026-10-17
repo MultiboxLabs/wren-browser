@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { IconButton } from "../../components/ui/icon-button";
 import { press } from "../../components/ui/press";
 import { Tooltip } from "../../components/ui/tooltip";
-import { Favicon } from "./favicon";
+import { Favicon, host } from "./favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "./icons";
 import { type Folder, isFolder, type Space, type Tab } from "./space";
 
@@ -16,11 +16,18 @@ export const SIDEBAR_WIDTH = { min: 240, max: 480, initial: 320 };
 
 export type SidebarProps = {
   space: Space;
-  selected?: string;
+  /** The Browser's tabs, below the space's pinned ones. */
+  tabs: Tab[];
+  selected?: Tab["id"];
   onSelect: (tab: Tab) => void;
   onNewTab: () => void;
   onClose: (tab: Tab) => void;
   onToggleFolder: (folder: Folder) => void;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onBack: () => void;
+  onForward: () => void;
+  onReload: () => void;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
   sidePanelOpen: boolean;
@@ -34,12 +41,15 @@ const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
 
 const shortcut = (key: string) => (document.documentElement.dataset.platform === "mac" ? `⌘${key}` : `Ctrl+${key}`);
 
+// Chromium's New Tab page has no address to show.
+const isNewTab = (url: string) => url === "" || url.startsWith("chrome://newtab");
+
 export function Sidebar(props: SidebarProps) {
-  const { space, selected, onSelect } = props;
+  const { space, tabs, selected, onSelect } = props;
   const current = [
     ...space.favorites,
     ...space.pinned.flatMap((item) => (isFolder(item) ? item.tabs : [item])),
-    ...space.tabs
+    ...tabs
   ].find((tab) => tab.id === selected);
 
   return (
@@ -55,15 +65,21 @@ export function Sidebar(props: SidebarProps) {
         />
         <div className="flex-1" />
         <div className="flex gap-1.5">
-          <IconButton icon={BackIcon} label="Back" size={17} />
-          <IconButton icon={ForwardIcon} label="Forward" size={17} disabled />
-          <IconButton icon={ReloadIcon} label="Reload" size={15} />
+          <IconButton icon={BackIcon} label="Back" size={17} disabled={!props.canGoBack} onClick={props.onBack} />
+          <IconButton
+            icon={ForwardIcon}
+            label="Forward"
+            size={17}
+            disabled={!props.canGoForward}
+            onClick={props.onForward}
+          />
+          <IconButton icon={ReloadIcon} label="Reload" size={15} onClick={props.onReload} />
         </div>
       </div>
 
       <div className="no-drag mt-0.5 flex h-9 shrink-0 items-center rounded-field bg-fill pr-1 text-fg-2">
-        {current ? (
-          <span className="flex-1 truncate pl-3.25">{new URL(current.url).host}</span>
+        {current && !isNewTab(current.url) ? (
+          <span className="flex-1 truncate pl-3.25">{host(current.url)}</span>
         ) : (
           <>
             <Search size={12} strokeWidth={2.25} className="ml-3 shrink-0 glyph-2" />
@@ -124,7 +140,7 @@ export function Sidebar(props: SidebarProps) {
               under the first. */}
           <div className="-mt-1.25 flex flex-col">
             <AnimatePresence initial={false}>
-              {space.tabs.map((tab) => (
+              {tabs.map((tab) => (
                 <motion.div
                   key={tab.id}
                   initial={{ height: 0, opacity: 0 }}
@@ -211,7 +227,7 @@ function TabRow({
 }: SidebarProps & { tab: Tab; indent?: number; closable?: boolean }) {
   return (
     <Row selected={tab.id === selected} indent={indent} onPress={() => onSelect(tab)}>
-      <Favicon url={tab.url} title={tab.title} />
+      <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
       <span className="min-w-0 flex-1 truncate">{tab.title}</span>
       {closable && (
         <motion.button

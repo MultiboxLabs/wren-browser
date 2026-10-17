@@ -1,7 +1,9 @@
-// A space: a colour, and the tabs that belong to it. Until there are real
-// tabs, the one space is made up here.
+// A space: a colour, and the tabs that belong to it. Its tabs are the
+// Browser's; until favourites and pinned tabs are real too, the one space and
+// those are made up here.
 
-export type Tab = { id: string; title: string; url: string };
+/** A tab of the Browser, by its ID, or a made-up favourite or pinned one, by its address. */
+export type Tab = { id: number | string; title: string; url: string; favicon?: string | null };
 export type Folder = { id: string; title: string; open: boolean; tabs: Tab[] };
 export type Space = {
   id: string;
@@ -12,7 +14,6 @@ export type Space = {
   backdrop: "light" | "dark";
   favorites: Tab[];
   pinned: (Tab | Folder)[];
-  tabs: Tab[];
 };
 
 export const isFolder = (item: Tab | Folder): item is Folder => "tabs" in item;
@@ -64,10 +65,5 @@ export const personal: Space = {
     tab("Wren Runtime", "https://code.example.com/wren-runtime"),
     { id: "folder-work", title: "Work", open: false, tabs: [tab("Tickets", "https://tickets.example.com/")] },
     tab("Inbox", "https://mail.example.com/inbox")
-  ],
-  tabs: [
-    tab("Radix Primitives", "https://radix.example.com/primitives"),
-    tab("Tailwind CSS", "https://tailwind.example.com/docs"),
-    tab("Releases", "https://code.example.com/wren-runtime/releases")
   ]
 };

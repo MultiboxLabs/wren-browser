@@ -1,7 +1,18 @@
-/** A site's icon. Until there are real ones, its first letter on a colour from its address. */
-export function Favicon({ url, title, size = 16 }: { url: string; title: string; size?: number }) {
+/** A site's icon: the tab's own, or else its first letter on a colour from its address. */
+export function Favicon({
+  url,
+  title,
+  src,
+  size = 16
+}: {
+  url: string;
+  title: string;
+  src?: string | null;
+  size?: number;
+}) {
+  if (src) return <img aria-hidden src={src} width={size} height={size} className="shrink-0 rounded-favicon" />;
   let hash = 0;
-  for (const char of new URL(url).host) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  for (const char of host(url)) hash = (hash * 31 + char.charCodeAt(0)) | 0;
   return (
     <span
       aria-hidden
@@ -16,4 +27,13 @@ export function Favicon({ url, title, size = 16 }: { url: string; title: string;
       {title[0]}
     </span>
   );
+}
+
+/** An address's host, or the address itself if it has none. */
+export function host(url: string) {
+  try {
+    return new URL(url).host || url;
+  } catch {
+    return url;
+  }
 }

@@ -1,12 +1,13 @@
 import { motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { appWindow, hasApp } from "../../ipc";
+import { appWindow, browser, hasApp } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
+import { useBrowser } from "./browser";
 import { SIDE_PANEL_WIDTH, SidePanel, type SidePanelId } from "./side-panel";
 import { SIDEBAR_WIDTH, Sidebar, type SidebarProps } from "./sidebar";
 import { type Presentation, useSidebarMotion } from "./sidebar-motion";
-import { cssColor, type Folder, personal, schemeFor, type Space } from "./space";
+import { cssColor, type Folder, personal, schemeFor, type Space, type Tab } from "./space";
 import { useFullScreen, useWindowActive } from "./window";
 
 // The browser's window: the sidebar, the page, and the side panel.
@@ -14,7 +15,9 @@ export function App() {
   const active = useWindowActive();
   const fullScreen = useFullScreen();
   const [space, setSpace] = useState<Space>(personal);
-  const [selected, setSelected] = useState<string | undefined>(personal.pinned[2].id);
+  const { tabs: browserTabs, favicons } = useBrowser();
+  const current = browserTabs?.tabs.find((tab) => tab.id === browserTabs.active);
+  const tabs: Tab[] = (browserTabs?.tabs ?? []).map((tab) => ({ ...tab, favicon: favicons[tab.id] }));
   const [presentation, setPresentation] = useState<Presentation>("anchored");
   const sidebarOpen = presentation === "anchored";
   const [sidePanel, setSidePanel] = useState<SidePanelId | null>("reading-list");
@@ -82,19 +85,29 @@ export function App() {
       pinned: space.pinned.map((item) => (item === folder ? { ...folder, open: !folder.open } : item))
     }));
 
+  // The app makes each change, and the page hears it back as new tabs.
+  // Only the Browser's tabs are real: the made-up favourites and pinned
+  // ones do nothing yet.
+  const real = (tab: Tab) => (typeof tab.id === "number" ? tab.id : undefined);
   const sidebar: SidebarProps = {
     space,
-    selected,
-    onSelect: (tab) => setSelected(tab.id),
-    // Opens at the top of the space's tabs. Until there are real pages,
-    // every new tab is the same one.
-    onNewTab: () => {
-      const tab = { id: crypto.randomUUID(), title: "Example Domain", url: "https://example.com/" };
-      setSpace((space) => ({ ...space, tabs: [tab, ...space.tabs] }));
-      setSelected(tab.id);
+    tabs,
+    selected: current?.id,
+    onSelect: (tab) => {
+      const id = real(tab);
+      if (id !== undefined) browser.activate(id);
     },
-    onClose: (tab) => setSpace((space) => ({ ...space, tabs: space.tabs.filter((each) => each !== tab) })),
+    onNewTab: () => browser.newTab(),
+    onClose: (tab) => {
+      const id = real(tab);
+      if (id !== undefined) browser.close(id);
+    },
     onToggleFolder: toggleFolder,
+    canGoBack: current?.canGoBack ?? false,
+    canGoForward: current?.canGoForward ?? false,
+    onBack: () => browser.back(),
+    onForward: () => browser.forward(),
+    onReload: () => browser.reload(),
     sidebarOpen,
     onToggleSidebar: toggleSidebar,
     sidePanelOpen: sidePanel !== null,
@@ -108,8 +121,14 @@ export function App() {
         <motion.div style={{ width: motionValues.slot }} className="shrink-0" />
 
         <main className="flex min-w-0 flex-1 py-2.5 pr-2.5">
-          {/* The active tab's page goes here. */}
-          <div className="card no-drag min-w-0 flex-1" />
+          {current ? (
+            <div className="card no-drag relative min-w-0 flex-1 overflow-hidden">
+              <wren-view data-id={`tab-${current.id}`} className="absolute inset-0 block" />
+              {current.crashed && <Crashed />}
+            </div>
+          ) : (
+            <div className="card no-drag min-w-0 flex-1" />
+          )}
           {sidePanel && (
             <>
               <ResizeHandle
@@ -165,5 +184,23 @@ export function App() {
         )}
       </div>
     </TooltipProvider>
+  );
+}
+
+// Over a tab whose page's process has died, which shows nothing.
+function Crashed() {
+  return (
+    <div className="absolute inset-0 grid place-items-center bg-card">
+      <div className="flex flex-col items-center gap-3 text-fg-2">
+        <p className="font-semibold">This page stopped working.</p>
+        <button
+          type="button"
+          onClick={() => browser.reload()}
+          className="h-7 rounded-control bg-fill px-3 font-semibold hover:bg-hover active:bg-pressed"
+        >
+          Reload
+        </button>
+      </div>
+    </div>
   );
 }

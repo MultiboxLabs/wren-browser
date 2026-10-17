@@ -20,3 +20,40 @@ export const appWindow = {
   /** Shows or hides the close, minimise and zoom buttons. */
   setButtonsVisible: (visible: boolean) => wren.invoke<null>("window.setButtonsVisible", visible)
 };
+
+/** A tab as the sidebar draws it. */
+export type BrowserTab = {
+  id: number;
+  title: string;
+  url: string;
+  loading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  crashed: boolean;
+};
+
+/** The tabs of the window's Browser in front, in its order, and which is active. */
+export type BrowserTabs = {
+  /** The Browser's ID, which names its side panel's element. */
+  browser: number;
+  tabs: BrowserTab[];
+  active: number | null;
+};
+
+export const browser = {
+  /** Fails until the window has its Browser; "browser.tabs" follows once it does. */
+  tabs: () => wren.invoke<BrowserTabs>("browser.tabs"),
+  onTabs: (listener: (tabs: BrowserTabs) => void) => wren.on<BrowserTabs>("browser.tabs", listener),
+  /** A tab's favicon as a data: URL, or null for none. */
+  favicon: (id: number) => wren.invoke<string | null>("tab.favicon", id),
+  /** Hears which tab's favicon changed, to ask for it again. */
+  onFavicon: (listener: (id: number) => void) => wren.on<number>("tab.favicon", listener),
+  /** A tab on the New Tab page, at the top. */
+  newTab: () => wren.invoke<null>("tabs.new"),
+  activate: (id: number) => wren.invoke<null>("tabs.activate", id),
+  close: (id: number) => wren.invoke<null>("tabs.close", id),
+  /** Back, forward and reload act on the active tab. */
+  back: () => wren.invoke<null>("tabs.back"),
+  forward: () => wren.invoke<null>("tabs.forward"),
+  reload: () => wren.invoke<null>("tabs.reload")
+};
