@@ -2,6 +2,7 @@
 // title bar, sidebar and panels are the page's.
 
 pub mod main;
+mod plain;
 mod title_bar;
 
 use std::cell::{Cell, RefCell};
@@ -32,6 +33,7 @@ use wren::{MainThread, Profile, TabCrash, WebView, WebViewKind, WebViewOptions};
 use crate::pages::Page;
 
 pub use main::MainWindow;
+pub use plain::PlainWindow;
 use title_bar::TitleBar;
 
 /// A window showing one page. Its web view drops first, which takes the page

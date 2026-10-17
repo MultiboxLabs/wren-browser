@@ -1,6 +1,7 @@
 // The app's state and Wren's callbacks.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -11,12 +12,13 @@ use crate::menus;
 use crate::pages::{SCHEME, Source, UI, serve_page};
 use crate::sidebar::SidebarStore;
 use crate::tabs;
-use crate::window::{MainWindow, PageWindow};
+use crate::window::{MainWindow, PageWindow, PlainWindow};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
     // The pages', not the user's.
     ui_profile: RefCell<Option<Profile>>,
+    devtools: RefCell<HashMap<Browser, PlainWindow>>,
     pub main: RefCell<Option<MainWindow>>,
     // What the main page keeps between runs, in `data`.
     pub sidebar: SidebarStore,
@@ -26,6 +28,7 @@ impl State {
     pub fn new(data: PathBuf) -> State {
         State {
             ui_profile: RefCell::default(),
+            devtools: RefCell::default(),
             main: RefCell::default(),
             sidebar: SidebarStore::new(&data),
         }
@@ -155,8 +158,8 @@ impl App for Wren {
     // Required: Chromium opened a Browser of its own. A restored window
     // becomes its Profile's Browser in the main window, if the window has
     // none of that Profile yet. The window shows one Browser for each, so
-    // the rest (a second restored window; popups and DevTools, which the
-    // app does not show yet) close.
+    // the rest (a second restored window or a popup) close. DevTools gets
+    // a plain window of its own.
     fn browser_opened(
         &self,
         _: MainThread,
@@ -164,6 +167,11 @@ impl App for Wren {
         kind: BrowserType,
         _: Option<Browser>,
     ) {
+        if kind == BrowserType::Devtools {
+            let window = PlainWindow::new(opened.clone());
+            self.state.devtools.borrow_mut().insert(opened, window);
+            return;
+        }
         let wanted = (kind == BrowserType::Normal)
             .then(|| opened.profile())
             .flatten()
@@ -183,6 +191,14 @@ impl App for Wren {
     }
 
     fn changed(&self, _: MainThread, changes: &[Change]) {
+        for change in changes {
+            if matches!(change.kind, ChangeKind::Tabs | ChangeKind::Tab)
+                && let Some(browser) = &change.browser
+                && let Some(window) = self.state.devtools.borrow().get(browser)
+            {
+                window.show_active_tab();
+            }
+        }
         let main = self.state.main.borrow();
         let Some(main) = main.as_ref() else { return };
         let Some(browser) = main.browser() else {
@@ -262,8 +278,22 @@ impl App for Wren {
             return ipc::send_toggle_sidebar(main);
         }
         if id == menus::TOGGLE_UI_DEVTOOLS {
-            // The wren runtime can open a web view's DevTools, not close them.
-            let _ = main.page.web_view.open_dev_tools();
+            // UI DevTools uses the UI's separate Profile, so site DevTools
+            // stays open when this item is toggled.
+            let opened = self
+                .state
+                .devtools
+                .borrow()
+                .keys()
+                .find(|browser| browser.profile() == *self.state.ui_profile.borrow())
+                .cloned();
+            let result = match opened {
+                Some(browser) => browser.close(),
+                None => main.page.web_view.open_dev_tools(),
+            };
+            if let Err(error) = result {
+                eprintln!("Wren could not toggle UI DevTools: {error:?}");
+            }
             return;
         }
         let Some(browser) = main.browser() else {
@@ -280,6 +310,10 @@ impl App for Wren {
     }
 
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
+        let devtools = self.state.devtools.borrow_mut().remove(&browser);
+        if devtools.is_some() {
+            return;
+        }
         let main = self.state.main.borrow();
         let Some(main) = main.as_ref() else { return };
         // Chromium closes a Browser whose last tab closes. A window with no
