@@ -16,10 +16,12 @@ export function IconButton({ icon: Icon, label, size = 16, className = "", ...pr
         {...press(0.94)}
         type="button"
         aria-label={label}
-        className={`no-drag grid size-7 shrink-0 place-items-center rounded-control text-fg-2 enabled:hover:bg-hover enabled:active:bg-pressed disabled:text-fg-4 ${className}`}
+        className={`group/button no-drag grid size-7 shrink-0 place-items-center rounded-control enabled:hover:bg-hover enabled:active:bg-pressed ${className}`}
         {...props}
       >
-        <Icon size={size} strokeWidth={1.75} />
+        <span className="grid glyph-2 group-disabled/button:glyph-4">
+          <Icon size={size} strokeWidth={1.75} />
+        </span>
       </motion.button>
     </Tooltip>
   );

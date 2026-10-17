@@ -80,9 +80,10 @@ body,
   color-scheme: light;
   --ink: oklch(from var(--space) 0.22 calc(c * 0.8) h);
   --fg: var(--ink);
-  --fg-2: rgb(0 0 0 / 0.57);
-  --fg-3: rgb(0 0 0 / 0.45);
-  --fg-4: rgb(0 0 0 / 0.3);
+  --glyph: rgb(0 0 0);
+  --glyph-2: 0.57;
+  --glyph-3: 0.45;
+  --glyph-4: 0.3;
   --fill: color(display-p3 0.055 0.059 0.063 / 0.05);
   --hover: color(display-p3 0.055 0.059 0.063 / 0.1);
   --pressed: color(display-p3 0.055 0.059 0.063 / 0.14);
@@ -99,9 +100,10 @@ body,
 :root[data-scheme="dark"] {
   color-scheme: dark;
   --fg: color-mix(in srgb, var(--space) 15%, white);
-  --fg-2: rgb(255 255 255 / 0.6);
-  --fg-3: rgb(255 255 255 / 0.45);
-  --fg-4: rgb(255 255 255 / 0.3);
+  --glyph: rgb(255 255 255);
+  --glyph-2: 0.6;
+  --glyph-3: 0.45;
+  --glyph-4: 0.3;
   --fill: color(display-p3 0.98 0.984 1 / 0.1);
   --hover: color(display-p3 0.98 0.984 1 / 0.15);
   --pressed: color(display-p3 0.98 0.984 1 / 0.2);
@@ -113,6 +115,33 @@ body,
   --menu: rgb(40 40 42 / 0.92);
   --menu-border: rgb(255 255 255 / 0.12);
   --menu-highlight: oklch(from var(--space) 0.55 c h);
+}
+
+:root[data-scheme] {
+  --fg-2: rgb(from var(--glyph) r g b / var(--glyph-2));
+  --fg-3: rgb(from var(--glyph) r g b / var(--glyph-3));
+  --fg-4: rgb(from var(--glyph) r g b / var(--glyph-4));
+}
+
+/* Icons in the fg-2, fg-3 and fg-4 tones: solid, then faded whole. Drawn in
+   the translucent colour itself, each stroke would be faded on its own, and
+   where two strokes cross (a divider meeting a frame, an arrow's shaft at
+   its head) the overlap would show brighter. */
+@utility glyph-1 {
+  color: var(--fg);
+  opacity: 1;
+}
+@utility glyph-2 {
+  color: var(--glyph);
+  opacity: var(--glyph-2);
+}
+@utility glyph-3 {
+  color: var(--glyph);
+  opacity: var(--glyph-3);
+}
+@utility glyph-4 {
+  color: var(--glyph);
+  opacity: var(--glyph-4);
 }
 
 .browser {

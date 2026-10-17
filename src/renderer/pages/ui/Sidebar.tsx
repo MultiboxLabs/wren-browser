@@ -57,7 +57,7 @@ export function Sidebar(props: SidebarProps) {
           <span className="flex-1 truncate pl-3.25">{new URL(current.url).host}</span>
         ) : (
           <>
-            <Search size={12} strokeWidth={2.25} className="ml-3 shrink-0" />
+            <Search size={12} strokeWidth={2.25} className="ml-3 shrink-0 glyph-2" />
             <span className="flex-1 truncate pl-2.5 text-fg-3">Search or Enter URL…</span>
           </>
         )}
@@ -107,7 +107,7 @@ export function Sidebar(props: SidebarProps) {
           <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
 
           <Row className="text-fg-3" onPress={() => {}}>
-            <Plus size={14} strokeWidth={2} className="mx-px" />
+            <Plus size={14} strokeWidth={2} className="mx-px glyph-3" />
             New Tab
           </Row>
 
@@ -195,7 +195,7 @@ function TabRow({
           onClick={() => onClose(tab)}
           // Brightens rather than taking a fill, which would stack on the
           // row's translucent one.
-          className="hidden size-6.5 place-items-center text-fg-2 group-hover:grid hover:text-fg"
+          className="hidden size-6.5 place-items-center glyph-2 group-hover:grid hover:glyph-1"
         >
           <X size={15} strokeWidth={2} />
         </button>

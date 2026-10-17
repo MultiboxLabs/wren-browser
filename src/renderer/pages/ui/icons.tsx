@@ -9,9 +9,9 @@ export function SidebarIcon({ size = 19 }: Props) {
   return (
     <svg width={size} height={(size * 31) / 39} viewBox="17 14 39 31" fill="none" aria-hidden>
       <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="19.5" y="16.5" width="34" height="25.5" rx="3.6" strokeWidth="3.5" />
-        <path d="M31.8 16.5V42" strokeWidth="3.5" />
-        <path d="M24.1 22.7H27M24.1 26.9H27M24.1 31.1H27" strokeWidth="2.8" />
+        <rect x="19.5" y="16.5" width="34" height="25.5" rx="5" strokeWidth="3.1" />
+        <path d="M31.8 16.5V42" strokeWidth="3.1" />
+        <path d="M24.1 22.7H27M24.1 26.9H27M24.1 31.1H27" strokeWidth="2.5" />
       </g>
     </svg>
   );
@@ -23,7 +23,7 @@ function Arrow({ size = 17, flip }: Props & { flip?: boolean }) {
       <path
         d="M15.5 7H1.5M6.5 2 1.5 7l5 5"
         stroke="currentColor"
-        strokeWidth="1.7"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
         transform={flip ? "matrix(-1 0 0 1 17 0)" : undefined}
@@ -39,7 +39,7 @@ export const ForwardIcon = (props: Props) => <Arrow {...props} flip />;
 export function ReloadIcon({ size = 15 }: Props) {
   return (
     <svg width={size} height={(size * 18) / 15} viewBox="0 0 15 18" fill="none" aria-hidden>
-      <g stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M11.4 6.5A6 6 0 1 1 7.5 4.6" />
         <path d="M5.2 2.1 7.6 4.6 5.2 7.1" />
       </g>

@@ -41,9 +41,9 @@ export function SidePanel({
               type="button"
               className="flex h-7 items-center gap-1.75 rounded-control px-2 font-semibold hover:bg-hover data-[state=open]:bg-pressed"
             >
-              <Icon size={15} strokeWidth={1.75} className="text-fg-2" />
+              <Icon size={15} strokeWidth={1.75} className="glyph-2" />
               {label}
-              <ChevronDown size={13} strokeWidth={2} className="text-fg-2" />
+              <ChevronDown size={13} strokeWidth={2} className="glyph-2" />
             </button>
           }
         />
