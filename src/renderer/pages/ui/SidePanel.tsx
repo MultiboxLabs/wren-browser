@@ -31,7 +31,7 @@ export function SidePanel({
   const { label, icon: Icon } = sidePanels.find((each) => each.id === panel)!;
   return (
     <section style={{ width }} className="card no-drag flex shrink-0 flex-col overflow-hidden">
-      <header className="flex h-10 shrink-0 items-center gap-1 pr-[6px] pl-[6px]">
+      <header className="flex h-10 shrink-0 items-center gap-1 pr-1.5 pl-1.5">
         <Menu
           items={[...sidePanels]}
           checked={panel}
@@ -39,7 +39,7 @@ export function SidePanel({
           trigger={
             <button
               type="button"
-              className="flex h-7 items-center gap-[7px] rounded-[6px] px-2 font-semibold hover:bg-hover data-[state=open]:bg-pressed"
+              className="flex h-7 items-center gap-1.75 rounded-control px-2 font-semibold hover:bg-hover data-[state=open]:bg-pressed"
             >
               <Icon size={15} strokeWidth={1.75} className="text-fg-2" />
               {label}
@@ -63,7 +63,7 @@ export function SidePanelHandle({ onResize }: { onResize: (width: number) => voi
     <div
       role="separator"
       aria-orientation="vertical"
-      className="no-drag group grid w-[10px] shrink-0 cursor-col-resize place-items-center"
+      className="no-drag group grid w-2.5 shrink-0 cursor-col-resize place-items-center"
       onPointerDown={(event) => {
         const panel = event.currentTarget.nextElementSibling as HTMLElement;
         start.current = { x: event.clientX, width: panel.offsetWidth };
@@ -77,7 +77,7 @@ export function SidePanelHandle({ onResize }: { onResize: (width: number) => voi
       onPointerUp={() => (start.current = null)}
       onPointerCancel={() => (start.current = null)}
     >
-      <div className="h-7 w-[3px] rounded-full bg-fg-3 opacity-0 group-hover:opacity-100 group-active:opacity-100" />
+      <div className="h-7 w-0.75 rounded-full bg-fg-3 opacity-0 group-hover:opacity-100 group-active:opacity-100" />
     </div>
   );
 }

@@ -84,12 +84,12 @@ export function App() {
     <TooltipProvider>
       <div className="browser drag flex h-full">
         {sidebarOpen && (
-          <aside className="w-[320px] shrink-0 pl-2">
+          <aside className="w-80 shrink-0 pl-2">
             <Sidebar {...sidebar} />
           </aside>
         )}
 
-        <main className={`flex min-w-0 flex-1 py-[10px] pr-[10px] ${sidebarOpen ? "pl-2" : "pl-[10px]"}`}>
+        <main className={`flex min-w-0 flex-1 py-2.5 pr-2.5 ${sidebarOpen ? "pl-2" : "pl-2.5"}`}>
           {/* The active tab's page goes here. */}
           <div className="card no-drag min-w-0 flex-1" />
           {sidePanel && (
@@ -107,11 +107,11 @@ export function App() {
 
         {!sidebarOpen && (
           <>
-            <div className="no-drag fixed inset-y-0 left-0 w-[10px]" onPointerEnter={() => setPeeking(true)} />
+            <div className="no-drag fixed inset-y-0 left-0 w-2.5" onPointerEnter={() => setPeeking(true)} />
             {peeking && (
               <aside
                 style={{ inset: `${PEEK_INSET}px auto ${PEEK_INSET}px ${PEEK_INSET}px` }}
-                className="peek no-drag fixed w-[328px] rounded-[10px] px-2"
+                className="peek no-drag fixed w-82 rounded-panel px-2"
                 onPointerLeave={() => setPeeking(false)}
               >
                 <Sidebar {...sidebar} />

@@ -27,15 +27,15 @@ export function Menu<Id extends string>({
           align="start"
           sideOffset={4}
           collisionPadding={6}
-          className="z-50 min-w-[180px] rounded-[8px] border border-menu-border bg-menu p-[5px] text-[13px] text-fg shadow-[0_6px_20px_rgb(0_0_0/0.2)] backdrop-blur-xl"
+          className="z-50 min-w-45 rounded-menu border border-menu-border bg-menu p-1.25 text-menu text-fg shadow-menu backdrop-blur-xl"
         >
           {items.map(({ id, label, icon: Icon }) => (
             <DropdownMenu.Item
               key={id}
               onSelect={() => onSelect(id)}
-              className="flex h-[22px] items-center gap-[6px] rounded-[4px] pr-3 pl-[6px] outline-none data-highlighted:bg-menu-highlight data-highlighted:text-white"
+              className="flex h-5.5 items-center gap-1.5 rounded-menu-item pr-3 pl-1.5 outline-none data-highlighted:bg-menu-highlight data-highlighted:text-white"
             >
-              <span className="w-3 text-[11px]">{id === checked ? "✓" : ""}</span>
+              <span className="w-3 text-caption">{id === checked ? "✓" : ""}</span>
               {Icon && <Icon size={14} strokeWidth={1.75} />}
               {label}
             </DropdownMenu.Item>

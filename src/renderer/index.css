@@ -10,6 +10,33 @@ body,
    page sets --space, and data-scheme (light or dark, from that colour) and
    data-active (whether the window is in use) on <html>. */
 
+/* Sizes. Spacing is Tailwind's scale, a step of 4px (h-9 is 36px, gap-1.25
+   is 5px); the root's font size is never changed, so it stays 4px. Corners,
+   type and shadows are named for what they are on. */
+@theme {
+  --radius-favicon: 4px;
+  --radius-menu-item: 4px;
+  /* A page, the side panel. */
+  --radius-card: 4.5px;
+  --radius-tooltip: 5px;
+  /* Icon buttons and other small controls. */
+  --radius-control: 6px;
+  --radius-menu: 8px;
+  /* Tab and folder rows. */
+  --radius-row: 9px;
+  /* The sidebar floating over the page. */
+  --radius-panel: 10px;
+  /* The address field, favourites. */
+  --radius-field: 11px;
+
+  --text-ui: 13.5px;
+  --text-menu: 13px;
+  --text-caption: 11px;
+
+  --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.15);
+  --shadow-menu: 0 6px 20px rgb(0 0 0 / 0.2);
+}
+
 @theme inline {
   --color-fg: var(--fg);
   --color-fg-2: var(--fg-2);
@@ -100,7 +127,7 @@ body,
     -apple-system,
     "Segoe UI",
     sans-serif;
-  font-size: 13.5px;
+  font-size: var(--text-ui);
   line-height: 1.2;
   /* Controls, not a document: no text selection, the arrow pointer, and
      no rubber banding. */
@@ -155,7 +182,7 @@ body,
 /* Where a tab's page or a side panel will show (<wren-view>). */
 .card {
   background: var(--card);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   box-shadow:
     0 0 0 0.5px var(--card-edge),
     0 0 6px rgb(0 0 0 / 0.12);

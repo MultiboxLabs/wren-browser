@@ -5,7 +5,7 @@ export function Favicon({ url, title, size = 16 }: { url: string; title: string;
   return (
     <span
       aria-hidden
-      className="grid shrink-0 place-items-center rounded-[4px] font-bold text-white"
+      className="grid shrink-0 place-items-center rounded-favicon font-bold text-white"
       style={{
         width: size,
         height: size,

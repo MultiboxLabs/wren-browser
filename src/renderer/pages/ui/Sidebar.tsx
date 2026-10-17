@@ -2,8 +2,10 @@
 // favourites, and the space's tabs.
 
 import { Archive, Folder as FolderIcon, FolderOpen, Orbit, PanelRight, Plus, Search, X } from "lucide-react";
+import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { IconButton } from "../../components/ui/icon-button";
+import { press } from "../../components/ui/press";
 import { Tooltip } from "../../components/ui/tooltip";
 import { Favicon } from "./Favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "./icons";
@@ -39,24 +41,24 @@ export function Sidebar(props: SidebarProps) {
           icon={SidebarIcon}
           label={`${props.sidebarOpen ? "Hide" : "Keep"} Sidebar (${shortcut("S")})`}
           size={19}
-          className="ml-[7px]"
+          className="ml-1.75"
           onClick={props.onToggleSidebar}
         />
         <div className="flex-1" />
-        <div className="flex gap-[6px]">
+        <div className="flex gap-1.5">
           <IconButton icon={BackIcon} label="Back" size={17} />
           <IconButton icon={ForwardIcon} label="Forward" size={17} disabled />
           <IconButton icon={ReloadIcon} label="Reload" size={15} />
         </div>
       </div>
 
-      <div className="no-drag mt-[2px] flex h-9 shrink-0 items-center rounded-[10px] bg-fill pr-1 text-fg-2">
+      <div className="no-drag mt-0.5 flex h-9 shrink-0 items-center rounded-field bg-fill pr-1 text-fg-2">
         {current ? (
-          <span className="flex-1 truncate pl-[13px]">{new URL(current.url).host}</span>
+          <span className="flex-1 truncate pl-3.25">{new URL(current.url).host}</span>
         ) : (
           <>
             <Search size={12} strokeWidth={2.25} className="ml-3 shrink-0" />
-            <span className="flex-1 truncate pl-[10px] text-fg-3">Search or Enter URL…</span>
+            <span className="flex-1 truncate pl-2.5 text-fg-3">Search or Enter URL…</span>
           </>
         )}
         <IconButton
@@ -70,24 +72,27 @@ export function Sidebar(props: SidebarProps) {
       <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
         {space.favorites.map((tab) => (
           <Tooltip key={tab.id} label={tab.title}>
-            <button
+            <motion.button
+              {...press(0.97)}
               type="button"
               aria-label={tab.title}
               onPointerDown={() => onSelect(tab)}
-              className={`no-drag grid h-[47px] place-items-center rounded-[10px] ${
+              className={`no-drag grid h-11.75 place-items-center rounded-field ${
                 tab.id === selected ? "bg-selected" : "bg-fill hover:bg-hover"
               }`}
             >
               <Favicon url={tab.url} title={tab.title} />
-            </button>
+            </motion.button>
           </Tooltip>
         ))}
       </div>
 
-      <div className="-mr-2 mt-[7px] min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]">
-        <div className="flex flex-col gap-[3px]">
-          <div className="flex h-[38px] items-center gap-[11px] pl-[10px] font-semibold text-fg-3">
-            <Orbit size={16} strokeWidth={1.75} className="text-accent" />
+      <div className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]">
+        <div className="flex flex-col gap-1.25">
+          <div className="flex h-9 items-center gap-2.75 pl-2.5 font-semibold text-fg-3">
+            <IconSlot>
+              <Orbit size={17} strokeWidth={1.75} className="text-accent" />
+            </IconSlot>
             {space.name}
           </div>
 
@@ -99,7 +104,7 @@ export function Sidebar(props: SidebarProps) {
             )
           )}
 
-          <div className="mx-[10px] my-[7px] h-px shrink-0 bg-separator" />
+          <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
 
           <Row className="text-fg-3" onPress={() => {}}>
             <Plus size={14} strokeWidth={2} className="mx-px" />
@@ -112,14 +117,14 @@ export function Sidebar(props: SidebarProps) {
         </div>
       </div>
 
-      <div className="flex h-[50px] shrink-0 items-center">
+      <div className="flex h-12.5 shrink-0 items-center">
         <IconButton icon={Archive} label="Archived Tabs" />
         <div className="flex flex-1 justify-center">
           <Tooltip label={space.name}>
             <button
               type="button"
               aria-label={space.name}
-              className="no-drag grid size-7 place-items-center rounded-[6px] text-accent hover:bg-hover"
+              className="no-drag grid size-7 place-items-center rounded-control text-accent hover:bg-hover"
             >
               <Orbit size={15} strokeWidth={2} />
             </button>
@@ -145,20 +150,29 @@ function Row({
   children: ReactNode;
 }) {
   return (
-    <div
+    <motion.div
+      {...press(0.985)}
       role="button"
       tabIndex={-1}
       aria-pressed={selected}
       // Selects on press, as a native list does.
       onPointerDown={(event) => event.button === 0 && onPress()}
-      style={{ paddingLeft: 10 + indent }}
-      className={`no-drag group flex h-[38px] shrink-0 items-center gap-[11px] rounded-[8px] pr-[5px] ${
+      // Nested rows are indented whole, their highlight with them.
+      style={{ marginLeft: indent }}
+      className={`no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5 ${
         selected ? "bg-selected" : "hover:bg-hover"
       } ${className}`}
     >
       {children}
-    </div>
+    </motion.div>
   );
+}
+
+/** The icon column of a row, a favicon wide: a larger icon (a folder's, the space's) overflows it evenly. */
+function IconSlot({ children }: { children: ReactNode }) {
+  // Flex, not grid: grid would align an icon wider than the slot to its
+  // start and let it overflow only to the right.
+  return <span className="flex size-4 shrink-0 items-center justify-center">{children}</span>;
 }
 
 function TabRow({
@@ -181,7 +195,7 @@ function TabRow({
           onClick={() => onClose(tab)}
           // Brightens rather than taking a fill, which would stack on the
           // row's translucent one.
-          className="hidden size-[26px] place-items-center text-fg-2 group-hover:grid hover:text-fg"
+          className="hidden size-6.5 place-items-center text-fg-2 group-hover:grid hover:text-fg"
         >
           <X size={15} strokeWidth={2} />
         </button>
@@ -196,7 +210,9 @@ function FolderRow(props: SidebarProps & { folder: Folder }) {
   return (
     <>
       <Row onPress={() => props.onToggleFolder(folder)}>
-        <Icon size={16} strokeWidth={1.75} className="text-accent" />
+        <IconSlot>
+          <Icon size={22} strokeWidth={1.6} className="-translate-y-px text-accent" />
+        </IconSlot>
         <span className="min-w-0 flex-1 truncate font-semibold">{folder.title}</span>
       </Row>
       {folder.open && folder.tabs.map((tab) => <TabRow key={tab.id} tab={tab} indent={16} {...props} />)}
