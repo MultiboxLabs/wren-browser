@@ -1,7 +1,7 @@
 // A strip beside a panel that resizes it when dragged, as the gap between a
 // sidebar and the page does.
 
-import { useRef } from "react";
+import { type CSSProperties, useRef } from "react";
 
 export type Range = { min: number; max: number };
 
@@ -10,6 +10,7 @@ export function ResizeHandle({
   range,
   edge,
   grip,
+  style,
   className = "",
   onResize
 }: {
@@ -20,6 +21,7 @@ export function ResizeHandle({
   edge: "left" | "right";
   /** Shows a pill while hovered or dragged. */
   grip?: boolean;
+  style?: CSSProperties;
   className?: string;
   onResize: (width: number) => void;
 }) {
@@ -37,6 +39,7 @@ export function ResizeHandle({
       aria-valuenow={width}
       aria-valuemin={range.min}
       aria-valuemax={range.max}
+      style={style}
       className={`no-drag group grid shrink-0 cursor-col-resize place-items-center ${className}`}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
