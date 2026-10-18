@@ -101,6 +101,21 @@ export type DropMark = { kind: "line" | "box"; top: number; left: number; width:
 /** The unit being dragged, where it is, and how far into its row the pointer took it. */
 type Dragged = { id: string; scope: string; grab: number };
 
+/** What is dragged in from outside the list, like a link: a new tab, which opens where it is dropped. */
+const OUTSIDE: Dragged = { id: "outside", scope: "top", grab: 0 };
+
+/** Whether a drag from outside carries an address (what it is only shows once it is dropped). */
+const carriesAddress = (data: DataTransfer) => data.types.includes("text/uri-list");
+
+/** The web address a drop carries, if it has one. */
+function addressOf(data: DataTransfer) {
+  const line = data
+    .getData("text/uri-list")
+    .split(/\r?\n/)
+    .find((each) => each && !each.startsWith("#"));
+  return line && /^https?:\/\//.test(line) ? line : null;
+}
+
 /**
  * Where a drag over the list would land: a new index for its first tab and
  * the group it is in there (the ID of one of the group's tabs, or null for
@@ -177,9 +192,12 @@ function itemsOf(scroller: HTMLElement): Item[] | null {
 
 function landing(scroller: HTMLElement, { id, scope, grab }: Dragged, x: number, y: number): Landing {
   const items = itemsOf(scroller);
-  const mine = scroller.querySelector<HTMLElement>(`[data-reorder-id="${id}"]`);
-  if (!items?.length || !mine) return null;
-  const [from, size] = [Number(mine.dataset.reorderStart), Number(mine.dataset.reorderSize)];
+  const outside = id === OUTSIDE.id;
+  // Nothing in the list moves for what comes from outside: it is new, and
+  // goes in at the gap's index.
+  const mine = outside ? null : scroller.querySelector<HTMLElement>(`[data-reorder-id="${id}"]`);
+  if (!items?.length || (!outside && !mine)) return null;
+  const [from, size] = mine ? [Number(mine.dataset.reorderStart), Number(mine.dataset.reorderSize)] : [Infinity, 0];
   const current = scope === "top" ? null : scope;
   const content = (scroller.firstElementChild ?? scroller).getBoundingClientRect();
   const topLeft = Math.min(...items.map((each) => each.box.left));
@@ -215,13 +233,14 @@ function landing(scroller: HTMLElement, { id, scope, grab }: Dragged, x: number,
   }
 
   // On a collapsed group's heading, a tab goes in the group, at its end.
-  const folded = id.startsWith("tab:")
-    ? items.find(
-        (each) =>
-          each.kind === "folded" &&
-          Math.abs(y - (each.box.top + each.box.bottom) / 2) < ((each.box.bottom - each.box.top) * SPLIT_BAND) / 2
-      )
-    : undefined;
+  const folded =
+    id.startsWith("tab:") || outside
+      ? items.find(
+          (each) =>
+            each.kind === "folded" &&
+            Math.abs(y - (each.box.top + each.box.bottom) / 2) < ((each.box.bottom - each.box.top) * SPLIT_BAND) / 2
+        )
+      : undefined;
   if (folded) {
     const gap = folded.start + folded.size;
     const index = gap > from ? gap - size : gap;
@@ -242,7 +261,8 @@ function landing(scroller: HTMLElement, { id, scope, grab }: Dragged, x: number,
   // The gap nearest the pointer that the unit may take. A gap is in a group
   // between its tabs and just under its heading; past its last tab it is in
   // the group or out of it, which a tab decides by how far in it is held.
-  const deep = x - grab > topLeft + INDENT / 2;
+  // (What comes from outside has no row held, so it goes out of the group.)
+  const deep = !outside && x - grab > topLeft + INDENT / 2;
   let best: { distance: number; at: number; line: number; group: string | null } | null = null;
   for (let at = 0; at <= items.length; at++) {
     const [before, after] = [items[at - 1], items[at]];
@@ -319,8 +339,16 @@ export function useTabReorder(order: string) {
   // edge, and the mark is found again, as what is under the pointer changes.
   const pointer = useRef({ x: 0, y: 0 });
   const scrolling = useRef(0);
-  const scroll = (scroller: HTMLElement) => {
+  // What is over the list: the unit dragged, or what comes from outside.
+  const over = useRef<Dragged | null>(null);
+  const stopScrolling = () => {
     window.cancelAnimationFrame(scrolling.current);
+    scrolling.current = 0;
+    over.current = null;
+  };
+  const scroll = (scroller: HTMLElement, held: Dragged) => {
+    over.current = held;
+    if (scrolling.current) return;
     const step = () => {
       const { top, bottom } = scroller.getBoundingClientRect();
       const { x, y } = pointer.current;
@@ -329,7 +357,7 @@ export function useTabReorder(order: string) {
       const down = into(bottom - y) - into(y - top);
       const before = scroller.scrollTop;
       scroller.scrollTop += (down / SCROLL_ZONE) * SCROLL_SPEED;
-      if (dragged.current && scroller.scrollTop !== before) show(landing(scroller, dragged.current, x, y));
+      if (over.current && scroller.scrollTop !== before) show(landing(scroller, over.current, x, y));
       scrolling.current = window.requestAnimationFrame(step);
     };
     scrolling.current = window.requestAnimationFrame(step);
@@ -341,7 +369,7 @@ export function useTabReorder(order: string) {
     delete document.documentElement.dataset.reordering;
   };
   const end = () => {
-    window.cancelAnimationFrame(scrolling.current);
+    stopScrolling();
     dragged.current = null;
     show(null);
     release();
@@ -378,7 +406,7 @@ export function useTabReorder(order: string) {
         const box = image.getBoundingClientRect();
         dragged.current.grab = event.clientX - box.left;
         pointer.current = { x: event.clientX, y: event.clientY };
-        scroll(event.currentTarget);
+        scroll(event.currentTarget, dragged.current);
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData(UNIT_TYPE, id);
         // The row as it is, held where the pointer took it.
@@ -386,22 +414,38 @@ export function useTabReorder(order: string) {
       },
 
       onDragOver: (event: DragEvent<HTMLElement>) => {
-        if (!dragged.current) return;
+        // A drag from outside, like a link, which opens in a new tab.
+        const outside = !dragged.current && carriesAddress(event.dataTransfer);
+        const held = dragged.current ?? (outside ? OUTSIDE : null);
+        if (!held) return;
+        scroll(event.currentTarget, held);
         pointer.current = { x: event.clientX, y: event.clientY };
-        const place = landing(event.currentTarget, dragged.current, event.clientX, event.clientY);
+        const place = landing(event.currentTarget, held, event.clientX, event.clientY);
         // Dropping is allowed anywhere in the list; a drop where the tab is
         // does nothing.
         event.preventDefault();
-        event.dataTransfer.dropEffect = place ? "move" : "none";
+        event.dataTransfer.dropEffect = place ? (outside ? "copy" : "move") : "none";
         show(place);
       },
 
       onDragLeave: (event: DragEvent<HTMLElement>) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) show(null);
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        show(null);
+        // Its own drag goes on to scroll the list from outside it, as the
+        // pointer may come back; one from outside is gone with it.
+        if (!dragged.current) stopScrolling();
       },
 
       onDrop: (event: DragEvent<HTMLElement>) => {
-        if (!dragged.current) return;
+        if (!dragged.current) {
+          const url = addressOf(event.dataTransfer);
+          if (!url) return;
+          event.preventDefault();
+          const place = landing(event.currentTarget, OUTSIDE, event.clientX, event.clientY);
+          end();
+          if (place && place.split === undefined) browser.openAt(url, place.index, place.group).catch(() => {});
+          return;
+        }
         event.preventDefault();
         const place = landing(event.currentTarget, dragged.current, event.clientX, event.clientY);
         const { id } = dragged.current;

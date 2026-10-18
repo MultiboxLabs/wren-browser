@@ -62,6 +62,15 @@ struct Pair {
     second: i32,
 }
 
+/// An address dropped on the list, to open where it was dropped.
+#[derive(Deserialize)]
+struct OpenAt {
+    url: String,
+    index: usize,
+    /// One of the tabs of the group it opens in, or none.
+    group: Option<i32>,
+}
+
 #[derive(Deserialize)]
 struct MoveTo {
     unit: Movable,
@@ -130,16 +139,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
             let state = tab.state().map_err(failed)?;
             match to.unit {
                 Movable::Tab(_) => {
-                    let group = match to.group {
-                        Some(member) => Some(
-                            self::tab(mt, browser, member)?
-                                .state()
-                                .map_err(failed)?
-                                .group
-                                .ok_or("The tab is in no group.")?,
-                        ),
-                        None => None,
-                    };
+                    let group = group_of(mt, browser, to.group)?;
                     tabs::move_tab(mt, browser, tab, to.index, group)
                 }
                 Movable::Split(_) => {
@@ -152,6 +152,15 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
                 }
             }
             .map_err(failed)
+        })
+    });
+
+    // A web address dropped on the list: a tab on it, where it was dropped.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("tabs.openAt", move |at: OpenAt| {
+        with_browser(&weak, |_, browser| {
+            let group = group_of(mt, browser, at.group)?;
+            tabs::open_at(mt, browser, &at.url, at.index, group).map_err(failed)
         })
     });
 
@@ -240,6 +249,20 @@ fn tab_list(browser: &Browser) -> Tabs {
         groups: groups.into_iter().map(Group::new).collect(),
         splits: splits.into_iter().filter_map(Split::new).collect(),
     }
+}
+
+// The group of the tab the page names, if it names one: the group a tab is to
+// be in.
+fn group_of(
+    mt: MainThread,
+    browser: &Browser,
+    member: Option<i32>,
+) -> Result<Option<TabGroup>, String> {
+    let Some(member) = member else {
+        return Ok(None);
+    };
+    let state = tab(mt, browser, member)?.state().map_err(failed)?;
+    Ok(Some(state.group.ok_or("The tab is in no group.")?))
 }
 
 // The tab an ID from the page names, if it is the Browser's.

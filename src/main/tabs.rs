@@ -23,6 +23,22 @@ pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
     Ok(())
 }
 
+/// A tab on `url`, shown, at `index` and in `group` (None: none). The page
+/// puts what is dropped on it here, so only a web address is let through.
+pub fn open_at(
+    mt: MainThread,
+    browser: &Browser,
+    url: &str,
+    index: usize,
+    group: Option<TabGroup>,
+) -> Result<(), Error> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(Error::InvalidArgument);
+    }
+    let tab = browser.add_tab(url, Some(index), true)?;
+    move_tab(mt, browser, tab, index, group)
+}
+
 /// Shows `first` and `second` side by side, in a split of their own. Chromium
 /// puts them next to each other, in `first`'s group.
 pub fn split(first: BrowserTab, second: BrowserTab) -> Result<(), Error> {
