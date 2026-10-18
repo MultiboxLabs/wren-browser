@@ -3,7 +3,7 @@
 
 import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, Orbit, Plus, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
+import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
 import { Button } from "../ui/button";
 import { press } from "../ui/press";
@@ -13,6 +13,8 @@ import type { SidebarHold } from "./presentation";
 import { useBrowser } from "../../state/browser";
 import { type Folder, isFolder, type Tab, useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
+import { useGroupKeys } from "./keys";
+import { type DropMark, reorderUnit, useTabReorder } from "./reorder";
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
 // it stands, unclipped, while the rows below slide to make room or close
@@ -55,6 +57,8 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
   const [renaming, setRenaming] = useState<string | null>(null);
   // The omnibox for a new tab is open: the New Tab row shows as selected.
   const newTabOpen = omnibox.shown?.target === "new-tab";
+  const groupKey = useGroupKeys(tabs, tabGroups);
+  const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join());
   const props: ListProps = {
     selected: current?.id,
     splits,
@@ -83,8 +87,8 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
   };
 
   return (
-    <div className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]">
-      <div className="flex flex-col gap-1.25">
+    <div {...handlers} className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]">
+      <div className="relative flex flex-col gap-1.25">
         <div className="flex h-9 items-center gap-2.75 pl-2.5 font-semibold text-fg-3">
           <IconSlot>
             <Orbit size={17} strokeWidth={1.75} className="text-accent" />
@@ -113,12 +117,23 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
           <AnimatePresence initial={false}>
             {entries(tabs, tabGroups).map((entry) =>
               entry.group ? (
-                <Appear key={`group-${entry.group.id}`}>
-                  <GroupRows {...props} group={entry.group} members={entry.tabs} />
+                <Appear
+                  key={`group-${groupKey(entry.group.id)}`}
+                  unit={{
+                    scope: "top",
+                    start: entry.start,
+                    size: entry.tabs.length,
+                    id: `group:${entry.tabs[0].id}`,
+                    group: entry.group.id,
+                    // Not while its title is edited, which a drag would take.
+                    draggable: renaming !== entry.group.id
+                  }}
+                >
+                  <GroupRows {...props} group={entry.group} members={entry.tabs} start={entry.start} />
                 </Appear>
               ) : (
-                rows(entry.tabs, props.splits).map((row) => (
-                  <Appear key={row.split ? `split-${row.split.id}` : row.tab.id}>
+                rows(entry.tabs, props.splits, entry.start).map((row) => (
+                  <Appear key={rowKey(row)} unit={rowUnit("top", row)}>
                     <BrowserRow {...props} row={row} />
                   </Appear>
                 ))
@@ -126,7 +141,32 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
             )}
           </AnimatePresence>
         </div>
+        {mark && <DropMarkView mark={mark} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Where a dragged unit would land: a line across the list, ringed at its
+ * start, or a box over the tab it would make a split with.
+ */
+function DropMarkView({ mark }: { mark: DropMark }) {
+  if (mark.kind === "box") {
+    return (
+      <div
+        style={{ top: mark.top, left: mark.left, width: mark.width, height: mark.height }}
+        className="pointer-events-none absolute z-10 rounded-row bg-fg/15"
+      />
+    );
+  }
+  return (
+    <div
+      style={{ top: mark.top, left: mark.left, width: mark.width }}
+      className="pointer-events-none absolute z-10 flex h-2 -translate-y-1/2 items-center"
+    >
+      <span className="size-2 shrink-0 rounded-full border-2 border-fg" />
+      <span className="h-0.5 flex-1 rounded-full bg-fg" />
     </div>
   );
 }
@@ -156,6 +196,7 @@ function Row({
   indent = 0,
   className,
   onPress,
+  onClick,
   onMenu,
   onMiddlePress,
   children
@@ -163,7 +204,9 @@ function Row({
   selected?: boolean;
   indent?: number;
   className?: string;
-  onPress: () => void;
+  onPress?: () => void;
+  /** For a row that can be dragged: what a press does is done once it is a click, which a drag is not. */
+  onClick?: () => void;
   onMenu?: (x: number, y: number) => void;
   onMiddlePress?: () => void;
   children: ReactNode;
@@ -176,15 +219,20 @@ function Row({
       aria-pressed={selected}
       // Selects on press, as a native list does.
       {...pressHandlers(onPress, onMiddlePress)}
+      onClick={onClick}
       onContextMenu={(event) => {
         if (!onMenu) return;
         event.preventDefault();
         onMenu(event.clientX, event.clientY);
       }}
       // Nested rows are indented whole, their highlight with them.
-      style={{ marginLeft: indent }}
+      // A percentage of padding is of the list's width, not this row's.
+      style={{ marginLeft: indent, "--indent": `${indent}px` } as CSSProperties}
       className={cn(
-        "no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5",
+        "no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5 transition-[padding] duration-120",
+        // A tab dragged to its left or right half has the other half left to
+        // it, past the row's own padding: its title shortens, as the tab's would in a split.
+        "in-data-[drop-side=left]:pl-[calc(50%-var(--indent)/2+var(--spacing)*2.5)] in-data-[drop-side=right]:pr-[calc(50%-var(--indent)/2+var(--spacing)*1.25)]",
         selected ? "bg-selected" : "hover:bg-hover",
         className
       )}
@@ -262,35 +310,53 @@ function FolderRow(props: ListProps & { folder: Folder }) {
 
 // The Browser's tabs as the list shows them: in runs outside any group, and
 // in runs under a group's heading. Chromium keeps a group's tabs together,
-// and a split's two.
-type Entry = { group?: TabGroup; tabs: Tab[] };
+// and a split's two. `start` is the index of a run's first tab among all.
+type Entry = { group?: TabGroup; tabs: Tab[]; start: number };
 
 function entries(tabs: Tab[], groups: TabGroup[]): Entry[] {
   const list: Entry[] = [];
-  for (const tab of tabs) {
+  tabs.forEach((tab, index) => {
     const last = list[list.length - 1];
     const group = groups.find((group) => group.id === tab.group);
     if (last && last.group?.id === group?.id) last.tabs.push(tab);
-    else list.push({ group, tabs: [tab] });
-  }
+    else list.push({ group, tabs: [tab], start: index });
+  });
   return list;
 }
 
-/** A row of tabs: one tab, or the two of a split. */
-type BrowserRowItem = { split?: undefined; tab: Tab } | { split: TabSplit; first: Tab; second: Tab };
+/** A row of tabs: one tab, or the two of a split. `start` is its first tab's index among all. */
+type BrowserRowItem =
+  { split?: undefined; tab: Tab; start: number } | { split: TabSplit; first: Tab; second: Tab; start: number };
 
-function rows(tabs: Tab[], splits: TabSplit[]): BrowserRowItem[] {
+/** `start`: the index among all the tabs of the first of `tabs`. */
+function rows(tabs: Tab[], splits: TabSplit[], start: number): BrowserRowItem[] {
   const list: BrowserRowItem[] = [];
-  for (const tab of tabs) {
+  tabs.forEach((tab, index) => {
     const split = splits.find((split) => split.id === tab.split);
     const first = split && tabs.find((each) => each.id === split.first);
     const second = split && tabs.find((each) => each.id === split.second);
     if (split && first && second) {
-      if (!list.some((row) => row.split?.id === split.id)) list.push({ split, first, second });
-    } else list.push({ tab });
-  }
+      if (!list.some((row) => row.split?.id === split.id)) list.push({ split, first, second, start: start + index });
+    } else list.push({ tab, start: start + index });
+  });
   return list;
 }
+
+// A split is kept by its first tab, as the app makes the split again when it
+// moves it, with a new ID.
+const rowKey = (row: BrowserRowItem) => (row.split ? `split-${row.first.id}` : row.tab.id);
+
+/** What marks a row as a place a unit can be dragged to, and as a unit that can be dragged itself. */
+const rowUnit = (scope: string, row: BrowserRowItem) =>
+  row.split
+    ? { scope, start: row.start, size: 2, id: `split:${row.first.id}`, draggable: true }
+    : {
+        scope,
+        start: row.start,
+        size: 1,
+        id: `tab:${row.tab.id}`,
+        draggable: real(row.tab) !== undefined
+      };
 
 function BrowserRow(props: ListProps & { row: BrowserRowItem; indent?: number }) {
   const { row } = props;
@@ -352,7 +418,7 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
 }
 
 /** A row of the Browser's list, fading in and out where it stands while the rows below slide. */
-function Appear({ children }: { children: ReactNode }) {
+function Appear({ unit, children }: { unit: Parameters<typeof reorderUnit>[0]; children: ReactNode }) {
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
@@ -361,7 +427,9 @@ function Appear({ children }: { children: ReactNode }) {
       transition={tabTransition}
       className="shrink-0"
     >
-      <div className="pt-1.25">{children}</div>
+      <div {...reorderUnit(unit)} className="pt-1.25">
+        {children}
+      </div>
     </motion.div>
   );
 }
@@ -379,12 +447,12 @@ const groupColors: Record<GroupColor, string> = {
   orange: "oklch(0.76 0.16 55)"
 };
 
-function GroupRows(props: ListProps & { group: TabGroup; members: Tab[] }) {
+function GroupRows(props: ListProps & { group: TabGroup; members: Tab[]; start: number }) {
   const { group, members } = props;
   const Chevron = group.collapsed ? ChevronRight : ChevronDown;
   return (
     <div className="flex flex-col gap-1.25">
-      <Row onPress={() => props.onToggleGroup(group)} onMenu={(x, y) => props.onGroupMenu(group, x, y)}>
+      <Row onClick={() => props.onToggleGroup(group)} onMenu={(x, y) => props.onGroupMenu(group, x, y)}>
         <IconSlot>
           <span className="size-3 rounded-[3.5px]" style={{ background: groupColors[group.color] }} />
         </IconSlot>
@@ -404,16 +472,18 @@ function GroupRows(props: ListProps & { group: TabGroup; members: Tab[] }) {
       </Row>
       <AnimatePresence initial={false}>
         {!group.collapsed &&
-          rows(members, props.splits).map((row) => (
+          rows(members, props.splits, props.start).map((row) => (
             <motion.div
-              key={row.split ? `split-${row.split.id}` : row.tab.id}
+              key={rowKey(row)}
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={tabTransition}
               className="shrink-0"
             >
-              <BrowserRow {...props} row={row} indent={16} />
+              <div {...reorderUnit(rowUnit(group.id, row))}>
+                <BrowserRow {...props} row={row} indent={16} />
+              </div>
             </motion.div>
           ))}
       </AnimatePresence>
@@ -439,6 +509,7 @@ function GroupTitleField({ group, onDone }: { group: TabGroup; onDone: (title: s
       aria-label="Group Title"
       // Clicks in the field stay in it, not the row.
       onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
       onFocus={(event) => event.currentTarget.select()}
       onKeyDown={(event) => {
         if (event.key === "Enter") finish(event.currentTarget.value);

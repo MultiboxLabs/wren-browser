@@ -30,6 +30,9 @@ export type BrowserTabs = {
   splits: TabSplit[];
 };
 
+/** What moves as one in the list, by one of its tabs' IDs: the tab, the split it is in, or its group. */
+export type TabUnit = { tab: number } | { split: number } | { group: number };
+
 export const browser = {
   /** Fails until the window has its Browser; "browser.tabs" follows once it does. */
   tabs: () => wren.invoke<BrowserTabs>("browser.tabs"),
@@ -44,6 +47,15 @@ export const browser = {
   copyLink: () => wren.invoke<null>("tabs.copyLink"),
   activate: (id: number) => wren.invoke<null>("tabs.activate", id),
   close: (id: number) => wren.invoke<null>("tabs.close", id),
+  /**
+   * Moves a unit so its first tab is at an index among all the tabs. A moved
+   * group is made again, with a new ID. A tab also goes into the group of
+   * the tab `group` names, or out of any if it is null.
+   */
+  move: (unit: TabUnit, index: number, group: number | null = null) =>
+    wren.invoke<null>("tabs.move", { unit, index, group }),
+  /** Puts two tabs in a split, the first on the left; both must be in none. */
+  split: (first: number, second: number) => wren.invoke<null>("tabs.split", { first, second }),
   /** Shows a tab's context menu at a point in the page; the app does what is chosen, then answers with its ID. */
   menu: (id: number, x: number, y: number) => wren.invoke<string | null>("tabs.menu", { id, x, y }),
   /** Back, forward, reload and stop act on the active tab. */

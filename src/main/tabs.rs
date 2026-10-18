@@ -1,7 +1,7 @@
 // What the app does to a Browser's tabs, whether the page, the main menu or
 // a context menu asks.
 
-use wren::{Browser, BrowserTab, Error, TabGroup};
+use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSplit};
 
 use crate::ipc::{self, OwnToast};
 use crate::menus;
@@ -19,6 +19,93 @@ pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
     }
     for tab in tabs {
         tab.close()?;
+    }
+    Ok(())
+}
+
+/// Shows `first` and `second` side by side, in a split of their own. Chromium
+/// puts them next to each other, in `first`'s group.
+pub fn split(first: BrowserTab, second: BrowserTab) -> Result<(), Error> {
+    first.split_with(second, SplitLayout::SideBySide).map(drop)
+}
+
+/// Moves a tab to `to` in the list, into `group` (None: out of any). Joining
+/// a group puts the tab at the group's nearer end and leaving puts it out
+/// past that end, and the move then keeps the group, as the tab lands next
+/// to one of its tabs, or, leaving, next to none.
+pub fn move_tab(
+    mt: MainThread,
+    browser: &Browser,
+    tab: BrowserTab,
+    to: usize,
+    group: Option<TabGroup>,
+) -> Result<(), Error> {
+    if tab.state()?.group != group {
+        match group {
+            Some(group) => group.add(&[tab])?,
+            None => BrowserTab::ungroup(mt, &[tab])?,
+        }
+    }
+    move_run(browser, &[tab], to)
+}
+
+/// Moves a split's two tabs to `to`, the first's index. Chromium ends a split
+/// whose tab is moved alone, so it is made again from the same tabs, with
+/// the same layout and ratio.
+pub fn move_split(browser: &Browser, split: TabSplit, to: usize) -> Result<(), Error> {
+    let state = split.state()?;
+    let (Some(first), Some(second)) = (state.first, state.second) else {
+        return Ok(());
+    };
+    // In the list's order, which is not always the split's.
+    let mut run = [first, second];
+    run.sort_by_key(|tab| tab.index());
+    split.unsplit()?;
+    let moved = move_run(browser, &run, to);
+    let joined = first
+        .split_with(second, state.layout)
+        .and_then(|split| split.set_ratio(state.ratio, false));
+    moved.and(joined)
+}
+
+/// Moves a group's tabs to `to`, the first's index. Chromium keeps a group's
+/// tabs where they are, so they are taken out of it and put in a new group
+/// with the old one's title, colour and fold.
+pub fn move_group(
+    mt: MainThread,
+    browser: &Browser,
+    group: TabGroup,
+    to: usize,
+) -> Result<(), Error> {
+    let (title, (color, collapsed)) = (group.title(), group.visuals()?);
+    let run = in_group(browser, group);
+    BrowserTab::ungroup(mt, &run)?;
+    let moved = move_run(browser, &run, to);
+    let regrouped =
+        BrowserTab::group(mt, &run).and_then(|group| group.set_visuals(&title, color, collapsed));
+    moved.and(regrouped)
+}
+
+/// Moves tabs that are together, in order, so the first is at `to`. Each goes
+/// straight to its place, the last first when they move down the list, so no
+/// tab stops between the tabs of a group it is not to join.
+fn move_run(browser: &Browser, run: &[BrowserTab], to: usize) -> Result<(), Error> {
+    let all = browser.tabs();
+    let Some(from) = run
+        .first()
+        .and_then(|first| all.iter().position(|tab| tab == first))
+    else {
+        return Ok(());
+    };
+    let to = to.min(all.len().saturating_sub(run.len()));
+    if to > from {
+        for (offset, tab) in run.iter().enumerate().rev() {
+            tab.move_to(to + offset)?;
+        }
+    } else if to < from {
+        for (offset, tab) in run.iter().enumerate() {
+            tab.move_to(to + offset)?;
+        }
     }
     Ok(())
 }

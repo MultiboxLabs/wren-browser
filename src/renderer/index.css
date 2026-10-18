@@ -276,6 +276,11 @@ body,
 .no-drag {
   -webkit-app-region: no-drag;
 }
+/* Not while a tab is dragged in the sidebar: over a drag region it would
+   lose the pointer. */
+:root[data-reordering] .drag {
+  -webkit-app-region: no-drag;
+}
 
 /* The sidebar while it floats over the page: the space's colour over the
    page blurred, deeper than the window around it, with a light hairline

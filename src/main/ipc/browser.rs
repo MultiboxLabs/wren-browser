@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, WebView};
 
 use super::groups::Group;
@@ -42,6 +42,34 @@ pub struct Tabs {
     groups: Vec<Group>,
     /// The splits of `tabs`, in their order.
     splits: Vec<Split>,
+}
+
+/// What the page moves, by one of its tabs: the tab, the split it is in, or
+/// its group.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum Movable {
+    Tab(i32),
+    Split(i32),
+    Group(i32),
+}
+
+/// Two tabs to be shown side by side, as the page has them: the left one
+/// first.
+#[derive(Deserialize)]
+struct Pair {
+    first: i32,
+    second: i32,
+}
+
+#[derive(Deserialize)]
+struct MoveTo {
+    unit: Movable,
+    /// Where its first tab goes, among all the tabs.
+    index: usize,
+    /// For a tab: one of the tabs of the group it ends in, or none for no
+    /// group. A split or a group stays as it is.
+    group: Option<i32>,
 }
 
 pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
@@ -89,6 +117,51 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     let _ = web_view.handle("tabs.close", move |id: i32| {
         with_browser(&weak, |_, browser| {
             tabs::close(browser, &[tab(mt, browser, id)?]).map_err(failed)
+        })
+    });
+
+    // A tab, or its split's or its group's, moved to an index in the list;
+    // "browser.tabs" says where it landed.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("tabs.move", move |to: MoveTo| {
+        with_browser(&weak, |_, browser| {
+            let (Movable::Tab(id) | Movable::Split(id) | Movable::Group(id)) = to.unit;
+            let tab = tab(mt, browser, id)?;
+            let state = tab.state().map_err(failed)?;
+            match to.unit {
+                Movable::Tab(_) => {
+                    let group = match to.group {
+                        Some(member) => Some(
+                            self::tab(mt, browser, member)?
+                                .state()
+                                .map_err(failed)?
+                                .group
+                                .ok_or("The tab is in no group.")?,
+                        ),
+                        None => None,
+                    };
+                    tabs::move_tab(mt, browser, tab, to.index, group)
+                }
+                Movable::Split(_) => {
+                    let split = state.split.ok_or("The tab is in no split.")?;
+                    tabs::move_split(browser, split, to.index)
+                }
+                Movable::Group(_) => {
+                    let group = state.group.ok_or("The tab is in no group.")?;
+                    tabs::move_group(mt, browser, group, to.index)
+                }
+            }
+            .map_err(failed)
+        })
+    });
+
+    // A tab dropped on the left or right half of another: the two in a
+    // split.
+    let weak = Rc::downgrade(state);
+    let _ = web_view.handle("tabs.split", move |pair: Pair| {
+        with_browser(&weak, |_, browser| {
+            let first = tab(mt, browser, pair.first)?;
+            tabs::split(first, tab(mt, browser, pair.second)?).map_err(failed)
         })
     });
 
