@@ -220,6 +220,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
                 browser={browserTabs.browser}
                 panel={panel.id}
                 title={panel.title}
+                icon={panel.icon}
                 width={sidePanelWidth}
                 onSwitch={sidePanel.show}
                 onClose={sidePanel.close}

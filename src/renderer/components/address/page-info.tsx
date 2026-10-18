@@ -51,7 +51,7 @@ import { cn } from "../../utils/cn";
 const STORE = "https://chromewebstore.google.com";
 
 /** The side panels the popover's first row opens and closes. */
-const quickPanels: SidePanelId[] = ["Bookmarks", "History", "ReadAnything"];
+const quickPanels: SidePanelId[] = ["ReadingList", "Bookmarks", "ReadAnything"];
 
 export function PageInfo({
   tab,

@@ -4,6 +4,8 @@ export type SidePanelState = {
   /** Chromium's name for it ("ReadingList", "Bookmarks", …). */
   id: string;
   title: string;
+  /** An extension's panel: its action's icon, as a PNG data: URL. */
+  icon: string | null;
   width: number;
 };
 

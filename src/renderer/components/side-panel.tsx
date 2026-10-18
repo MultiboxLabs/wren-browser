@@ -1,7 +1,7 @@
 // Chromium's side panel, at the window's right: a header of ours, and the
 // panel itself below it, in a <wren-view>.
 
-import { BookOpen, Bookmark, ChevronDown, Glasses, History, PanelRight, X } from "lucide-react";
+import { BookOpen, Bookmark, ChevronDown, Glasses, PanelRight, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Menu } from "./ui/menu";
 
@@ -9,7 +9,6 @@ import { Menu } from "./ui/menu";
 export const sidePanels = [
   { id: "ReadingList", label: "Reading List", icon: Glasses },
   { id: "Bookmarks", label: "Bookmarks", icon: Bookmark },
-  { id: "History", label: "History", icon: History },
   { id: "ReadAnything", label: "Reading Mode", icon: BookOpen }
 ] as const;
 
@@ -22,6 +21,7 @@ export function SidePanel({
   browser,
   panel,
   title,
+  icon,
   width,
   onSwitch,
   onClose
@@ -31,6 +31,8 @@ export function SidePanel({
   /** Chromium's name for the open panel: one of the menu's, or another (an extension's, Customize Chromium). */
   panel: string;
   title: string;
+  /** An extension's panel's icon, drawn in place of a symbol. */
+  icon: string | null;
   width: number;
   onSwitch: (panel: SidePanelId) => void;
   onClose: () => void;
@@ -44,7 +46,8 @@ export function SidePanel({
           checked={panel as SidePanelId}
           onSelect={onSwitch}
           trigger={
-            <Button icon={Icon} iconSize={15} className="font-semibold">
+            <Button icon={icon ? undefined : Icon} iconSize={15} className="font-semibold">
+              {icon && <img aria-hidden src={icon} width={16} height={16} />}
               {label}
               <ChevronDown size={13} strokeWidth={2} className="glyph-2" />
             </Button>

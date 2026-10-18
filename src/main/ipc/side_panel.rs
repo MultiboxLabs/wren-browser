@@ -3,7 +3,7 @@ use std::rc::Rc;
 use serde::Serialize;
 use wren::{Browser, WebView};
 
-use super::{failed, with_browser};
+use super::{failed, png_url, with_browser};
 use crate::app::State;
 use crate::window::MainWindow;
 
@@ -15,6 +15,8 @@ pub struct SidePanel {
     id: String,
     /// In Chromium's language.
     title: String,
+    /// An extension's panel: its action's icon, as a PNG data: URL.
+    icon: Option<String>,
     width: f64,
 }
 
@@ -61,9 +63,14 @@ pub fn send_side_panel(main: &MainWindow, browser: &Browser) {
 
 fn side_panel(browser: &Browser) -> SidePanel {
     let state = browser.side_panel_state().ok();
+    let id = browser.side_panel_id();
     SidePanel {
         open: state.is_some_and(|state| state.open),
-        id: browser.side_panel_id(),
+        icon: id
+            .strip_prefix("Extension")
+            .and_then(|extension| browser.extension_action_icon_png(extension, 16, 2.0, false))
+            .map(png_url),
+        id,
         title: browser.side_panel_title(),
         width: state.map_or(0.0, |state| state.width),
     }
