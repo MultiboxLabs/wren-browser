@@ -41,7 +41,13 @@ pub fn show_tab_menu(
     if in_group.is_some() {
         items.push(MenuItem::item("ungroup", "Remove from Group"));
     }
-    items.push(MenuItem::Separator);
+    let (up, down) = tabs::can_move(browser, tab);
+    items.extend([
+        MenuItem::Separator,
+        enabled(MenuItem::item("move-up", "Move Up"), up),
+        enabled(MenuItem::item("move-down", "Move Down"), down),
+        MenuItem::Separator,
+    ]);
     match state.split {
         Some(split) => {
             let stacked = split.state()?.layout == SplitLayout::Stacked;
@@ -83,6 +89,8 @@ pub fn show_tab_menu(
     mt.show_context_menu(&items, view, point, move |chosen| {
         let _ = match chosen.as_deref() {
             Some("reload") => tab.reload(),
+            Some("move-up") => tabs::move_by(mt, &browser, tab, -1),
+            Some("move-down") => tabs::move_by(mt, &browser, tab, 1),
             Some("copy-link") => {
                 copy(&tab.url());
                 Ok(())

@@ -23,6 +23,71 @@ pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
     Ok(())
 }
 
+/// The runs of tabs a tab moves among, as the sidebar draws them, and which
+/// is the tab's: the tabs of a group together, then a split's two together,
+/// and each other tab alone. A tab in a group moves among that group's.
+fn runs(browser: &Browser, tab: BrowserTab) -> Result<(Vec<Vec<BrowserTab>>, usize), Error> {
+    let group = tab.state()?.group;
+    let scope = match group {
+        Some(group) => in_group(browser, group),
+        None => browser.tabs(),
+    };
+    let mut runs: Vec<Vec<BrowserTab>> = Vec::new();
+    let mut last = None;
+    for each in scope {
+        let state = each.state()?;
+        let in_group = if group.is_some() { None } else { state.group };
+        let key = (
+            in_group,
+            if in_group.is_some() {
+                None
+            } else {
+                state.split
+            },
+        );
+        match runs.last_mut() {
+            Some(run) if last == Some(key) && key != (None, None) => run.push(each),
+            _ => runs.push(vec![each]),
+        }
+        last = Some(key);
+    }
+    let mine = runs.iter().position(|run| run.contains(&tab)).unwrap_or(0);
+    Ok((runs, mine))
+}
+
+/// Whether a tab can move up the list, and down: there is a run before it,
+/// or after it.
+pub fn can_move(browser: &Browser, tab: BrowserTab) -> (bool, bool) {
+    runs(browser, tab).map_or((false, false), |(runs, mine)| {
+        (mine > 0, mine + 1 < runs.len())
+    })
+}
+
+/// Moves a tab one place up the list (`by` -1) or down (1), past a tab, a
+/// split or a whole group, as dragging it there would. Its split goes with it.
+pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) -> Result<(), Error> {
+    let (runs, mine) = runs(browser, tab)?;
+    let Some(next) = mine
+        .checked_add_signed(by)
+        .filter(|next| *next < runs.len())
+    else {
+        return Ok(());
+    };
+    let all = browser.tabs();
+    let start = |run: &[BrowserTab]| all.iter().position(|each| *each == run[0]).unwrap_or(0);
+    // Down, it lands past the run, which the tabs of its own then leave.
+    let to = if by < 0 {
+        start(&runs[next])
+    } else {
+        start(&runs[next]) + runs[next].len() - runs[mine].len()
+    };
+    let state = tab.state()?;
+    match state.split {
+        Some(split) => move_split(browser, split, to),
+        None => move_tab(mt, browser, tab, to, state.group),
+    }
+}
+
 /// A tab on `url`, shown, at `index` and in `group` (None: none). The page
 /// puts what is dropped on it here, so only a web address is let through.
 pub fn open_at(

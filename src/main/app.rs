@@ -289,7 +289,7 @@ impl App for Wren {
         }
     }
 
-    fn menu_command(&self, _: MainThread, id: &str, _: Option<Browser>) {
+    fn menu_command(&self, mt: MainThread, id: &str, _: Option<Browser>) {
         let main = self.state.main.borrow();
         let Some(main) = main.as_ref() else { return };
         if id == menus::TOGGLE_SIDEBAR {
@@ -329,6 +329,15 @@ impl App for Wren {
                 None => Ok(()),
             },
             menus::COPY_URL => tabs::copy_url(&browser),
+            menus::MOVE_TAB_UP | menus::MOVE_TAB_DOWN => match browser.active_tab() {
+                Some(tab) => tabs::move_by(
+                    mt,
+                    &browser,
+                    tab,
+                    if id == menus::MOVE_TAB_UP { -1 } else { 1 },
+                ),
+                None => Ok(()),
+            },
             _ => Ok(()),
         };
     }

@@ -19,6 +19,8 @@ pub const NEW_TAB: &str = "new-tab";
 pub const OPEN_LOCATION: &str = "open-location";
 pub const CLOSE_TAB: &str = "close-tab";
 pub const COPY_URL: &str = "copy-url";
+pub const MOVE_TAB_UP: &str = "move-tab-up";
+pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 
@@ -120,6 +122,20 @@ pub fn set_main_menu(mt: MainThread) {
                 MenuItem::chromium(Command::DuplicateTab),
                 MenuItem::chromium(Command::MuteSite),
                 MenuItem::chromium(Command::GroupTab),
+                MenuItem::Separator,
+                // Up and down the sidebar's list.
+                keyed(
+                    MOVE_TAB_UP,
+                    "Move Tab Up",
+                    "ArrowUp",
+                    MenuModifiers::PRIMARY | MenuModifiers::ALT,
+                ),
+                keyed(
+                    MOVE_TAB_DOWN,
+                    "Move Tab Down",
+                    "ArrowDown",
+                    MenuModifiers::PRIMARY | MenuModifiers::ALT,
+                ),
                 MenuItem::Separator,
                 MenuItem::chromium(Command::CloseOtherTabs),
                 // The tabs after it are below it in the sidebar.
