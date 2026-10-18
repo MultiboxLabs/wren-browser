@@ -19,6 +19,7 @@ pub const NEW_WINDOW: &str = "new-window";
 pub const NEW_TAB: &str = "new-tab";
 pub const OPEN_LOCATION: &str = "open-location";
 pub const CLOSE_TAB: &str = "close-tab";
+pub const CLOSE_WINDOW: &str = "close-window";
 pub const COPY_URL: &str = "copy-url";
 pub const BACK: &str = "back";
 pub const FORWARD: &str = "forward";
@@ -60,7 +61,10 @@ pub fn set_main_menu(mt: MainThread) {
                 // Keeps the window's last tab, which Chromium's would close
                 // with the Browser.
                 keyed(CLOSE_TAB, "Close Tab", "w", MenuModifiers::PRIMARY),
-                MenuItem::role(MenuRole::CloseWindow),
+                // The app's own, so the close button's path is taken: the
+                // last window closes the app. An upper-case key is the key
+                // with Shift: ⇧⌘W.
+                keyed(CLOSE_WINDOW, "Close Window", "W", MenuModifiers::PRIMARY),
                 MenuItem::Separator,
                 MenuItem::chromium(Command::ReopenClosedTab),
             ],

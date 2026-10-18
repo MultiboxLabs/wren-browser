@@ -278,6 +278,9 @@ impl App for Wren {
             }
             return;
         }
+        if id == menus::CLOSE_WINDOW {
+            return self.state.close_window(mt, window.id);
+        }
         if id == menus::TOGGLE_SIDEBAR {
             return ipc::send_toggle_sidebar(&window);
         }
