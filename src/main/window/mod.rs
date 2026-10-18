@@ -29,7 +29,7 @@ use objc2_app_kit::{
 use objc2_foundation::{
     NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString, ns_string,
 };
-use wren::{MainThread, Profile, TabCrash, WebView, WebViewKind, WebViewOptions};
+use wren::{MainThread, Profile, RequestedBounds, TabCrash, WebView, WebViewKind, WebViewOptions};
 
 use crate::pages::Page;
 
@@ -211,6 +211,22 @@ impl PageWindow {
         let origin = NSPoint::new(frame.origin.x + STEP, frame.origin.y - STEP);
         self.window
             .setFrame_display(NSRect::new(origin, frame.size), false);
+    }
+
+    /// Puts the window where a restored Browser's window was. AppKit moves
+    /// it back onto a screen if that one has gone; without a position, only
+    /// the size is its own.
+    pub fn restore_frame(&self, bounds: RequestedBounds) {
+        let size = NSSize::new(bounds.width, bounds.height);
+        let origin = match bounds.origin {
+            Some((x, y)) => NSPoint::new(x, y),
+            None => self.window.frame().origin,
+        };
+        let frame = NSRect::new(origin, size);
+        let frame = self
+            .window
+            .constrainFrameRect_toScreen(frame, self.window.screen().as_deref());
+        self.window.setFrame_display(frame, false);
     }
 
     /// Whether the window is the one in use: a browser window, or under the

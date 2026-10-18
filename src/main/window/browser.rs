@@ -101,6 +101,10 @@ impl BrowserWindow {
         let mut front = self.front.borrow_mut();
         if front.is_none() {
             *front = Some(id.clone());
+            // A restored window comes back where and as large as it was.
+            if let Some(bounds) = browser.requested_bounds() {
+                self.page.restore_frame(bounds);
+            }
         } else {
             let _ = browser.set_backgrounded(true);
         }
