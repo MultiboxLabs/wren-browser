@@ -91,7 +91,9 @@ export function useWindowButtons({ left, top }: { left: MotionValue<number>; top
   useEffect(() => {
     if (!hasApp) return;
     const half = (value: number) => Math.round(value * 2) / 2;
-    let sent = { visible: false, x: NaN, y: NaN };
+    // Nothing sent yet: the window starts with its buttons shown, so a sidebar
+    // that starts hidden has to say so.
+    let sent: { visible: boolean | null; x: number; y: number } = { visible: null, x: NaN, y: NaN };
     const update = () => {
       const now = { visible: left.get() > -72, x: 13 + half(left.get()), y: 13 + half(top.get()) };
       if (now.visible !== sent.visible) appWindow.setButtonsVisible(now.visible);
