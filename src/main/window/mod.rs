@@ -20,9 +20,10 @@ use objc2_app_kit::{
     NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState,
     NSVisualEffectView, NSWindow, NSWindowDelegate, NSWindowDidBecomeKeyNotification,
     NSWindowDidBecomeMainNotification, NSWindowDidEndLiveResizeNotification,
-    NSWindowDidExitFullScreenNotification, NSWindowDidResignKeyNotification,
-    NSWindowDidResignMainNotification, NSWindowDidResizeNotification, NSWindowStyleMask,
-    NSWindowTitleVisibility, NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
+    NSWindowDidEnterFullScreenNotification, NSWindowDidExitFullScreenNotification,
+    NSWindowDidResignKeyNotification, NSWindowDidResignMainNotification,
+    NSWindowDidResizeNotification, NSWindowStyleMask, NSWindowTitleVisibility,
+    NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
     NSWindowWillExitFullScreenNotification,
 };
 use objc2_foundation::{
@@ -44,7 +45,7 @@ pub struct PageWindow {
     // Behind the page, which is see-through where it draws nothing.
     backdrop: Retained<NSVisualEffectView>,
     // A window holds its delegate weakly.
-    _delegate: Retained<WindowDelegate>,
+    delegate: Retained<WindowDelegate>,
     observers: RefCell<Vec<Retained<ProtocolObject<dyn NSObjectProtocol>>>>,
     title_bar: Rc<TitleBar>,
 }
@@ -145,6 +146,16 @@ impl PageWindow {
         // Full screen, the toolbar would get a bar of its own above the
         // page, so the window has none while it is.
         let title_bar = Rc::new(TitleBar::default());
+        let lay_out = {
+            let (window, toolbar, title_bar) = (window.clone(), toolbar.clone(), title_bar.clone());
+            Rc::new(move |full_screen: Option<bool>| {
+                if let Some(full_screen) = full_screen {
+                    title_bar.full_screen.set(full_screen);
+                    window.setToolbar((!full_screen).then_some(&*toolbar));
+                }
+                title_bar.apply(&window);
+            })
+        };
         let observers = unsafe {
             [
                 (NSWindowDidResizeNotification, None),
@@ -157,22 +168,19 @@ impl PageWindow {
         }
         .into_iter()
         .map(|(name, full_screen)| {
-            let (window, toolbar, title_bar) = (window.clone(), toolbar.clone(), title_bar.clone());
-            observe(name, &window.clone(), move || {
-                if let Some(full_screen) = full_screen {
-                    title_bar.full_screen.set(full_screen);
-                    window.setToolbar((!full_screen).then_some(&*toolbar));
-                }
-                title_bar.apply(&window);
-            })
+            let lay_out = lay_out.clone();
+            observe(name, &window, move || lay_out(full_screen))
         })
         .collect();
+        // AppKit could not go full screen or come back: as the window is.
+        let failed = window.clone();
+        delegate.on_full_screen_failed(move || lay_out(Some(is_full_screen(&failed))));
 
         Some(PageWindow {
             web_view,
             window,
             backdrop,
-            _delegate: delegate,
+            delegate,
             observers: RefCell::new(observers),
             title_bar,
         })
@@ -240,6 +248,38 @@ impl PageWindow {
         } {
             let changed = changed.clone();
             observers.push(observe(name, &self.window, move || changed(full_screen)));
+        }
+        let window = self.window.clone();
+        self.delegate
+            .on_full_screen_failed(move || changed(is_full_screen(&window)));
+    }
+
+    /// Calls `changed` once the window has gone full screen or come back, or
+    /// failed to, with whether it is.
+    pub fn watch_full_screen_finished(&self, changed: impl Fn(bool) + 'static) {
+        let changed = Rc::new(changed);
+        let mut observers = self.observers.borrow_mut();
+        for name in unsafe {
+            [
+                NSWindowDidEnterFullScreenNotification,
+                NSWindowDidExitFullScreenNotification,
+            ]
+        } {
+            let (changed, window) = (changed.clone(), self.window.clone());
+            observers.push(observe(name, &self.window, move || {
+                changed(is_full_screen(&window))
+            }));
+        }
+        let window = self.window.clone();
+        self.delegate
+            .on_full_screen_failed(move || changed(is_full_screen(&window)));
+    }
+
+    /// Takes the window into full screen or out of it, unless it is so
+    /// already or going to be.
+    pub fn set_full_screen(&self, full_screen: bool) {
+        if self.is_full_screen() != full_screen {
+            self.window.toggleFullScreen(None);
         }
     }
 
@@ -309,6 +349,10 @@ fn appearance(dark: bool) -> Option<Retained<NSAppearance>> {
     NSAppearance::appearanceNamed(name)
 }
 
+fn is_full_screen(window: &NSWindow) -> bool {
+    window.styleMask().contains(NSWindowStyleMask::FullScreen)
+}
+
 fn is_active(window: &Retained<NSWindow>) -> bool {
     let app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
     if !app.isActive() {
@@ -338,12 +382,19 @@ impl Drop for PageWindow {
     }
 }
 
-// Hands a window's close button to the closure it was made with.
+// What a window's delegate hands on: its close button, to the closure it
+// was made with, and a change to or from full screen AppKit could not make,
+// which only its delegate hears of.
+struct Delegated {
+    should_close: Box<dyn Fn() -> bool>,
+    full_screen_failed: RefCell<Vec<Box<dyn Fn()>>>,
+}
+
 define_class!(
     #[unsafe(super(NSObject))]
     #[thread_kind = MainThreadOnly]
     #[name = "WrenWindowDelegate"]
-    #[ivars = Box<dyn Fn() -> bool>]
+    #[ivars = Delegated]
     struct WindowDelegate;
 
     unsafe impl NSObjectProtocol for WindowDelegate {}
@@ -351,14 +402,40 @@ define_class!(
     unsafe impl NSWindowDelegate for WindowDelegate {
         #[unsafe(method(windowShouldClose:))]
         fn window_should_close(&self, _sender: &NSWindow) -> bool {
-            (self.ivars())()
+            (self.ivars().should_close)()
+        }
+
+        #[unsafe(method(windowDidFailToEnterFullScreen:))]
+        fn window_did_fail_to_enter_full_screen(&self, _window: &NSWindow) {
+            self.full_screen_failed();
+        }
+
+        #[unsafe(method(windowDidFailToExitFullScreen:))]
+        fn window_did_fail_to_exit_full_screen(&self, _window: &NSWindow) {
+            self.full_screen_failed();
         }
     }
 );
 
 impl WindowDelegate {
     fn new(mtm: MainThreadMarker, should_close: Box<dyn Fn() -> bool>) -> Retained<Self> {
-        let this = Self::alloc(mtm).set_ivars(should_close);
+        let this = Self::alloc(mtm).set_ivars(Delegated {
+            should_close,
+            full_screen_failed: RefCell::default(),
+        });
         unsafe { msg_send![super(this), init] }
+    }
+
+    fn on_full_screen_failed(&self, run: impl Fn() + 'static) {
+        self.ivars()
+            .full_screen_failed
+            .borrow_mut()
+            .push(Box::new(run));
+    }
+
+    fn full_screen_failed(&self) {
+        for run in self.ivars().full_screen_failed.borrow().iter() {
+            run();
+        }
     }
 }

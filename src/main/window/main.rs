@@ -2,7 +2,7 @@
 // Profile. All are attached to the page's view; one is in front, and the
 // rest wait in the background.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use wren::{Browser, BubbleAnchor, Profile};
@@ -20,6 +20,9 @@ pub struct MainWindow {
     // By the Profile's ID.
     browsers: RefCell<HashMap<String, (Profile, Browser)>>,
     front: RefCell<Option<String>>,
+    // Whether the window went full screen for a page, and comes back once
+    // the page is done; not so for full screen the user chose.
+    full_screen_for_page: Cell<bool>,
 }
 
 impl MainWindow {
@@ -28,6 +31,7 @@ impl MainWindow {
             page,
             browsers: RefCell::default(),
             front: RefCell::default(),
+            full_screen_for_page: Cell::default(),
         }
     }
 
@@ -51,6 +55,10 @@ impl MainWindow {
     pub fn add(&self, profile: Profile, browser: Browser) {
         browser.attach_to_view(Some(self.page.web_view.view()));
         self.name_anchors(&browser);
+        // Its pages take a window that is full screen already without asking.
+        if self.page.is_full_screen() {
+            let _ = browser.set_fullscreen(true);
+        }
         let id = profile.id();
         let mut front = self.front.borrow_mut();
         if front.is_none() {
@@ -59,6 +67,31 @@ impl MainWindow {
             let _ = browser.set_backgrounded(true);
         }
         self.browsers.borrow_mut().insert(id, (profile, browser));
+    }
+
+    /// Whether the window goes full screen for a page of the Browser in front
+    /// (`full_screen`), or comes back once the page is done with it; the
+    /// change is the caller's to make. Full screen the user chose stays as
+    /// the page leaves it.
+    pub fn wants_full_screen_for_page(&self, full_screen: bool) -> bool {
+        if !full_screen {
+            return self.full_screen_for_page.replace(false);
+        }
+        if !self.page.is_full_screen() {
+            self.full_screen_for_page.set(true);
+        }
+        true
+    }
+
+    /// Tells the Browsers the window has gone full screen or come back, once
+    /// it has. Coming back takes their pages out of it too.
+    pub fn full_screen_finished(&self, full_screen: bool) {
+        if !full_screen {
+            self.full_screen_for_page.set(false);
+        }
+        for (_, browser) in self.browsers.borrow().values() {
+            let _ = browser.set_fullscreen(full_screen);
+        }
     }
 
     /// Names the page's marks as `browser`'s anchors. An extension's mark is

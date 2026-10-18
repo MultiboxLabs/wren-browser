@@ -30,11 +30,14 @@ pub struct Tab {
 
 /// The tabs of the Browser in front, in its order, and which is active.
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Tabs {
     /// The Browser's ID, which names its side panel's element.
     browser: i32,
     tabs: Vec<Tab>,
     active: Option<i32>,
+    /// The tab whose page has the whole window, if one has.
+    full_screen: Option<i32>,
     /// The groups of `tabs`, in their order.
     groups: Vec<Group>,
     /// The splits of `tabs`, in their order.
@@ -159,6 +162,7 @@ fn tab_list(browser: &Browser) -> Tabs {
         browser: browser.id(),
         tabs,
         active: browser.active_tab().map(BrowserTab::id),
+        full_screen: browser.fullscreen_tab().map(BrowserTab::id),
         groups: groups.into_iter().map(Group::new).collect(),
         splits: splits.into_iter().filter_map(Split::new).collect(),
     }

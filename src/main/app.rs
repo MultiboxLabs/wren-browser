@@ -66,6 +66,13 @@ impl State {
                 ipc::send_full_screen(&main.page, full_screen);
             }
         });
+        let state = Rc::downgrade(self);
+        page.watch_full_screen_finished(move |full_screen| {
+            let Some(state) = state.upgrade() else { return };
+            if let Some(main) = state.main.borrow().as_ref() {
+                main.full_screen_finished(full_screen);
+            }
+        });
         *self.main.borrow_mut() = Some(MainWindow::new(page));
 
         // The user's own Profile, the one Chromium starts with, with the
@@ -236,7 +243,10 @@ impl App for Wren {
                     tabs_changed = true;
                     site_changed = true;
                 }
-                ChangeKind::Group | ChangeKind::Split => tabs_changed = true,
+                // The tab in full screen is among them.
+                ChangeKind::Group | ChangeKind::Split | ChangeKind::Fullscreen => {
+                    tabs_changed = true
+                }
                 ChangeKind::SidePanel => ipc::send_side_panel(main, &browser),
                 ChangeKind::Site => site_changed = true,
                 ChangeKind::ExtensionActions => extensions_changed = true,
@@ -342,6 +352,28 @@ impl App for Wren {
             }
         });
         PopoverAnswer::App
+    }
+
+    // A page wants the whole window, or is done with it. The window goes full
+    // screen for it once Chromium's call is over, and Chromium hears when it
+    // has (MainWindow::full_screen_finished). A page in the background, or
+    // one leaving full screen the user chose, has its way at once.
+    fn fullscreen(&self, mt: MainThread, browser: Browser, fullscreen: bool) -> bool {
+        let main = self.state.main.borrow();
+        let Some(main) = main.as_ref().filter(|main| main.is_front(&browser)) else {
+            return false;
+        };
+        if !main.wants_full_screen_for_page(fullscreen) {
+            return false;
+        }
+        let state = Rc::downgrade(&self.state);
+        mt.later(move |_| {
+            let Some(state) = state.upgrade() else { return };
+            if let Some(main) = state.main.borrow().as_ref() {
+                main.page.set_full_screen(fullscreen);
+            }
+        });
+        true
     }
 
     // Chromium wants the address field: the omnibox opens on the active

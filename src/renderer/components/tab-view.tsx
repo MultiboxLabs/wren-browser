@@ -1,5 +1,6 @@
 // The page of the active tab, or of both tabs of its split, side by side or
-// one above the other, with a divider between them.
+// one above the other, with a divider between them. A page in full screen
+// has the window to itself, without its card.
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
@@ -12,10 +13,21 @@ const DIVIDER = 10;
 // The least either side of a split shrinks to.
 const SIDE_MIN = 160;
 
-export function TabView({ tab, split, tabs }: { tab: BrowserTab; split?: TabSplit; tabs: BrowserTab[] }) {
+export function TabView({
+  tab,
+  split,
+  tabs,
+  fullScreen = false
+}: {
+  tab: BrowserTab;
+  split?: TabSplit;
+  tabs: BrowserTab[];
+  fullScreen?: boolean;
+}) {
   const first = split && tabs.find((each) => each.id === split.first);
   const second = split && tabs.find((each) => each.id === split.second);
-  if (!split || !first || !second) return <TabPane tab={tab} className="flex-1" />;
+  if (fullScreen || !split || !first || !second)
+    return <TabPane tab={tab} fullScreen={fullScreen} className="flex-1" />;
   return <SplitPanes split={split} first={first} second={second} />;
 }
 
@@ -61,9 +73,22 @@ function SplitPanes({ split, first, second }: { split: TabSplit; first: BrowserT
   );
 }
 
-function TabPane({ tab, className, style }: { tab: BrowserTab; className?: string; style?: CSSProperties }) {
+function TabPane({
+  tab,
+  fullScreen = false,
+  className,
+  style
+}: {
+  tab: BrowserTab;
+  fullScreen?: boolean;
+  className?: string;
+  style?: CSSProperties;
+}) {
   return (
-    <div style={style} className={cn("card no-drag relative min-h-0 min-w-0 overflow-hidden", className)}>
+    <div
+      style={style}
+      className={cn(fullScreen ? "bg-black" : "card", "no-drag relative min-h-0 min-w-0 overflow-hidden", className)}
+    >
       <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block" />
       {tab.crashed && <Crashed tab={tab} />}
     </div>

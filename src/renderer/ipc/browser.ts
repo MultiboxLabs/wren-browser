@@ -22,6 +22,8 @@ export type BrowserTabs = {
   browser: number;
   tabs: BrowserTab[];
   active: number | null;
+  /** The tab whose page has the whole window, if one has. */
+  fullScreen: number | null;
   /** The groups of `tabs`, in their order. */
   groups: TabGroup[];
   /** The splits of `tabs`, in their order. */

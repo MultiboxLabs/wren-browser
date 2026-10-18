@@ -30,6 +30,10 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const [space, setSpace] = useState<Space>(personal);
   const { tabs: browserTabs, favicons } = useBrowser();
   const current = browserTabs?.tabs.find((tab) => tab.id === browserTabs.active);
+  // A page in full screen has the whole window: the sidebar and the side
+  // panel make way for it, and come back as they were.
+  const fullScreenTab = browserTabs?.tabs.find((tab) => tab.id === browserTabs.fullScreen);
+  const shown = fullScreenTab ?? current;
   const tabs: Tab[] = (browserTabs?.tabs ?? []).map((tab) => ({ ...tab, favicon: favicons[tab.id] }));
   const [renaming, setRenaming] = useState<string | null>(null);
   const [presentation, setPresentation] = useState<Presentation>(saved?.open === false ? "hidden" : "anchored");
@@ -186,19 +190,20 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     <TooltipProvider>
       <div className="browser drag flex h-full">
         {/* The room left of the page: the docked sidebar is over it. */}
-        <motion.div style={{ width: motionValues.slot }} className="shrink-0" />
+        {!fullScreenTab && <motion.div style={{ width: motionValues.slot }} className="shrink-0" />}
 
-        <main className="flex min-w-0 flex-1 py-2.5 pr-2.5">
-          {current ? (
+        <main className={cn("flex min-w-0 flex-1", !fullScreenTab && "py-2.5 pr-2.5")}>
+          {shown ? (
             <TabView
-              tab={current}
-              split={browserTabs?.splits.find((split) => split.id === current.split)}
+              tab={shown}
+              split={browserTabs?.splits.find((split) => split.id === shown.split)}
               tabs={browserTabs?.tabs ?? []}
+              fullScreen={fullScreenTab !== undefined}
             />
           ) : (
             <div className="card no-drag min-w-0 flex-1" />
           )}
-          {panel && panelOpen && browserTabs && (
+          {panel && panelOpen && browserTabs && !fullScreenTab && (
             <>
               <ResizeHandle
                 width={sidePanelWidth}
@@ -224,7 +229,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
         </main>
 
         {/* Where the pointer brings the hidden sidebar out. */}
-        {!sidebarOpen && (
+        {!sidebarOpen && !fullScreenTab && (
           <div
             className="no-drag fixed inset-y-0 left-0 w-2.5"
             onPointerEnter={() => setPresentation((shown) => (shown === "hidden" ? "floating" : shown))}
@@ -233,9 +238,9 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
         <motion.aside
           ref={sidebarRef}
           // Kept while hidden, so it slides away and back as it was.
-          inert={presentation === "hidden"}
+          inert={presentation === "hidden" || fullScreenTab !== undefined}
           style={motionValues.box}
-          className={cn("fixed pl-2", !sidebarOpen && "no-drag")}
+          className={cn("fixed pl-2", !sidebarOpen && "no-drag", fullScreenTab && "hidden")}
           onPointerLeave={() => held || setPresentation((shown) => (shown === "floating" ? "hidden" : shown))}
         >
           <motion.div style={motionValues.panel} className="peek pointer-events-none absolute inset-0 rounded-panel" />
@@ -243,7 +248,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
             <Sidebar {...sidebar} />
           </div>
         </motion.aside>
-        {sidebarOpen && (
+        {sidebarOpen && !fullScreenTab && (
           // The gap to the page. After the sidebar, whose tabs scroll right up
           // to the page: the later of two overlapping boxes takes the clicks
           // and, for app-region, says whether a press moves the window.
