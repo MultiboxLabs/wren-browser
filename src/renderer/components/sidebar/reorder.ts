@@ -1,305 +1,25 @@
 // Dragging a tab, a split or a group to another place in the Browser's list.
 // This is the platform's own drag, so it can be carried out of the window as
-// well as along the list: a line shows where it would land, and letting it
-// go there asks the Browser to move it.
+// well as along the list: a mark shows where it would land (landing.ts), and
+// letting it go there asks the Browser to move it. The list's rows are marked
+// as the units that move (units.ts).
 //
-// The list marks its rows as units (`reorderUnit`): the things that can
-// change places, in a scope. The top scope is the tabs outside any group, the
-// splits and the groups as a whole; a group's own tabs and splits are the
-// scope of its ID. A group stays among the top scope's units. A split stays
-// in its group, which Chromium has the split's tabs share. A tab goes
-// anywhere, and joins or leaves a group by where it lands: between a group's
-// tabs it is in it; past its last it is in it or out of it by how far in the
-// tab is held, as the group's own tabs are indented.
+// What is dragged in from outside the list, like a link, is a tab that opens
+// where it is dropped.
 
 import { type DragEvent, type PointerEvent, useLayoutEffect, useRef, useState } from "react";
 import { browser, type TabUnit } from "../../ipc";
+import { addressOf, carriesAddress } from "./dropped-address";
+import { useEdgeScroll } from "./edge-scroll";
+import { type DropMark, type Grabbed, type Held, type Landing, landingAt, OUTSIDE } from "./landing";
+import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
+import { draggableUnitOf, readUnit, type UnitKind } from "./units";
 
-/** The type of what a drag carries, for the list to know the drag is of one of its units. */
+/** What a drag carries for the platform to start it. Only the list reads what it was. */
 const UNIT_TYPE = "application/x-wren-unit";
 
-/** How long the rows take to slide to their new places once a tab is dropped. */
-const SLIDE_MS = 180;
-
-/** The space between the room made in a row and the tab beside it. */
-const SPLIT_GAP = 2;
-
-/** How near the list's top or bottom edge a drag scrolls it, and how fast, at the edge, in pixels a frame. */
-const SCROLL_ZONE = 48;
-const SCROLL_SPEED = 14;
-
-/** The space between rows, half of which each side of a line at an end. */
-const SPACING = 5;
-
-/** What the list says of a unit: a row, a split's row or a group as a whole. */
-type UnitProps = {
-  /** Where it can move. */
-  scope: string;
-  /** The index of its first tab among the Browser's tabs. */
-  start: number;
-  /** The tabs it holds. */
-  size: number;
-  /**
-   * What it is, "tab:5", "split:5" or "group:5": the kind, and the ID of its
-   * tab, or its first. A split or a group is named by a tab as the app takes it, and
-   * the name outlives the move that makes them again.
-   */
-  id: string;
-  /** It can be picked up. */
-  draggable: boolean;
-  /** For a group as a whole: its ID, which is the scope of its tabs. */
-  group?: string;
-};
-
-/** The attributes that mark an element of the list as a unit, whose first child is the row it draws. */
-export function reorderUnit({ scope, start, size, id, draggable, group }: UnitProps) {
-  return {
-    "data-reorder-scope": scope,
-    "data-reorder-group": group,
-    "data-reorder-start": start,
-    "data-reorder-size": size,
-    "data-reorder-id": id,
-    draggable: draggable || undefined
-  };
-}
-
-/** The unit a unit's ID names, as the app takes it. */
-function tabUnit(id: string): TabUnit {
-  const [kind, tab] = id.split(":");
-  return kind === "split" ? { split: Number(tab) } : kind === "group" ? { group: Number(tab) } : { tab: Number(tab) };
-}
-
-/** The rows' places when a unit was dropped, for them to slide from once the Browser has moved it. */
-type Settling = { id: string; tops: Map<HTMLElement, number> };
-
-/** Slides the rows that the new order moved from where they were. */
-function slide(scroller: HTMLElement, { id, tops }: Settling) {
-  for (const el of scroller.querySelectorAll<HTMLElement>("[data-reorder-scope]")) {
-    const was = tops.get(el);
-    const by = was === undefined ? 0 : was - el.getBoundingClientRect().top;
-    if (Math.abs(by) < 0.5) continue;
-    // The dropped unit passes over the rows it trades places with.
-    const mine = el.dataset.reorderId === id;
-    if (mine) Object.assign(el.style, { position: "relative", zIndex: "1" });
-    const animation = el.animate([{ transform: `translateY(${by}px)` }, { transform: "translateY(0)" }], {
-      duration: SLIDE_MS,
-      easing: "ease-in-out"
-    });
-    animation.finished.then(
-      () => mine && Object.assign(el.style, { position: "", zIndex: "" }),
-      () => {}
-    );
-  }
-}
-
-/**
- * What shows where a drop would land, in the list's content: a line between
- * rows, or a box over the row it would make a split with.
- */
-export type DropMark = { kind: "line" | "box"; top: number; left: number; width: number; height: number };
-
-/** The unit being dragged, where it is, and how far into its row the pointer took it. */
-type Dragged = { id: string; scope: string; grab: number };
-
-/** What is dragged in from outside the list, like a link: a new tab, which opens where it is dropped. */
-const OUTSIDE: Dragged = { id: "outside", scope: "top", grab: 0 };
-
-/** Whether a drag from outside carries an address (what it is only shows once it is dropped). */
-const carriesAddress = (data: DataTransfer) => data.types.includes("text/uri-list");
-
-/** The web address a drop carries, if it has one. */
-function addressOf(data: DataTransfer) {
-  const line = data
-    .getData("text/uri-list")
-    .split(/\r?\n/)
-    .find((each) => each && !each.startsWith("#"));
-  return line && /^https?:\/\//.test(line) ? line : null;
-}
-
-/**
- * Where a drag over the list would land: a new index for its first tab and
- * the group it is in there (the ID of one of the group's tabs, or null for
- * none), or a split with another tab, on a side of it; null for staying put.
- */
-type Landing =
-  | { mark: DropMark; index: number; group: number | null; split?: undefined }
-  | { mark: DropMark; split: number; side: "left" | "right"; target: HTMLElement }
-  | null;
-
-/**
- * How much of a tab's row, from the middle, a tab dropped on it makes a
- * split with: on its left half or its right, where the row makes room.
- */
-const SPLIT_BAND = 0.5;
-
-/** How far in a group's tabs are from the list's edge. */
-const INDENT = 16;
-
-/** The unit of the list that `target` is in, if it is one that can be picked up. */
-const unitOf = (target: EventTarget | null) =>
-  (target as Element | null)?.closest<HTMLElement>("[data-reorder-id][draggable=true]");
-
-/** What the list draws, top to bottom, in places a drop can be between. */
-type Item = {
-  el: HTMLElement;
-  /** The row itself, without the room around it that the unit may have. */
-  box: DOMRect;
-  /** A unit's tab or split, a group's heading (which holds no tab), or a collapsed group as a whole. */
-  kind: "unit" | "heading" | "folded";
-  /** The group it is in, or heads. */
-  group: string | null;
-  /** The index of its first tab among all, and how many tabs it holds. */
-  start: number;
-  size: number;
-};
-
-function itemsOf(scroller: HTMLElement): Item[] | null {
-  const list: Item[] = [];
-  const item = (el: HTMLElement, kind: Item["kind"], group: string | null, box: DOMRect): Item => ({
-    el,
-    box,
-    kind,
-    group,
-    start: Number(el.dataset.reorderStart),
-    size: kind === "heading" ? 0 : Number(el.dataset.reorderSize)
-  });
-  const rowOf = (el: Element) => (el.firstElementChild ?? el).getBoundingClientRect();
-  for (const el of scroller.querySelectorAll<HTMLElement>('[data-reorder-scope="top"]')) {
-    const group = el.dataset.reorderGroup;
-    if (group === undefined) {
-      list.push(item(el, "unit", null, rowOf(el)));
-      continue;
-    }
-    // The group's heading is the first row of what it draws; a collapsed
-    // group draws no tabs.
-    const heading = el.firstElementChild?.firstElementChild ?? el;
-    const members = [...el.querySelectorAll<HTMLElement>("[data-reorder-scope]")];
-    if (!members.length) {
-      list.push(item(el, "folded", null, heading.getBoundingClientRect()));
-      continue;
-    }
-    list.push(item(el, "heading", group, heading.getBoundingClientRect()));
-    for (const member of members) list.push(item(member, "unit", group, rowOf(member)));
-  }
-  // A row on its way out is still there, with the place it had.
-  let next = 0;
-  for (const { start, size } of list) {
-    if (start !== next) return null;
-    next += size;
-  }
-  return list;
-}
-
-function landing(scroller: HTMLElement, { id, scope, grab }: Dragged, x: number, y: number): Landing {
-  const items = itemsOf(scroller);
-  const outside = id === OUTSIDE.id;
-  // Nothing in the list moves for what comes from outside: it is new, and
-  // goes in at the gap's index.
-  const mine = outside ? null : scroller.querySelector<HTMLElement>(`[data-reorder-id="${id}"]`);
-  if (!items?.length || (!outside && !mine)) return null;
-  const [from, size] = mine ? [Number(mine.dataset.reorderStart), Number(mine.dataset.reorderSize)] : [Infinity, 0];
-  const current = scope === "top" ? null : scope;
-  const content = (scroller.firstElementChild ?? scroller).getBoundingClientRect();
-  const topLeft = Math.min(...items.map((each) => each.box.left));
-  const right = Math.max(...items.map((each) => each.box.right));
-
-  // On the middle of another tab, a tab makes a split with it.
-  const target = id.startsWith("tab:")
-    ? items.find(
-        (each) =>
-          each.kind === "unit" &&
-          each.el !== mine &&
-          each.el.dataset.reorderId?.startsWith("tab:") &&
-          each.el.draggable &&
-          Math.abs(y - (each.box.top + each.box.bottom) / 2) < ((each.box.bottom - each.box.top) * SPLIT_BAND) / 2
-      )
-    : undefined;
-  if (target) {
-    const { box, el } = target;
-    const side = x < (box.left + box.right) / 2 ? "left" : "right";
-    // The half it would take, in the room the row makes (`data-drop-side`).
-    return {
-      mark: {
-        kind: "box",
-        top: box.top - content.top,
-        left: box.left - content.left + (side === "right" ? box.width / 2 + SPLIT_GAP : 0),
-        width: box.width / 2 - SPLIT_GAP,
-        height: box.height
-      },
-      split: Number(el.dataset.reorderId?.slice(4)),
-      side,
-      target: el
-    };
-  }
-
-  // On a collapsed group's heading, a tab goes in the group, at its end.
-  const folded =
-    id.startsWith("tab:") || outside
-      ? items.find(
-          (each) =>
-            each.kind === "folded" &&
-            Math.abs(y - (each.box.top + each.box.bottom) / 2) < ((each.box.bottom - each.box.top) * SPLIT_BAND) / 2
-        )
-      : undefined;
-  if (folded) {
-    const gap = folded.start + folded.size;
-    const index = gap > from ? gap - size : gap;
-    const { box } = folded;
-    return {
-      mark: {
-        kind: "box",
-        top: box.top - content.top,
-        left: box.left - content.left,
-        width: box.width,
-        height: box.height
-      },
-      index,
-      group: Number(folded.el.dataset.reorderId?.slice(6))
-    };
-  }
-
-  // The gap nearest the pointer that the unit may take. A gap is in a group
-  // between its tabs and just under its heading; past its last tab it is in
-  // the group or out of it, which a tab decides by how far in it is held.
-  // (What comes from outside has no row held, so it goes out of the group.)
-  const deep = !outside && x - grab > topLeft + INDENT / 2;
-  let best: { distance: number; at: number; line: number; group: string | null } | null = null;
-  for (let at = 0; at <= items.length; at++) {
-    const [before, after] = [items[at - 1], items[at]];
-    const line = !before
-      ? after.box.top - SPACING / 2
-      : !after
-        ? before.box.bottom + SPACING / 2
-        : (before.box.bottom + after.box.top) / 2;
-    let options: (string | null)[];
-    if (before?.kind === "heading") options = [before.group];
-    else if (before?.group && after?.kind === "unit" && after.group === before.group) options = [before.group];
-    else options = before?.group ? [before.group, null] : [null];
-    if (id.startsWith("group:")) options = options.filter((group) => group === null);
-    else if (id.startsWith("split:")) options = options.filter((group) => group === current);
-    const group = options.length > 1 ? (deep ? options[0] : null) : options[0];
-    if (!options.length || group === undefined) continue;
-    const distance = Math.abs(y - line);
-    if (!best || distance < best.distance) best = { distance, at, line, group };
-  }
-  if (!best) return null;
-
-  // The tabs before the line, and so the index it would have in the list as
-  // it is; moved down, it ends where the unit before the line does.
-  const [before, after] = [items[best.at - 1], items[best.at]];
-  const gap = after ? after.start : before.start + before.size;
-  const index = gap > from ? gap - size : gap;
-  if (index === from && best.group === current) return null;
-
-  const members = items.filter((each) => each.kind === "unit" && each.group === best.group);
-  const left = best.group ? Math.min(...members.map((each) => each.box.left)) : topLeft;
-  const head = items.find((each) => each.kind === "heading" && each.group === best.group);
-  return {
-    mark: { kind: "line", top: best.line - content.top, left: left - content.left, width: right - left, height: 0 },
-    index,
-    group: head ? Number(head.el.dataset.reorderId?.slice(6)) : null
-  };
-}
+const tabUnit = (kind: UnitKind, tab: number): TabUnit =>
+  kind === "split" ? { split: tab } : kind === "group" ? { group: tab } : { tab };
 
 const sameMark = (a: DropMark | null, b: DropMark | null) =>
   a === b || (!!a && !!b && a.kind === b.kind && a.top === b.top && a.left === b.left && a.width === b.width);
@@ -314,167 +34,128 @@ const sameMark = (a: DropMark | null, b: DropMark | null) =>
  */
 export function useTabReorder(order: string) {
   const [mark, setMark] = useState<DropMark | null>(null);
-  const dragged = useRef<Dragged | null>(null);
-  const list = useRef<HTMLElement | null>(null);
+  // The unit of the list being dragged, if it is one that is.
+  const held = useRef<Grabbed | null>(null);
   // Set at a drop, until the Browser's new order is drawn or it is clear
   // there is none.
   const settling = useRef<Settling | null>(null);
+  // The row a tab would split with, which makes room for it (`data-drop-side`).
+  const making = useRef<HTMLElement | null>(null);
+  const edge = useEdgeScroll();
+
   // While a tab is held the page does not move the window (index.css): the
   // drag would not reach what is under a drag region.
-  const holding = useRef<AbortController | null>(null);
+  const pressing = useRef<AbortController | null>(null);
+  const release = () => {
+    pressing.current?.abort();
+    pressing.current = null;
+    delete document.documentElement.dataset.reordering;
+  };
 
-  // The row a tab would split with makes room for it, by its attribute.
-  const making = useRef<HTMLElement | null>(null);
   // The mark, changed only when it moves: a drag says where it is often.
   const show = (place: Landing) => {
-    const target = place?.split === undefined ? null : place.target;
+    const target = place?.kind === "split" ? place.target : null;
     if (making.current && making.current !== target) delete making.current.dataset.dropSide;
     making.current = target;
-    if (target && place?.split !== undefined) target.dataset.dropSide = place.side;
+    if (place?.kind === "split") place.target.dataset.dropSide = place.side;
     const next = place?.mark ?? null;
     setMark((shown) => (sameMark(shown, next) ? shown : next));
   };
 
-  // While a drag is over the list, it scrolls when the pointer is near an
-  // edge, and the mark is found again, as what is under the pointer changes.
-  const pointer = useRef({ x: 0, y: 0 });
-  const scrolling = useRef(0);
-  // What is over the list: the unit dragged, or what comes from outside.
-  const over = useRef<Dragged | null>(null);
-  const stopScrolling = () => {
-    window.cancelAnimationFrame(scrolling.current);
-    scrolling.current = 0;
-    over.current = null;
-  };
-  const scroll = (scroller: HTMLElement, held: Dragged) => {
-    over.current = held;
-    if (scrolling.current) return;
-    const step = () => {
-      const { top, bottom } = scroller.getBoundingClientRect();
-      const { x, y } = pointer.current;
-      // How far into the zone of an edge the pointer is, down positive.
-      const into = (distance: number) => Math.min(SCROLL_ZONE, Math.max(0, SCROLL_ZONE - distance));
-      const down = into(bottom - y) - into(y - top);
-      const before = scroller.scrollTop;
-      scroller.scrollTop += (down / SCROLL_ZONE) * SCROLL_SPEED;
-      if (over.current && scroller.scrollTop !== before) show(landing(scroller, over.current, x, y));
-      scrolling.current = window.requestAnimationFrame(step);
-    };
-    scrolling.current = window.requestAnimationFrame(step);
-  };
-
-  const release = () => {
-    holding.current?.abort();
-    holding.current = null;
-    delete document.documentElement.dataset.reordering;
-  };
   const end = () => {
-    stopScrolling();
-    dragged.current = null;
+    edge.stop();
+    held.current = null;
     show(null);
     release();
   };
   useLayoutEffect(() => {
     end();
-    if (settling.current && list.current) slide(list.current, settling.current);
+    if (settling.current) slideToPlaces(settling.current);
     settling.current = null;
   }, [order]);
   useLayoutEffect(() => end, []);
+
+  /** What is over the list: a unit of it, or a link from outside, if it has an address. */
+  const dragged = (event: DragEvent) => held.current ?? (carriesAddress(event.dataTransfer) ? OUTSIDE : null);
+
+  const move = (scroller: HTMLElement, { unit, kind, tab }: Grabbed, place: Landing) => {
+    if (place?.kind !== "move") return;
+    // The Browser answers with its new order a moment later, which the rows
+    // then slide to from here.
+    const mine = takePlaces(scroller, unit);
+    settling.current = mine;
+    // If it does not move, there is nothing to slide to.
+    const forget = () => settling.current === mine && (settling.current = null);
+    window.setTimeout(forget, SETTLE_WAIT_MS);
+    browser.move(tabUnit(kind, tab), place.index, place.group).catch(forget);
+  };
 
   return {
     mark,
     handlers: {
       onPointerDown: (event: PointerEvent<HTMLElement>) => {
-        if (event.button !== 0 || !unitOf(event.target)) return;
+        if (event.button !== 0 || !draggableUnitOf(event.target)) return;
         release();
-        holding.current = new AbortController();
+        pressing.current = new AbortController();
         document.documentElement.dataset.reordering = "";
         // A press that does not become a drag ends at its release; a drag
         // takes the pointer, and ends at `onDragEnd`.
-        window.addEventListener("pointerup", release, { signal: holding.current.signal });
+        window.addEventListener("pointerup", release, { signal: pressing.current.signal });
       },
 
       onDragStart: (event: DragEvent<HTMLElement>) => {
-        const unit = unitOf(event.target);
-        if (!unit?.dataset.reorderScope) return;
-        const id = unit.dataset.reorderId ?? "";
-        dragged.current = { id, scope: unit.dataset.reorderScope, grab: 0 };
-        settling.current = null;
+        const unit = draggableUnitOf(event.target);
+        if (!unit) return;
+        const { kind, tab, scope } = readUnit(unit);
         // A group is held by its heading, the first row of what it draws.
         const row = unit.firstElementChild ?? unit;
-        const image = id.startsWith("group:") ? (row.firstElementChild ?? row) : row;
+        const image = kind === "group" ? (row.firstElementChild ?? row) : row;
         const box = image.getBoundingClientRect();
-        dragged.current.grab = event.clientX - box.left;
-        pointer.current = { x: event.clientX, y: event.clientY };
-        scroll(event.currentTarget, dragged.current);
+        held.current = { kind, unit, tab, scope, grab: event.clientX - box.left };
+        settling.current = null;
         event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData(UNIT_TYPE, id);
+        event.dataTransfer.setData(UNIT_TYPE, `${kind}:${tab}`);
         // The row as it is, held where the pointer took it.
         event.dataTransfer.setDragImage(image, event.clientX - box.left, event.clientY - box.top);
       },
 
       onDragOver: (event: DragEvent<HTMLElement>) => {
-        // A drag from outside, like a link, which opens in a new tab.
-        const outside = !dragged.current && carriesAddress(event.dataTransfer);
-        const held = dragged.current ?? (outside ? OUTSIDE : null);
-        if (!held) return;
-        scroll(event.currentTarget, held);
-        pointer.current = { x: event.clientX, y: event.clientY };
-        const place = landing(event.currentTarget, held, event.clientX, event.clientY);
+        const over = dragged(event);
+        if (!over) return;
+        const scroller = event.currentTarget;
+        const at = (x: number, y: number) => landingAt(scroller, over, x, y);
+        edge.follow(scroller, event.clientX, event.clientY, (x, y) => show(at(x, y)));
+        const place = at(event.clientX, event.clientY);
         // Dropping is allowed anywhere in the list; a drop where the tab is
         // does nothing.
         event.preventDefault();
-        event.dataTransfer.dropEffect = place ? (outside ? "copy" : "move") : "none";
+        event.dataTransfer.dropEffect = place ? (over.kind === "outside" ? "copy" : "move") : "none";
         show(place);
       },
 
       onDragLeave: (event: DragEvent<HTMLElement>) => {
         if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        edge.stop();
         show(null);
-        // Its own drag goes on to scroll the list from outside it, as the
-        // pointer may come back; one from outside is gone with it.
-        if (!dragged.current) stopScrolling();
       },
 
       onDrop: (event: DragEvent<HTMLElement>) => {
-        if (!dragged.current) {
-          const url = addressOf(event.dataTransfer);
-          if (!url) return;
-          event.preventDefault();
-          const place = landing(event.currentTarget, OUTSIDE, event.clientX, event.clientY);
-          end();
-          if (place && place.split === undefined) browser.openAt(url, place.index, place.group).catch(() => {});
-          return;
-        }
+        const own = held.current;
+        if (!own && !carriesAddress(event.dataTransfer)) return;
         event.preventDefault();
-        const place = landing(event.currentTarget, dragged.current, event.clientX, event.clientY);
-        const { id } = dragged.current;
+        const url = own ? null : addressOf(event.dataTransfer);
+        const scroller = event.currentTarget;
+        const place = landingAt(scroller, own ?? OUTSIDE, event.clientX, event.clientY);
         end();
         if (!place) return;
-        if (place.split !== undefined) {
-          const tab = Number(id.slice(4));
-          const [first, second] = place.side === "left" ? [tab, place.split] : [place.split, tab];
+        if (!own) {
+          if (url && place.kind === "move") browser.openAt(url, place.index, place.group).catch(() => {});
+        } else if (place.kind === "split") {
+          const [first, second] = place.side === "left" ? [own.tab, place.targetTab] : [place.targetTab, own.tab];
           browser.split(first, second).catch(() => {});
-          return;
+        } else {
+          move(scroller, own, place);
         }
-        // The Browser answers with its new order a moment later, which the
-        // rows then slide to from here.
-        const scroller = event.currentTarget;
-        list.current = scroller;
-        const mine: Settling = {
-          id,
-          tops: new Map(
-            [...scroller.querySelectorAll<HTMLElement>("[data-reorder-scope]")].map((el) => [
-              el,
-              el.getBoundingClientRect().top
-            ])
-          )
-        };
-        settling.current = mine;
-        // If it does not move, there is nothing to slide to.
-        const forget = () => settling.current === mine && (settling.current = null);
-        window.setTimeout(forget, 500);
-        browser.move(tabUnit(id), place.index, place.group).catch(forget);
       },
 
       // Over, wherever it was let go, in the list or out of the window.

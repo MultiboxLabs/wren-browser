@@ -23,33 +23,37 @@ pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
     Ok(())
 }
 
+/// What keeps tabs together in the sidebar's list: a group's, or a split's.
+#[derive(Clone, Copy, PartialEq)]
+enum Together {
+    Group(TabGroup),
+    Split(TabSplit),
+}
+
 /// The runs of tabs a tab moves among, as the sidebar draws them, and which
 /// is the tab's: the tabs of a group together, then a split's two together,
 /// and each other tab alone. A tab in a group moves among that group's.
 fn runs(browser: &Browser, tab: BrowserTab) -> Result<(Vec<Vec<BrowserTab>>, usize), Error> {
     let group = tab.state()?.group;
-    let scope = match group {
+    let among = match group {
         Some(group) => in_group(browser, group),
         None => browser.tabs(),
     };
     let mut runs: Vec<Vec<BrowserTab>> = Vec::new();
     let mut last = None;
-    for each in scope {
+    for each in among {
         let state = each.state()?;
-        let in_group = if group.is_some() { None } else { state.group };
-        let key = (
-            in_group,
-            if in_group.is_some() {
-                None
-            } else {
-                state.split
-            },
-        );
+        // Within a group, its tabs are not together as a group's.
+        let together = match (group, state.group, state.split) {
+            (None, Some(group), _) => Some(Together::Group(group)),
+            (_, _, Some(split)) => Some(Together::Split(split)),
+            _ => None,
+        };
         match runs.last_mut() {
-            Some(run) if last == Some(key) && key != (None, None) => run.push(each),
+            Some(run) if together.is_some() && together == last => run.push(each),
             _ => runs.push(vec![each]),
         }
-        last = Some(key);
+        last = together;
     }
     let mine = runs.iter().position(|run| run.contains(&tab)).unwrap_or(0);
     Ok((runs, mine))

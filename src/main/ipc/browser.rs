@@ -136,18 +136,18 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
         with_browser(&weak, |_, browser| {
             let (Movable::Tab(id) | Movable::Split(id) | Movable::Group(id)) = to.unit;
             let tab = tab(mt, browser, id)?;
-            let state = tab.state().map_err(failed)?;
+            let state = || tab.state().map_err(failed);
             match to.unit {
                 Movable::Tab(_) => {
                     let group = group_of(mt, browser, to.group)?;
                     tabs::move_tab(mt, browser, tab, to.index, group)
                 }
                 Movable::Split(_) => {
-                    let split = state.split.ok_or("The tab is in no split.")?;
+                    let split = state()?.split.ok_or("The tab is in no split.")?;
                     tabs::move_split(browser, split, to.index)
                 }
                 Movable::Group(_) => {
-                    let group = state.group.ok_or("The tab is in no group.")?;
+                    let group = state()?.group.ok_or("The tab is in no group.")?;
                     tabs::move_group(mt, browser, group, to.index)
                 }
             }

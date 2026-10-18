@@ -1,0 +1,25 @@
+import type { DropMark } from "./landing";
+
+/**
+ * Where a dragged unit would land: a line across the list, ringed at its
+ * start, or a box over the tab it would make a split with.
+ */
+export function DropMarkView({ mark }: { mark: DropMark }) {
+  if (mark.kind === "box") {
+    return (
+      <div
+        style={{ top: mark.top, left: mark.left, width: mark.width, height: mark.height }}
+        className="pointer-events-none absolute z-10 rounded-row bg-fg/15"
+      />
+    );
+  }
+  return (
+    <div
+      style={{ top: mark.top, left: mark.left, width: mark.width }}
+      className="pointer-events-none absolute z-10 flex h-2 -translate-y-1/2 items-center"
+    >
+      <span className="size-2 shrink-0 rounded-full border-2 border-fg" />
+      <span className="h-0.5 flex-1 rounded-full bg-fg" />
+    </div>
+  );
+}

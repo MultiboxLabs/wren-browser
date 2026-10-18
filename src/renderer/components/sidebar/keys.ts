@@ -11,6 +11,8 @@ import { useRef } from "react";
  * group. Returns the key of a group's ID.
  */
 export function useGroupKeys(tabs: { id: number; group: string | null }[], groups: { id: string }[]) {
+  // Kept in refs and set as the list is drawn, which is safe to draw twice:
+  // a second pass finds the keys the first made.
   const keys = useRef(new Map<string, string>());
   // The group each tab was in, as the list was last drawn.
   const was = useRef(new Map<number, string>());

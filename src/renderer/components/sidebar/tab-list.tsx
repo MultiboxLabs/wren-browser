@@ -13,8 +13,10 @@ import type { SidebarHold } from "./presentation";
 import { useBrowser } from "../../state/browser";
 import { type Folder, isFolder, type Tab, useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
+import { DropMarkView } from "./drop-mark";
 import { useGroupKeys } from "./keys";
-import { type DropMark, reorderUnit, useTabReorder } from "./reorder";
+import { useTabReorder } from "./reorder";
+import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
 // it stands, unclipped, while the rows below slide to make room or close
@@ -122,10 +124,11 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
                 <Appear
                   key={`group-${groupKey(entry.group.id)}`}
                   unit={{
-                    scope: "top",
+                    kind: "group",
+                    tab: Number(entry.tabs[0].id),
+                    scope: TOP_SCOPE,
                     start: entry.start,
                     size: entry.tabs.length,
-                    id: `group:${entry.tabs[0].id}`,
                     group: entry.group.id,
                     // Not while its title is edited, which a drag would take.
                     draggable: renaming !== entry.group.id
@@ -135,7 +138,7 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
                 </Appear>
               ) : (
                 rows(entry.tabs, props.splits, entry.start).map((row) => (
-                  <Appear key={rowKey(row)} unit={rowUnit("top", row)}>
+                  <Appear key={rowKey(row)} unit={rowUnit(TOP_SCOPE, row)}>
                     <BrowserRow {...props} row={row} />
                   </Appear>
                 ))
@@ -145,30 +148,6 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
         </div>
         {mark && <DropMarkView mark={mark} />}
       </div>
-    </div>
-  );
-}
-
-/**
- * Where a dragged unit would land: a line across the list, ringed at its
- * start, or a box over the tab it would make a split with.
- */
-function DropMarkView({ mark }: { mark: DropMark }) {
-  if (mark.kind === "box") {
-    return (
-      <div
-        style={{ top: mark.top, left: mark.left, width: mark.width, height: mark.height }}
-        className="pointer-events-none absolute z-10 rounded-row bg-fg/15"
-      />
-    );
-  }
-  return (
-    <div
-      style={{ top: mark.top, left: mark.left, width: mark.width }}
-      className="pointer-events-none absolute z-10 flex h-2 -translate-y-1/2 items-center"
-    >
-      <span className="size-2 shrink-0 rounded-full border-2 border-fg" />
-      <span className="h-0.5 flex-1 rounded-full bg-fg" />
     </div>
   );
 }
@@ -348,17 +327,11 @@ function rows(tabs: Tab[], splits: TabSplit[], start: number): BrowserRowItem[] 
 // moves it, with a new ID.
 const rowKey = (row: BrowserRowItem) => (row.split ? `split-${row.first.id}` : row.tab.id);
 
-/** What marks a row as a place a unit can be dragged to, and as a unit that can be dragged itself. */
-const rowUnit = (scope: string, row: BrowserRowItem) =>
+/** A row as a unit of the list that moves, in the scope of the tabs it is among. */
+const rowUnit = (scope: string, row: BrowserRowItem): Unit =>
   row.split
-    ? { scope, start: row.start, size: 2, id: `split:${row.first.id}`, draggable: true }
-    : {
-        scope,
-        start: row.start,
-        size: 1,
-        id: `tab:${row.tab.id}`,
-        draggable: real(row.tab) !== undefined
-      };
+    ? { kind: "split", tab: Number(row.first.id), scope, start: row.start, size: 2, draggable: true }
+    : { kind: "tab", tab: Number(row.tab.id), scope, start: row.start, size: 1, draggable: true };
 
 function BrowserRow(props: ListProps & { row: BrowserRowItem; indent?: number }) {
   const { row } = props;
@@ -420,7 +393,7 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
 }
 
 /** A row of the Browser's list, fading in and out where it stands while the rows below slide. */
-function Appear({ unit, children }: { unit: Parameters<typeof reorderUnit>[0]; children: ReactNode }) {
+function Appear({ unit, children }: { unit: Unit; children: ReactNode }) {
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
