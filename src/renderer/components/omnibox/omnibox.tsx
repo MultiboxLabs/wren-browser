@@ -182,7 +182,13 @@ export function Omnibox({
             >
               {items.map((item, index) => (
                 <OmniboxRow
-                  key={item.type === "tab" ? `tab-${item.tab.id}` : `suggestion-${item.index}`}
+                  key={
+                    item.type === "bang"
+                      ? "bang"
+                      : item.type === "tab"
+                        ? `tab-${item.tab.id}`
+                        : `suggestion-${item.index}`
+                  }
                   item={item}
                   target={target}
                   selected={index === field.selected}

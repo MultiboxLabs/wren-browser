@@ -56,6 +56,9 @@ export type OmniboxTarget = "new-tab" | "current";
 /** How a suggestion opens: in the active tab, a new one (shown, or behind the active one), a new window, or by switching to the tab that has it. */
 export type OpenDisposition = "current" | "new-tab" | "background-tab" | "new-window" | "switch";
 
+/** How a bang opens: in the active tab, or a new one (shown, or behind the active one). */
+export type BangDisposition = "current" | "new-tab" | "background-tab";
+
 export const omnibox = {
   /** The active tab's address to edit, or "" on a page with none to show. */
   location: () => wren.invoke<string>("omnibox.location"),
@@ -66,6 +69,8 @@ export const omnibox = {
   /** Opens a suggestion as Chrome does, so history and search engines learn from it, and clears the list. */
   open: (result: string, index: number, disposition: OpenDisposition) =>
     wren.invoke<null>("omnibox.open", { result, index, disposition }),
+  /** Opens a bang's address, clearing the list as `open` does, unless it opens behind the active tab. */
+  navigate: (url: string, disposition: BangDisposition) => wren.invoke<null>("omnibox.navigate", { url, disposition }),
   delete: (result: string, index: number) => wren.invoke<null>("omnibox.delete", { result, index }),
   /** Clears the list, and gives the active tab's page the keyboard back. */
   close: () => wren.invoke<null>("omnibox.close"),

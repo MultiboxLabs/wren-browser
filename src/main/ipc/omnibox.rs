@@ -10,6 +10,7 @@ use wren::{
 };
 
 use super::{WindowRef, failed, give_back_keyboard, png_url, with_browser};
+use crate::tabs;
 use crate::window::BrowserWindow;
 
 /// What the page asks suggestions for.
@@ -61,6 +62,23 @@ enum Disposition {
     BackgroundTab,
     NewWindow,
     Switch,
+}
+
+/// An address to open, which no suggestion of Chromium's names: a bang's.
+#[derive(Deserialize)]
+struct Navigate {
+    url: String,
+    disposition: BangDisposition,
+}
+
+/// How a bang opens: in the active tab, or in a new one (shown, or behind
+/// the active one).
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum BangDisposition {
+    Current,
+    NewTab,
+    BackgroundTab,
 }
 
 /// What the omnibox is for: a new tab, as the New Tab command opens it, or
@@ -175,6 +193,34 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
             if !matches!(open.disposition, Disposition::NewWindow) {
                 give_back_keyboard(browser);
             }
+            Ok(())
+        })
+    });
+
+    // Opens a bang's address, as `omnibox.open` opens a suggestion. Only a web
+    // address: the page takes it from a list it loaded.
+    let weak = window.clone();
+    let _ = web_view.handle("omnibox.navigate", move |navigate: Navigate| {
+        with_browser(&weak, |_, browser| {
+            let Navigate { url, disposition } = navigate;
+            if !(url.starts_with("https://") || url.starts_with("http://")) {
+                return Err("Only a web address opens.".into());
+            }
+            if matches!(disposition, BangDisposition::BackgroundTab) {
+                return browser
+                    .add_tab(&url, Some(0), false)
+                    .map(drop)
+                    .map_err(failed);
+            }
+            let _ = browser.omnibox_stop();
+            match disposition {
+                BangDisposition::Current => {
+                    let tab = browser.active_tab().ok_or("There is no tab to open it in.")?;
+                    tab.navigate(&url).map_err(failed)?;
+                }
+                _ => tabs::open(browser, &url).map_err(failed)?,
+            }
+            give_back_keyboard(browser);
             Ok(())
         })
     });

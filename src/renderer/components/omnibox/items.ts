@@ -5,6 +5,7 @@
 
 import {
   browser,
+  type BangDisposition,
   type OmniboxTarget,
   type OpenDisposition,
   omnibox,
@@ -12,26 +13,35 @@ import {
   type Suggestions
 } from "../../ipc";
 import type { Tab } from "../../state/space";
+import type { BangMatch } from "../../utils/bangs";
 
-/** A row of the list: one of the window's tabs, or one of Chromium's suggestions, by its index in them. */
+/** A row of the list: the bang typed, one of the window's tabs, or one of Chromium's suggestions, by its index in them. */
 export type OmniboxItem =
-  { type: "tab"; tab: Tab; current: boolean } | { type: "suggestion"; suggestion: Suggestion; index: number };
+  | { type: "bang"; bang: BangMatch; text: string }
+  | { type: "tab"; tab: Tab; current: boolean }
+  | { type: "suggestion"; suggestion: Suggestion; index: number };
 
 /** The window's tabs, and which is active. */
 export type OmniboxTabs = { list: Tab[]; active?: Tab["id"] };
 
 /**
- * The list: Chromium's suggestions; and while nothing is typed (`idle`),
- * the tabs before them, the active one first, and none of Chromium's for a
- * page already open in one.
+ * The list: Chromium's suggestions, after the bang typed (`bang`, with the
+ * text it is in); and while nothing is typed (`idle`), the tabs before them,
+ * the active one first, and none of Chromium's for a page already open in
+ * one.
  */
-export function itemsOf(suggestions: Suggestions | null, idle: boolean, tabs: OmniboxTabs): OmniboxItem[] {
+export function itemsOf(
+  suggestions: Suggestions | null,
+  idle: boolean,
+  tabs: OmniboxTabs,
+  bang: { match: BangMatch; text: string } | null
+): OmniboxItem[] {
   const suggested = (suggestions?.suggestions ?? []).map((suggestion, index): OmniboxItem => ({
     type: "suggestion",
     suggestion,
     index
   }));
-  if (!idle) return suggested;
+  if (!idle) return bang ? [{ type: "bang", bang: bang.match, text: bang.text }, ...suggested] : suggested;
   const active = tabs.list.filter((tab) => tab.id === tabs.active);
   const rest = tabs.list.filter((tab) => tab.id !== tabs.active);
   return [
@@ -42,7 +52,7 @@ export function itemsOf(suggestions: Suggestions | null, idle: boolean, tabs: Om
 
 /** The row Return opens before the user moves: the first while nothing is typed; otherwise Chromium's default, or else the first. */
 export function defaultIndex(items: OmniboxItem[], idle: boolean) {
-  if (idle) return 0;
+  if (idle || items[0]?.type === "bang") return 0;
   return Math.max(
     0,
     items.findIndex((item) => item.type === "suggestion" && item.suggestion.isDefault)
@@ -50,11 +60,14 @@ export function defaultIndex(items: OmniboxItem[], idle: boolean) {
 }
 
 /** What the field shows while a row is selected with the keys. */
-export const fillOf = (item: OmniboxItem) => (item.type === "tab" ? item.tab.url : item.suggestion.fill);
+export function fillOf(item: OmniboxItem) {
+  if (item.type === "bang") return item.text;
+  return item.type === "tab" ? item.tab.url : item.suggestion.fill;
+}
 
 /** The row switches to a tab rather than opening anything. */
 export const switchesToTab = (item: OmniboxItem, target: OmniboxTarget) =>
-  item.type === "tab" || dispositionFor(item.suggestion, target) === "switch";
+  item.type === "tab" || (item.type === "suggestion" && dispositionFor(item.suggestion, target) === "switch");
 
 /**
  * Where the user asked for a row to open, besides the omnibox's own target:
@@ -81,6 +94,12 @@ function dispositionFor(suggestion: Suggestion, target: OmniboxTarget, how: Open
   return target === "new-tab" || how === "new-tab" ? "new-tab" : "current";
 }
 
+/** Where a bang opens: a new window is a new tab, as a bang has no suggestion to ask Chromium to open. */
+function bangDisposition(target: OmniboxTarget, how: OpenHow): BangDisposition {
+  if (how === "background-tab") return how;
+  return target === "new-tab" || how !== "default" ? "new-tab" : "current";
+}
+
 /**
  * Opens a row, settled once it is open and, unless it opens behind the active
  * tab, the omnibox closed. A suggestion
@@ -90,6 +109,7 @@ function dispositionFor(suggestion: Suggestion, target: OmniboxTarget, how: Open
  * Nothing opens behind the active tab from a tab's row: it is open already.
  */
 export function openItem(item: OmniboxItem, result: string | undefined, target: OmniboxTarget, how: OpenHow) {
+  if (item.type === "bang") return omnibox.navigate(item.bang.url, bangDisposition(target, how));
   if (item.type === "suggestion") {
     return result === undefined
       ? how === "background-tab"

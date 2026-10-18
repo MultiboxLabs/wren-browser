@@ -13,7 +13,8 @@ import {
   type LucideIcon,
   Puzzle,
   Search,
-  Star
+  Star,
+  Zap
 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import type { OmniboxTarget, Suggestion, SuggestionKind } from "../../ipc";
@@ -38,7 +39,7 @@ export function OmniboxRow({
   const switches = target === "new-tab" && switchesToTab(item, target);
   const [title, address] = linesOf(item);
   // A favicon sits on white while its row is selected.
-  const favicon = item.type === "tab" || item.suggestion.icon !== null;
+  const favicon = item.type === "tab" || (item.type === "suggestion" && item.suggestion.icon !== null);
   // The keys move the selection past the rows in view.
   const row = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -73,6 +74,16 @@ export function OmniboxRow({
         {address && <span className={selected ? "text-white/60" : "text-omnibox-dim"}> — {address}</span>}
       </span>
       <span className="flex-1" />
+      {item.type === "bang" && (
+        <kbd
+          className={cn(
+            "grid h-6 shrink-0 place-items-center rounded-control px-1.25 font-[inherit]",
+            selected ? "bg-white text-omnibox-selected" : "bg-omnibox-tile text-omnibox-arrow"
+          )}
+        >
+          !{item.bang.trigger}
+        </kbd>
+      )}
       {switches && (
         <span className={cn("flex shrink-0 items-center gap-2.25", selected ? "text-white" : "text-omnibox-dim")}>
           Switch to Tab
@@ -96,6 +107,7 @@ export function OmniboxRow({
  * the field, dim in the list, white on the selected row.
  */
 export function OmniboxIcon({ item, glyph }: { item: OmniboxItem; glyph: string }) {
+  if (item.type === "bang") return <Zap size={15} strokeWidth={2} className={glyph} />;
   if (item.type === "tab") return <Favicon url={item.tab.url} title={item.tab.title} src={item.tab.favicon} />;
   const { suggestion } = item;
   if (suggestion.icon) {
@@ -107,6 +119,10 @@ export function OmniboxIcon({ item, glyph }: { item: OmniboxItem; glyph: string 
 
 /** What a row says: its title, and the address after it, if it shows one. */
 function linesOf(item: OmniboxItem): [string, string | null] {
+  if (item.type === "bang") {
+    const { name, query } = item.bang;
+    return query ? [`Search ${name} for “${query}”`, null] : [`Go to ${name}`, null];
+  }
   return item.type === "tab" ? [item.tab.title || item.tab.url, null] : suggestionLines(item.suggestion);
 }
 
