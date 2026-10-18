@@ -1,3 +1,5 @@
+import { engineUrl, shownUrl } from "../utils/url";
+
 /** What a suggestion is, as Chromium sorts them; each without a favicon draws its own icon. */
 export type SuggestionKind =
   "search" | "search-history" | "url" | "history" | "bookmark" | "open-tab" | "calculator" | "clipboard" | "other";
@@ -59,13 +61,30 @@ export type OpenDisposition = "current" | "new-tab" | "background-tab" | "new-wi
 /** How a bang opens: in the active tab, or a new one (shown, or behind the active one). */
 export type BangDisposition = "current" | "new-tab" | "background-tab";
 
+/** Chromium's pages show on the app's scheme, as typed text goes to Chromium with theirs. */
+const shown = (suggestions: Suggestions | null): Suggestions | null =>
+  suggestions && {
+    ...suggestions,
+    suggestions: suggestions.suggestions.map((suggestion) => ({
+      ...suggestion,
+      contents: shownUrl(suggestion.contents),
+      fill: shownUrl(suggestion.fill)
+    }))
+  };
+
 export const omnibox = {
   /** The active tab's address to edit, or "" on a page with none to show. */
-  location: () => wren.invoke<string>("omnibox.location"),
+  location: () => wren.invoke<string>("omnibox.location").then(shownUrl),
   /** Asks for suggestions, answered with those Chromium has at once (null without a Browser); `onSuggestions` brings the rest. */
-  query: (query: OmniboxQuery) => wren.invoke<Suggestions | null>("omnibox.query", query),
+  query: (query: OmniboxQuery) => {
+    const text = engineUrl(query.text);
+    // The caret keeps its place in the text, whose scheme is longer.
+    const cursor =
+      query.cursor + (text.length - query.text.length > 0 && query.cursor > 4 ? text.length - query.text.length : 0);
+    return wren.invoke<Suggestions | null>("omnibox.query", { ...query, text, cursor }).then(shown);
+  },
   onSuggestions: (listener: (suggestions: Suggestions | null) => void) =>
-    wren.on<Suggestions | null>("omnibox.suggestions", listener),
+    wren.on<Suggestions | null>("omnibox.suggestions", (suggestions) => listener(shown(suggestions))),
   /** Opens a suggestion as Chrome does, so history and search engines learn from it, and clears the list. */
   open: (result: string, index: number, disposition: OpenDisposition) =>
     wren.invoke<null>("omnibox.open", { result, index, disposition }),
