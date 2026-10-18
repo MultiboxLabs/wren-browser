@@ -24,6 +24,10 @@ const SLIDE_MS = 180;
 /** The space between the room made in a row and the tab beside it. */
 const SPLIT_GAP = 2;
 
+/** How near the list's top or bottom edge a drag scrolls it, and how fast, at the edge, in pixels a frame. */
+const SCROLL_ZONE = 48;
+const SCROLL_SPEED = 14;
+
 /** The space between rows, half of which each side of a line at an end. */
 const SPACING = 5;
 
@@ -286,12 +290,33 @@ export function useTabReorder(order: string) {
     setMark((shown) => (sameMark(shown, next) ? shown : next));
   };
 
+  // While a drag is over the list, it scrolls when the pointer is near an
+  // edge, and the mark is found again, as what is under the pointer changes.
+  const pointer = useRef({ x: 0, y: 0 });
+  const scrolling = useRef(0);
+  const scroll = (scroller: HTMLElement) => {
+    window.cancelAnimationFrame(scrolling.current);
+    const step = () => {
+      const { top, bottom } = scroller.getBoundingClientRect();
+      const { x, y } = pointer.current;
+      // How far into the zone of an edge the pointer is, down positive.
+      const into = (distance: number) => Math.min(SCROLL_ZONE, Math.max(0, SCROLL_ZONE - distance));
+      const down = into(bottom - y) - into(y - top);
+      const before = scroller.scrollTop;
+      scroller.scrollTop += (down / SCROLL_ZONE) * SCROLL_SPEED;
+      if (dragged.current && scroller.scrollTop !== before) show(landing(scroller, dragged.current, x, y));
+      scrolling.current = window.requestAnimationFrame(step);
+    };
+    scrolling.current = window.requestAnimationFrame(step);
+  };
+
   const release = () => {
     holding.current?.abort();
     holding.current = null;
     delete document.documentElement.dataset.reordering;
   };
   const end = () => {
+    window.cancelAnimationFrame(scrolling.current);
     dragged.current = null;
     show(null);
     release();
@@ -327,6 +352,8 @@ export function useTabReorder(order: string) {
         const image = id.startsWith("group:") ? (row.firstElementChild ?? row) : row;
         const box = image.getBoundingClientRect();
         dragged.current.grab = event.clientX - box.left;
+        pointer.current = { x: event.clientX, y: event.clientY };
+        scroll(event.currentTarget);
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData(UNIT_TYPE, id);
         // The row as it is, held where the pointer took it.
@@ -335,6 +362,7 @@ export function useTabReorder(order: string) {
 
       onDragOver: (event: DragEvent<HTMLElement>) => {
         if (!dragged.current) return;
+        pointer.current = { x: event.clientX, y: event.clientY };
         const place = landing(event.currentTarget, dragged.current, event.clientX, event.clientY);
         // Dropping is allowed anywhere in the list; a drop where the tab is
         // does nothing.
