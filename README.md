@@ -68,7 +68,10 @@ build made without it is Dev.
 ## How pages are served
 
 Every page is `wren://<page>/`, in development too. A built app answers from
-the renderer `wren bundle` copied into `Contents/Resources/renderer`. A debug
+the renderer compiled into its executable (`build.rs` embeds `dist/renderer`),
+never from files on disk: the renderer can call the app, and a file in
+`Contents/Resources` could be replaced without breaking the app's code
+signature, where the executable cannot. A debug
 build started with `WREN_DEV_URL` (as `bun run dev` does) answers by fetching
 from Vite's dev server instead, so pages keep their addresses while Vite's live
 updates work. In that mode Chromium's Local Network Access checks are off, so

@@ -1,8 +1,7 @@
 // The renderer's pages, all on the app's scheme, and serving them.
 
 mod dev_server;
-
-use std::path::{Component, Path, PathBuf};
+mod embedded;
 
 use wren::{SchemeFailure, SchemeRequest, SchemeResponse};
 
@@ -51,8 +50,9 @@ impl Page {
 /// Where the pages' files come from.
 #[derive(Clone)]
 pub enum Source {
-    /// The renderer `wren bundle` copied into Contents/Resources.
-    Bundle(PathBuf),
+    /// The renderer compiled into the executable, so it is covered by the
+    /// app's code signature.
+    Embedded,
     /// Vite's dev server, at this address.
     DevServer(String),
 }
@@ -65,11 +65,7 @@ impl Source {
             Ok(url) if cfg!(debug_assertions) => {
                 Source::DevServer(url.trim_end_matches('/').to_owned())
             }
-            _ => {
-                let executable = std::env::current_exe().unwrap();
-                let contents = executable.parent().and_then(Path::parent).unwrap();
-                Source::Bundle(contents.join("Resources/renderer"))
-            }
+            _ => Source::Embedded,
         }
     }
 
@@ -78,7 +74,7 @@ impl Source {
     /// cannot ask, and their console goes to the terminal.
     pub fn development_switches(&self) -> Vec<String> {
         match self {
-            Source::Bundle(_) => Vec::new(),
+            Source::Embedded => Vec::new(),
             Source::DevServer(_) => vec![
                 "--disable-features=LocalNetworkAccessChecks".into(),
                 "--enable-logging=stderr".into(),
@@ -111,28 +107,8 @@ pub fn serve_page(request: SchemeRequest, source: &Source) {
     let path = path.split('#').next().unwrap_or("");
     match source {
         Source::DevServer(server) => dev_server::proxy(request, format!("{server}/{path}")),
-        Source::Bundle(root) => {
-            let _ = request.respond(bundle_file(root, path));
+        Source::Embedded => {
+            let _ = request.respond(embedded::file(path));
         }
-    }
-}
-
-fn bundle_file(root: &Path, path: &str) -> SchemeResponse {
-    let path = match path.split('?').next().unwrap_or("") {
-        "" => "index.html",
-        path => path,
-    };
-    let relative = Path::new(path);
-    let safe = relative
-        .components()
-        .all(|component| matches!(component, Component::Normal(_)));
-    let file = root.join(relative);
-    if safe && file.is_file() {
-        SchemeResponse::File {
-            path: file.to_string_lossy().into_owned(),
-            headers: Vec::new(),
-        }
-    } else {
-        SchemeResponse::Failure(SchemeFailure::NotFound)
     }
 }

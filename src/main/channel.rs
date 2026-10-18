@@ -47,7 +47,8 @@ impl Channel {
         startup.product_icon_png = Some(self.logo().to_vec());
         startup.product_icon_dark_png = Some(self.logo().to_vec());
         startup.product_icon_svg = Some(include_bytes!("../../branding/wren-light.svg").to_vec());
-        startup.product_icon_dark_svg = Some(include_bytes!("../../branding/wren-dark.svg").to_vec());
+        startup.product_icon_dark_svg =
+            Some(include_bytes!("../../branding/wren-dark.svg").to_vec());
         startup.company_name = Some("Multibox Labs".into());
         startup.copyright = Some("Copyright 2026 Multibox Labs. All rights reserved.".into());
         startup.help_url = Some("https://github.com/MultiboxLabs/wren-browser".into());
