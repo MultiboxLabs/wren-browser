@@ -88,7 +88,9 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
 
   return (
     <div {...handlers} className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]">
-      <div className="relative flex flex-col gap-1.25">
+      {/* Room after the last tab, as the list scrolls to: it does not end at the
+          footer, and a tab can be dropped below the last. */}
+      <div className="relative flex flex-col gap-1.25 pb-8">
         <div className="flex h-9 items-center gap-2.75 pl-2.5 font-semibold text-fg-3">
           <IconSlot>
             <Orbit size={17} strokeWidth={1.75} className="text-accent" />
