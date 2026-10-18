@@ -40,7 +40,7 @@ use title_bar::TitleBar;
 /// A window showing one page. Its web view drops first, which takes the page
 /// out of the window.
 pub struct PageWindow {
-    pub web_view: WebView,
+    pub web_view: Rc<WebView>,
     window: Retained<NSWindow>,
     // Behind the page, which is see-through where it draws nothing.
     backdrop: Retained<NSVisualEffectView>,
@@ -69,7 +69,7 @@ impl PageWindow {
             transparent: true,
             ..Default::default()
         };
-        let web_view = WebView::new(profile, &page.url(), &options)?;
+        let web_view = Rc::new(WebView::new(profile, &page.url(), &options)?);
 
         // The title bar is the page's: the content fills the window, under
         // a title bar that draws nothing.
@@ -123,7 +123,20 @@ impl PageWindow {
         // on a failed load or a crash too, or it would never open.
         let shown = window.clone();
         let nudged = view.clone();
+        // The page is not a tab, so nothing else would bring it back from a
+        // crash. The handler cannot own the web view (it owns the handler),
+        // so it holds it weakly.
+        let reloaded = Rc::downgrade(&web_view);
+        let crashed = Cell::new(false);
         web_view.set_changed(Some(Box::new(move |state| {
+            let now_crashed = state.crash != TabCrash::None;
+            if now_crashed
+                && !crashed.get()
+                && let Some(web_view) = reloaded.upgrade()
+            {
+                let _ = web_view.reload();
+            }
+            crashed.set(now_crashed);
             if (state.drawn || state.load_error != 0 || state.crash != TabCrash::None)
                 && !shown.isVisible()
             {
