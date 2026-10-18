@@ -9,7 +9,7 @@ import { Button } from "../ui/button";
 import { press } from "../ui/press";
 import { AddressField } from "../address/field";
 import { Favicon } from "../favicon";
-import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon } from "../icons";
+import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../icons";
 import type { SidePanelId } from "../side-panel";
 import { type Folder, isFolder, type Space, type Tab } from "../../state/space";
 import { cn } from "../../utils/cn";
@@ -45,6 +45,9 @@ export type SidebarProps = {
   onBack: () => void;
   onForward: () => void;
   onReload: () => void;
+  /** The active tab is loading: reload gives way to stop. */
+  loading: boolean;
+  onStop: () => void;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
   /** The open side panel's ID, if one is open. */
@@ -95,7 +98,11 @@ export function Sidebar(props: SidebarProps) {
             disabled={!props.canGoForward}
             onClick={props.onForward}
           />
-          <Button icon={ReloadIcon} label="Reload" iconSize={15} onClick={props.onReload} />
+          {props.loading ? (
+            <Button icon={StopIcon} label="Stop" iconSize={15} onClick={props.onStop} />
+          ) : (
+            <Button icon={ReloadIcon} label="Reload" iconSize={15} onClick={props.onReload} />
+          )}
         </div>
       </div>
 

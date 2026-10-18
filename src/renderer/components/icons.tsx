@@ -47,6 +47,15 @@ export function ReloadIcon({ size = 15 }: Props) {
   );
 }
 
+/** Stop: a cross, in the reload icon's box so the button keeps its size. */
+export function StopIcon({ size = 15 }: Props) {
+  return (
+    <svg width={size} height={(size * 18) / 15} viewBox="0 0 15 18" fill="none" aria-hidden>
+      <path d="M3 4.5 12 13.5M12 4.5 3 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /** Page info: a rounded square with two sliders in it, their knobs apart. */
 export function PageInfoIcon({ size = 18 }: Props) {
   return (

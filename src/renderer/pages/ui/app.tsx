@@ -177,6 +177,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     onBack: () => browser.back(),
     onForward: () => browser.forward(),
     onReload: () => browser.reload(),
+    loading: current?.loading ?? false,
+    onStop: () => browser.stop(),
     sidebarOpen,
     onToggleSidebar: toggleSidebar,
     sidePanel: panelOpen && panel ? panel.id : null,

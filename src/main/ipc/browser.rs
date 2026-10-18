@@ -102,11 +102,12 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
         })
     });
 
-    // Back, forward and reload, in the active tab.
+    // Back, forward, reload and stop, in the active tab.
     for (name, run) in [
         ("tabs.back", BrowserTab::go_back as fn(BrowserTab) -> _),
         ("tabs.forward", BrowserTab::go_forward),
         ("tabs.reload", BrowserTab::reload),
+        ("tabs.stop", BrowserTab::stop),
     ] {
         let weak = Rc::downgrade(state);
         let _ = web_view.handle(name, move |()| {

@@ -46,8 +46,9 @@ export const browser = {
   close: (id: number) => wren.invoke<null>("tabs.close", id),
   /** Shows a tab's context menu at a point in the page; the app does what is chosen, then answers with its ID. */
   menu: (id: number, x: number, y: number) => wren.invoke<string | null>("tabs.menu", { id, x, y }),
-  /** Back, forward and reload act on the active tab. */
+  /** Back, forward, reload and stop act on the active tab. */
   back: () => wren.invoke<null>("tabs.back"),
   forward: () => wren.invoke<null>("tabs.forward"),
-  reload: () => wren.invoke<null>("tabs.reload")
+  reload: () => wren.invoke<null>("tabs.reload"),
+  stop: () => wren.invoke<null>("tabs.stop")
 };
