@@ -21,7 +21,7 @@ export function ResizeHandle({
   range: Range;
   /** The side of the panel the handle is on: dragging away from the panel widens it. */
   edge: "left" | "right" | "bottom";
-  /** Shows a pill while hovered or dragged. */
+  /** Shows a dim pill that brightens while the strip is hovered or dragged. */
   grip?: boolean;
   style?: CSSProperties;
   className?: string;
@@ -69,7 +69,7 @@ export function ResizeHandle({
       {grip && (
         <div
           className={cn(
-            "rounded-full bg-fg-3 opacity-0 group-hover:opacity-100 group-active:opacity-100",
+            "rounded-full bg-fg-3 opacity-25 transition-opacity duration-150 group-hover:opacity-100 group-active:opacity-100",
             vertical ? "h-0.75 w-7" : "h-7 w-0.75"
           )}
         />
