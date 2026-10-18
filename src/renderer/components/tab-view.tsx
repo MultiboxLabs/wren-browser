@@ -3,6 +3,7 @@
 // has the window to itself, without its card.
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
+import { LoadingBar } from "./loading-bar";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { browser, type BrowserTab, splits, type TabSplit } from "../ipc";
@@ -85,12 +86,12 @@ function TabPane({
   style?: CSSProperties;
 }) {
   return (
-    <div
-      style={style}
-      className={cn(fullScreen ? "bg-black" : "card", "no-drag relative min-h-0 min-w-0 overflow-hidden", className)}
-    >
-      <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block" />
-      {tab.crashed && <Crashed tab={tab} />}
+    <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
+      {!fullScreen && <LoadingBar loading={tab.loading} />}
+      <div className={cn(fullScreen ? "bg-black" : "card", "no-drag relative min-h-0 min-w-0 flex-1 overflow-hidden")}>
+        <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block" />
+        {tab.crashed && <Crashed tab={tab} />}
+      </div>
     </div>
   );
 }
