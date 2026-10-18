@@ -7,23 +7,25 @@ use std::rc::Rc;
 
 use wren::{
     App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
-    PopoverRequest, Profile, TabFields,
+    PopoverRequest, Profile,
 };
 
-use crate::ipc::{self, OmniboxTarget};
+use crate::changes;
+use crate::ipc::{self, OmniboxTarget, WindowRef};
 use crate::menus;
 use crate::pages::{SCHEME, Source, UI, serve_page};
 use crate::sidebar::SidebarStore;
 use crate::tabs;
-use crate::window::{MainWindow, PageWindow, PlainWindow};
+use crate::window::{BrowserWindow, PageWindow, PlainWindow, WindowId};
+use crate::windows::Windows;
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
     // The pages', not the user's.
     ui_profile: RefCell<Option<Profile>>,
     devtools: RefCell<HashMap<Browser, PlainWindow>>,
-    pub main: RefCell<Option<MainWindow>>,
-    // What the main page keeps between runs, in `data`.
+    pub windows: Windows,
+    // What the pages keep between runs, in `data`; all windows share it.
     pub sidebar: SidebarStore,
 }
 
@@ -32,51 +34,18 @@ impl State {
         State {
             ui_profile: RefCell::default(),
             devtools: RefCell::default(),
-            main: RefCell::default(),
+            windows: Windows::default(),
             sidebar: SidebarStore::new(&data),
         }
     }
 
-    fn open_main(self: &Rc<Self>, mt: MainThread) {
-        let Some(profile) = self.ui_profile.borrow().clone() else {
-            return;
-        };
-        // Closing the main window quits the app.
-        let Some(page) = PageWindow::open(&profile, &UI, "Wren", (1280.0, 800.0), move || {
-            mt.quit();
-            false
-        }) else {
+    // Opens the first window, then the user's own Profile, the one Chromium
+    // starts with, with the tabs it had when the app last quit.
+    fn start(self: &Rc<Self>, mt: MainThread) {
+        if self.open_window(mt).is_none() {
             eprintln!("Wren made no web view.");
             return mt.quit();
-        };
-        ipc::handle_ui(&page.web_view, self, mt);
-        // The page and the backdrop are drawn as in use while the window is.
-        let state = Rc::downgrade(self);
-        page.watch_active(mt, move |active| {
-            let Some(state) = state.upgrade() else { return };
-            if let Some(main) = state.main.borrow().as_ref() {
-                main.page.set_active(active);
-                ipc::send_active(&main.page, active);
-            }
-        });
-        let state = Rc::downgrade(self);
-        page.watch_full_screen(move |full_screen| {
-            let Some(state) = state.upgrade() else { return };
-            if let Some(main) = state.main.borrow().as_ref() {
-                ipc::send_full_screen(&main.page, full_screen);
-            }
-        });
-        let state = Rc::downgrade(self);
-        page.watch_full_screen_finished(move |full_screen| {
-            let Some(state) = state.upgrade() else { return };
-            if let Some(main) = state.main.borrow().as_ref() {
-                main.full_screen_finished(full_screen);
-            }
-        });
-        *self.main.borrow_mut() = Some(MainWindow::new(page));
-
-        // The user's own Profile, the one Chromium starts with, with the
-        // tabs it had when the app last quit.
+        }
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
             Ok(profile) => state.restore(mt, profile),
@@ -87,56 +56,142 @@ impl State {
         });
     }
 
-    // Restores `profile`'s last session, whose window arrives in
-    // `browser_opened`; or, with nothing to restore, opens a Browser of it
-    // on the New Tab page.
+    // Opens a window, empty until a Browser is shown in it (`show`). Its
+    // page is the UI's, in a Profile of its own.
+    fn open_window(self: &Rc<Self>, mt: MainThread) -> Option<WindowId> {
+        let profile = self.ui_profile.borrow().clone()?;
+        let id = self.windows.next_id();
+        let weak = Rc::downgrade(self);
+        let page = PageWindow::open(&profile, &UI, "Wren", (1280.0, 800.0), move || {
+            if let Some(state) = weak.upgrade() {
+                state.close_window(mt, id);
+            }
+            // The window goes as its Browsers close (`browser_closed`).
+            false
+        })?;
+        ipc::handle_ui(&page.web_view, &WindowRef::new(self, id), mt);
+        // The page and the backdrop are drawn as in use while the window is.
+        let state = Rc::downgrade(self);
+        page.watch_active(mt, move |active| {
+            let Some(state) = state.upgrade() else { return };
+            let Some(window) = state.windows.get(id) else {
+                return;
+            };
+            if active {
+                state.windows.set_active(id);
+            }
+            window.page.set_active(active);
+            ipc::send_active(&window.page, active);
+        });
+        let state = Rc::downgrade(self);
+        page.watch_full_screen(move |full_screen| {
+            let Some(state) = state.upgrade() else { return };
+            if let Some(window) = state.windows.get(id) {
+                ipc::send_full_screen(&window.page, full_screen);
+            }
+        });
+        let state = Rc::downgrade(self);
+        page.watch_full_screen_finished(move |full_screen| {
+            let Some(state) = state.upgrade() else { return };
+            if let Some(window) = state.windows.get(id) {
+                window.full_screen_finished(full_screen);
+            }
+        });
+        // Below and right of the window in use, so a new one does not hide it.
+        if let Some(front) = self.windows.front() {
+            page.cascade_from(&front.page);
+        }
+        self.windows.add(BrowserWindow::new(id, page));
+        Some(id)
+    }
+
+    // The close button of window `id`. The last window closes the app, which
+    // keeps its session for the next run. Another leaves by closing its
+    // Browsers, as Chrome's does.
+    fn close_window(self: &Rc<Self>, mt: MainThread, id: WindowId) {
+        if self.windows.len() <= 1 {
+            return mt.quit();
+        }
+        let Some(window) = self.windows.get(id) else {
+            return;
+        };
+        if !window.is_empty() {
+            return window.close_browsers();
+        }
+        // It has no Browser to close, and is not dropped inside its own
+        // delegate's call.
+        let state = Rc::downgrade(self);
+        mt.later(move |_| {
+            if let Some(state) = state.upgrade() {
+                state.windows.remove(id);
+            }
+        });
+    }
+
+    // Restores `profile`'s last session, whose windows arrive in
+    // `browser_opened`; or, with nothing to restore, opens a window of it on
+    // the New Tab page.
     fn restore(self: &Rc<Self>, mt: MainThread, profile: Profile) {
         let state = self.clone();
         profile.clone().restore_last_session(move |result| {
             if let Err(error) = result {
                 eprintln!("Wren restored no session: {error:?}");
             }
-            let restored = state
-                .main
-                .borrow()
-                .as_ref()
-                .is_some_and(|main| main.has_profile(&profile));
-            if !restored {
+            if !state.windows.has_profile(&profile) {
                 state.open_browser(mt, profile);
             }
         });
     }
 
-    // Adds a new Browser of `profile` to the main window.
+    // Opens a Browser of `profile` on the New Tab page, in the window that
+    // waits for one, or else in a new window.
     fn open_browser(self: &Rc<Self>, mt: MainThread, profile: Profile) {
+        if self.windows.empty().is_none() && self.open_window(mt).is_none() {
+            return eprintln!("Wren opened no window.");
+        }
         let state = self.clone();
         profile
             .clone()
             .create_browser("", move |result| match result {
-                Ok(browser) => state.show(profile, browser),
+                Ok(browser) => state.show(mt, profile, browser),
                 Err(error) => {
                     eprintln!("Wren opened no Browser: {error:?}");
-                    mt.quit();
+                    state.drop_empty_windows(mt);
                 }
             });
     }
 
-    // Shows `browser` in the main window as `profile`'s.
-    fn show(&self, profile: Profile, browser: Browser) {
-        let main = self.main.borrow();
-        let Some(main) = main.as_ref() else {
+    // A window left with no Browser to show goes, or the app does if it was
+    // the only one.
+    fn drop_empty_windows(self: &Rc<Self>, mt: MainThread) {
+        if self.windows.len() <= 1 {
+            return mt.quit();
+        }
+        while let Some(empty) = self.windows.empty() {
+            self.windows.remove(empty.id);
+        }
+    }
+
+    // Shows `browser` as `profile`'s, in the window that waits for a Browser
+    // or else in a new one.
+    fn show(self: &Rc<Self>, mt: MainThread, profile: Profile, browser: Browser) {
+        let window = self.windows.empty().or_else(|| {
+            let id = self.open_window(mt)?;
+            self.windows.get(id)
+        });
+        let Some(window) = window else {
             let _ = browser.close();
             return;
         };
-        main.add(profile, browser.clone());
+        window.add(profile, browser.clone());
         // The page asked before there was a Browser.
-        if main.is_front(&browser) {
-            ipc::send_tabs(main, &browser);
-            ipc::send_side_panel(main, &browser);
-            ipc::send_site(main, &browser);
-            ipc::send_extensions(main, &browser);
-            ipc::send_anchors(main, &browser);
-            ipc::send_toast(main, &browser);
+        if window.is_front(&browser) {
+            ipc::send_tabs(&window, &browser);
+            ipc::send_side_panel(&window, &browser);
+            ipc::send_site(&window, &browser);
+            ipc::send_extensions(&window, &browser);
+            ipc::send_anchors(&window, &browser);
+            ipc::send_toast(&window, &browser);
         }
     }
 }
@@ -160,20 +215,19 @@ impl App for Wren {
         mt.create_ephemeral_profile(move |result| match result {
             Ok(profile) => {
                 *state.ui_profile.borrow_mut() = Some(profile);
-                state.open_main(mt);
+                state.start(mt);
             }
             Err(_) => mt.quit(),
         });
     }
 
-    // Required: Chromium opened a Browser of its own. A restored window
-    // becomes its Profile's Browser in the main window, if the window has
-    // none of that Profile yet. The window shows one Browser for each, so
-    // the rest (a second restored window or a popup) close. DevTools gets
-    // a plain window of its own.
+    // Required: Chromium opened a Browser of its own. A normal one, a
+    // restored window or one a page or the omnibox asked for, is shown in a
+    // window of its own. Other kinds (a popup) close. DevTools gets a plain
+    // window of its own.
     fn browser_opened(
         &self,
-        _: MainThread,
+        mt: MainThread,
         opened: Browser,
         kind: BrowserType,
         _: Option<Browser>,
@@ -183,18 +237,11 @@ impl App for Wren {
             self.state.devtools.borrow_mut().insert(opened, window);
             return;
         }
-        let wanted = (kind == BrowserType::Normal)
+        let profile = (kind == BrowserType::Normal)
             .then(|| opened.profile())
-            .flatten()
-            .filter(|profile| {
-                self.state
-                    .main
-                    .borrow()
-                    .as_ref()
-                    .is_some_and(|main| !main.has_profile(profile))
-            });
-        match wanted {
-            Some(profile) => self.state.show(profile, opened),
+            .flatten();
+        match profile {
+            Some(profile) => self.state.show(mt, profile, opened),
             None => {
                 let _ = opened.close();
             }
@@ -210,96 +257,35 @@ impl App for Wren {
                 window.show_active_tab();
             }
         }
-        let main = self.state.main.borrow();
-        let Some(main) = main.as_ref() else { return };
-        let Some(browser) = main.browser() else {
-            return;
-        };
-        // What the sidebar draws of a tab, besides its favicon.
-        let drawn = TabFields::TITLE
-            | TabFields::URL
-            | TabFields::LOADING
-            | TabFields::HISTORY
-            | TabFields::CRASHED
-            | TabFields::GROUP
-            | TabFields::SPLIT;
-        let mut tabs_changed = false;
-        // The site is the active tab's, which a switch or a navigation
-        // changes as well as Chromium's word on it.
-        let mut site_changed = false;
-        let mut extensions_changed = false;
-        for change in changes {
-            // A new extension's anchor is named, in the background too.
-            if change.kind == ChangeKind::ExtensionActions
-                && let Some(changed) = &change.browser
-            {
-                main.name_anchors(changed);
-            }
-            if change.browser.as_ref() != Some(&browser) {
-                continue;
-            }
-            match change.kind {
-                ChangeKind::Tabs => {
-                    tabs_changed = true;
-                    site_changed = true;
-                }
-                // The tab in full screen is among them.
-                ChangeKind::Group | ChangeKind::Split | ChangeKind::Fullscreen => {
-                    tabs_changed = true
-                }
-                ChangeKind::SidePanel => ipc::send_side_panel(main, &browser),
-                ChangeKind::Site => site_changed = true,
-                ChangeKind::ExtensionActions => extensions_changed = true,
-                ChangeKind::Anchors => ipc::send_anchors(main, &browser),
-                ChangeKind::Omnibox => ipc::send_omnibox(main, &browser),
-                // One the app answered has gone: Chromium's time for it is
-                // up, the tab switched, or another came.
-                ChangeKind::Popover => ipc::send_toast(main, &browser),
-                ChangeKind::Tab => {
-                    let Some(tab) = change.tab else { continue };
-                    tabs_changed |= change.tab_fields.intersects(drawn);
-                    site_changed |= change.tab_fields.contains(TabFields::URL)
-                        && browser.active_tab() == Some(tab);
-                    if change.tab_fields.contains(TabFields::FAVICON) {
-                        ipc::send_favicon(main, tab);
-                    }
-                    // A newly active tab's page arrives in the page's
-                    // element after the page asks for it, and gets the
-                    // keyboard then.
-                    if change.tab_fields.contains(TabFields::IN_ELEMENT)
-                        && browser.active_tab() == Some(tab)
-                        && tab.state().is_ok_and(|state| state.in_element)
-                    {
-                        let _ = tab.focus();
-                    }
-                }
-                _ => {}
-            }
-        }
-        if tabs_changed {
-            ipc::send_tabs(main, &browser);
-        }
-        if site_changed {
-            ipc::send_site(main, &browser);
-        }
-        // A pin or a pop-out shows or hides an extension's button, its mark.
-        if extensions_changed {
-            ipc::send_extensions(main, &browser);
-            ipc::send_anchors(main, &browser);
+        for window in self.state.windows.all() {
+            changes::apply(&window, changes);
         }
     }
 
-    fn menu_command(&self, mt: MainThread, id: &str, _: Option<Browser>) {
-        let main = self.state.main.borrow();
-        let Some(main) = main.as_ref() else { return };
+    // The window is the one of the Browser in the key window, or else the
+    // one the user was in last.
+    fn menu_command(&self, mt: MainThread, id: &str, browser: Option<Browser>) {
+        let windows = &self.state.windows;
+        let Some(window) = browser
+            .and_then(|browser| windows.of(&browser))
+            .or_else(|| windows.front())
+        else {
+            return;
+        };
+        if id == menus::NEW_WINDOW {
+            if let Some(profile) = window.profile() {
+                self.state.open_browser(mt, profile);
+            }
+            return;
+        }
         if id == menus::TOGGLE_SIDEBAR {
-            return ipc::send_toggle_sidebar(main);
+            return ipc::send_toggle_sidebar(&window);
         }
         if id == menus::NEW_TAB {
-            return ipc::send_show_omnibox(main, OmniboxTarget::NewTab, true);
+            return ipc::send_show_omnibox(&window, OmniboxTarget::NewTab, true);
         }
         if id == menus::OPEN_LOCATION {
-            return ipc::send_show_omnibox(main, OmniboxTarget::Current, true);
+            return ipc::send_show_omnibox(&window, OmniboxTarget::Current, true);
         }
         if id == menus::TOGGLE_UI_DEVTOOLS {
             // UI DevTools uses the UI's separate Profile, so site DevTools
@@ -313,14 +299,14 @@ impl App for Wren {
                 .cloned();
             let result = match opened {
                 Some(browser) => browser.close(),
-                None => main.page.web_view.open_dev_tools(),
+                None => window.page.web_view.open_dev_tools(),
             };
             if let Err(error) = result {
                 eprintln!("Wren could not toggle UI DevTools: {error:?}");
             }
             return;
         }
-        let Some(browser) = main.browser() else {
+        let Some(browser) = window.browser() else {
             return;
         };
         let _ = match id {
@@ -359,10 +345,10 @@ impl App for Wren {
         let browser = request.browser.clone();
         mt.later(move |_| {
             let Some(state) = state.upgrade() else { return };
-            if let Some(main) = state.main.borrow().as_ref()
-                && main.is_front(&browser)
+            if let Some(window) = state.windows.of(&browser)
+                && window.is_front(&browser)
             {
-                ipc::send_toast(main, &browser);
+                ipc::send_toast(&window, &browser);
             }
         });
         PopoverAnswer::App
@@ -370,21 +356,26 @@ impl App for Wren {
 
     // A page wants the whole window, or is done with it. The window goes full
     // screen for it once Chromium's call is over, and Chromium hears when it
-    // has (MainWindow::full_screen_finished). A page in the background, or
+    // has (BrowserWindow::full_screen_finished). A page in the background, or
     // one leaving full screen the user chose, has its way at once.
     fn fullscreen(&self, mt: MainThread, browser: Browser, fullscreen: bool) -> bool {
-        let main = self.state.main.borrow();
-        let Some(main) = main.as_ref().filter(|main| main.is_front(&browser)) else {
+        let Some(window) = self
+            .state
+            .windows
+            .of(&browser)
+            .filter(|window| window.is_front(&browser))
+        else {
             return false;
         };
-        if !main.wants_full_screen_for_page(fullscreen) {
+        if !window.wants_full_screen_for_page(fullscreen) {
             return false;
         }
         let state = Rc::downgrade(&self.state);
+        let id = window.id;
         mt.later(move |_| {
             let Some(state) = state.upgrade() else { return };
-            if let Some(main) = state.main.borrow().as_ref() {
-                main.page.set_full_screen(fullscreen);
+            if let Some(window) = state.windows.get(id) {
+                window.page.set_full_screen(fullscreen);
             }
         });
         true
@@ -393,9 +384,13 @@ impl App for Wren {
     // Chromium wants the address field: the omnibox opens on the active
     // tab's address, and stays open if it is.
     fn focus_location_bar(&self, _: MainThread, browser: Browser) {
-        let main = self.state.main.borrow();
-        if let Some(main) = main.as_ref().filter(|main| main.is_front(&browser)) {
-            ipc::send_show_omnibox(main, OmniboxTarget::Current, false);
+        if let Some(window) = self
+            .state
+            .windows
+            .of(&browser)
+            .filter(|window| window.is_front(&browser))
+        {
+            ipc::send_show_omnibox(&window, OmniboxTarget::Current, false);
         }
     }
 
@@ -404,13 +399,17 @@ impl App for Wren {
         if devtools.is_some() {
             return;
         }
-        let main = self.state.main.borrow();
-        let Some(main) = main.as_ref() else { return };
+        let Some(window) = self.state.windows.of(&browser) else {
+            return;
+        };
         // Chromium closes a Browser whose last tab closes. A window with no
-        // Browser left has nothing to show, so it goes, and the app with it,
-        // as when its close button is pressed.
-        if main.remove(&browser) && main.is_empty() {
-            mt.quit();
+        // Browser left has nothing to show, so it goes, and the app with the
+        // last window, as when its close button is pressed.
+        if window.remove(&browser) && window.is_empty() {
+            self.state.windows.remove(window.id);
+            if self.state.windows.len() == 0 {
+                mt.quit();
+            }
         }
     }
 }

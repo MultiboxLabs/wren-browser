@@ -3,15 +3,12 @@
 // answers their requests with its own (`App::popover`), which the page draws
 // (pages/ui/toast.tsx); Chromium still decides when each goes.
 
-use std::rc::Rc;
-
 use serde::{Deserialize, Serialize};
 use wren::unstable_ui::UIText;
 use wren::{Browser, Error, Popover, PopoverKind, WebView};
 
-use super::{failed, png_url, with_browser};
-use crate::app::State;
-use crate::window::MainWindow;
+use super::{WindowRef, failed, png_url, with_browser};
+use crate::window::BrowserWindow;
 
 // What Chromium names every toast of the app's.
 const EMBEDDER: &str = "Embedder";
@@ -65,15 +62,15 @@ struct Named {
     id: u64,
 }
 
-pub fn handle(web_view: &WebView, state: &Rc<State>) {
+pub fn handle(web_view: &WebView, window: &WindowRef) {
     // The toast showing, or null; "toast.state" says when it changes.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("toast.state", move |()| {
         with_browser(&weak, |_, browser| Ok(toast(browser)))
     });
 
     // Its button, as Chrome's: it does what it says, and the toast goes.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("toast.press", move |named: Named| {
         with_browser(&weak, |_, browser| {
             named.find(browser)?.press_toast_button().map_err(failed)
@@ -81,7 +78,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>) {
     });
 
     // A click on it: it goes before Chromium's time for it is up.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("toast.close", move |named: Named| {
         with_browser(&weak, |_, browser| {
             named.find(browser)?.close().map_err(failed)
@@ -104,8 +101,8 @@ pub fn show_toast(browser: &Browser, toast: OwnToast) -> Result<(), Error> {
 }
 
 /// Tells the page a toast came or went.
-pub fn send_toast(main: &MainWindow, browser: &Browser) {
-    let _ = main.page.web_view.send("toast.state", &toast(browser));
+pub fn send_toast(window: &BrowserWindow, browser: &Browser) {
+    let _ = window.page.web_view.send("toast.state", &toast(browser));
 }
 
 fn open(browser: &Browser) -> Option<Popover> {

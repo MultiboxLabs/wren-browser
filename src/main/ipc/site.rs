@@ -1,13 +1,10 @@
-use std::rc::Rc;
-
 use serde::Serialize;
 use wren::unstable_ui::UIText;
 use wren::{Browser, MainThread, PermissionSetting, SiteAction, SiteSecurity, WebView};
 
-use super::{MenuAt, failed, menu_call, with_browser};
-use crate::app::State;
+use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::menus;
-use crate::window::MainWindow;
+use crate::window::BrowserWindow;
 
 /// The active tab's site, as the page info popover shows it.
 #[derive(Serialize)]
@@ -42,17 +39,17 @@ pub struct Permission {
     managed: bool,
 }
 
-pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The site, or null before the tab has shown a page; "site.state" says
     // when it changes.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("site.state", move |()| {
         with_browser(&weak, |_, browser| Ok(site(browser)))
     });
 
     // A permission's menu, by its ID, at the point the page names; it sets
     // what is chosen.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle_call("site.permissionMenu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<String>, done| {
             menus::show_permission_menu(mt, view, browser, &at.id, (at.x, at.y), done)
@@ -61,7 +58,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     });
 
     // The site's other settings: Chromium's pages and dialogs for it.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle_call("site.menu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<()>, done| {
             menus::show_site_menu(mt, view, browser, (at.x, at.y), done).map_err(failed)
@@ -69,7 +66,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     });
 
     // Chromium's certificate viewer, for a connection with one.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("site.certificate", move |()| {
         with_browser(&weak, |_, browser| {
             site_action(browser, SiteAction::Certificate)
@@ -77,7 +74,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     });
 
     // Reloads the page, for the changes made to apply.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("site.reload", move |()| {
         with_browser(&weak, |_, browser| site_action(browser, SiteAction::Reload))
     });
@@ -91,8 +88,8 @@ fn site_action(browser: &Browser, action: SiteAction) -> Result<(), String> {
 
 /// Tells the page the active tab's site changed: another page, its
 /// security, or its permissions.
-pub fn send_site(main: &MainWindow, browser: &Browser) {
-    let _ = main.page.web_view.send("site.state", &site(browser));
+pub fn send_site(window: &BrowserWindow, browser: &Browser) {
+    let _ = window.page.web_view.send("site.state", &site(browser));
 }
 
 fn site(browser: &Browser) -> Option<Site> {

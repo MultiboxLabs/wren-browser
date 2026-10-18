@@ -1,4 +1,4 @@
-// The calls the main window's page makes (`wren.invoke`), each by name, and
+// The calls a browser window's page makes (`wren.invoke`), each by name, and
 // the messages the app sends it (`wren.on`): one file for each part of the
 // app. src/renderer/ipc/ is the page's side; keep the two together.
 
@@ -24,7 +24,7 @@ use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
-use crate::window::MainWindow;
+use crate::window::{BrowserWindow, WindowId};
 
 pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_tabs};
@@ -36,18 +36,40 @@ pub use site::send_site;
 pub use toast::{OwnToast, send_toast, show_toast};
 pub use window::{send_active, send_full_screen};
 
-pub fn handle_ui(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
-    window::handle(web_view, state);
-    sidebar::handle(web_view, state);
-    browser::handle(web_view, state, mt);
-    groups::handle(web_view, state, mt);
-    splits::handle(web_view, state, mt);
-    side_panel::handle(web_view, state);
-    site::handle(web_view, state, mt);
-    extensions::handle(web_view, state);
-    anchors::handle(web_view, state);
-    omnibox::handle(web_view, state);
-    toast::handle(web_view, state);
+/// The window a page is in, as its handlers find it again: not the window
+/// itself, which owns the page and its handlers.
+#[derive(Clone)]
+pub struct WindowRef {
+    state: Weak<State>,
+    id: WindowId,
+}
+
+impl WindowRef {
+    pub fn new(state: &Rc<State>, id: WindowId) -> WindowRef {
+        WindowRef {
+            state: Rc::downgrade(state),
+            id,
+        }
+    }
+
+    /// The app's state, unless the app is closing.
+    fn state(&self) -> Result<Rc<State>, &'static str> {
+        self.state.upgrade().ok_or("The app is closing.")
+    }
+}
+
+pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
+    window::handle(web_view, window);
+    sidebar::handle(web_view, window);
+    browser::handle(web_view, window, mt);
+    groups::handle(web_view, window, mt);
+    splits::handle(web_view, window, mt);
+    side_panel::handle(web_view, window);
+    site::handle(web_view, window, mt);
+    extensions::handle(web_view, window);
+    anchors::handle(web_view, window);
+    omnibox::handle(web_view, window);
+    toast::handle(web_view, window);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),
@@ -63,7 +85,7 @@ struct MenuAt<Id> {
 // shows it with `done`, which answers the call with the item chosen. A menu
 // that is not shown drops `done`, and with it the call, which fails it.
 fn menu_call<Id: DeserializeOwned>(
-    state: &Weak<State>,
+    window: &WindowRef,
     call: PageCall,
     show: impl FnOnce(
         NativeView,
@@ -79,8 +101,8 @@ fn menu_call<Id: DeserializeOwned>(
             return;
         }
     };
-    let found = with_browser(state, |main, browser| {
-        Ok((main.page.web_view.view(), browser.clone()))
+    let found = with_browser(window, |found, browser| {
+        Ok((found.page.web_view.view(), browser.clone()))
     });
     let (view, browser) = match found {
         Ok(found) => found,
@@ -106,24 +128,27 @@ fn failed(error: wren::Error) -> String {
     format!("{error:?}")
 }
 
-// Runs a handler with the main window, or fails the call once it is gone.
-fn with_main<A>(
-    state: &Weak<State>,
-    handler: impl FnOnce(&MainWindow) -> Result<A, String>,
+// Runs a handler with the page's window, or fails the call once it is gone.
+fn with_window<A>(
+    window: &WindowRef,
+    handler: impl FnOnce(&BrowserWindow) -> Result<A, String>,
 ) -> Result<A, String> {
-    let state = state.upgrade().ok_or("The app is closing.")?;
-    let main = state.main.borrow();
-    handler(main.as_ref().ok_or("The window is closing.")?)
+    let state = window.state()?;
+    let found = state
+        .windows
+        .get(window.id)
+        .ok_or("The window is closing.")?;
+    handler(&found)
 }
 
-// Runs a handler with the main window and its Browser in front, or fails
+// Runs a handler with the page's window and its Browser in front, or fails
 // the call while there is none.
 fn with_browser<A>(
-    state: &Weak<State>,
-    handler: impl FnOnce(&MainWindow, &Browser) -> Result<A, String>,
+    window: &WindowRef,
+    handler: impl FnOnce(&BrowserWindow, &Browser) -> Result<A, String>,
 ) -> Result<A, String> {
-    with_main(state, |main| {
-        let browser = main.browser().ok_or("The window has no Browser yet.")?;
-        handler(main, &browser)
+    with_window(window, |found| {
+        let browser = found.browser().ok_or("The window has no Browser yet.")?;
+        handler(found, &browser)
     })
 }

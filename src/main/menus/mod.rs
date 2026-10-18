@@ -15,6 +15,7 @@ pub use group::{color_name, least_used_color, show_group_menu};
 pub use site::{show_permission_menu, show_site_menu};
 pub use tab::show_tab_menu;
 
+pub const NEW_WINDOW: &str = "new-window";
 pub const NEW_TAB: &str = "new-tab";
 pub const OPEN_LOCATION: &str = "open-location";
 pub const CLOSE_TAB: &str = "close-tab";
@@ -45,6 +46,9 @@ pub fn set_main_menu(mt: MainThread) {
         MenuItem::submenu(
             "File",
             vec![
+                // A Browser of the key window's Profile, in a window of its own,
+                // on Chromium's New Tab page.
+                keyed(NEW_WINDOW, "New Window", "n", MenuModifiers::PRIMARY),
                 // The app's own, not Chromium's: both open the page's
                 // omnibox, which opens what is chosen in a new tab at the
                 // top of the sidebar's list, or in the active tab. Chromium's

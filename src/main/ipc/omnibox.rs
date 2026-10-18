@@ -3,17 +3,14 @@
 // it. The page draws the field and the list (pages/ui/omnibox.tsx); the main
 // menu and Chromium ask it to open (`send_show_omnibox`).
 
-use std::rc::Rc;
-
 use serde::{Deserialize, Serialize};
 use wren::{
     Browser, LocationText, OmniboxFlags, OmniboxResult, OpenDisposition, SuggestionKind,
     SuggestionText, WebView,
 };
 
-use super::{failed, png_url, with_browser};
-use crate::app::State;
-use crate::window::MainWindow;
+use super::{WindowRef, failed, png_url, with_browser};
+use crate::window::BrowserWindow;
 
 /// What the page asks suggestions for.
 #[derive(Deserialize)]
@@ -109,10 +106,10 @@ struct Suggestion {
     icon: Option<String>,
 }
 
-pub fn handle(web_view: &WebView, state: &Rc<State>) {
+pub fn handle(web_view: &WebView, window: &WindowRef) {
     // The active tab's address as the field shows it to be edited, or ""
     // on a page with none to show (the New Tab page).
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("omnibox.location", move |()| {
         with_browser(&weak, |_, browser| {
             let shown = browser.location_state().is_ok_and(|state| state.show_url);
@@ -126,7 +123,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>) {
 
     // Asks for suggestions, and answers with those Chromium has at once;
     // "omnibox.suggestions" brings the rest as they arrive.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("omnibox.query", move |query: Query| {
         with_browser(&weak, |_, browser| {
             let mut flags = OmniboxFlags::empty();
@@ -144,7 +141,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>) {
     });
 
     // Opens a suggestion, then clears the list, as Chrome reverts its field.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("omnibox.open", move |open: Open| {
         with_browser(&weak, |_, browser| {
             let (result, index) = (open.chosen.result()?, open.chosen.index);
@@ -167,7 +164,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>) {
 
     // Removes a suggestion from history or a search engine's record, as
     // Chrome's X does; "omnibox.suggestions" brings the list without it.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("omnibox.delete", move |chosen: Chosen| {
         with_browser(&weak, |_, browser| {
             browser
@@ -177,7 +174,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>) {
     });
 
     // Closes the list, and gives the active tab's page the keyboard back.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("omnibox.close", move |()| {
         with_browser(&weak, |_, browser| {
             browser.omnibox_stop().map_err(failed)?;
@@ -188,8 +185,8 @@ pub fn handle(web_view: &WebView, state: &Rc<State>) {
 }
 
 /// Tells the page Chromium's suggestions changed: more arrived, or an icon.
-pub fn send_omnibox(main: &MainWindow, browser: &Browser) {
-    let _ = main
+pub fn send_omnibox(window: &BrowserWindow, browser: &Browser) {
+    let _ = window
         .page
         .web_view
         .send("omnibox.suggestions", &suggestions(browser));
@@ -198,14 +195,14 @@ pub fn send_omnibox(main: &MainWindow, browser: &Browser) {
 /// Tells the page to open the omnibox for `target`; and, if `toggles`, to
 /// close it instead if that one is open, as the main menu's shortcuts do.
 /// The page takes the keyboard from the tab for it.
-pub fn send_show_omnibox(main: &MainWindow, target: OmniboxTarget, toggles: bool) {
+pub fn send_show_omnibox(window: &BrowserWindow, target: OmniboxTarget, toggles: bool) {
     #[derive(Serialize)]
     struct Show {
         target: OmniboxTarget,
         toggles: bool,
     }
-    let _ = main.page.web_view.focus();
-    let _ = main
+    let _ = window.page.web_view.focus();
+    let _ = window
         .page
         .web_view
         .send("omnibox.show", &Show { target, toggles });

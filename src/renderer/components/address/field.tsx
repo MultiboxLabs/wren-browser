@@ -2,7 +2,7 @@
 // click edits in the omnibox (omnibox.tsx), the extensions pinned to it (or
 // popped out for its popup), and the page info button, which opens the page
 // info popover. Each button carries the mark Chromium hangs its bubbles off
-// (MainWindow::name_anchors): a shown extension's popup opens below its own
+// (BrowserWindow::name_anchors): a shown extension's popup opens below its own
 // button, and the site's bubbles and the rest below page info's.
 
 import { Search } from "lucide-react";

@@ -1,7 +1,7 @@
 // A mark Chromium hangs its own bubbles off ("Anchors in a web view",
 // .wren/runtime/docs): an element of Wren's that draws nothing and takes no
 // clicks, laid over what it marks. The app names it as one of a Browser's
-// anchors (MainWindow::name_anchors); nothing here measures anything.
+// anchors (BrowserWindow::name_anchors); nothing here measures anything.
 
 import type { ReactNode } from "react";
 import { cn } from "../../utils/cn";

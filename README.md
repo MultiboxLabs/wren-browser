@@ -8,18 +8,20 @@ src/main/            the main process (Rust)
   main.rs            startup
   channel.rs         Stable, Beta or Dev: the app's name, logo and data folder
   app.rs             the app's state and Wren's callbacks
-  ipc/               the main window's page's calls and messages, by part
+  changes.rs         what Chromium's changes mean for a window's page
+  windows.rs         the open browser windows, found by ID or by Browser
+  ipc/               a browser window's page's calls and messages, by part
   menus/             the main menu, and the menus the page asks for
   pages/             the pages, and serving wren://
     dev_server.rs    wren:// from Vite's dev server, in development
   window/            a window showing one page
-    main.rs          the browser's window: its page and a Browser per Profile
+    browser.rs       a browser window: its page and a Browser per Profile
     title_bar.rs     the window's buttons, where the page puts them
   sidebar.rs         the sidebar's state, kept between runs
   tabs.rs            what the app does to a Browser's tabs
 src/renderer/        the renderer (Vite root): one entry for every page
   main.tsx           shows the page wren://<page>/ names
-  pages/ui/          wren://ui    the main window
+  pages/ui/          wren://ui    a browser window
   components/        what the pages are made of: ui/ (Radix wrappers), then omnibox/, sidebar/, address/
   state/             the page's view of the Browser, the window and the space
   pages/game/        wren://game  Twig & Trill, a little game

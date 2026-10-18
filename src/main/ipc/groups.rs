@@ -1,10 +1,7 @@
-use std::rc::Rc;
-
 use serde::Serialize;
 use wren::{Browser, MainThread, TabGroup, TabGroupColor, WebView};
 
-use super::{MenuAt, failed, menu_call, with_browser};
-use crate::app::State;
+use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::menus;
 
 /// A tab group, as the sidebar heads its tabs.
@@ -36,10 +33,10 @@ struct Rename {
     title: String,
 }
 
-pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // A group's context menu, the same way as a tab's ("tabs.menu").
     // "rename" is the page's to do.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle_call("groups.menu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<String>, done| {
             let group = group(mt, browser, &at.id)?;
@@ -48,7 +45,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     });
 
     // Collapses an open group, or opens a collapsed one.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("groups.toggle", move |id: String| {
         with_browser(&weak, |_, browser| {
             let group = group(mt, browser, &id)?;
@@ -59,7 +56,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
         })
     });
 
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("groups.rename", move |rename: Rename| {
         with_browser(&weak, |_, browser| {
             let group = group(mt, browser, &rename.id)?;

@@ -1,15 +1,12 @@
-use std::rc::Rc;
-
 use serde::{Deserialize, Serialize};
 use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, WebView};
 
 use super::groups::Group;
 use super::splits::Split;
-use super::{MenuAt, failed, menu_call, png_url, with_browser};
-use crate::app::State;
+use super::{MenuAt, WindowRef, failed, menu_call, png_url, with_browser};
 use crate::menus;
 use crate::tabs;
-use crate::window::MainWindow;
+use crate::window::BrowserWindow;
 
 /// A tab as the sidebar draws it. Its favicon comes apart ("tab.favicon").
 #[derive(Serialize)]
@@ -81,16 +78,16 @@ struct MoveTo {
     group: Option<i32>,
 }
 
-pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The tabs; "browser.tabs" says when they change.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("browser.tabs", move |()| {
         with_browser(&weak, |_, browser| Ok(tab_list(browser)))
     });
 
     // A tab's favicon as a data: URL, or null; "tab.favicon" says when it
     // changes.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("tab.favicon", move |id: i32| {
         with_browser(&weak, |_, browser| {
             Ok(tab(mt, browser, id)?.favicon_png().map(png_url))
@@ -98,7 +95,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     });
 
     // A tab on an address, at the top of the list.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("tabs.open", move |url: String| {
         with_browser(&weak, |_, browser| {
             tabs::open(browser, &url).map_err(failed)
@@ -106,7 +103,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     });
 
     // The active tab's address, on the clipboard.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("tabs.copyLink", move |()| {
         with_browser(&weak, |_, browser| {
             let tab = browser.active_tab().ok_or("There is no tab.")?;
@@ -115,14 +112,14 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
         })
     });
 
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("tabs.activate", move |id: i32| {
         with_browser(&weak, |_, browser| {
             tab(mt, browser, id)?.activate().map_err(failed)
         })
     });
 
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("tabs.close", move |id: i32| {
         with_browser(&weak, |_, browser| {
             tabs::close(browser, &[tab(mt, browser, id)?]).map_err(failed)
@@ -131,7 +128,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
 
     // A tab, or its split's or its group's, moved to an index in the list;
     // "browser.tabs" says where it landed.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("tabs.move", move |to: MoveTo| {
         with_browser(&weak, |_, browser| {
             let (Movable::Tab(id) | Movable::Split(id) | Movable::Group(id)) = to.unit;
@@ -156,7 +153,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     });
 
     // A web address dropped on the list: a tab on it, where it was dropped.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("tabs.openAt", move |at: OpenAt| {
         with_browser(&weak, |_, browser| {
             let group = group_of(mt, browser, at.group)?;
@@ -166,7 +163,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
 
     // A tab dropped on the left or right half of another: the two in a
     // split.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("tabs.split", move |pair: Pair| {
         with_browser(&weak, |_, browser| {
             let first = tab(mt, browser, pair.first)?;
@@ -176,7 +173,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
 
     // A tab's context menu, at the point the page names. Answers with what
     // was chosen, once the app has done it, or null.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle_call("tabs.menu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<i32>, done| {
             let tab = tab(mt, browser, at.id)?;
@@ -191,7 +188,7 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
         ("tabs.reload", BrowserTab::reload),
         ("tabs.stop", BrowserTab::stop),
     ] {
-        let weak = Rc::downgrade(state);
+        let weak = window.clone();
         let _ = web_view.handle(name, move |()| {
             with_browser(&weak, |_, browser| {
                 let tab = browser.active_tab().ok_or("There is no tab.")?;
@@ -203,13 +200,16 @@ pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
 
 /// Tells the page the tabs changed: which there are, their order, a tab's
 /// title, address, or state, or which is active.
-pub fn send_tabs(main: &MainWindow, browser: &Browser) {
-    let _ = main.page.web_view.send("browser.tabs", &tab_list(browser));
+pub fn send_tabs(window: &BrowserWindow, browser: &Browser) {
+    let _ = window
+        .page
+        .web_view
+        .send("browser.tabs", &tab_list(browser));
 }
 
 /// Tells the page a tab's favicon changed, for it to ask again.
-pub fn send_favicon(main: &MainWindow, tab: BrowserTab) {
-    let _ = main.page.web_view.send("tab.favicon", &tab.id());
+pub fn send_favicon(window: &BrowserWindow, tab: BrowserTab) {
+    let _ = window.page.web_view.send("tab.favicon", &tab.id());
 }
 
 fn tab_list(browser: &Browser) -> Tabs {

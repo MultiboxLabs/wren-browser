@@ -1,4 +1,5 @@
 mod app;
+mod changes;
 mod channel;
 mod ipc;
 mod menus;
@@ -6,6 +7,7 @@ mod pages;
 mod sidebar;
 mod tabs;
 mod window;
+mod windows;
 
 use std::rc::Rc;
 

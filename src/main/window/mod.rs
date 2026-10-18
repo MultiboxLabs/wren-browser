@@ -1,7 +1,7 @@
 // A window showing one page in a web view: the browser's own window, whose
 // title bar, sidebar and panels are the page's.
 
-pub mod main;
+mod browser;
 mod plain;
 mod title_bar;
 
@@ -33,7 +33,7 @@ use wren::{MainThread, Profile, TabCrash, WebView, WebViewKind, WebViewOptions};
 
 use crate::pages::Page;
 
-pub use main::MainWindow;
+pub use browser::{BrowserWindow, WindowId, marks};
 pub use plain::PlainWindow;
 use title_bar::TitleBar;
 
@@ -199,7 +199,21 @@ impl PageWindow {
         })
     }
 
-    /// Whether the window is the one in use: the main window, or under the
+    /// Puts the window just below and right of `other` and at its size, as
+    /// AppKit cascades windows; AppKit keeps it on a screen. A window in
+    /// full screen has no place to cascade from.
+    pub fn cascade_from(&self, other: &PageWindow) {
+        if other.is_full_screen() {
+            return;
+        }
+        const STEP: f64 = 26.0;
+        let frame = other.window.frame();
+        let origin = NSPoint::new(frame.origin.x + STEP, frame.origin.y - STEP);
+        self.window
+            .setFrame_display(NSRect::new(origin, frame.size), false);
+    }
+
+    /// Whether the window is the one in use: a browser window, or under the
     /// key window (a sheet, or a bubble of Chromium's over it), while the app
     /// is active. A window drawn by its key state alone would look left
     /// whenever a bubble opens.

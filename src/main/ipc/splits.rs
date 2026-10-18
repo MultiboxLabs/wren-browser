@@ -1,10 +1,7 @@
-use std::rc::Rc;
-
 use serde::{Deserialize, Serialize};
 use wren::{BrowserTab, MainThread, SplitLayout, TabSplit, WebView};
 
-use super::{failed, with_browser};
-use crate::app::State;
+use super::{WindowRef, failed, with_browser};
 
 /// Two tabs shown side by side, or one above the other, as one.
 #[derive(Serialize)]
@@ -41,9 +38,9 @@ struct Ratio {
     dragging: bool,
 }
 
-pub fn handle(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The divider between a split's tabs, as it is dragged.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("splits.setRatio", move |to: Ratio| {
         with_browser(&weak, |_, browser| {
             let split = TabSplit::parse(mt, &to.id)

@@ -1,22 +1,20 @@
-use std::rc::Rc;
-
 use wren::WebView;
 
-use crate::app::State;
+use super::WindowRef;
 use crate::sidebar::SidebarState;
 
-pub fn handle(web_view: &WebView, state: &Rc<State>) {
+pub fn handle(web_view: &WebView, window: &WindowRef) {
     // The sidebar's state as it was saved, or null; the page saves it when
     // the user changes it.
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("sidebar.state", move |()| {
-        let state = weak.upgrade().ok_or("The app is closing.")?;
+        let state = weak.state()?;
         Ok::<_, String>(state.sidebar.load())
     });
 
-    let weak = Rc::downgrade(state);
+    let weak = window.clone();
     let _ = web_view.handle("sidebar.save", move |saved: SidebarState| {
-        let state = weak.upgrade().ok_or("The app is closing.")?;
+        let state = weak.state()?;
         state
             .sidebar
             .save(&saved)

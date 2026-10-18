@@ -1,4 +1,4 @@
-// The browser's window: its page, and the Browsers it shows, one for each
+// A browser window: its page, and the Browsers it shows, one for each
 // Profile. All are attached to the page's view; one is in front, and the
 // rest wait in the background.
 
@@ -15,7 +15,12 @@ use super::PageWindow;
 /// "extension:<id>" (address-field.tsx).
 const PAGE_INFO: &str = "page-info";
 
-pub struct MainWindow {
+/// Tells a window from the others for as long as the app runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct WindowId(pub u64);
+
+pub struct BrowserWindow {
+    pub id: WindowId,
     pub page: PageWindow,
     // By the Profile's ID.
     browsers: RefCell<HashMap<String, (Profile, Browser)>>,
@@ -25,9 +30,10 @@ pub struct MainWindow {
     full_screen_for_page: Cell<bool>,
 }
 
-impl MainWindow {
-    pub fn new(page: PageWindow) -> MainWindow {
-        MainWindow {
+impl BrowserWindow {
+    pub fn new(id: WindowId, page: PageWindow) -> BrowserWindow {
+        BrowserWindow {
+            id,
             page,
             browsers: RefCell::default(),
             front: RefCell::default(),
@@ -43,6 +49,38 @@ impl MainWindow {
             .as_ref()
             .and_then(|id| browsers.get(id))
             .map(|(_, browser)| browser.clone())
+    }
+
+    /// The Profile of the Browser in front.
+    pub fn profile(&self) -> Option<Profile> {
+        let front = self.front.borrow();
+        let browsers = self.browsers.borrow();
+        front
+            .as_ref()
+            .and_then(|id| browsers.get(id))
+            .map(|(profile, _)| profile.clone())
+    }
+
+    /// Whether `browser` is one of the window's.
+    pub fn has_browser(&self, browser: &Browser) -> bool {
+        self.browsers
+            .borrow()
+            .values()
+            .any(|(_, each)| each == browser)
+    }
+
+    /// Closes the window's Browsers. The window goes as the last of them
+    /// closes (`remove`).
+    pub fn close_browsers(&self) {
+        let browsers: Vec<Browser> = self
+            .browsers
+            .borrow()
+            .values()
+            .map(|(_, browser)| browser.clone())
+            .collect();
+        for browser in browsers {
+            let _ = browser.close();
+        }
     }
 
     /// Whether `browser` is the one in front.
