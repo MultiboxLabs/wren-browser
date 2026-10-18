@@ -37,13 +37,14 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { type ReactNode, useEffect, useState } from "react";
-import { browser, type ExtensionAction, extensions, type Site, site, type SitePermission } from "../../ipc";
+import { browser, type ExtensionAction, extensions, type Site, sidePanel, site, type SitePermission } from "../../ipc";
 import { Button, type Icon } from "../ui/button";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
 import { isNewTab } from "../../utils/url";
 import { InsecureIcon } from "../icons";
 import { type SidePanelId, sidePanels } from "../side-panel";
+import { useBrowser } from "../../state/browser";
 import type { Tab } from "../../state/space";
 import { cn } from "../../utils/cn";
 
@@ -57,24 +58,21 @@ export function PageInfo({
   tab,
   site: info,
   actions,
-  sidePanel,
-  onToggleSidePanel,
   onClose
 }: {
   tab?: Tab;
   site: Site | null;
   actions: ExtensionAction[];
-  sidePanel: string | null;
-  onToggleSidePanel: (panel: SidePanelId) => void;
   onClose: () => void;
 }) {
+  const openPanel = useBrowser().sidePanel?.id;
   return (
     <div className="flex w-66 flex-col p-2.5">
       <div className="grid grid-cols-4 grid-rows-[40px] gap-2">
         <CopyLinkTile disabled={!tab || isNewTab(tab.url)} onCopied={onClose} />
         {quickPanels.map((id) => {
           const panel = sidePanels.find((each) => each.id === id)!;
-          const open = sidePanel === id;
+          const open = openPanel === id;
           return (
             <Button
               key={id}
@@ -87,7 +85,8 @@ export function PageInfo({
               aria-pressed={open}
               onClick={() => {
                 onClose();
-                onToggleSidePanel(id);
+                if (open) sidePanel.close();
+                else sidePanel.show(id);
               }}
             />
           );

@@ -12,10 +12,9 @@ import { Anchor } from "../ui/anchor";
 import { Button } from "../ui/button";
 import { Popover } from "../ui/popover";
 import { address, isNewTab } from "../../utils/url";
-import { useExtensionActions, useShowingAnchors, useSite } from "../../state/browser";
+import { useBrowser, useExtensionActions, useSite } from "../../state/browser";
 import { PageInfoIcon } from "../icons";
 import { ExtensionIcon, PageInfo } from "./page-info";
-import type { SidePanelId } from "../side-panel";
 import type { Tab } from "../../state/space";
 
 /** What an empty address field says, and the omnibox's. */
@@ -23,16 +22,11 @@ export const SEARCH_PLACEHOLDER = "Search or Enter URL…";
 
 export function AddressField({
   tab,
-  sidePanel,
-  onToggleSidePanel,
   onPopoverOpenChange,
   ref,
   onOpenLocation
 }: {
   tab?: Tab;
-  /** The open side panel's ID, if one is open. */
-  sidePanel: string | null;
-  onToggleSidePanel: (panel: SidePanelId) => void;
   /** Whether the page info popover is open, which keeps the floating sidebar out. */
   onPopoverOpenChange: (open: boolean) => void;
   /** Its box, which the omnibox opens over. */
@@ -44,7 +38,7 @@ export function AddressField({
   const actions = useExtensionActions();
   // A button is pressed while what it opens is open: the popover, or one
   // of Chromium's bubbles hanging off its mark.
-  const showing = useShowingAnchors();
+  const { showing } = useBrowser();
   const [open, setOpen] = useState(false);
   useEffect(() => onPopoverOpenChange(open), [open]);
   return (
@@ -84,14 +78,7 @@ export function AddressField({
             <Button icon={PageInfoIcon} iconSize={18} label="Page Info" pressed={showing.includes("page-info")} />
           }
         >
-          <PageInfo
-            tab={tab}
-            site={site}
-            actions={actions}
-            sidePanel={sidePanel}
-            onToggleSidePanel={onToggleSidePanel}
-            onClose={() => setOpen(false)}
-          />
+          <PageInfo tab={tab} site={site} actions={actions} onClose={() => setOpen(false)} />
         </Popover>
       </Anchor>
     </div>

@@ -1,7 +1,8 @@
 // How the sidebar moves between the ways it is shown.
 
 import { animate, type MotionValue, useMotionValue, useReducedMotion, useTransform } from "motion/react";
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
+import { appWindow, hasApp } from "../../ipc";
 
 /**
  * How the sidebar is shown: docked beside the page
@@ -79,4 +80,26 @@ export function useSidebarMotion(presentation: Presentation, width: number) {
       visibility: useTransform(() => (floating.get() === 0 ? "hidden" : "visible"))
     }
   };
+}
+
+/**
+ * The window's buttons are in the sidebar's top row, centred on it, and
+ * move with it frame by frame: in and out with it, and further in as it
+ * floats. Hidden once the 72px they take is past the window's edge.
+ */
+export function useWindowButtons({ left, top }: { left: MotionValue<number>; top: MotionValue<number> }) {
+  useEffect(() => {
+    if (!hasApp) return;
+    const half = (value: number) => Math.round(value * 2) / 2;
+    let sent = { visible: false, x: NaN, y: NaN };
+    const update = () => {
+      const now = { visible: left.get() > -72, x: 13 + half(left.get()), y: 13 + half(top.get()) };
+      if (now.visible !== sent.visible) appWindow.setButtonsVisible(now.visible);
+      if (now.visible && (now.x !== sent.x || now.y !== sent.y)) appWindow.setButtonsPosition(now.x, now.y);
+      sent = now;
+    };
+    update();
+    const stops = [left.on("change", update), top.on("change", update)];
+    return () => stops.forEach((stop) => stop());
+  }, []);
 }

@@ -2,6 +2,8 @@
 // Browser's; until favourites and pinned tabs are real too, the one space and
 // those are made up here.
 
+import { createContext, type ReactNode, useContext, useState } from "react";
+
 /** A tab of the Browser, by its ID, or a made-up favourite or pinned one, by its address. */
 export type Tab = {
   id: number | string;
@@ -58,3 +60,29 @@ export const personal: Space = {
     tab("Inbox", "https://mail.example.com/inbox")
   ]
 };
+
+type SpaceState = {
+  /** The space shown in the window. */
+  space: Space;
+  /** Opens a folder of its pinned tabs, or closes it. */
+  toggleFolder: (folder: Folder) => void;
+};
+
+const SpaceContext = createContext<SpaceState | null>(null);
+
+export function SpaceProvider({ children }: { children: ReactNode }) {
+  const [space, setSpace] = useState<Space>(personal);
+  const toggleFolder = (folder: Folder) =>
+    setSpace((space) => ({
+      ...space,
+      pinned: space.pinned.map((item) => (item === folder ? { ...folder, open: !folder.open } : item))
+    }));
+  return <SpaceContext value={{ space, toggleFolder }}>{children}</SpaceContext>;
+}
+
+/** The space shown in the window, from the SpaceProvider around it. */
+export function useSpace() {
+  const state = useContext(SpaceContext);
+  if (!state) throw new Error("useSpace is used outside a SpaceProvider");
+  return state;
+}

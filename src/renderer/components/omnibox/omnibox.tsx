@@ -15,6 +15,7 @@ import { Favicon } from "../favicon";
 import { useOmniboxField } from "./field";
 import type { OmniboxTabs } from "./items";
 import { OmniboxIcon, OmniboxRow } from "./row";
+import { useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
 
 /** Where the omnibox is: at the address field's top left, or, without it in view, in the middle of the window. */
@@ -35,16 +36,17 @@ const PULSE_SCALE = 0.99;
 export function Omnibox({
   target,
   place,
-  tabs,
   onDone
 }: {
   target: OmniboxTarget;
   place: OmniboxPlace;
-  /** The window's tabs, listed while nothing is typed; the active one's favicon shows while the field holds its address. */
-  tabs: OmniboxTabs;
   /** It has closed, or opened what was chosen. */
   onDone: () => void;
 }) {
+  // The window's tabs, listed while nothing is typed; the active one's
+  // favicon shows while the field holds its address.
+  const { tabs: list, current } = useBrowser();
+  const tabs: OmniboxTabs = { list, active: current?.id };
   const input = useRef<HTMLInputElement>(null);
   const { field, items, value, ready, untouched, onChange, onKeyDown, open, close } = useOmniboxField(
     target,

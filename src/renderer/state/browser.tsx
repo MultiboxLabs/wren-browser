@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import {
   anchors,
   browser,
+  type BrowserTab,
   type BrowserTabs,
   type ExtensionAction,
   extensions,
@@ -11,15 +12,68 @@ import {
   type Site,
   sidePanel,
   site,
+  type TabGroup,
+  type TabSplit,
   type Toast,
   toast
 } from "../ipc";
 
+/** A tab of the Browser, with its favicon once the app has given it. */
+type BrowserTabWithFavicon = BrowserTab & { favicon?: string | null };
+
 /**
- * The window's tabs and their favicons, as the app last said. Null until
- * the window has its Browser, and outside the app (Vite in a browser).
+ * The window's Browser, as the app last said: what more than one part of
+ * the window shows, kept once for all of them.
  */
+type BrowserState = {
+  /**
+   * The Browser's ID, which names its side panel's element. Null until the
+   * window has its Browser, and outside the app (Vite in a browser).
+   */
+  id: number | null;
+  /** Its tabs, in its order. */
+  tabs: BrowserTabWithFavicon[];
+  groups: TabGroup[];
+  splits: TabSplit[];
+  /** The active tab. */
+  current?: BrowserTabWithFavicon;
+  /** The tab whose page has the whole window, if one has. */
+  fullScreen?: BrowserTabWithFavicon;
+  /** The open side panel, if one is. */
+  sidePanel: SidePanelState | null;
+  /** The page's marks that one of Chromium's bubbles hangs off now. */
+  showing: string[];
+};
+
+const BrowserContext = createContext<BrowserState | null>(null);
+
+export function BrowserProvider({ children }: { children: ReactNode }) {
+  const { tabs, favicons } = useTabs();
+  const panel = useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
+  const showing = useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
+  const list = (tabs?.tabs ?? []).map((tab) => ({ ...tab, favicon: favicons[tab.id] }));
+  const state: BrowserState = {
+    id: tabs?.browser ?? null,
+    tabs: list,
+    groups: tabs?.groups ?? [],
+    splits: tabs?.splits ?? [],
+    current: list.find((tab) => tab.id === tabs?.active),
+    fullScreen: list.find((tab) => tab.id === tabs?.fullScreen),
+    sidePanel: panel?.open && tabs ? panel : null,
+    showing
+  };
+  return <BrowserContext value={state}>{children}</BrowserContext>;
+}
+
+/** The window's Browser, from the BrowserProvider around it. */
 export function useBrowser() {
+  const state = useContext(BrowserContext);
+  if (!state) throw new Error("useBrowser is used outside a BrowserProvider");
+  return state;
+}
+
+/** The window's tabs and their favicons, as the app last said. */
+function useTabs() {
   const [tabs, setTabs] = useState<BrowserTabs | null>(null);
   const [favicons, setFavicons] = useState<Record<number, string | null>>({});
   const asked = useRef(new Set<number>());
@@ -53,17 +107,11 @@ export function useBrowser() {
   return { tabs, favicons };
 }
 
-/** The side panel, as the app last said; it opens from Chromium too. */
-export const useSidePanel = () => useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
-
 /** The active tab's site, as the app last said; null before it has shown a page. */
 export const useSite = () => useFromApp<Site | null>(site.state, site.onState) ?? null;
 
 /** The extensions' actions, as the app last said. */
 export const useExtensionActions = () => useFromApp<ExtensionAction[]>(extensions.actions, extensions.onActions) ?? [];
-
-/** The page's marks that one of Chromium's bubbles hangs off now. */
-export const useShowingAnchors = () => useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
 
 /** The toast showing, Chromium's or the app's own; null while there is none. */
 export const useToastShown = () => useFromApp<Toast | null>(toast.state, toast.onState) ?? null;
