@@ -214,6 +214,31 @@ function landing(scroller: HTMLElement, { id, scope, grab }: Dragged, x: number,
     };
   }
 
+  // On a collapsed group's heading, a tab goes in the group, at its end.
+  const folded = id.startsWith("tab:")
+    ? items.find(
+        (each) =>
+          each.kind === "folded" &&
+          Math.abs(y - (each.box.top + each.box.bottom) / 2) < ((each.box.bottom - each.box.top) * SPLIT_BAND) / 2
+      )
+    : undefined;
+  if (folded) {
+    const gap = folded.start + folded.size;
+    const index = gap > from ? gap - size : gap;
+    const { box } = folded;
+    return {
+      mark: {
+        kind: "box",
+        top: box.top - content.top,
+        left: box.left - content.left,
+        width: box.width,
+        height: box.height
+      },
+      index,
+      group: Number(folded.el.dataset.reorderId?.slice(6))
+    };
+  }
+
   // The gap nearest the pointer that the unit may take. A gap is in a group
   // between its tabs and just under its heading; past its last tab it is in
   // the group or out of it, which a tab decides by how far in it is held.
