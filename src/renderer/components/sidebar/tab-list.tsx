@@ -7,6 +7,7 @@ import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode,
 import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
 import { Button } from "../ui/button";
 import { press } from "../ui/press";
+import { Tooltip } from "../ui/tooltip";
 import { Favicon } from "../favicon";
 import type { OmniboxState } from "../omnibox/shown";
 import type { SidebarHold } from "./presentation";
@@ -260,7 +261,9 @@ function TabRow({
       onMiddlePress={closable ? () => onClose(tab) : undefined}
     >
       <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
-      <span className="min-w-0 flex-1 truncate">{tab.title}</span>
+      <Tooltip label={tab.title}>
+        <span className="min-w-0 flex-1 truncate">{tab.title}</span>
+      </Tooltip>
       {closable && <CloseButton onClose={() => onClose(tab)} />}
     </Row>
   );
@@ -396,7 +399,9 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
             )}
           >
             <Favicon url={tab.url} title={tab.title} src={tab.favicon} />
-            <span className="min-w-0 flex-1 truncate">{tab.title}</span>
+            <Tooltip label={tab.title}>
+              <span className="min-w-0 flex-1 truncate">{tab.title}</span>
+            </Tooltip>
             <CloseButton onClose={() => props.onClose(tab)} />
           </div>
         </div>
