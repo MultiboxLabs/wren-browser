@@ -6,6 +6,7 @@ showing pages written in React and Tailwind, built with Vite.
 ```
 src/main/            the main process (Rust)
   main.rs            startup
+  channel.rs         Stable, Beta or Dev: the app's name, logo and data folder
   app.rs             the app's state and Wren's callbacks
   ipc/               the main window's page's calls and messages, by part
   menus/             the main menu, and the menus the page asks for
@@ -32,6 +33,31 @@ bun run start   # build the renderer and the app, bundle Wren.app, and run it
 bun run dev     # the same pages, from Vite's dev server: edits show live
 bun run build   # just build and bundle Wren.app
 ```
+
+## Channels
+
+There are three, Stable, Beta and Dev, and all of them build `Wren.app`: one
+name and bundle ID, so a person can change channels and update in place. Pass
+`--channel stable|beta|dev` to `build` or `start`; Dev is the default.
+
+```sh
+bun run build --channel stable
+bun run start --channel beta --debug
+```
+
+What differs between them:
+
+- **Manifest:** `wren-app.json` (Stable), `wren-app.beta.json` and
+  `wren-app.dev.json`: the display name and icon.
+- **Branding:** `branding/<channel>.icon` is the app's icon, and
+  `branding/<channel>.png` the logo Chromium shows as the product's. After
+  changing an icon, render its PNG again (256 pixels or more).
+- **Data:** Stable and Beta share `~/Library/Application Support/Wren`; Dev has
+  `Wren Dev`.
+
+`scripts/build.ts` passes the channel to the compiler as `WREN_CHANNEL`, and
+`src/main/channel.rs` reads it for the product name, logo and data folder. A
+build made without it is Dev.
 
 ## Adding a page
 

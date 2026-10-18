@@ -2,6 +2,9 @@
   "name": "Wren",
   "displayName": "Wren",
   "bundleId": "dev.multibox.wren",
+  "version": "0.1.0",
+  "icon": "branding/stable.icon",
+  "copyright": "Copyright 2026 Multibox Labs. All rights reserved.",
   "wren": "0.1.0",
   "resources": ["dist/renderer"]
 }

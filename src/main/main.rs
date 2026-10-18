@@ -1,4 +1,5 @@
 mod app;
+mod channel;
 mod ipc;
 mod menus;
 mod pages;
@@ -11,14 +12,18 @@ use std::rc::Rc;
 use wren::{ExitStatus, Keychain, Scheme, SchemePrivileges, Startup};
 
 use crate::app::{State, Wren};
+use crate::channel::Channel;
 use crate::pages::{SCHEME, Source};
 
 fn main() {
+    let channel = Channel::current();
     let data = format!(
-        "{}/Library/Application Support/dev.multibox.wren",
-        std::env::var("HOME").unwrap()
+        "{}/Library/Application Support/{}",
+        std::env::var("HOME").unwrap(),
+        channel.data_folder()
     );
     let mut startup = Startup::new(data.clone(), Keychain::Mock);
+    channel.brand(&mut startup);
     startup.schemes = vec![Scheme::new(
         SCHEME,
         SchemePrivileges::STANDARD | SchemePrivileges::SECURE | SchemePrivileges::FETCH,

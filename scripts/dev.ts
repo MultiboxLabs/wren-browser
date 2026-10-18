@@ -2,15 +2,18 @@
 // the app fetches them from the server, so edits show without a rebuild.
 // Rerun after changing src/main.
 import { $ } from "bun";
+import { app, executable, manifestOf } from "./channel";
+
+const manifest = manifestOf("dev");
 
 const url = "http://localhost:5173";
 
-await $`wren install`;
+await $`wren install --manifest ${manifest}`;
 // wren bundle copies dist/renderer, so it must exist even though the app
 // fetches its pages from the dev server.
 await $`bunx vite build`.quiet();
-await $`cargo build`;
-await $`wren bundle --executable target/debug/wren-browser --manifest wren-app.json --output Wren.app`;
+await $`WREN_CHANNEL=dev cargo build`;
+await $`wren bundle --executable target/debug/wren-browser --manifest ${manifest} --output ${app}`;
 
 const vite = Bun.spawn(["bunx", "vite"], { stdout: "inherit", stderr: "inherit" });
 while (
@@ -26,20 +29,23 @@ while (
 // user and gives it the focus; as a child of the terminal it is left behind.
 // open has the app write to this terminal, and Ctrl-C stops it by hand, as it
 // is not in the terminal's process group.
-const bundle = `${process.cwd()}/Wren.app`;
+const bundle = `${process.cwd()}/${app}`;
 const terminal = await new Response(Bun.spawn(["tty"], { stdin: "inherit", stdout: "pipe" }).stdout).text();
 const output = terminal.trim().startsWith("/dev/") ? terminal.trim() : "/dev/null";
 const stop = async () => {
-  await $`pkill -INT -f ${bundle}/Contents/MacOS/Wren`.nothrow().quiet();
+  await $`pkill -INT -f ${bundle}/Contents/MacOS/${executable}`.nothrow().quiet();
   vite.kill();
   process.exit();
 };
 process.on("SIGINT", stop);
 
-const app = Bun.spawn(["open", "-W", bundle, "--env", `WREN_DEV_URL=${url}`, "--stdout", output, "--stderr", output], {
-  stdout: "inherit",
-  stderr: "inherit"
-});
+const running = Bun.spawn(
+  ["open", "-W", bundle, "--env", `WREN_DEV_URL=${url}`, "--stdout", output, "--stderr", output],
+  {
+    stdout: "inherit",
+    stderr: "inherit"
+  }
+);
 
-await app.exited;
+await running.exited;
 vite.kill();

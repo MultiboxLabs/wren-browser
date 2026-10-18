@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Wren</title>
+  <defs>
+    <mask id="wren-tail-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <path d="M466 228 L 424 238 C 438 322 368 424 262 424 C 200 424 152 384 152 320 C 152 228 262 152 356 152 C 394 152 420 172 426 194 L 466 206 C 482 210 482 226 466 228 Z" fill="#000" stroke="#000" stroke-width="32" stroke-linejoin="round"/>
+    </mask>
+    <mask id="wren-body-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <path d="M332 262 C 324 330 262 366 132 352 C 190 300 262 262 332 262 Z" fill="#000" stroke="#000" stroke-width="32" stroke-linejoin="round"/>
+      <circle cx="360" cy="206" r="17" fill="#000"/>
+    </mask>
+  </defs>
+  <g transform="translate(-45 -12)" fill="#0a0a0a">
+    <g mask="url(#wren-tail-cut)"><path d="M226 270 C 206 226 178 172 150 120 C 144 108 128 110 126 124 C 116 196 140 258 182 304 Z"/></g>
+    <g mask="url(#wren-body-cut)"><path d="M466 228 L 424 238 C 438 322 368 424 262 424 C 200 424 152 384 152 320 C 152 228 262 152 356 152 C 394 152 420 172 426 194 L 466 206 C 482 210 482 226 466 228 Z"/></g>
+    <path d="M332 262 C 324 330 262 366 132 352 C 190 300 262 262 332 262 Z"/>
+  </g>
+</svg>

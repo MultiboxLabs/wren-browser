@@ -24,7 +24,7 @@ Wren Browser is a modern, privacy-focused browser with a minimalistic design.
   Run it before committing.
 - `bun run format` runs Prettier.
 - `bun run dev` runs the pages from Vite's dev server; `bun run start` builds
-  and runs `Wren.app`.
+  and runs `Wren.app`; `build` and `start` take `--channel stable|beta|dev`.
 
 ## Conventions
 
