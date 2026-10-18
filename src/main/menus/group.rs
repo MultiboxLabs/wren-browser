@@ -74,6 +74,15 @@ const COLORS: [TabGroupColor; 9] = [
     TabGroupColor::Orange,
 ];
 
+/// The colour fewest of `used` have, the first of the menu's on a tie: what a
+/// new group takes, so that groups next to each other are told apart.
+pub fn least_used_color(used: &[TabGroupColor]) -> TabGroupColor {
+    COLORS
+        .into_iter()
+        .min_by_key(|color| used.iter().filter(|used| *used == color).count())
+        .unwrap_or(TabGroupColor::Grey)
+}
+
 /// A group colour's name, for the page, which has a colour for each.
 pub fn color_name(color: TabGroupColor) -> &'static str {
     match color {

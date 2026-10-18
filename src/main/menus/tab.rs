@@ -95,7 +95,7 @@ pub fn show_tab_menu(
                 copy(&tab.url());
                 Ok(())
             }
-            Some("new-group") => BrowserTab::group(mt, &[tab]).map(drop),
+            Some("new-group") => tabs::new_group(mt, &browser, &[tab]).map(drop),
             Some("ungroup") => BrowserTab::ungroup(mt, &[tab]),
             Some("split") => match active {
                 Some(active) => active.split_with(tab, SplitLayout::SideBySide).map(drop),

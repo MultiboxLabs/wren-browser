@@ -153,6 +153,37 @@ pub fn move_split(browser: &Browser, split: TabSplit, to: usize) -> Result<(), E
     moved.and(joined)
 }
 
+/// Puts `tabs` in a new group, which is named "Group 1", "Group 2" and so on
+/// and takes the colour the Browser's groups use least, so it is never left
+/// untitled and grey.
+pub fn new_group(
+    mt: MainThread,
+    browser: &Browser,
+    tabs: &[BrowserTab],
+) -> Result<TabGroup, Error> {
+    let groups: Vec<_> = browser
+        .tabs()
+        .into_iter()
+        .filter_map(|tab| tab.state().ok()?.group)
+        .collect();
+    let used: Vec<_> = groups
+        .iter()
+        .filter_map(|group| Some(group.visuals().ok()?.0))
+        .collect();
+    let titles: Vec<_> = groups.iter().map(|group| group.title()).collect();
+    // The lowest number no group has taken.
+    let number = (1..)
+        .find(|number| !titles.contains(&format!("Group {number}")))
+        .unwrap_or(1);
+    let group = BrowserTab::group(mt, tabs)?;
+    group.set_visuals(
+        &format!("Group {number}"),
+        menus::least_used_color(&used),
+        false,
+    )?;
+    Ok(group)
+}
+
 /// Moves a group's tabs to `to`, the first's index. Chromium keeps a group's
 /// tabs where they are, so they are taken out of it and put in a new group
 /// with the old one's title, colour and fold.

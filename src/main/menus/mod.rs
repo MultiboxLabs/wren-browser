@@ -11,7 +11,7 @@ use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
 use objc2_foundation::NSString;
 use wren::{ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifiers, MenuRole};
 
-pub use group::{color_name, show_group_menu};
+pub use group::{color_name, least_used_color, show_group_menu};
 pub use site::{show_permission_menu, show_site_menu};
 pub use tab::show_tab_menu;
 
