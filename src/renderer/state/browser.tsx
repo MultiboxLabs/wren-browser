@@ -6,6 +6,9 @@ import {
   type BrowserTabs,
   type ExtensionAction,
   extensions,
+  find,
+  type FindBar,
+  type FindShown,
   follow,
   hasApp,
   type SidePanelState,
@@ -43,6 +46,20 @@ type BrowserState = {
   sidePanel: SidePanelState | null;
   /** The page's marks that one of Chromium's bubbles hangs off now. */
   showing: string[];
+  /** The find open in the active tab, null while there is none. */
+  find: FindState | null;
+};
+
+/**
+ * The find open, and how it was last opened. Kept here, not by the bar,
+ * which comes and goes as the active side of a split does.
+ */
+export type FindState = {
+  bar: FindBar;
+  /** The last opening: each is its own, so one asked for again is heard. Null before one. */
+  request: (FindShown & { key: number }) | null;
+  /** Takes the request's work (the field's text, its focus), once: true to the first bar to ask for it. */
+  claim: () => boolean;
 };
 
 const BrowserContext = createContext<BrowserState | null>(null);
@@ -51,6 +68,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const { tabs, favicons } = useTabs();
   const panel = useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
   const showing = useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
+  const find = useFind();
   const list = (tabs?.tabs ?? []).map((tab) => ({ ...tab, favicon: favicons[tab.id] }));
   const state: BrowserState = {
     id: tabs?.browser ?? null,
@@ -60,7 +78,8 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     current: list.find((tab) => tab.id === tabs?.active),
     fullScreen: list.find((tab) => tab.id === tabs?.fullScreen),
     sidePanel: panel?.open && tabs ? panel : null,
-    showing
+    showing,
+    find
   };
   return <BrowserContext value={state}>{children}</BrowserContext>;
 }
@@ -70,6 +89,21 @@ export function useBrowser() {
   const state = useContext(BrowserContext);
   if (!state) throw new Error("useBrowser is used outside a BrowserProvider");
   return state;
+}
+
+/** The find open in the active tab, and how it opened; null while there is none. */
+function useFind(): FindState | null {
+  const bar = useFromApp<FindBar | null>(find.state, find.onState);
+  const [request, setRequest] = useState<FindState["request"]>(null);
+  const asked = useRef(0);
+  const claimed = useRef(0);
+  useEffect(() => (hasApp ? find.onShow((shown) => setRequest({ ...shown, key: ++asked.current })) : undefined), []);
+  const claim = () => {
+    if (!request || claimed.current === request.key) return false;
+    claimed.current = request.key;
+    return true;
+  };
+  return bar ? { bar, request, claim } : null;
 }
 
 /** The window's tabs and their favicons, as the app last said. */

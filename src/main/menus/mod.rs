@@ -80,6 +80,11 @@ pub fn set_main_menu(mt: MainThread) {
                 MenuItem::role(MenuRole::PasteAndMatchStyle),
                 MenuItem::role(MenuRole::Delete),
                 MenuItem::role(MenuRole::SelectAll),
+                MenuItem::Separator,
+                // Each opens the page's find bar.
+                MenuItem::chromium(Command::Find),
+                MenuItem::chromium(Command::FindNext),
+                MenuItem::chromium(Command::FindPrevious),
             ],
         ),
         MenuItem::submenu(

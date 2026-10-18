@@ -5,6 +5,7 @@
 mod anchors;
 mod browser;
 mod extensions;
+mod find;
 mod groups;
 mod menu;
 mod omnibox;
@@ -29,6 +30,7 @@ use crate::window::{BrowserWindow, WindowId};
 pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_tabs};
 pub use extensions::send_extensions;
+pub use find::{send_find, send_show_find};
 pub use menu::send_toggle_sidebar;
 pub use omnibox::{OmniboxTarget, send_omnibox, send_show_omnibox};
 pub use side_panel::send_side_panel;
@@ -69,6 +71,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     extensions::handle(web_view, window);
     anchors::handle(web_view, window);
     omnibox::handle(web_view, window);
+    find::handle(web_view, window);
     toast::handle(web_view, window);
 }
 
@@ -116,6 +119,14 @@ fn menu_call<Id: DeserializeOwned>(
     });
     if let Err(error) = show(view, &browser, at, done) {
         eprintln!("Wren showed no menu: {error}");
+    }
+}
+
+// The active tab's page has the keyboard back, as the omnibox or the find
+// bar closes.
+fn give_back_keyboard(browser: &Browser) {
+    if let Some(tab) = browser.active_tab() {
+        let _ = tab.focus();
     }
 }
 

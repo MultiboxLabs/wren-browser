@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use wren::{
     App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
-    PopoverRequest, Profile,
+    PopoverRequest, PopoverTrigger, Profile,
 };
 
 use crate::changes;
@@ -333,22 +333,30 @@ impl App for Wren {
         };
     }
 
-    // Toasts are the page's, at the window's top right: Chromium's
-    // and the app's own alike. The page hears of one once Chromium's call
-    // is over, when the request is open. The rest of Chromium's popovers
-    // are its own still.
+    // Toasts and the find bar are the page's: the toast at the window's top
+    // right, Chromium's and the app's own alike, and the bar at the active
+    // tab's. The page hears of one once Chromium's call is over, when the
+    // request is open. The rest of Chromium's popovers are its own still.
     fn popover(&self, mt: MainThread, request: &PopoverRequest) -> PopoverAnswer {
-        if request.kind != PopoverKind::Toast {
+        if !matches!(request.kind, PopoverKind::Toast | PopoverKind::Find) {
             return PopoverAnswer::Chromium;
         }
         let state = Rc::downgrade(&self.state);
         let browser = request.browser.clone();
+        let kind = request.kind;
+        let tab = request.tab;
+        // A find the user opened takes the keyboard; one that comes back
+        // with its tab does not.
+        let focus = request.trigger != PopoverTrigger::Automatic;
         mt.later(move |_| {
             let Some(state) = state.upgrade() else { return };
             if let Some(window) = state.windows.of(&browser)
                 && window.is_front(&browser)
             {
-                ipc::send_toast(&window, &browser);
+                match kind {
+                    PopoverKind::Find => ipc::send_show_find(&window, &browser, tab, focus),
+                    _ => ipc::send_toast(&window, &browser),
+                }
             }
         });
         PopoverAnswer::App

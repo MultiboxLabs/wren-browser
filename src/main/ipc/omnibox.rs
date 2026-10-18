@@ -9,7 +9,7 @@ use wren::{
     SuggestionText, WebView,
 };
 
-use super::{WindowRef, failed, png_url, with_browser};
+use super::{WindowRef, failed, give_back_keyboard, png_url, with_browser};
 use crate::window::BrowserWindow;
 
 /// What the page asks suggestions for.
@@ -206,13 +206,6 @@ pub fn send_show_omnibox(window: &BrowserWindow, target: OmniboxTarget, toggles:
         .page
         .web_view
         .send("omnibox.show", &Show { target, toggles });
-}
-
-// The active tab's page has the keyboard back, as the omnibox closes.
-fn give_back_keyboard(browser: &Browser) {
-    if let Some(tab) = browser.active_tab() {
-        let _ = tab.focus();
-    }
 }
 
 // A new tab goes at the top of the sidebar's list, where Chromium's would

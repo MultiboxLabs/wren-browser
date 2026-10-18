@@ -3,6 +3,7 @@
 // has the window to itself, without its card.
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
+import { FindBar } from "./find-bar";
 import { LoadingBar } from "./loading-bar";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
@@ -28,11 +29,22 @@ export function TabView({
   const first = split && tabs.find((each) => each.id === split.first);
   const second = split && tabs.find((each) => each.id === split.second);
   if (fullScreen || !split || !first || !second)
-    return <TabPane tab={tab} fullScreen={fullScreen} className="flex-1" />;
-  return <SplitPanes split={split} first={first} second={second} />;
+    return <TabPane tab={tab} active fullScreen={fullScreen} className="flex-1" />;
+  return <SplitPanes split={split} first={first} second={second} active={tab.id} />;
 }
 
-function SplitPanes({ split, first, second }: { split: TabSplit; first: BrowserTab; second: BrowserTab }) {
+function SplitPanes({
+  split,
+  first,
+  second,
+  active
+}: {
+  split: TabSplit;
+  first: BrowserTab;
+  second: BrowserTab;
+  /** The active tab's ID: the find bar is on its side. */
+  active: number;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(0);
   // The user's drag, ahead of Chromium's word on it.
@@ -51,7 +63,11 @@ function SplitPanes({ split, first, second }: { split: TabSplit; first: BrowserT
   const room = Math.max(0, size - DIVIDER);
   return (
     <div ref={box} className={cn("flex min-h-0 min-w-0 flex-1", split.stacked && "flex-col")}>
-      <TabPane tab={first} style={{ flex: `0 0 calc((100% - ${DIVIDER}px) * ${ratio})` }} />
+      <TabPane
+        tab={first}
+        active={first.id === active}
+        style={{ flex: `0 0 calc((100% - ${DIVIDER}px) * ${ratio})` }}
+      />
       <ResizeHandle
         width={Math.round(room * ratio)}
         range={{ min: SIDE_MIN, max: Math.max(SIDE_MIN, room - SIDE_MIN) }}
@@ -69,18 +85,21 @@ function SplitPanes({ split, first, second }: { split: TabSplit; first: BrowserT
           setDragged(null);
         }}
       />
-      <TabPane tab={second} className="flex-1" />
+      <TabPane tab={second} active={second.id === active} className="flex-1" />
     </div>
   );
 }
 
 function TabPane({
   tab,
+  active,
   fullScreen = false,
   className,
   style
 }: {
   tab: BrowserTab;
+  /** The active tab's, which the find bar is on. */
+  active: boolean;
   fullScreen?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -92,6 +111,7 @@ function TabPane({
         <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block" />
         {tab.crashed && <Crashed tab={tab} />}
       </div>
+      {active && <FindBar tab={tab.id} />}
     </div>
   );
 }

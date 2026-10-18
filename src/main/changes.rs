@@ -48,8 +48,13 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) {
             ChangeKind::Anchors => ipc::send_anchors(window, &browser),
             ChangeKind::Omnibox => ipc::send_omnibox(window, &browser),
             // One the app answered has gone: Chromium's time for it is
-            // up, the tab switched, or another came.
-            ChangeKind::Popover => ipc::send_toast(window, &browser),
+            // up, the tab switched, or another came. A find going is a
+            // popover going.
+            ChangeKind::Popover => {
+                ipc::send_toast(window, &browser);
+                ipc::send_find(window, &browser);
+            }
+            ChangeKind::Find => ipc::send_find(window, &browser),
             ChangeKind::Tab => {
                 let Some(tab) = change.tab else { continue };
                 tabs_changed |= change.tab_fields.intersects(drawn);

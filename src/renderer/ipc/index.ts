@@ -5,6 +5,7 @@ export * from "./anchors";
 export * from "./app";
 export * from "./browser";
 export * from "./extensions";
+export * from "./find";
 export * from "./follow";
 export * from "./groups";
 export * from "./menu";
