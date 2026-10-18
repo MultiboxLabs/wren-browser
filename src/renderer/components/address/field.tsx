@@ -48,7 +48,12 @@ export function AddressField({
   const [open, setOpen] = useState(false);
   useEffect(() => onPopoverOpenChange(open), [open]);
   return (
-    <div ref={ref} className="no-drag mt-0.5 flex h-9 shrink-0 items-center rounded-field bg-fill pr-1 text-fg-2">
+    // Lit while its address is hovered, as a favourite is; its own buttons
+    // light themselves.
+    <div
+      ref={ref}
+      className="no-drag mt-0.5 flex h-9 shrink-0 items-center rounded-field bg-fill pr-1 text-fg-2 has-[>[role=button]:hover]:bg-hover"
+    >
       <div
         role="button"
         tabIndex={-1}
