@@ -52,12 +52,14 @@ struct Open {
 }
 
 /// How a suggestion opens: in the active tab, in a new one at the top of
-/// the sidebar's list, or by switching to the tab that has its page.
+/// the sidebar's list (shown, or behind the active one), or by switching to the tab that has its page.
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
 enum Disposition {
     Current,
     NewTab,
+    BackgroundTab,
+    NewWindow,
     Switch,
 }
 
@@ -141,6 +143,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     });
 
     // Opens a suggestion, then clears the list, as Chrome reverts its field.
+    // One opened in the background leaves the omnibox as it is.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.open", move |open: Open| {
         with_browser(&weak, |_, browser| {
@@ -149,15 +152,29 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
                 Disposition::Current => {
                     browser.open_suggestion(result, index, OpenDisposition::CurrentTab)
                 }
-                Disposition::NewTab => open_in_new_tab(browser, result, index),
+                Disposition::NewTab => {
+                    open_in_new_tab(browser, result, index, OpenDisposition::NewTab)
+                }
+                Disposition::BackgroundTab => {
+                    open_in_new_tab(browser, result, index, OpenDisposition::BackgroundTab)
+                }
+                Disposition::NewWindow => {
+                    browser.open_suggestion(result, index, OpenDisposition::NewWindow)
+                }
                 Disposition::Switch => {
                     browser.open_suggestion(result, index, OpenDisposition::SwitchToTab)
                 }
             };
+            if matches!(open.disposition, Disposition::BackgroundTab) {
+                return opened.map_err(failed);
+            }
             let _ = browser.omnibox_stop();
             opened.map_err(failed)?;
-            // A new tab gets it as it arrives in its element (App::changed).
-            give_back_keyboard(browser);
+            // A new tab gets it as it arrives in its element (App::changed),
+            // and a new window as it is shown.
+            if !matches!(open.disposition, Disposition::NewWindow) {
+                give_back_keyboard(browser);
+            }
             Ok(())
         })
     });
@@ -214,9 +231,10 @@ fn open_in_new_tab(
     browser: &Browser,
     result: OmniboxResult,
     index: usize,
+    disposition: OpenDisposition,
 ) -> Result<(), wren::Error> {
     let before = browser.tabs();
-    browser.open_suggestion(result, index, OpenDisposition::NewTab)?;
+    browser.open_suggestion(result, index, disposition)?;
     match browser.tabs().into_iter().find(|tab| !before.contains(tab)) {
         Some(tab) => tab.move_to(0),
         None => Ok(()),

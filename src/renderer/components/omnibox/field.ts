@@ -15,7 +15,7 @@ import {
   useState
 } from "react";
 import { type OmniboxTarget, omnibox, type Suggestion, type Suggestions } from "../../ipc";
-import { defaultIndex, fillOf, itemsOf, type OmniboxTabs, openItem } from "./items";
+import { defaultIndex, fillOf, itemsOf, type OmniboxTabs, type OpenHow, openHowOf, openItem } from "./items";
 
 /** The search engine whose chip the field shows: Chromium's keyword for it, and its name. */
 export type Keyword = { keyword: string; name: string };
@@ -171,7 +171,7 @@ export function useOmniboxField(
     done.current = true;
     omnibox.close().then(onDone, onDone);
   };
-  const open = async (index: number | null, newTab = false) => {
+  const open = async (index: number | null, how: OpenHow = "default") => {
     if (done.current) return;
     // Return as soon as the text is typed opens what Chromium suggests for
     // it, not for what was there before.
@@ -180,8 +180,17 @@ export function useOmniboxField(
     const { items, first } = listOf(field, latestTabs.current);
     const item = items[index ?? (field.moved ? field.selected : first)];
     if (!item || done.current) return;
+    if (how === "background-tab") {
+      // The omnibox stays as it is, for the next one; Chromium's list is
+      // spent by this one, so it is asked again.
+      openItem(item, field.suggestions?.result, target, how).then(
+        () => ask(latest.current.typed, { noInline: true, onFocus: isIdle(latest.current) }),
+        () => {}
+      );
+      return;
+    }
     done.current = true;
-    openItem(item, field.suggestions?.result, target, newTab).then(onDone, onDone);
+    openItem(item, field.suggestions?.result, target, how).then(onDone, onDone);
   };
 
   const onChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -258,7 +267,14 @@ export function useOmniboxField(
       else move(event.shiftKey ? -1 : 1);
     } else if (key === "Enter") {
       event.preventDefault();
-      open(null, event.metaKey || event.altKey);
+      // Ctrl-Return completes a bare word to "www.word.com", as Chrome's does.
+      const { typed } = latest.current;
+      if (ctrl && !moved && !keyword && /^[^\s./:]+$/.test(typed.trim())) {
+        const address = `www.${typed.trim()}.com`;
+        update((field) => ({ ...field, typed: address, inline: "" }));
+        ask(address, { noInline: true });
+      }
+      open(null, openHowOf(event));
     } else if (key === "Escape") {
       event.preventDefault();
       revert();

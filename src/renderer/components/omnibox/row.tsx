@@ -18,7 +18,7 @@ import {
 import { useLayoutEffect, useRef } from "react";
 import type { OmniboxTarget, Suggestion, SuggestionKind } from "../../ipc";
 import { Favicon } from "../favicon";
-import { type OmniboxItem, switchesToTab } from "./items";
+import { type OmniboxItem, type OpenHow, openHowOf, switchesToTab } from "./items";
 import { cn } from "../../utils/cn";
 
 export function OmniboxRow({
@@ -31,7 +31,7 @@ export function OmniboxRow({
   target: OmniboxTarget;
   selected: boolean;
   /** A click, with ⌘ or ⌥ (or the middle button) for a new tab. */
-  onOpen: (newTab: boolean) => void;
+  onOpen: (how: OpenHow) => void;
 }) {
   // Said only for a new tab: over the address, the narrow list
   // keeps to the titles, though an open tab's still switches.
@@ -52,8 +52,8 @@ export function OmniboxRow({
       // The field keeps the keyboard.
       onMouseDown={(event) => event.preventDefault()}
       // Opens on release, as a list's row does.
-      onClick={(event) => onOpen(event.metaKey || event.altKey)}
-      onAuxClick={(event) => event.button === 1 && onOpen(true)}
+      onClick={(event) => onOpen(openHowOf(event))}
+      onAuxClick={(event) => event.button === 1 && onOpen("new-tab")}
       className={cn(
         "flex h-11.5 shrink-0 items-center gap-2.25 rounded-omnibox-row pr-3 pl-2.5 text-omnibox-row font-medium",
         selected ? "bg-omnibox-selected text-white" : "text-omnibox-fg hover:bg-omnibox-hover"

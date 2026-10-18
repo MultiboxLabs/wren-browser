@@ -53,8 +53,8 @@ export type OmniboxQuery = {
  */
 export type OmniboxTarget = "new-tab" | "current";
 
-/** How a suggestion opens: in the active tab, a new one, or by switching to the tab that has it. */
-export type OpenDisposition = "current" | "new-tab" | "switch";
+/** How a suggestion opens: in the active tab, a new one (shown, or behind the active one), a new window, or by switching to the tab that has it. */
+export type OpenDisposition = "current" | "new-tab" | "background-tab" | "new-window" | "switch";
 
 export const omnibox = {
   /** The active tab's address to edit, or "" on a page with none to show. */

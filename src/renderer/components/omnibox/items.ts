@@ -57,29 +57,48 @@ export const switchesToTab = (item: OmniboxItem, target: OmniboxTarget) =>
   item.type === "tab" || dispositionFor(item.suggestion, target) === "switch";
 
 /**
- * How a suggestion opens: one whose page is open in a tab switches to it,
- * if it is an open tab or the omnibox is for a new one;
- * otherwise in a new tab or the active one, as `target` (or ⌘ or ⌥ held)
- * says.
+ * Where the user asked for a row to open, besides the omnibox's own target:
+ * ⌥ or ⇧⌘ for a new tab, ⌘ for one behind the active tab, ⇧ for a new window.
  */
-function dispositionFor(suggestion: Suggestion, target: OmniboxTarget, newTab = false): OpenDisposition {
-  if (suggestion.hasTab && (suggestion.kind === "open-tab" || target === "new-tab")) return "switch";
-  return target === "new-tab" || newTab ? "new-tab" : "current";
+export type OpenHow = "default" | "new-tab" | "background-tab" | "new-window";
+
+/** The `OpenHow` of the modifiers held as a row is chosen, with Return or a click. */
+export function openHowOf(event: { metaKey: boolean; altKey: boolean; shiftKey: boolean }): OpenHow {
+  if (event.metaKey) return event.shiftKey ? "new-tab" : "background-tab";
+  if (event.shiftKey) return "new-window";
+  return event.altKey ? "new-tab" : "default";
 }
 
 /**
- * Opens a row, settled once it is open and the omnibox closed. A suggestion
+ * How a suggestion opens: in a new window or a tab behind the active one if
+ * `how` says so; otherwise one whose page is open in a tab switches to it, if it is an open tab or the
+ * omnibox is for a new one; otherwise in a new tab or the active one, as
+ * `target` (or `how`) says.
+ */
+function dispositionFor(suggestion: Suggestion, target: OmniboxTarget, how: OpenHow = "default"): OpenDisposition {
+  if (how === "new-window" || how === "background-tab") return how;
+  if (suggestion.hasTab && (suggestion.kind === "open-tab" || target === "new-tab")) return "switch";
+  return target === "new-tab" || how === "new-tab" ? "new-tab" : "current";
+}
+
+/**
+ * Opens a row, settled once it is open and, unless it opens behind the active
+ * tab, the omnibox closed. A suggestion
  * opens as Chrome opens it, so history and search engines learn from it;
  * `result` is the set it was read from. A tab is switched to; the active
  * one's address, untouched, loads again, as Return does in Chrome's field.
+ * Nothing opens behind the active tab from a tab's row: it is open already.
  */
-export function openItem(item: OmniboxItem, result: string | undefined, target: OmniboxTarget, newTab: boolean) {
+export function openItem(item: OmniboxItem, result: string | undefined, target: OmniboxTarget, how: OpenHow) {
   if (item.type === "suggestion") {
     return result === undefined
-      ? omnibox.close()
-      : omnibox.open(result, item.index, dispositionFor(item.suggestion, target, newTab));
+      ? how === "background-tab"
+        ? Promise.resolve()
+        : omnibox.close()
+      : omnibox.open(result, item.index, dispositionFor(item.suggestion, target, how));
   }
   const { tab } = item;
+  if (how === "background-tab") return Promise.resolve();
   const shown =
     typeof tab.id !== "number"
       ? Promise.resolve(null)

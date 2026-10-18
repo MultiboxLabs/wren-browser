@@ -186,7 +186,7 @@ export function Omnibox({
                   item={item}
                   target={target}
                   selected={index === field.selected}
-                  onOpen={(newTab) => open(index, newTab)}
+                  onOpen={(how) => open(index, how)}
                 />
               ))}
             </div>
