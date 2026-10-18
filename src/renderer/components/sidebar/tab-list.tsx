@@ -368,6 +368,7 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
     <motion.div
       {...press(0.985)}
       role="group"
+      data-active-tab={active ? "" : undefined}
       style={{ marginLeft: props.indent }}
       className={cn(
         "no-drag group flex h-9 shrink-0 items-center rounded-row p-1",
@@ -381,7 +382,6 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
             role="button"
             tabIndex={-1}
             aria-pressed={tab.id === selected}
-            data-active-tab={tab.id === selected ? "" : undefined}
             {...pressHandlers(
               () => props.onSelect(tab),
               () => props.onClose(tab)
