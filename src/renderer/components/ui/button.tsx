@@ -3,7 +3,7 @@
 // pressed while what it opens is open, and dims while disabled.
 
 import { type HTMLMotionProps, motion } from "motion/react";
-import type { ComponentType, ReactNode } from "react";
+import { type ComponentType, isValidElement, type ReactElement, type ReactNode } from "react";
 import { press } from "./press";
 import { Tooltip } from "./tooltip";
 import { cn } from "../../utils/cn";
@@ -30,7 +30,9 @@ type ButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
   variant?: ButtonVariant;
   /** `square` without text, `text` with it. */
   shape?: ButtonShape;
-  icon?: Icon;
+  /** An Icon, or an element that draws its own (one animating between two). */
+  icon?: Icon | ReactElement;
+  /** The size `icon` is drawn at, when it is an Icon. */
   iconSize?: number;
   /**
    * The icon's tone: the variant's (`plain` dim, as a toolbar's; the rest
@@ -115,7 +117,7 @@ export function Button({
       >
         {Icon && (
           <span className={cn("grid", tone, "group-disabled/button:glyph-4")}>
-            <Icon size={iconSize} strokeWidth={1.75} />
+            {isValidElement(Icon) ? Icon : <Icon size={iconSize} strokeWidth={1.75} />}
           </span>
         )}
         {children}

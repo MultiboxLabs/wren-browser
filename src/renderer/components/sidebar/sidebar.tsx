@@ -67,7 +67,39 @@ export type SidebarProps = {
 // the gap, in 0.12s.
 const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
 
+// Stop's cross grows in where reload's icon was, which goes at once, and
+// shrinks away before reload's comes back; one is shown at a time.
+const stopMotion = {
+  initial: { opacity: 0, scale: 0.8 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.8 },
+  transition: { duration: 0.2 }
+} as const;
+
 const shortcut = (key: string) => (document.documentElement.dataset.platform === "mac" ? `⌘${key}` : `Ctrl+${key}`);
+
+/** Reload, which turns into stop while the active tab loads. */
+function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReload: () => void; onStop: () => void }) {
+  return (
+    <Button
+      icon={
+        <AnimatePresence mode="wait" initial={false}>
+          {loading ? (
+            <motion.span key="stop" className="grid" {...stopMotion}>
+              <StopIcon size={15} />
+            </motion.span>
+          ) : (
+            <span key="reload" className="grid">
+              <ReloadIcon size={15} />
+            </span>
+          )}
+        </AnimatePresence>
+      }
+      label={loading ? "Stop" : "Reload"}
+      onClick={loading ? onStop : onReload}
+    />
+  );
+}
 
 export function Sidebar(props: SidebarProps) {
   const { space, tabs, selected, onSelect } = props;
@@ -98,11 +130,7 @@ export function Sidebar(props: SidebarProps) {
             disabled={!props.canGoForward}
             onClick={props.onForward}
           />
-          {props.loading ? (
-            <Button icon={StopIcon} label="Stop" iconSize={15} onClick={props.onStop} />
-          ) : (
-            <Button icon={ReloadIcon} label="Reload" iconSize={15} onClick={props.onReload} />
-          )}
+          <ReloadButton loading={props.loading} onReload={props.onReload} onStop={props.onStop} />
         </div>
       </div>
 
