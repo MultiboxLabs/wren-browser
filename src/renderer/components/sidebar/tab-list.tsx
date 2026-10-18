@@ -59,14 +59,15 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
   const { space, toggleFolder } = useSpace();
   const { tabs, groups: tabGroups, splits, current } = useBrowser();
   const [renaming, setRenaming] = useState<string | null>(null);
-  // The omnibox for a new tab is open: the New Tab row shows as selected.
+  // The omnibox for a new tab is open: the New Tab row shows as selected,
+  // and the tab we are on does not.
   const newTabOpen = omnibox.shown?.target === "new-tab";
   const groupKey = useGroupKeys(tabs, tabGroups);
   const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join());
   const scroller = useRef<HTMLDivElement>(null);
   useRevealActive(scroller, current?.id);
   const props: ListProps = {
-    selected: current?.id,
+    selected: newTabOpen ? undefined : current?.id,
     splits,
     onSelect: selectTab,
     onClose: (tab) => {
