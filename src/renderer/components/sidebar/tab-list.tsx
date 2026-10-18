@@ -16,6 +16,7 @@ import { cn } from "../../utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { useGroupKeys } from "./keys";
 import { useTabReorder } from "./reorder";
+import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
@@ -61,6 +62,8 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
   const newTabOpen = omnibox.shown?.target === "new-tab";
   const groupKey = useGroupKeys(tabs, tabGroups);
   const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join());
+  const scroller = useRef<HTMLDivElement>(null);
+  useRevealActive(scroller, current?.id);
   const props: ListProps = {
     selected: current?.id,
     splits,
@@ -89,7 +92,11 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
   };
 
   return (
-    <div {...handlers} className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]">
+    <div
+      {...handlers}
+      ref={scroller}
+      className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]"
+    >
       {/* Room after the last tab, as the list scrolls to: it does not end at the
           footer, and a tab can be dropped below the last. */}
       <div className="relative flex flex-col gap-1.25 pb-8">
@@ -174,6 +181,7 @@ function pressHandlers(onPress?: () => void, onMiddlePress?: () => void) {
 
 function Row({
   selected,
+  active,
   indent = 0,
   className,
   onPress,
@@ -183,6 +191,8 @@ function Row({
   children
 }: {
   selected?: boolean;
+  /** The row of the active tab, which the list scrolls to. */
+  active?: boolean;
   indent?: number;
   className?: string;
   onPress?: () => void;
@@ -198,6 +208,7 @@ function Row({
       role="button"
       tabIndex={-1}
       aria-pressed={selected}
+      data-active-tab={active ? "" : undefined}
       // Selects on press, as a native list does.
       {...pressHandlers(onPress, onMiddlePress)}
       onClick={onClick}
@@ -242,6 +253,7 @@ function TabRow({
   return (
     <Row
       selected={tab.id === selected}
+      active={tab.id === selected}
       indent={indent}
       onPress={() => onSelect(tab)}
       onMenu={(x, y) => onTabMenu(tab, x, y)}
@@ -366,6 +378,7 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
             role="button"
             tabIndex={-1}
             aria-pressed={tab.id === selected}
+            data-active-tab={tab.id === selected ? "" : undefined}
             {...pressHandlers(
               () => props.onSelect(tab),
               () => props.onClose(tab)
