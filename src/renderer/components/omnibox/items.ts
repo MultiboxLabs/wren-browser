@@ -17,7 +17,7 @@ import type { BangMatch } from "../../utils/bangs";
 
 /** A row of the list: the bang typed, one of the window's tabs, or one of Chromium's suggestions, by its index in them. */
 export type OmniboxItem =
-  | { type: "bang"; bang: BangMatch; text: string }
+  | { type: "bang"; bang: BangMatch }
   | { type: "tab"; tab: Tab; current: boolean }
   | { type: "suggestion"; suggestion: Suggestion; index: number };
 
@@ -25,8 +25,7 @@ export type OmniboxItem =
 export type OmniboxTabs = { list: Tab[]; active?: Tab["id"] };
 
 /**
- * The list: Chromium's suggestions, after the bang typed (`bang`, with the
- * text it is in); and while nothing is typed (`idle`), the tabs before them,
+ * The list: Chromium's suggestions, after the bang typed (`bang`); and while nothing is typed (`idle`), the tabs before them,
  * the active one first, and none of Chromium's for a page already open in
  * one.
  */
@@ -34,14 +33,14 @@ export function itemsOf(
   suggestions: Suggestions | null,
   idle: boolean,
   tabs: OmniboxTabs,
-  bang: { match: BangMatch; text: string } | null
+  bang: BangMatch | null
 ): OmniboxItem[] {
   const suggested = (suggestions?.suggestions ?? []).map((suggestion, index): OmniboxItem => ({
     type: "suggestion",
     suggestion,
     index
   }));
-  if (!idle) return bang ? [{ type: "bang", bang: bang.match, text: bang.text }, ...suggested] : suggested;
+  if (!idle) return bang ? [{ type: "bang", bang }, ...suggested] : suggested;
   const active = tabs.list.filter((tab) => tab.id === tabs.active);
   const rest = tabs.list.filter((tab) => tab.id !== tabs.active);
   return [
@@ -61,7 +60,7 @@ export function defaultIndex(items: OmniboxItem[], idle: boolean) {
 
 /** What the field shows while a row is selected with the keys. */
 export function fillOf(item: OmniboxItem) {
-  if (item.type === "bang") return item.text;
+  if (item.type === "bang") return item.bang.text;
   return item.type === "tab" ? item.tab.url : item.suggestion.fill;
 }
 

@@ -215,7 +215,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
             let _ = browser.omnibox_stop();
             match disposition {
                 BangDisposition::Current => {
-                    let tab = browser.active_tab().ok_or("There is no tab to open it in.")?;
+                    let tab = browser
+                        .active_tab()
+                        .ok_or("There is no tab to open it in.")?;
                     tab.navigate(&url).map_err(failed)?;
                 }
                 _ => tabs::open(browser, &url).map_err(failed)?,

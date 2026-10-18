@@ -15,7 +15,7 @@ import {
   useState
 } from "react";
 import { type OmniboxTarget, omnibox, type Suggestion, type Suggestions } from "../../ipc";
-import { type BangMatch, findBang, loadBangs, mentionsBang } from "../../utils/bangs";
+import { type BangMatch, findBang, loadBangs } from "../../utils/bangs";
 import { defaultIndex, fillOf, itemsOf, type OmniboxTabs, type OpenHow, openHowOf, openItem } from "./items";
 
 /** The search engine whose chip the field shows: Chromium's keyword for it, and its name. */
@@ -29,8 +29,8 @@ type Field = {
   /** The default suggestion's completion, shown after `typed` and selected. */
   inline: string;
   keyword: Keyword | null;
-  /** The bang in `typed`, and the text it was found in. */
-  bang: { match: BangMatch; text: string } | null;
+  /** The bang in `typed`. */
+  bang: BangMatch | null;
   suggestions: Suggestions | null;
   /** The row Return opens, highlighted in the list. */
   selected: number;
@@ -113,19 +113,13 @@ export function useOmniboxField(
   const ask = (typed: string, options: QueryOptions = {}) => {
     const query = ++asked.current;
     // A bang is found at once, or when the list has loaded.
-    const bang = (text: string) => (mentionsBang(text) ? findBang(text) : null);
-    const found = bang(typed);
-    update((field) => ({ ...field, bang: found && { match: found, text: typed } }));
-    if (!found && mentionsBang(typed)) {
+    const setBang = () => update((field) => ({ ...field, bang: findBang(typed) }));
+    setBang();
+    if (typed.includes("!"))
       loadBangs().then(
-        () => {
-          const loaded = bang(typed);
-          if (loaded && query === asked.current)
-            update((field) => ({ ...field, bang: { match: loaded, text: typed } }));
-        },
+        () => query === asked.current && setBang(),
         () => {}
       );
-    }
     pending.current = omnibox
       .query({
         text: typed,

@@ -12,6 +12,8 @@ export type BangMatch = {
   url: string;
   /** What was typed besides the bang. */
   query: string;
+  /** All that was typed, bang included. */
+  text: string;
 };
 
 type Bang = { name: string; url: string };
@@ -26,9 +28,6 @@ export function loadBangs() {
   });
   return loading;
 }
-
-/** Whether `text` might have a bang, which is cheaper to say than to find. */
-export const mentionsBang = (text: string) => /(^|\s)!\S/.test(text);
 
 /**
  * The bang in `text`: the first word that starts with "!" and names one,
@@ -45,5 +44,5 @@ export function findBang(text: string): BangMatch | null {
   const url = query
     ? found.url.replace("{{{s}}}", encodeURIComponent(query).replace(/%2F/g, "/"))
     : new URL(found.url).origin;
-  return { trigger: match[2], name: found.name, url, query };
+  return { trigger: match[2], name: found.name, url, query, text };
 }

@@ -116,7 +116,7 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
           )
         )}
 
-        <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
+        {space.pinned.length > 0 && <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />}
 
         <Row selected={newTabOpen} className={cn(!newTabOpen && "text-fg-3")} onPress={() => omnibox.toggle("new-tab")}>
           <Plus size={14} strokeWidth={2} className={cn("mx-px", newTabOpen ? "glyph-1" : "glyph-3")} />

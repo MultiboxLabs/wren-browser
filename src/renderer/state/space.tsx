@@ -37,27 +37,27 @@ export const personal: Space = {
   color: "#6f00ff",
   backdrop: "dark",
   favorites: [
-    tab("Mail", "https://mail.example.com/"),
-    tab("Chat", "https://chat.example.com/"),
-    tab("Calendar", "https://calendar.example.com/"),
-    tab("Notes", "https://notes.example.com/"),
-    tab("Videos", "https://videos.example.com/"),
-    tab("Music", "https://music.example.com/")
+    // tab("Mail", "https://mail.example.com/"),
+    // tab("Chat", "https://chat.example.com/"),
+    // tab("Calendar", "https://calendar.example.com/"),
+    // tab("Notes", "https://notes.example.com/"),
+    // tab("Videos", "https://videos.example.com/"),
+    // tab("Music", "https://music.example.com/")
   ],
   pinned: [
-    tab("Search", "https://search.example.com/"),
-    {
-      id: "folder-reading",
-      title: "Reading",
-      open: true,
-      tabs: [
-        tab("Chromium Architecture", "https://docs.example.com/chromium"),
-        tab("Rust Book", "https://docs.example.com/rust")
-      ]
-    },
-    tab("Wren Runtime", "https://code.example.com/wren-runtime"),
-    { id: "folder-work", title: "Work", open: false, tabs: [tab("Tickets", "https://tickets.example.com/")] },
-    tab("Inbox", "https://mail.example.com/inbox")
+    // tab("Search", "https://search.example.com/"),
+    // {
+    //   id: "folder-reading",
+    //   title: "Reading",
+    //   open: true,
+    //   tabs: [
+    //     tab("Chromium Architecture", "https://docs.example.com/chromium"),
+    //     tab("Rust Book", "https://docs.example.com/rust")
+    //   ]
+    // },
+    // tab("Wren Runtime", "https://code.example.com/wren-runtime"),
+    // { id: "folder-work", title: "Work", open: false, tabs: [tab("Tickets", "https://tickets.example.com/")] },
+    // tab("Inbox", "https://mail.example.com/inbox")
   ]
 };
 
