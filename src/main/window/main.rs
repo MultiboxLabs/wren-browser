@@ -148,11 +148,11 @@ pub fn marks(browser: &Browser) -> Vec<(BubbleAnchor, String)> {
         (BubbleAnchor::LOCATION, PAGE_INFO.to_owned()),
         (BubbleAnchor::EXTENSIONS, PAGE_INFO.to_owned()),
     ];
-    marks.extend(
-        browser
-            .extension_action_ids()
-            .into_iter()
-            .map(|id| (BubbleAnchor::extension_action(&id), format!("extension:{id}"))),
-    );
+    marks.extend(browser.extension_action_ids().into_iter().map(|id| {
+        (
+            BubbleAnchor::extension_action(&id),
+            format!("extension:{id}"),
+        )
+    }));
     marks
 }
