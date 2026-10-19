@@ -29,6 +29,7 @@ use objc2_app_kit::{
 use objc2_foundation::{
     NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString, ns_string,
 };
+use objc2_quartz_core::CATransaction;
 use wren::{MainThread, Profile, RequestedBounds, TabCrash, WebView, WebViewKind, WebViewOptions};
 
 use crate::pages::Page;
@@ -91,7 +92,7 @@ impl PageWindow {
         window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
         window.setTitlebarAppearsTransparent(true);
         // An empty compact toolbar makes the title bar tall enough for the
-        // buttons wherever the page puts them (set_buttons_position).
+        // buttons wherever the page puts them (set_buttons).
         let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), ns_string!("main"));
         window.setToolbar(Some(&toolbar));
         window.setToolbarStyle(NSWindowToolbarStyle::UnifiedCompact);
@@ -349,17 +350,18 @@ impl PageWindow {
 
     /// Puts the close, minimise and zoom buttons with the close button's top
     /// left at (x, y), in points from the window's top left, and keeps them
-    /// there.
-    pub fn set_buttons_position(&self, x: f64, y: f64) {
-        self.title_bar.buttons_at.set(Some((x, y)));
+    /// there; or, with no place, hides them (full screen, once the window is
+    /// back). One call for both, so they change in the same frame.
+    pub fn set_buttons(&self, at: Option<(f64, f64)>) {
+        self.title_bar.buttons_hidden.set(at.is_none());
+        if at.is_some() {
+            self.title_bar.buttons_at.set(at);
+        }
         self.title_bar.apply(&self.window);
-    }
-
-    /// Shows or hides the close, minimise and zoom buttons (full screen,
-    /// once the window is back).
-    pub fn set_buttons_visible(&self, visible: bool) {
-        self.title_bar.buttons_hidden.set(!visible);
-        self.title_bar.apply(&self.window);
+        // Shows them now: AppKit would leave it until the main thread next
+        // goes round its run loop, after whatever of Chromium's work is
+        // queued, frames behind the page.
+        CATransaction::flush();
     }
 }
 

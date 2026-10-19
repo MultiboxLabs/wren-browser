@@ -33,18 +33,11 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         })
     });
 
+    // Where the window's buttons are, or null while they are hidden.
     let weak = window.clone();
-    let _ = web_view.handle("window.setButtonsPosition", move |(x, y): (f64, f64)| {
+    let _ = web_view.handle("window.setButtons", move |at: Option<(f64, f64)>| {
         with_window(&weak, |window| {
-            window.page.set_buttons_position(x, y);
-            Ok(())
-        })
-    });
-
-    let weak = window.clone();
-    let _ = web_view.handle("window.setButtonsVisible", move |visible: bool| {
-        with_window(&weak, |window| {
-            window.page.set_buttons_visible(visible);
+            window.page.set_buttons(at);
             Ok(())
         })
     });

@@ -9,8 +9,9 @@ export const appWindow = {
   setDark: (dark: boolean) => wren.invoke<null>("window.setDark", dark),
   /** Draws the blur behind the page dark or light. */
   setBackdropDark: (dark: boolean) => wren.invoke<null>("window.setBackdropDark", dark),
-  /** Puts the close, minimise and zoom buttons with the close button's top left at (x, y), in points. */
-  setButtonsPosition: (x: number, y: number) => wren.invoke<null>("window.setButtonsPosition", [x, y]),
-  /** Shows or hides the close, minimise and zoom buttons. */
-  setButtonsVisible: (visible: boolean) => wren.invoke<null>("window.setButtonsVisible", visible)
+  /**
+   * Puts the close, minimise and zoom buttons with the close button's top
+   * left at (x, y), in points, or hides them for null.
+   */
+  setButtons: (at: [x: number, y: number] | null) => wren.invoke<null>("window.setButtons", at)
 };

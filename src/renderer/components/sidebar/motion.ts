@@ -1,6 +1,14 @@
 // How the sidebar moves between the ways it is shown.
 
-import { animate, type MotionValue, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import {
+  animate,
+  cancelFrame,
+  frame,
+  type MotionValue,
+  useMotionValue,
+  useReducedMotion,
+  useTransform
+} from "motion/react";
 import { useEffect, useLayoutEffect } from "react";
 import { appWindow, hasApp } from "../../ipc";
 import { LIBRARY_RAIL, type LibraryMotion, windowButtonsShift } from "../library/motion";
@@ -95,6 +103,13 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
  * In the Library, they are centred at the top of its rail, a little lower,
  * beside its search field. They go over to the rail as it opens; as it closes,
  * they go out with the rail, and come back on the sidebar's content.
+ *
+ * They are the window's, drawn by the app, while the page is drawn by
+ * Chromium a frame later than it is made. So each frame's place is worked
+ * out once the frame is (not as each value it comes from changes, which
+ * would send places half updated), and sent as the next frame starts, to
+ * show with the page's frame it belongs to. Frames the page is slow to
+ * show hold the next one back too, and the buttons with them.
  */
 export function useWindowButtons(
   { left, top }: { left: MotionValue<number>; top: MotionValue<number> },
@@ -103,19 +118,35 @@ export function useWindowButtons(
   useEffect(() => {
     if (!hasApp) return;
     const half = (value: number) => Math.round(value * 2) / 2;
-    // Nothing sent yet: the window starts with its buttons shown, so a sidebar
-    // that starts hidden has to say so.
-    let sent: { visible: boolean | null; x: number; y: number } = { visible: null, x: NaN, y: NaN };
-    const update = () => {
+    const place = (): [number, number] | null => {
       const shift = windowButtonsShift(library, left.get(), -72);
       const x = left.get() + shift.x;
-      const now = { visible: x > -72, x: 13 + half(x), y: 13 + half(top.get() + shift.y) };
-      if (now.visible !== sent.visible) appWindow.setButtonsVisible(now.visible);
-      if (now.visible && (now.x !== sent.x || now.y !== sent.y)) appWindow.setButtonsPosition(now.x, now.y);
-      sent = now;
+      return x > -72 ? [13 + half(x), 13 + half(top.get() + shift.y)] : null;
     };
-    update();
-    const stops = [left, top, library.open, library.rail, library.sidebar].map((value) => value.on("change", update));
-    return () => stops.forEach((stop) => stop());
+    // Nothing sent yet: the window starts with its buttons shown, so a sidebar
+    // that starts hidden has to say so.
+    let sent: string | undefined;
+    const send = (at: [number, number] | null) => {
+      if (String(at) === sent) return;
+      appWindow.setButtons(at);
+      sent = String(at);
+    };
+    send(place());
+    const pending = new Set<number>();
+    const framed = () => {
+      const at = place();
+      const request = requestAnimationFrame(() => {
+        pending.delete(request);
+        send(at);
+      });
+      pending.add(request);
+    };
+    const changed = () => frame.postRender(framed);
+    const stops = [left, top, library.open, library.rail, library.sidebar].map((value) => value.on("change", changed));
+    return () => {
+      stops.forEach((stop) => stop());
+      cancelFrame(framed);
+      pending.forEach(cancelAnimationFrame);
+    };
   }, []);
 }
