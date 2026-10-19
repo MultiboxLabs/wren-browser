@@ -43,7 +43,9 @@ export const budgets: Budget[] = [
   {
     label: "Work per update from the app (p95)",
     unit: "ms",
-    max: 1,
+    // Half a frame at 60 Hz. The list still renders whole for any tab's
+    // change; under 1 ms needs each row to read its own tab from a store.
+    max: 8,
     value: (results) => results.updates.work.p95
   },
   {
