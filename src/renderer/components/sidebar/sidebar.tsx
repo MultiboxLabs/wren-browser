@@ -25,6 +25,7 @@ export type SidebarProps = {
   omnibox: OmniboxState;
   /** For the address field, whose box the omnibox for the active tab opens over. */
   address: RefObject<HTMLDivElement | null>;
+  onOpenLibrary: () => void;
 };
 
 // Stop's cross grows in where reload's icon was, which goes at once, and
@@ -61,7 +62,7 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
   );
 }
 
-export function Sidebar({ open, onToggle, hold, omnibox, address }: SidebarProps) {
+export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary }: SidebarProps) {
   const { space } = useSpace();
   const { tabs, current: active } = useBrowser();
   const selected = active?.id;
@@ -132,7 +133,7 @@ export function Sidebar({ open, onToggle, hold, omnibox, address }: SidebarProps
       <TabList omnibox={omnibox} whileOpen={hold.whileOpen} />
 
       <div className="flex h-12.5 shrink-0 items-center">
-        <Button icon={Archive} label="Archived Tabs" />
+        <Button icon={Archive} label="Library" onClick={onOpenLibrary} />
         <div className="flex flex-1 justify-center">
           <Button icon={Orbit} iconSize={15} iconTone="inherit" label={space.name} className="text-accent" />
         </div>

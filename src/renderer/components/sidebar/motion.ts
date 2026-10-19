@@ -3,6 +3,7 @@
 import { animate, type MotionValue, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useLayoutEffect } from "react";
 import { appWindow, hasApp } from "../../ipc";
+import { LIBRARY_RAIL, type LibraryMotion, windowButtonsShift } from "../library/motion";
 
 /**
  * How the sidebar is shown: docked beside the page
@@ -35,9 +36,11 @@ const transition = { duration: 0.15, ease: [0.25, 1, 0.5, 1] } as const;
  * panel where it is, and the page takes its new width at once rather than
  * tweening behind it.
  *
- * `width` is the docked sidebar's, its left padding in it.
+ * `width` is the docked sidebar's, its left padding in it. With the Library
+ * open, it is wider by the Library's rail, as far as `rail` is in, and the
+ * page makes way.
  */
-export function useSidebarMotion(presentation: Presentation, width: number) {
+export function useSidebarMotion(presentation: Presentation, width: number, rail: MotionValue<number>) {
   const docked = useMotionValue(presentation === "anchored" ? 1 : 0);
   const shown = useMotionValue(presentation === "hidden" ? 0 : 1);
   const floating = useMotionValue(presentation === "floating" ? 1 : 0);
@@ -55,13 +58,15 @@ export function useSidebarMotion(presentation: Presentation, width: number) {
     to(shown, presentation === "hidden" ? 0 : 1);
   }, [presentation]);
 
+  // As wide as it is shown: the docked width, and the Library's rail.
+  const shownWidth = useTransform(() => sidebarWidth.get() + LIBRARY_RAIL * rail.get());
   const inset = useTransform(() => PEEK_INSET * floating.get());
   // Floating, it is as wide again as its left padding, to pad its right.
   const padding = useTransform(() => 8 * floating.get());
-  const hiddenLeft = useTransform(() => -(sidebarWidth.get() + 8 + PEEK_INSET + SHADOW_REACH));
+  const hiddenLeft = useTransform(() => -(shownWidth.get() + 8 + PEEK_INSET + SHADOW_REACH));
   return {
     /** The room left of the page: the docked sidebar and the gap after it, or the page's inset. */
-    slot: useTransform(() => PAGE_INSET + (sidebarWidth.get() + 8 - PAGE_INSET) * docked.get()),
+    slot: useTransform(() => PAGE_INSET + (shownWidth.get() + 8 - PAGE_INSET) * docked.get()),
     /**
      * The sidebar's place and size, its panel in it. It slides by `left`
      * rather than a transform, which Chromium would not follow with the
@@ -71,7 +76,7 @@ export function useSidebarMotion(presentation: Presentation, width: number) {
       left: useTransform(() => hiddenLeft.get() + (inset.get() - hiddenLeft.get()) * shown.get()),
       top: inset,
       bottom: inset,
-      width: useTransform(() => sidebarWidth.get() + padding.get()),
+      width: useTransform(() => shownWidth.get() + padding.get()),
       paddingRight: padding
     },
     panel: {
@@ -86,8 +91,15 @@ export function useSidebarMotion(presentation: Presentation, width: number) {
  * The window's buttons are in the sidebar's top row, centred on it, and
  * move with it frame by frame: in and out with it, and further in as it
  * floats. Hidden once the 72px they take is past the window's edge.
+ *
+ * In the Library, they are centred at the top of its rail, a little lower,
+ * beside its search field. They go over to the rail as it opens; as it closes,
+ * they go out with the rail, and come back on the sidebar's content.
  */
-export function useWindowButtons({ left, top }: { left: MotionValue<number>; top: MotionValue<number> }) {
+export function useWindowButtons(
+  { left, top }: { left: MotionValue<number>; top: MotionValue<number> },
+  library: LibraryMotion
+) {
   useEffect(() => {
     if (!hasApp) return;
     const half = (value: number) => Math.round(value * 2) / 2;
@@ -95,13 +107,15 @@ export function useWindowButtons({ left, top }: { left: MotionValue<number>; top
     // that starts hidden has to say so.
     let sent: { visible: boolean | null; x: number; y: number } = { visible: null, x: NaN, y: NaN };
     const update = () => {
-      const now = { visible: left.get() > -72, x: 13 + half(left.get()), y: 13 + half(top.get()) };
+      const shift = windowButtonsShift(library, left.get(), -72);
+      const x = left.get() + shift.x;
+      const now = { visible: x > -72, x: 13 + half(x), y: 13 + half(top.get() + shift.y) };
       if (now.visible !== sent.visible) appWindow.setButtonsVisible(now.visible);
       if (now.visible && (now.x !== sent.x || now.y !== sent.y)) appWindow.setButtonsPosition(now.x, now.y);
       sent = now;
     };
     update();
-    const stops = [left.on("change", update), top.on("change", update)];
+    const stops = [left, top, library.open, library.rail, library.sidebar].map((value) => value.on("change", update));
     return () => stops.forEach((stop) => stop());
   }, []);
 }

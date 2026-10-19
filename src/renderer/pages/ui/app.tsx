@@ -10,6 +10,7 @@ import { Omnibox } from "../../components/omnibox/omnibox";
 import { useShownOmnibox } from "../../components/omnibox/shown";
 import { SidePanel } from "../../components/side-panel";
 import { Sidebar } from "../../components/sidebar/sidebar";
+import { Library, MakesWay } from "../../components/library/library";
 import { SIDEBAR_WIDTH, useSidebarPresentation } from "../../components/sidebar/presentation";
 import { useSavedSidebar } from "../../components/sidebar/state";
 import { TabView } from "../../components/tab-view";
@@ -77,16 +78,25 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
       >
         <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel" />
         <div className="relative h-full">
-          <Sidebar
-            open={sidebar.open}
-            onToggle={sidebar.toggle}
-            hold={sidebar.hold}
-            omnibox={omnibox}
-            address={address}
+          <MakesWay open={sidebar.library.open} motion={sidebar.library.motion}>
+            <Sidebar
+              open={sidebar.open}
+              onToggle={sidebar.toggle}
+              hold={sidebar.hold}
+              omnibox={omnibox}
+              address={address}
+              onOpenLibrary={() => sidebar.library.setOpen(true)}
+            />
+          </MakesWay>
+          <Library
+            open={sidebar.library.open}
+            onClose={() => sidebar.library.setOpen(false)}
+            width={sidebar.width}
+            motion={sidebar.library.motion}
           />
         </div>
       </motion.aside>
-      {sidebar.open && !fullScreen && (
+      {sidebar.open && !sidebar.library.open && !fullScreen && (
         // The gap to the page. After the sidebar, whose tabs scroll right up
         // to the page: the later of two overlapping boxes takes the clicks
         // and, for app-region, says whether a press moves the window.

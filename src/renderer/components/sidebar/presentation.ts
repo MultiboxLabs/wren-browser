@@ -1,10 +1,12 @@
 // How the sidebar is shown, and what changes it: its button and the main
 // menu's Toggle Sidebar, the pointer at the window's left edge, and what it
-// opened holding it out while it floats. And its width, kept between runs.
+// opened holding it out while it floats. And its width, kept between runs,
+// and whether the Library is open in its place.
 
 import { type RefObject, useEffect, useState } from "react";
 import { hasApp, menu, type SidebarState } from "../../ipc";
 import { useBrowser } from "../../state/browser";
+import { useLibraryMotion } from "../library/motion";
 import { type Presentation, useSidebarMotion, useWindowButtons } from "./motion";
 import { useSaveSidebar } from "./state";
 
@@ -37,8 +39,11 @@ export function useSidebarPresentation(
   // the drag that sets it is over.
   const save = useSaveSidebar(saved);
   useEffect(() => save({ open, width }), [open]);
-  const motion = useSidebarMotion(presentation, width);
-  useWindowButtons(motion.box);
+  // The Library, which takes the sidebar's place while it is open.
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const library = useLibraryMotion(libraryOpen);
+  const motion = useSidebarMotion(presentation, width, library.rail);
+  useWindowButtons(motion.box, library);
   const hovered = () => box.current?.matches(":hover") ?? false;
 
   const float = () => setPresentation((shown) => (shown === "hidden" ? "floating" : shown));
@@ -84,6 +89,7 @@ export function useSidebarPresentation(
     /** A drag of its edge is over: the width it left is kept. */
     endResize: () => save({ open, width }),
     motion,
+    library: { open: libraryOpen, setOpen: setLibraryOpen, motion: library },
     toggle,
     /** The pointer at the window's left edge brings the hidden sidebar out. */
     reveal: float,
