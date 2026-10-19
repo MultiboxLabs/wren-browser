@@ -1,5 +1,6 @@
 // The renderer's pages, all on the app's scheme, and serving them.
 
+#[cfg(debug_assertions)]
 mod dev_server;
 mod embedded;
 
@@ -53,7 +54,9 @@ pub enum Source {
     /// The renderer compiled into the executable, so it is covered by the
     /// app's code signature.
     Embedded,
-    /// Vite's dev server, at this address.
+    /// Vite's dev server, at this address. Debug builds only: a release build
+    /// has no code to reach it.
+    #[cfg(debug_assertions)]
     DevServer(String),
 }
 
@@ -61,12 +64,11 @@ impl Source {
     /// The dev server named by WREN_DEV_URL, in a debug build only: a
     /// shipped app serves only what it carries.
     pub fn from_env() -> Source {
-        match std::env::var("WREN_DEV_URL") {
-            Ok(url) if cfg!(debug_assertions) => {
-                Source::DevServer(url.trim_end_matches('/').to_owned())
-            }
-            _ => Source::Embedded,
+        #[cfg(debug_assertions)]
+        if let Ok(url) = std::env::var("WREN_DEV_URL") {
+            return Source::DevServer(url.trim_end_matches('/').to_owned());
         }
+        Source::Embedded
     }
 
     /// Chromium switches for pages from the dev server: Local Network
@@ -75,6 +77,7 @@ impl Source {
     pub fn development_switches(&self) -> Vec<String> {
         match self {
             Source::Embedded => Vec::new(),
+            #[cfg(debug_assertions)]
             Source::DevServer(_) => vec![
                 "--disable-features=LocalNetworkAccessChecks".into(),
                 "--enable-logging=stderr".into(),
@@ -106,6 +109,7 @@ pub fn serve_page(request: SchemeRequest, source: &Source) {
     }
     let path = path.split('#').next().unwrap_or("");
     match source {
+        #[cfg(debug_assertions)]
         Source::DevServer(server) => dev_server::proxy(request, format!("{server}/{path}")),
         Source::Embedded => {
             let _ = request.respond(embedded::file(path));

@@ -78,4 +78,5 @@ build started with `WREN_DEV_URL` (as `bun run dev` does) answers by fetching
 from Vite's dev server instead, so pages keep their addresses while Vite's live
 updates work. In that mode Chromium's Local Network Access checks are off, so
 pages may reach Vite's WebSocket on localhost, and pages' console messages go
-to the terminal. A release build ignores `WREN_DEV_URL`.
+to the terminal. A release build has no dev-server code at all, so it ignores
+`WREN_DEV_URL`.
