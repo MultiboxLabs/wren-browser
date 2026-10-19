@@ -4,6 +4,7 @@
 // places the rows had are taken at the drop and the rows slide from them once
 // the list is drawn in the new order.
 
+import { prefersReducedMotion } from "../../utils/motion";
 import { unitsIn } from "./units";
 
 /** How long the rows take to slide. */
@@ -30,6 +31,8 @@ export function takePlaces(scroller: HTMLElement, unit: HTMLElement): Settling {
 
 /** Slides the rows that the new order moved from where they were. */
 export function slideToPlaces({ scroller, unit, tops }: Settling) {
+  // With Reduced Motion, the rows are in their places at once.
+  if (prefersReducedMotion()) return;
   for (const el of unitsIn(scroller)) {
     const was = tops.get(el);
     const by = was === undefined ? 0 : was - el.getBoundingClientRect().top;

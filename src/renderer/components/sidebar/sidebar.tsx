@@ -2,7 +2,7 @@
 // favourites, and the space's tabs (tab-list.tsx).
 
 import { Archive, Orbit, Plus } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { RefObject } from "react";
 import { browser } from "../../ipc";
 import { Button } from "../ui/button";
@@ -10,6 +10,7 @@ import { AddressField } from "../address/field";
 import { Favicon } from "../favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../icons";
 import type { OmniboxState } from "../omnibox/shown";
+import { scaleTo } from "../../utils/motion";
 import type { SidebarHold } from "./presentation";
 import { selectTab, TabList } from "./tab-list";
 import { useBrowser } from "../../state/browser";
@@ -30,23 +31,24 @@ export type SidebarProps = {
 
 // Stop's cross grows in where reload's icon was, which goes at once, and
 // shrinks away before reload's comes back; one is shown at a time.
-const stopMotion = {
-  initial: { opacity: 0, scale: 0.8 },
-  animate: { opacity: 1, scale: 1 },
-  exit: { opacity: 0, scale: 0.8 },
+const stopMotion = (still: boolean | null) => ({
+  initial: { opacity: 0, ...scaleTo(still, 0.8) },
+  animate: { opacity: 1, ...scaleTo(still, 1) },
+  exit: { opacity: 0, ...scaleTo(still, 0.8) },
   transition: { duration: 0.2 }
-} as const;
+});
 
 const shortcut = (key: string) => (document.documentElement.dataset.platform === "mac" ? `⌘${key}` : `Ctrl+${key}`);
 
 /** Reload, which turns into stop while the active tab loads. */
 function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReload: () => void; onStop: () => void }) {
+  const still = useReducedMotion();
   return (
     <Button
       icon={
         <AnimatePresence mode="wait" initial={false}>
           {loading ? (
-            <motion.span key="stop" className="grid" {...stopMotion}>
+            <motion.span key="stop" className="grid" {...stopMotion(still)}>
               <StopIcon size={15} />
             </motion.span>
           ) : (

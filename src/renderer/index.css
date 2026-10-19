@@ -327,6 +327,26 @@ body,
     transform: scale(0.97);
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .popover {
+    animation-name: popover-fade-in;
+    animation-timing-function: ease-out;
+  }
+  .popover[data-state="closed"] {
+    animation-name: popover-fade-out;
+    animation-timing-function: ease-in;
+  }
+}
+@keyframes popover-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes popover-fade-out {
+  to {
+    opacity: 0;
+  }
+}
 
 /* The omnibox (components/omnibox/omnibox.tsx), a command bar: neutral, not
    the space's, but for its selected row, which is the space's colour. A

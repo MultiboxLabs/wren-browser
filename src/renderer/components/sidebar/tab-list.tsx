@@ -2,7 +2,7 @@
 // and the Browser's tabs, in their groups and splits.
 
 import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, Orbit, Plus, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, memo, type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
 import { Button } from "../ui/button";
@@ -242,7 +242,7 @@ function Row({
       // A percentage of padding is of the list's width, not this row's.
       style={{ marginLeft: indent, "--indent": `${indent}px` } as CSSProperties}
       className={cn(
-        "no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5 transition-[padding] duration-120",
+        "no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5 transition-[padding] duration-120 motion-reduce:transition-none",
         // A tab dragged to its left or right half has the other half left to
         // it, past the row's own padding: its title shortens, as the tab's would in a split.
         "in-data-[drop-side=left]:pl-[calc(50%-var(--indent)/2+var(--spacing)*2.5)] in-data-[drop-side=right]:pr-[calc(50%-var(--indent)/2+var(--spacing)*1.25)]",
@@ -477,13 +477,17 @@ const UnitRow = memo(
     tabsOf(before.row).every((tab, index) => tab === tabsOf(after.row)[index])
 );
 
-/** A row of the Browser's list, fading in and out where it stands while the rows below slide. */
+/**
+ * A row of the Browser's list, fading in and out where it stands while the
+ * rows below slide; with Reduced Motion they do not, and it only fades.
+ */
 function Appear({ unit, className, children }: { unit: Unit; className?: string; children: ReactNode }) {
+  const still = useReducedMotion();
   return (
     <motion.div
-      initial={{ height: 0, opacity: 0 }}
+      initial={{ height: still ? "auto" : 0, opacity: 0 }}
       animate={{ height: "auto", opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
+      exit={{ height: still ? "auto" : 0, opacity: 0 }}
       transition={tabTransition}
       className="shrink-0"
     >

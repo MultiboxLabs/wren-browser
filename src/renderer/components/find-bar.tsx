@@ -5,11 +5,12 @@
 // steps back, Control-Return clicks the current match, and Escape ends it.
 
 import { ChevronDown, ChevronUp, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import { find } from "../ipc";
 import { type FindState, useBrowser } from "../state/browser";
+import { scaleTo } from "../utils/motion";
 
 /** The bar of the find open on `tab`, if one is: with that tab alone, as Chrome's is. */
 export function FindBar({ tab }: { tab: number }) {
@@ -19,6 +20,7 @@ export function FindBar({ tab }: { tab: number }) {
 
 function FindField({ find: { bar, request, claim } }: { find: FindState }) {
   const input = useRef<HTMLInputElement>(null);
+  const still = useReducedMotion();
   // What the field holds: what the user types, ahead of Chromium's word on
   // it, and what a find opening has, which may be a selection in the page.
   const [text, setText] = useState(bar.query);
@@ -49,9 +51,9 @@ function FindField({ find: { bar, request, claim } }: { find: FindState }) {
   return (
     <motion.div
       role="search"
-      initial={{ opacity: 0, scale: 0.94 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.1, ease: "easeIn" } }}
+      initial={{ opacity: 0, ...scaleTo(still, 0.94) }}
+      animate={{ opacity: 1, ...scaleTo(still, 1) }}
+      exit={{ opacity: 0, ...scaleTo(still, 0.96), transition: { duration: 0.1, ease: "easeIn" } }}
       transition={{ duration: 0.14, ease: [0.2, 0.9, 0.3, 1] }}
       style={{ transformOrigin: "top right" }}
       className="find-bar no-drag absolute top-2.5 right-2.5 z-10 flex h-10 w-75 items-center gap-0.5 pr-1.5 pl-3.5"

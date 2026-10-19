@@ -4,7 +4,7 @@
 // back wider, and a line sweeps through it over and over until the page
 // has loaded. Neither says how far the page has got.
 
-import { animate, motion, useMotionValue, useTransform } from "motion/react";
+import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
 
 type Phase = "idle" | "blink" | "sweep";
@@ -24,6 +24,8 @@ export function LoadingBar({ loading }: { loading: boolean }) {
   // How much the pill shows, 0 to 1: its track's opacity, and its scale.
   const shown = useMotionValue(0);
   const scale = useTransform(shown, (value) => 0.88 + 0.12 * value);
+  // With Reduced Motion, it only fades: it does not scale, nor grow wider.
+  const still = useReducedMotion();
 
   useEffect(() => {
     if (!loading) {
@@ -53,10 +55,10 @@ export function LoadingBar({ loading }: { loading: boolean }) {
       <motion.div
         className="loading-bar"
         data-phase={phase}
-        style={{ scale }}
+        style={{ scale: still ? 1 : scale }}
         initial={false}
         animate={{ width: phase === "sweep" ? 128 : 48 }}
-        transition={spring}
+        transition={still ? { duration: 0 } : spring}
       >
         <motion.i style={{ opacity: shown }} />
         <motion.span initial={false} animate={{ opacity: phase === "sweep" ? 0.92 : 0 }} transition={spring} />

@@ -17,6 +17,7 @@ import type { OmniboxTabs } from "./items";
 import { OmniboxIcon, OmniboxRow } from "./row";
 import { useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
+import { scaleTo } from "../../utils/motion";
 
 /** Where the omnibox is: at the address field's top left, or, without it in view, in the middle of the window. */
 export type OmniboxPlace = { left: number; top: number } | "center";
@@ -98,9 +99,9 @@ export function Omnibox({
         ref={panel}
         role="dialog"
         aria-label={target === "new-tab" ? "New Tab" : "Open Location"}
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.08, ease: "easeIn" } }}
+        initial={{ opacity: 0, ...scaleTo(still, 0.98) }}
+        animate={{ opacity: 1, ...scaleTo(still, 1) }}
+        exit={{ opacity: 0, ...scaleTo(still, 0.98), transition: { duration: 0.08, ease: "easeIn" } }}
         transition={{ duration: 0.14, ease: [0.2, 0.9, 0.3, 1] }}
         style={{
           width: `min(${size.width}px, 100vw - 40px)`,

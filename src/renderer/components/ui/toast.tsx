@@ -4,10 +4,11 @@
 // comes in once the one before has gone so. A click closes it, and none
 // reach what is under it.
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Key, ReactNode } from "react";
 import { press } from "./press";
 import { cn } from "../../utils/cn";
+import { scaleTo } from "../../utils/motion";
 
 /** What a toast shows. Another `key` replaces it, and comes in afresh. */
 export type ToastContent = {
@@ -22,15 +23,16 @@ export type ToastContent = {
 /** Shows `toast` until it is null or another; `className` places it. */
 export function Toast({ toast, className }: { toast: ToastContent | null; className?: string }) {
   const action = toast?.action;
+  const still = useReducedMotion();
   return (
     <AnimatePresence mode="wait">
       {toast && (
         <motion.div
           key={toast.key}
           role="status"
-          initial={{ opacity: 0, scale: 0.6 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.12, ease: "easeIn" } }}
+          initial={{ opacity: 0, ...scaleTo(still, 0.6) }}
+          animate={{ opacity: 1, ...scaleTo(still, 1) }}
+          exit={{ opacity: 0, ...scaleTo(still, 0.8), transition: { duration: 0.12, ease: "easeIn" } }}
           transition={{
             scale: { type: "spring", duration: 0.35, bounce: 0.3 },
             opacity: { duration: 0.1, ease: "easeOut" }

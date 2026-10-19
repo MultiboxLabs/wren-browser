@@ -160,7 +160,7 @@ export function Game() {
             <span>🥚 {hud.eggs}</span>
             <span className="h-2 w-20 overflow-hidden rounded-full bg-stone-300">
               <span
-                className="block h-full rounded-full bg-amber-600 transition-all"
+                className="block h-full rounded-full bg-amber-600 transition-all motion-reduce:transition-none"
                 style={{ width: `${((hud.twigs % TWIGS_PER_EGG) / TWIGS_PER_EGG) * 100}%` }}
               />
             </span>
@@ -248,7 +248,7 @@ function StartButton({ onClick, children }: { onClick: () => void; children: Rea
   return (
     <button
       onClick={onClick}
-      className="mt-6 rounded-full bg-amber-700 px-8 py-3 text-lg font-bold text-white shadow-md transition hover:bg-amber-600 active:scale-95"
+      className="mt-6 rounded-full bg-amber-700 px-8 py-3 text-lg font-bold text-white shadow-md transition hover:bg-amber-600 active:scale-95 motion-reduce:active:scale-100"
     >
       {children} <span className="text-sm font-normal opacity-70">(Space)</span>
     </button>

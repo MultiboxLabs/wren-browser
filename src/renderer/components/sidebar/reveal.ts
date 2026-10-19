@@ -2,6 +2,7 @@
 // is out of view: by a shortcut, a link, or a tab opened below the fold.
 
 import { type RefObject, useEffect } from "react";
+import { prefersReducedMotion } from "../../utils/motion";
 
 /**
  * Keeps the active tab's row (marked `data-active-tab`) in view in `scroller` as the active tab changes.
@@ -10,7 +11,9 @@ import { type RefObject, useEffect } from "react";
 export function useRevealActive(scroller: RefObject<HTMLElement | null>, active: number | string | undefined) {
   useEffect(() => {
     const reveal = () =>
-      scroller.current?.querySelector("[data-active-tab]")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      scroller.current
+        ?.querySelector("[data-active-tab]")
+        ?.scrollIntoView({ block: "nearest", behavior: prefersReducedMotion() ? "instant" : "smooth" });
     reveal();
     // A new tab's row grows in from nothing, so it is looked for again once
     // it has its height.

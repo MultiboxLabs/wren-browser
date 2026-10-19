@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { useRef } from "react";
 import type { SidebarState } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
@@ -22,12 +22,17 @@ import { cn } from "../../utils/cn";
 export function App() {
   const saved = useSavedSidebar();
   return (
-    <BrowserProvider>
-      <Perf />
-      <SpaceProvider>
-        <TooltipProvider>{saved !== undefined && <BrowserWindow saved={saved} />}</TooltipProvider>
-      </SpaceProvider>
-    </BrowserProvider>
+    // With Reduced Motion, Motion keeps what fades, and leaves out what moves
+    // or scales. What it does not know of (a height, a width, a value of
+    // ours, a CSS animation) asks for itself.
+    <MotionConfig reducedMotion="user">
+      <BrowserProvider>
+        <Perf />
+        <SpaceProvider>
+          <TooltipProvider>{saved !== undefined && <BrowserWindow saved={saved} />}</TooltipProvider>
+        </SpaceProvider>
+      </BrowserProvider>
+    </MotionConfig>
   );
 }
 
