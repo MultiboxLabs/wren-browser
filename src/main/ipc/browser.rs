@@ -3,8 +3,9 @@ use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, WebVie
 
 use super::groups::Group;
 use super::splits::Split;
-use super::{MenuAt, WindowRef, failed, menu_call, png_url, with_browser};
+use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::menus;
+use crate::pages::icons;
 use crate::tabs;
 use crate::window::BrowserWindow;
 
@@ -85,12 +86,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |_, browser| Ok(tab_list(browser)))
     });
 
-    // A tab's favicon as a data: URL, or null; "tab.favicon" says when it
+    // A tab's favicon as an address of the page's icons, or null; "tab.favicon" says when it
     // changes.
     let weak = window.clone();
     let _ = web_view.handle("tab.favicon", move |id: i32| {
         with_browser(&weak, |_, browser| {
-            Ok(tab(mt, browser, id)?.favicon_png().map(png_url))
+            Ok(tab(mt, browser, id)?.favicon_png().map(icons::url))
         })
     });
 

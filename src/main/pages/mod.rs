@@ -3,6 +3,7 @@
 #[cfg(debug_assertions)]
 mod dev_server;
 mod embedded;
+pub mod icons;
 
 use wren::{SchemeFailure, SchemeRequest, SchemeResponse};
 
@@ -108,6 +109,13 @@ pub fn serve_page(request: SchemeRequest, source: &Source) {
         return;
     }
     let path = path.split('#').next().unwrap_or("");
+    // The UI's icons come from the app, whatever serves its files.
+    if page.host == UI.host
+        && let Some(name) = path.strip_prefix(icons::PATH)
+    {
+        let _ = request.respond(icons::serve(name));
+        return;
+    }
     match source {
         #[cfg(debug_assertions)]
         Source::DevServer(server) => dev_server::proxy(request, format!("{server}/{path}")),

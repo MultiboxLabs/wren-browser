@@ -26,7 +26,7 @@ export type Suggestion = {
   /** The keyword Tab enters keyword mode with ("youtube.com"), and its chip's name ("YouTube"); "" for none. */
   keyword: string;
   keywordName: string;
-  /** Its page's favicon as a data: URL, once Chromium has it. */
+  /** Its page's favicon as an address of the app's icons, once Chromium has it. */
   icon: string | null;
 };
 

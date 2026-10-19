@@ -37,7 +37,7 @@ export const browser = {
   /** Fails until the window has its Browser; "browser.tabs" follows once it does. */
   tabs: () => wren.invoke<BrowserTabs>("browser.tabs"),
   onTabs: (listener: (tabs: BrowserTabs) => void) => wren.on<BrowserTabs>("browser.tabs", listener),
-  /** A tab's favicon as a data: URL, or null for none. */
+  /** A tab's favicon as an address of the app's icons, or null for none. */
   favicon: (id: number) => wren.invoke<string | null>("tab.favicon", id),
   /** Hears which tab's favicon changed, to ask for it again. */
   onFavicon: (listener: (id: number) => void) => wren.on<number>("tab.favicon", listener),

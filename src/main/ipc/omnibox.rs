@@ -9,7 +9,8 @@ use wren::{
     SuggestionText, WebView,
 };
 
-use super::{WindowRef, failed, give_back_keyboard, png_url, with_browser};
+use super::{WindowRef, failed, give_back_keyboard, with_browser};
+use crate::pages::icons;
 use crate::tabs;
 use crate::window::BrowserWindow;
 
@@ -122,7 +123,7 @@ struct Suggestion {
     /// The keyword Tab enters keyword mode with, and its chip's name.
     keyword: String,
     keyword_name: String,
-    /// Its page's favicon as a data: URL, if it has one yet.
+    /// Its page's favicon as an address of the page's icons, if it has one yet.
     icon: Option<String>,
 }
 
@@ -307,7 +308,7 @@ fn suggestions(browser: &Browser) -> Option<Suggestions> {
                 inline: text(SuggestionText::Inline),
                 keyword: text(SuggestionText::Keyword),
                 keyword_name: text(SuggestionText::KeywordName),
-                icon: browser.suggestion_icon_png(index).map(png_url),
+                icon: browser.suggestion_icon_png(index).map(icons::url),
             })
         })
         .collect();

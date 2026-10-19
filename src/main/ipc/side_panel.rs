@@ -1,7 +1,8 @@
 use serde::Serialize;
 use wren::{Browser, WebView};
 
-use super::{WindowRef, failed, png_url, with_browser};
+use super::{WindowRef, failed, with_browser};
+use crate::pages::icons;
 use crate::window::BrowserWindow;
 
 /// The Browser's side panel: which is open, if one is, and how wide.
@@ -12,7 +13,7 @@ pub struct SidePanel {
     id: String,
     /// In Chromium's language.
     title: String,
-    /// An extension's panel: its action's icon, as a PNG data: URL.
+    /// An extension's panel: its action's icon, as an address of the page's icons.
     icon: Option<String>,
     width: f64,
 }
@@ -66,7 +67,7 @@ fn side_panel(browser: &Browser) -> SidePanel {
         icon: id
             .strip_prefix("Extension")
             .and_then(|extension| browser.extension_action_icon_png(extension, 16, 2.0, false))
-            .map(png_url),
+            .map(icons::url),
         id,
         title: browser.side_panel_title(),
         width: state.map_or(0.0, |state| state.width),

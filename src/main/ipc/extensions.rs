@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use wren::{Browser, WebView};
 
-use super::{WindowRef, failed, png_url, with_browser};
+use super::{WindowRef, failed, with_browser};
+use crate::pages::icons;
 use crate::window::BrowserWindow;
 
 /// An extension's action, as the page info popover lists it and the
@@ -86,7 +87,7 @@ fn actions(browser: &Browser) -> Vec<Action> {
                 popped_out: state.is_some_and(|state| state.popped_out),
                 icon: browser
                     .extension_action_icon_png(&id, 28, 2.0, true)
-                    .map(png_url),
+                    .map(icons::url),
                 id,
             }
         })

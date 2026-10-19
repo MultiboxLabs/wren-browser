@@ -18,8 +18,6 @@ mod window;
 
 use std::rc::{Rc, Weak};
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
@@ -128,11 +126,6 @@ fn give_back_keyboard(browser: &Browser) {
     if let Some(tab) = browser.active_tab() {
         let _ = tab.focus();
     }
-}
-
-// A PNG of Wren's (a favicon, an extension's icon) as the page shows it.
-fn png_url(png: Vec<u8>) -> String {
-    format!("data:image/png;base64,{}", BASE64.encode(png))
 }
 
 fn failed(error: wren::Error) -> String {

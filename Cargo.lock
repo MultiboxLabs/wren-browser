@@ -360,7 +360,6 @@ dependencies = [
 name = "wren-browser"
 version = "0.1.0"
 dependencies = [
- "base64",
  "block2",
  "dispatch2",
  "objc2",
