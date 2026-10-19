@@ -97,6 +97,8 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
     <div
       {...handlers}
       ref={scroller}
+      // Scrolled by the performance run (perf/run.ts).
+      data-tab-list=""
       className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]"
     >
       {/* Room after the last tab, as the list scrolls to: it does not end at the

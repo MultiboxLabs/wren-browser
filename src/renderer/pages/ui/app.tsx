@@ -12,6 +12,7 @@ import { Sidebar } from "../../components/sidebar/sidebar";
 import { SIDEBAR_WIDTH, useSidebarPresentation } from "../../components/sidebar/presentation";
 import { useSavedSidebar } from "../../components/sidebar/state";
 import { TabView } from "../../components/tab-view";
+import { Perf } from "../../perf/mount";
 import { BrowserToast } from "../../components/toast";
 import { cn } from "../../utils/cn";
 
@@ -20,6 +21,7 @@ export function App() {
   const saved = useSavedSidebar();
   return (
     <BrowserProvider>
+      <Perf />
       <SpaceProvider>
         <TooltipProvider>{saved !== undefined && <BrowserWindow saved={saved} />}</TooltipProvider>
       </SpaceProvider>

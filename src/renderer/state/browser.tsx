@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   anchors,
   browser,
@@ -20,6 +20,7 @@ import {
   type Toast,
   toast
 } from "../ipc";
+import { updateCommitted, updateReceived, updateRendering } from "../perf/measure";
 
 /** A tab of the Browser, with its favicon once the app has given it. */
 type BrowserTabWithFavicon = BrowserTab & { favicon?: string | null };
@@ -65,6 +66,9 @@ export type FindState = {
 const BrowserContext = createContext<BrowserState | null>(null);
 
 export function BrowserProvider({ children }: { children: ReactNode }) {
+  // How long the app's word on the tabs takes to show, in a performance run.
+  updateRendering();
+  useLayoutEffect(updateCommitted);
   const { tabs, favicons } = useTabs();
   const panel = useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
   const showing = useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
@@ -112,12 +116,24 @@ function useTabs() {
   const [favicons, setFavicons] = useState<Record<number, string | null>>({});
   const asked = useRef(new Set<number>());
 
-  useEffect(() => (hasApp ? follow(browser.tabs, browser.onTabs, setTabs) : undefined), []);
+  useEffect(
+    () =>
+      hasApp
+        ? follow(browser.tabs, browser.onTabs, (tabs) => {
+            updateReceived(tabs);
+            setTabs(tabs);
+          })
+        : undefined,
+    []
+  );
 
   // Each tab's favicon, asked for once it is new and again when it changes.
   const ask = (id: number) =>
     browser.favicon(id).then(
-      (favicon) => setFavicons((favicons) => ({ ...favicons, [id]: favicon })),
+      (favicon) => {
+        updateReceived(favicon);
+        setFavicons((favicons) => ({ ...favicons, [id]: favicon }));
+      },
       () => {}
     );
   useEffect(() => (hasApp ? browser.onFavicon(ask) : undefined), []);

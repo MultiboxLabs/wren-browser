@@ -4,6 +4,7 @@ mod channel;
 mod ipc;
 mod menus;
 mod pages;
+mod perf;
 mod sidebar;
 mod tabs;
 mod window;
@@ -16,13 +17,18 @@ use wren::{ExitStatus, Keychain, Scheme, SchemePrivileges, Startup};
 use crate::app::{State, Wren};
 use crate::channel::Channel;
 use crate::pages::{SCHEME, Source};
+use crate::perf::Perf;
 
 fn main() {
     let channel = Channel::current();
+    let perf = Perf::from_env(channel);
+    let folder = match perf {
+        Some(_) => Perf::DATA_FOLDER,
+        None => channel.data_folder(),
+    };
     let data = format!(
-        "{}/Library/Application Support/{}",
-        std::env::var("HOME").unwrap(),
-        channel.data_folder()
+        "{}/Library/Application Support/{folder}",
+        std::env::var("HOME").unwrap()
     );
     let mut startup = Startup::new(data.clone(), Keychain::Mock);
     channel.brand(&mut startup);
@@ -32,7 +38,7 @@ fn main() {
     )];
     let source = Source::from_env();
     startup.development_switches = source.development_switches();
-    let state = Rc::new(State::new(data.into()));
+    let state = Rc::new(State::new(data.into(), perf));
     let status = wren::run(
         startup,
         Wren {

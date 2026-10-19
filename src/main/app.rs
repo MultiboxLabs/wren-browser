@@ -14,6 +14,7 @@ use crate::changes;
 use crate::ipc::{self, OmniboxTarget, WindowRef};
 use crate::menus;
 use crate::pages::{SCHEME, Source, UI, serve_page};
+use crate::perf::Perf;
 use crate::sidebar::SidebarStore;
 use crate::tabs;
 use crate::window::{BrowserWindow, PageWindow, PlainWindow, WindowId};
@@ -27,15 +28,18 @@ pub struct State {
     pub windows: Windows,
     // What the pages keep between runs, in `data`; all windows share it.
     pub sidebar: SidebarStore,
+    /// The sidebar's performance run, if this is one.
+    pub perf: Option<Perf>,
 }
 
 impl State {
-    pub fn new(data: PathBuf) -> State {
+    pub fn new(data: PathBuf, perf: Option<Perf>) -> State {
         State {
             ui_profile: RefCell::default(),
             devtools: RefCell::default(),
             windows: Windows::default(),
             sidebar: SidebarStore::new(&data),
+            perf,
         }
     }
 

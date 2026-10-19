@@ -9,6 +9,7 @@ mod find;
 mod groups;
 mod menu;
 mod omnibox;
+mod perf;
 mod side_panel;
 mod sidebar;
 mod site;
@@ -71,6 +72,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     omnibox::handle(web_view, window);
     find::handle(web_view, window);
     toast::handle(web_view, window);
+    perf::handle(web_view, window, mt);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),
