@@ -8,7 +8,8 @@ import { defineConfig } from "vite";
 export default defineConfig({
   root: "src/renderer",
   base: "/",
-  plugins: [react(), tailwindcss()],
+  // React Compiler memoizes the components and hooks it can prove pure.
+  plugins: [react({ compiler: true }), tailwindcss()],
   build: { outDir: "../../dist/renderer", emptyOutDir: true },
   server: {
     port: 5173,
