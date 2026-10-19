@@ -3,9 +3,9 @@
 // If the page is still loading after a couple of blinks, the pill comes
 // back wider, and a line sweeps through it over and over until the page
 // has loaded. Neither says how far the page has got.
-// A blink, once started, always plays out: it is the pill's way out for a
-// page that loads quickly, and it rides out the page's loading turning off
-// and on again as it settles, which would otherwise cut the pill short.
+// Once the page has loaded, the pill goes out from wherever it has got to.
+// If the page starts loading again as it does (its loading often turns off
+// and on as it settles), the pill picks up from there, not from nothing.
 
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -33,41 +33,47 @@ export function LoadingBar({ loading }: { loading: boolean }) {
   const scale = useTransform(shown, (value) => 0.88 + 0.12 * Math.min(Math.max(value, 0), 1));
   // With Reduced Motion, it only fades: it does not scale, nor grow wider.
   const still = useReducedMotion();
-  // What the animations read as they end: the page's latest `loading`, the
-  // phase they are in, and the one running, which a newer one supersedes.
-  const latest = useRef({ loading, phase: "idle" as Phase, running: null as ReturnType<typeof animate> | null });
+  // What the animations go on: the phase they are in, the one running,
+  // which a newer one supersedes, and the blinks left before the sweep,
+  // which a pill going out keeps for when it picks up again.
+  const latest = useRef({ phase: "idle" as Phase, running: null as ReturnType<typeof animate> | null, left: BLINKS });
 
   useEffect(() => {
     const state = latest.current;
-    const enter = (next: Phase, running: ReturnType<typeof animate> | null) => {
+    const enter = (next: Phase, running: ReturnType<typeof animate>) => {
       state.phase = next;
       state.running = running;
       setPhase(next);
     };
+    // A blink rises from where the pill is, as quickly as a whole one
+    // would from there, and goes out.
     const blink = (left: number) => {
-      const running = animate(shown, [0, 1, 0], { duration: BLINK, ease: [sine, sine] });
+      state.left = left;
+      const from = Math.min(Math.max(shown.get(), 0), 1);
+      const rise = ((1 - from) * BLINK) / 2;
+      const duration = rise + BLINK / 2;
+      const running = animate(shown, [from, 1, 0], { duration, times: [0, rise / duration, 1], ease: [sine, sine] });
       enter("blink", running);
       running.then(() => {
         if (state.running !== running) return;
-        if (!state.loading) enter("idle", null);
-        else if (left > 1) blink(left - 1);
-        else enter("sweep", animate(shown, 1, fromRest));
+        if (left > 1) return blink(left - 1);
+        state.left = 0;
+        enter("sweep", animate(shown, 1, fromRest));
       });
     };
 
-    state.loading = loading;
     if (loading) {
-      // A blink or the sweep carries on. A pill still going out from its
-      // sweep comes back to it.
       if (state.phase !== "idle") return;
-      if (shown.get() > 0) enter("sweep", animate(shown, 1, fromRest));
-      else blink(BLINKS);
-    } else if (state.phase === "sweep") {
+      // Gone out altogether, it starts afresh.
+      if (shown.get() === 0) state.left = BLINKS;
+      if (state.left > 0) blink(state.left);
+      else enter("sweep", animate(shown, 1, fromRest));
+    } else if (state.phase !== "idle") {
       enter("idle", animate(shown, 0, fromRest));
     }
   }, [loading]);
 
-  // Unmounted, it stops; mounted again, it starts afresh.
+  // Unmounted, it stops; mounted again, it picks up from where it was.
   useEffect(() => {
     const state = latest.current;
     return () => {
