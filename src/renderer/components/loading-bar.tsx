@@ -13,6 +13,10 @@ type Phase = "idle" | "blink" | "sweep";
 // response of 0.8s, as the stiffness and damping of a mass of 1.
 const omega = (2 * Math.PI) / 0.8;
 const spring = { type: "spring", stiffness: omega ** 2, damping: 2 * 0.92 * omega } as const;
+// The springs on `shown` start at rest. Otherwise they carry on its
+// velocity, which a blink restarting from 0 makes huge (a jump over a
+// fraction of a millisecond), and fling the pill to many times its size.
+const fromRest = { ...spring, velocity: 0 } as const;
 // The blink: in and out, as a sine, twice, over 3.2s before it sweeps. The
 // sweep starts as the last blink has gone out, so the change is never seen.
 const BLINK = 1.6;
@@ -23,14 +27,14 @@ export function LoadingBar({ loading }: { loading: boolean }) {
   const [phase, setPhase] = useState<Phase>("idle");
   // How much the pill shows, 0 to 1: its track's opacity, and its scale.
   const shown = useMotionValue(0);
-  const scale = useTransform(shown, (value) => 0.88 + 0.12 * value);
+  const scale = useTransform(shown, (value) => 0.88 + 0.12 * Math.min(Math.max(value, 0), 1));
   // With Reduced Motion, it only fades: it does not scale, nor grow wider.
   const still = useReducedMotion();
 
   useEffect(() => {
     if (!loading) {
       setPhase("idle");
-      const out = animate(shown, 0, spring);
+      const out = animate(shown, 0, fromRest);
       return () => out.stop();
     }
     let cancelled = false;
@@ -40,7 +44,7 @@ export function LoadingBar({ loading }: { loading: boolean }) {
     blink.then(() => {
       if (cancelled) return;
       setPhase("sweep");
-      sweep = animate(shown, 1, spring);
+      sweep = animate(shown, 1, fromRest);
     });
     return () => {
       cancelled = true;
