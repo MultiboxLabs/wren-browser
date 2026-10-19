@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
+import { useRef } from "react";
 import type { SidebarState } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
@@ -38,8 +39,10 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   // A page in full screen has the whole window: the sidebar and the side
   // panel make way for it, and come back as they were.
   const shown = fullScreen ?? current;
-  const omnibox = useShownOmnibox();
-  const sidebar = useSidebarPresentation(saved, omnibox.shown !== null);
+  const address = useRef<HTMLDivElement>(null);
+  const omnibox = useShownOmnibox(address);
+  const box = useRef<HTMLElement>(null);
+  const sidebar = useSidebarPresentation(saved, omnibox.shown !== null, box);
 
   return (
     <div className="browser drag flex h-full">
@@ -65,7 +68,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
         <div className="no-drag fixed inset-y-0 left-0 w-2.5" onPointerEnter={sidebar.reveal} />
       )}
       <motion.aside
-        ref={sidebar.ref}
+        ref={box}
         // Kept while hidden, so it slides away and back as it was.
         inert={sidebar.presentation === "hidden" || fullScreen !== undefined}
         style={sidebar.motion.box}
@@ -74,7 +77,13 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
       >
         <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel" />
         <div className="relative h-full">
-          <Sidebar open={sidebar.open} onToggle={sidebar.toggle} hold={sidebar.hold} omnibox={omnibox} />
+          <Sidebar
+            open={sidebar.open}
+            onToggle={sidebar.toggle}
+            hold={sidebar.hold}
+            omnibox={omnibox}
+            address={address}
+          />
         </div>
       </motion.aside>
       {sidebar.open && !fullScreen && (

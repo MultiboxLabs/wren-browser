@@ -3,6 +3,7 @@
 
 import { Archive, Orbit, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import type { RefObject } from "react";
 import { browser } from "../../ipc";
 import { Button } from "../ui/button";
 import { AddressField } from "../address/field";
@@ -22,6 +23,8 @@ export type SidebarProps = {
   hold: SidebarHold;
   /** The omnibox, which the address and the New Tab row open. */
   omnibox: OmniboxState;
+  /** For the address field, whose box the omnibox for the active tab opens over. */
+  address: RefObject<HTMLDivElement | null>;
 };
 
 // Stop's cross grows in where reload's icon was, which goes at once, and
@@ -58,7 +61,7 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
   );
 }
 
-export function Sidebar({ open, onToggle, hold, omnibox }: SidebarProps) {
+export function Sidebar({ open, onToggle, hold, omnibox, address }: SidebarProps) {
   const { space } = useSpace();
   const { tabs, current: active } = useBrowser();
   const selected = active?.id;
@@ -106,7 +109,7 @@ export function Sidebar({ open, onToggle, hold, omnibox }: SidebarProps) {
       <AddressField
         tab={current}
         onPopoverOpenChange={hold.setPopoverOpen}
-        ref={omnibox.address}
+        ref={address}
         onOpenLocation={() => omnibox.toggle("current")}
       />
 

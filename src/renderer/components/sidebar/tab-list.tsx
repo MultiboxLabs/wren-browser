@@ -3,7 +3,7 @@
 
 import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, Orbit, Plus, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
+import { type CSSProperties, memo, type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
 import { Button } from "../ui/button";
 import { press } from "../ui/press";
@@ -37,8 +37,10 @@ export function selectTab(tab: Tab) {
 }
 
 /** What the list's rows share: the selected tab, and what a press on a row or its menu does. */
-type ListProps = {
-  selected?: Tab["id"];
+type ListProps = ListActions & { selected?: Tab["id"] };
+
+/** What a press on a row or its menu does, the same for every row. */
+type ListActions = {
   splits: TabSplit[];
   onSelect: (tab: Tab) => void;
   onClose: (tab: Tab) => void;
@@ -66,8 +68,8 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
   const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join());
   const scroller = useRef<HTMLDivElement>(null);
   useRevealActive(scroller, current?.id);
-  const props: ListProps = {
-    selected: newTabOpen ? undefined : current?.id,
+  const selected = newTabOpen ? undefined : current?.id;
+  const actions: ListActions = {
     splits,
     onSelect: selectTab,
     onClose: (tab) => {
@@ -92,6 +94,7 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
       if (title !== null && title !== group.title) groups.rename(group.id, title);
     }
   };
+  const props: ListProps = { ...actions, selected };
 
   return (
     <div
@@ -129,11 +132,14 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
         {/* Each tab brings its gap with it, so the list's gap goes from
             under the first. */}
         <div className="-mt-1.25 flex flex-col">
-          <AnimatePresence initial={false}>
+          {/* No row's layout is motion's to animate, so a row coming or going
+              need not draw every other row again. */}
+          <AnimatePresence initial={false} presenceAffectsLayout={false}>
             {entries(tabs, tabGroups).map((entry) =>
               entry.group ? (
                 <Appear
                   key={`group-${groupKey(entry.group.id)}`}
+                  className="pt-1.25"
                   unit={{
                     kind: "group",
                     tab: Number(entry.tabs[0].id),
@@ -145,13 +151,24 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
                     draggable: renaming !== entry.group.id
                   }}
                 >
-                  <GroupRows {...props} group={entry.group} members={entry.tabs} start={entry.start} />
+                  <GroupRows
+                    actions={actions}
+                    selected={selected}
+                    group={entry.group}
+                    members={entry.tabs}
+                    start={entry.start}
+                  />
                 </Appear>
               ) : (
-                rows(entry.tabs, props.splits, entry.start).map((row) => (
-                  <Appear key={rowKey(row)} unit={rowUnit(TOP_SCOPE, row)}>
-                    <BrowserRow {...props} row={row} />
-                  </Appear>
+                rows(entry.tabs, splits, entry.start).map((row) => (
+                  <UnitRow
+                    key={rowKey(row)}
+                    actions={actions}
+                    row={row}
+                    scope={TOP_SCOPE}
+                    selected={selectedIn(row, selected)}
+                    className="pt-1.25"
+                  />
                 ))
               )
             )}
@@ -413,8 +430,55 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
   );
 }
 
+/** The tabs of a row: its one, or its split's two. */
+const tabsOf = (row: BrowserRowItem) => (row.split ? [row.first, row.second] : [row.tab]);
+
+/** `selected`, if it is one of the row's tabs. */
+const selectedIn = (row: BrowserRowItem, selected: Tab["id"] | undefined) =>
+  tabsOf(row).some((tab) => tab.id === selected) ? selected : undefined;
+
+/**
+ * A row of the Browser's list as a unit of it. The app sends its tabs whole
+ * when any changes, so it is drawn again only when what it shows does: its
+ * tabs (kept as the same objects while they are, state/browser.tsx), its
+ * place, or the selection in it.
+ */
+const UnitRow = memo(
+  function UnitRow({
+    actions,
+    row,
+    scope,
+    indent,
+    selected,
+    className
+  }: {
+    actions: ListActions;
+    row: BrowserRowItem;
+    scope: string;
+    indent?: number;
+    /** The selected tab, if it is one of the row's. */
+    selected?: Tab["id"];
+    className?: string;
+  }) {
+    return (
+      <Appear unit={rowUnit(scope, row)} className={className}>
+        <BrowserRow {...actions} selected={selected} row={row} indent={indent} />
+      </Appear>
+    );
+  },
+  (before, after) =>
+    before.actions === after.actions &&
+    before.scope === after.scope &&
+    before.indent === after.indent &&
+    before.selected === after.selected &&
+    before.className === after.className &&
+    before.row.start === after.row.start &&
+    before.row.split === after.row.split &&
+    tabsOf(before.row).every((tab, index) => tab === tabsOf(after.row)[index])
+);
+
 /** A row of the Browser's list, fading in and out where it stands while the rows below slide. */
-function Appear({ unit, children }: { unit: Unit; children: ReactNode }) {
+function Appear({ unit, className, children }: { unit: Unit; className?: string; children: ReactNode }) {
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
@@ -423,7 +487,7 @@ function Appear({ unit, children }: { unit: Unit; children: ReactNode }) {
       transition={tabTransition}
       className="shrink-0"
     >
-      <div {...reorderUnit(unit)} className="pt-1.25">
+      <div {...reorderUnit(unit)} className={className}>
         {children}
       </div>
     </motion.div>
@@ -443,21 +507,32 @@ const groupColors: Record<GroupColor, string> = {
   orange: "oklch(0.76 0.16 55)"
 };
 
-function GroupRows(props: ListProps & { group: TabGroup; members: Tab[]; start: number }) {
-  const { group, members } = props;
+function GroupRows({
+  actions,
+  selected,
+  group,
+  members,
+  start
+}: {
+  actions: ListActions;
+  selected?: Tab["id"];
+  group: TabGroup;
+  members: Tab[];
+  start: number;
+}) {
   const Chevron = group.collapsed ? ChevronRight : ChevronDown;
   return (
     <div className="flex flex-col gap-1.25">
-      <Row onClick={() => props.onToggleGroup(group)} onMenu={(x, y) => props.onGroupMenu(group, x, y)}>
+      <Row onClick={() => actions.onToggleGroup(group)} onMenu={(x, y) => actions.onGroupMenu(group, x, y)}>
         <IconSlot>
           <span className="size-3 rounded-[3.5px]" style={{ background: groupColors[group.color] }} />
         </IconSlot>
-        {props.renaming === group.id ? (
-          <GroupTitleField group={group} onDone={(title) => props.onRename(group, title)} />
+        {actions.renaming === group.id ? (
+          <GroupTitleField group={group} onDone={(title) => actions.onRename(group, title)} />
         ) : (
           <span
             className={cn("min-w-0 flex-1 truncate font-semibold", !group.title && "text-fg-3")}
-            onDoubleClick={() => props.onStartRename(group)}
+            onDoubleClick={() => actions.onStartRename(group)}
           >
             {group.title || "Unnamed Group"}
           </span>
@@ -466,21 +541,17 @@ function GroupRows(props: ListProps & { group: TabGroup; members: Tab[]; start: 
           <Chevron size={14} strokeWidth={2} />
         </span>
       </Row>
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} presenceAffectsLayout={false}>
         {!group.collapsed &&
-          rows(members, props.splits, props.start).map((row) => (
-            <motion.div
+          rows(members, actions.splits, start).map((row) => (
+            <UnitRow
               key={rowKey(row)}
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={tabTransition}
-              className="shrink-0"
-            >
-              <div {...reorderUnit(rowUnit(group.id, row))}>
-                <BrowserRow {...props} row={row} indent={16} />
-              </div>
-            </motion.div>
+              actions={actions}
+              row={row}
+              scope={group.id}
+              indent={16}
+              selected={selectedIn(row, selected)}
+            />
           ))}
       </AnimatePresence>
     </div>

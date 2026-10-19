@@ -21,6 +21,7 @@ import {
   toast
 } from "../ipc";
 import { updateCommitted, updateReceived, updateRendering } from "../perf/measure";
+import { settle } from "../utils/settle";
 
 /** A tab of the Browser, with its favicon once the app has given it. */
 type BrowserTabWithFavicon = BrowserTab & { favicon?: string | null };
@@ -69,11 +70,10 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   // How long the app's word on the tabs takes to show, in a performance run.
   updateRendering();
   useLayoutEffect(updateCommitted);
-  const { tabs, favicons } = useTabs();
+  const { said: tabs, list } = useTabs();
   const panel = useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
   const showing = useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
   const find = useFind();
-  const list = (tabs?.tabs ?? []).map((tab) => ({ ...tab, favicon: favicons[tab.id] }));
   const state: BrowserState = {
     id: tabs?.browser ?? null,
     tabs: list,
@@ -110,18 +110,38 @@ function useFind(): FindState | null {
   return bar ? { bar, request, claim } : null;
 }
 
-/** The window's tabs and their favicons, as the app last said. */
+/** The window's tabs, each with its favicon, as the app last said. */
+type Tabs = {
+  /** The app's word, with its groups and splits settled. Null until the app has said. */
+  said: BrowserTabs | null;
+  /** Its tabs with their favicons, settled. */
+  list: BrowserTabWithFavicon[];
+  favicons: Record<number, string | null>;
+};
+
+/**
+ * The window's tabs and their favicons, as the app last said. A tab, group
+ * or split the app says again as it was is kept as the object it was
+ * (utils/settle.ts), so what draws it is left as it is.
+ */
 function useTabs() {
-  const [tabs, setTabs] = useState<BrowserTabs | null>(null);
-  const [favicons, setFavicons] = useState<Record<number, string | null>>({});
+  const [tabs, setTabs] = useState<Tabs>({ said: null, list: [], favicons: {} });
   const asked = useRef(new Set<number>());
 
   useEffect(
     () =>
       hasApp
-        ? follow(browser.tabs, browser.onTabs, (tabs) => {
-            updateReceived(tabs);
-            setTabs(tabs);
+        ? follow(browser.tabs, browser.onTabs, (said) => {
+            updateReceived(said);
+            setTabs((tabs) => ({
+              ...tabs,
+              said: {
+                ...said,
+                groups: settle(tabs.said?.groups, said.groups),
+                splits: settle(tabs.said?.splits, said.splits)
+              },
+              list: withFavicons(tabs.list, said.tabs, tabs.favicons)
+            }));
           })
         : undefined,
     []
@@ -132,14 +152,17 @@ function useTabs() {
     browser.favicon(id).then(
       (favicon) => {
         updateReceived(favicon);
-        setFavicons((favicons) => ({ ...favicons, [id]: favicon }));
+        setTabs((tabs) => {
+          const favicons = { ...tabs.favicons, [id]: favicon };
+          return { ...tabs, favicons, list: withFavicons(tabs.list, tabs.said?.tabs ?? [], favicons) };
+        });
       },
       () => {}
     );
   useEffect(() => (hasApp ? browser.onFavicon(ask) : undefined), []);
   useEffect(() => {
-    if (!tabs) return;
-    const open = new Set(tabs.tabs.map((tab) => tab.id));
+    if (!tabs.said) return;
+    const open = new Set(tabs.said.tabs.map((tab) => tab.id));
     for (const id of open) {
       if (!asked.current.has(id)) {
         asked.current.add(id);
@@ -150,12 +173,22 @@ function useTabs() {
     const closed = [...asked.current].filter((id) => !open.has(id));
     if (closed.length) {
       closed.forEach((id) => asked.current.delete(id));
-      setFavicons((favicons) => Object.fromEntries(Object.entries(favicons).filter(([id]) => open.has(Number(id)))));
+      setTabs((tabs) => ({
+        ...tabs,
+        favicons: Object.fromEntries(Object.entries(tabs.favicons).filter(([id]) => open.has(Number(id))))
+      }));
     }
-  }, [tabs]);
+  }, [tabs.said]);
 
-  return { tabs, favicons };
+  return tabs;
 }
+
+/** `tabs` with their favicons, settled against `previous`. */
+const withFavicons = (previous: BrowserTabWithFavicon[], tabs: BrowserTab[], favicons: Record<number, string | null>) =>
+  settle(
+    previous,
+    tabs.map((tab) => ({ ...tab, favicon: favicons[tab.id] }))
+  );
 
 /** The active tab's site, as the app last said; null before it has shown a page. */
 export const useSite = () => useFromApp<Site | null>(site.state, site.onState) ?? null;

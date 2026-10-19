@@ -2,7 +2,7 @@
 // menu's Toggle Sidebar, the pointer at the window's left edge, and what it
 // opened holding it out while it floats. And its width, kept between runs.
 
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 import { hasApp, menu, type SidebarState } from "../../ipc";
 import { useBrowser } from "../../state/browser";
 import { type Presentation, useSidebarMotion, useWindowButtons } from "./motion";
@@ -19,8 +19,15 @@ export type SidebarHold = {
   setPopoverOpen: (open: boolean) => void;
 };
 
-/** `omniboxShown`: the omnibox is open, which holds the floating sidebar out too. */
-export function useSidebarPresentation(saved: SidebarState | null, omniboxShown: boolean) {
+/**
+ * `omniboxShown`: the omnibox is open, which holds the floating sidebar out
+ * too. `box`: the sidebar's box, which the pointer is over or not.
+ */
+export function useSidebarPresentation(
+  saved: SidebarState | null,
+  omniboxShown: boolean,
+  box: RefObject<HTMLElement | null>
+) {
   const [presentation, setPresentation] = useState<Presentation>(saved?.open === false ? "hidden" : "anchored");
   const open = presentation === "anchored";
   const [width, setWidth] = useState(() =>
@@ -32,8 +39,7 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxShown:
   useEffect(() => save({ open, width }), [open]);
   const motion = useSidebarMotion(presentation, width);
   useWindowButtons(motion.box);
-  const ref = useRef<HTMLElement>(null);
-  const hovered = () => ref.current?.matches(":hover") ?? false;
+  const hovered = () => box.current?.matches(":hover") ?? false;
 
   const float = () => setPresentation((shown) => (shown === "hidden" ? "floating" : shown));
   const away = () => setPresentation((shown) => (shown === "floating" ? "hidden" : shown));
@@ -78,8 +84,6 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxShown:
     /** A drag of its edge is over: the width it left is kept. */
     endResize: () => save({ open, width }),
     motion,
-    /** The sidebar's box, which the pointer is over or not. */
-    ref,
     toggle,
     /** The pointer at the window's left edge brings the hidden sidebar out. */
     reveal: float,

@@ -4,7 +4,7 @@
 // opens, it opens afresh. What opens it closes it again (⌘T, the New Tab
 // row, ⌘L); the other kind takes its place.
 
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { hasApp, omnibox, type OmniboxTarget } from "../../ipc";
 import type { OmniboxPlace } from "./omnibox";
 
@@ -17,13 +17,14 @@ export type ShownOmnibox = {
 
 export type OmniboxState = ReturnType<typeof useShownOmnibox>;
 
-export function useShownOmnibox() {
-  // The address field's box, which the omnibox for the active tab opens over.
-  const address = useRef<HTMLDivElement>(null);
+/** `address`: the address field, whose box the omnibox for the active tab opens over. */
+export function useShownOmnibox(address: RefObject<HTMLElement | null>) {
   const [shown, setShown] = useState<ShownOmnibox | null>(null);
   // Read by the main menu's listener as it is now.
   const latest = useRef(shown);
-  latest.current = shown;
+  useLayoutEffect(() => {
+    latest.current = shown;
+  }, [shown]);
   const opened = useRef(0);
 
   const show = (target: OmniboxTarget, toggles: boolean) => {
@@ -42,8 +43,6 @@ export function useShownOmnibox() {
 
   return {
     shown,
-    /** For the address field, whose box the omnibox for the active tab opens over. */
-    address,
     /** Opens the omnibox for `target`, or closes it if that one is open. */
     toggle: (target: OmniboxTarget) => show(target, true),
     /** It closed by itself, or opened what was chosen. */
