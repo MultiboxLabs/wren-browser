@@ -3,9 +3,12 @@
 // If the page is still loading after a couple of blinks, the pill comes
 // back wider, and a line sweeps through it over and over until the page
 // has loaded. Neither says how far the page has got.
+// A blink, once started, always plays out: it is the pill's way out for a
+// page that loads quickly, and it rides out the page's loading turning off
+// and on again as it settles, which would otherwise cut the pill short.
 
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Phase = "idle" | "blink" | "sweep";
 
@@ -14,10 +17,10 @@ type Phase = "idle" | "blink" | "sweep";
 const omega = (2 * Math.PI) / 0.8;
 const spring = { type: "spring", stiffness: omega ** 2, damping: 2 * 0.92 * omega } as const;
 // The springs on `shown` start at rest. Otherwise they carry on its
-// velocity, which a blink restarting from 0 makes huge (a jump over a
-// fraction of a millisecond), and fling the pill to many times its size.
+// velocity, which motion measures over as little as a fraction of a
+// millisecond, and can fling the pill to many times its size.
 const fromRest = { ...spring, velocity: 0 } as const;
-// The blink: in and out, as a sine, twice, over 3.2s before it sweeps. The
+// A blink: in and out, as a sine, over 1.6s; twice before it sweeps. The
 // sweep starts as the last blink has gone out, so the change is never seen.
 const BLINK = 1.6;
 const BLINKS = 2;
@@ -30,28 +33,49 @@ export function LoadingBar({ loading }: { loading: boolean }) {
   const scale = useTransform(shown, (value) => 0.88 + 0.12 * Math.min(Math.max(value, 0), 1));
   // With Reduced Motion, it only fades: it does not scale, nor grow wider.
   const still = useReducedMotion();
+  // What the animations read as they end: the page's latest `loading`, the
+  // phase they are in, and the one running, which a newer one supersedes.
+  const latest = useRef({ loading, phase: "idle" as Phase, running: null as ReturnType<typeof animate> | null });
 
   useEffect(() => {
-    if (!loading) {
-      setPhase("idle");
-      const out = animate(shown, 0, fromRest);
-      return () => out.stop();
-    }
-    let cancelled = false;
-    let sweep: ReturnType<typeof animate> | undefined;
-    setPhase("blink");
-    const blink = animate(shown, [0, 1, 0], { duration: BLINK, ease: [sine, sine], repeat: BLINKS - 1 });
-    blink.then(() => {
-      if (cancelled) return;
-      setPhase("sweep");
-      sweep = animate(shown, 1, fromRest);
-    });
-    return () => {
-      cancelled = true;
-      blink.stop();
-      sweep?.stop();
+    const state = latest.current;
+    const enter = (next: Phase, running: ReturnType<typeof animate> | null) => {
+      state.phase = next;
+      state.running = running;
+      setPhase(next);
     };
+    const blink = (left: number) => {
+      const running = animate(shown, [0, 1, 0], { duration: BLINK, ease: [sine, sine] });
+      enter("blink", running);
+      running.then(() => {
+        if (state.running !== running) return;
+        if (!state.loading) enter("idle", null);
+        else if (left > 1) blink(left - 1);
+        else enter("sweep", animate(shown, 1, fromRest));
+      });
+    };
+
+    state.loading = loading;
+    if (loading) {
+      // A blink or the sweep carries on. A pill still going out from its
+      // sweep comes back to it.
+      if (state.phase !== "idle") return;
+      if (shown.get() > 0) enter("sweep", animate(shown, 1, fromRest));
+      else blink(BLINKS);
+    } else if (state.phase === "sweep") {
+      enter("idle", animate(shown, 0, fromRest));
+    }
   }, [loading]);
+
+  // Unmounted, it stops; mounted again, it starts afresh.
+  useEffect(() => {
+    const state = latest.current;
+    return () => {
+      state.running?.stop();
+      state.running = null;
+      state.phase = "idle";
+    };
+  }, []);
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-full flex h-2.5 items-center justify-center">
