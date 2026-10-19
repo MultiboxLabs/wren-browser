@@ -123,7 +123,7 @@ struct Suggestion {
     /// The keyword Tab enters keyword mode with, and its chip's name.
     keyword: String,
     keyword_name: String,
-    /// Its page's favicon as an address of the page's icons, if it has one yet.
+    /// Its page's favicon's icon ID, if it has one yet.
     icon: Option<String>,
 }
 
@@ -308,7 +308,7 @@ fn suggestions(browser: &Browser) -> Option<Suggestions> {
                 inline: text(SuggestionText::Inline),
                 keyword: text(SuggestionText::Keyword),
                 keyword_name: text(SuggestionText::KeywordName),
-                icon: browser.suggestion_icon_png(index).map(icons::url),
+                icon: browser.suggestion_icon_png(index).map(icons::id),
             })
         })
         .collect();

@@ -37,7 +37,16 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { type ReactNode, useEffect, useState } from "react";
-import { browser, type ExtensionAction, extensions, type Site, sidePanel, site, type SitePermission } from "../../ipc";
+import {
+  browser,
+  type ExtensionAction,
+  extensions,
+  iconUrl,
+  type Site,
+  sidePanel,
+  site,
+  type SitePermission
+} from "../../ipc";
 import { Button, type Icon } from "../ui/button";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
@@ -228,7 +237,7 @@ function CopyLinkTile({ disabled, onCopied }: { disabled: boolean; onCopied: () 
 /** An extension's icon as Chrome draws its button, badge and all; a puzzle piece while it has none. */
 export function ExtensionIcon({ action }: { action: ExtensionAction }) {
   return action.icon ? (
-    <img src={action.icon} alt="" className="size-7" />
+    <img src={iconUrl(action.icon)} alt="" className="size-7" />
   ) : (
     <span className="grid glyph-2">
       <Puzzle size={16} strokeWidth={1.75} />

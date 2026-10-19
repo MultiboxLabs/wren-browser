@@ -17,7 +17,7 @@ import {
   Zap
 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
-import type { OmniboxTarget, Suggestion, SuggestionKind } from "../../ipc";
+import { iconUrl, type OmniboxTarget, Suggestion, SuggestionKind } from "../../ipc";
 import { Favicon } from "../favicon";
 import { type OmniboxItem, type OpenHow, openHowOf, switchesToTab } from "./items";
 import { cn } from "../../utils/cn";
@@ -108,10 +108,10 @@ export function OmniboxRow({
  */
 export function OmniboxIcon({ item, glyph }: { item: OmniboxItem; glyph: string }) {
   if (item.type === "bang") return <Zap size={15} strokeWidth={2} className={glyph} />;
-  if (item.type === "tab") return <Favicon url={item.tab.url} title={item.tab.title} src={item.tab.favicon} />;
+  if (item.type === "tab") return <Favicon url={item.tab.url} title={item.tab.title} icon={item.tab.favicon} />;
   const { suggestion } = item;
   if (suggestion.icon) {
-    return <img aria-hidden src={suggestion.icon} width={16} height={16} className="rounded-favicon" />;
+    return <img aria-hidden src={iconUrl(suggestion.icon)} width={16} height={16} className="rounded-favicon" />;
   }
   const Icon = kindIcons[suggestion.kind];
   return <Icon size={15} strokeWidth={2} className={glyph} />;

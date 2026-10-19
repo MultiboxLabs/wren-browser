@@ -87,7 +87,7 @@ fn actions(browser: &Browser) -> Vec<Action> {
                 popped_out: state.is_some_and(|state| state.popped_out),
                 icon: browser
                     .extension_action_icon_png(&id, 28, 2.0, true)
-                    .map(icons::url),
+                    .map(icons::id),
                 id,
             }
         })

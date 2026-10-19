@@ -13,7 +13,7 @@ pub struct SidePanel {
     id: String,
     /// In Chromium's language.
     title: String,
-    /// An extension's panel: its action's icon, as an address of the page's icons.
+    /// An extension's panel: its action's icon, as an icon ID.
     icon: Option<String>,
     width: f64,
 }
@@ -67,7 +67,7 @@ fn side_panel(browser: &Browser) -> SidePanel {
         icon: id
             .strip_prefix("Extension")
             .and_then(|extension| browser.extension_action_icon_png(extension, 16, 2.0, false))
-            .map(icons::url),
+            .map(icons::id),
         id,
         title: browser.side_panel_title(),
         width: state.map_or(0.0, |state| state.width),

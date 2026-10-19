@@ -7,7 +7,7 @@ export type Toast = {
   text: string;
   /** Its button's text, if it has one. */
   button: string | null;
-  /** Chromium's icon, as an address of the app's icons, for a toast the page has none of its own for. */
+  /** Chromium's icon, as an icon ID (iconUrl), for a toast the page has none of its own for. */
   icon: string | null;
   /** Something is under way: a spinner in place of its icon. */
   busy: boolean;

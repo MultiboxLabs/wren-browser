@@ -86,12 +86,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |_, browser| Ok(tab_list(browser)))
     });
 
-    // A tab's favicon as an address of the page's icons, or null; "tab.favicon" says when it
+    // A tab's favicon's icon ID, or null; "tab.favicon" says when it
     // changes.
     let weak = window.clone();
     let _ = web_view.handle("tab.favicon", move |id: i32| {
         with_browser(&weak, |_, browser| {
-            Ok(tab(mt, browser, id)?.favicon_png().map(icons::url))
+            Ok(tab(mt, browser, id)?.favicon_png().map(icons::id))
         })
     });
 

@@ -50,7 +50,7 @@ struct Toast {
     text: String,
     /// Its button's text, if it has one.
     button: Option<String>,
-    /// Chromium's icon, as an address of the page's icons, for a toast the page has none of
+    /// Chromium's icon, as an icon ID, for a toast the page has none of
     /// its own for; None with a spinner in its place.
     icon: Option<String>,
     /// Something is under way: a spinner in place of its icon.
@@ -127,7 +127,7 @@ fn toast(browser: &Browser) -> Option<Toast> {
             .has_button
             .then(|| popover.text(UIText::Accept))
             .filter(|label| !label.is_empty()),
-        icon: popover.toast_icon_png(16, 2.0).map(icons::url),
+        icon: popover.toast_icon_png(16, 2.0).map(icons::id),
         busy: state.has_throbber,
         text,
     })

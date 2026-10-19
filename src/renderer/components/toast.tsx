@@ -6,7 +6,7 @@ import { Glasses, Image, Link, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Icon } from "./ui/button";
 import { Toast as ToastView } from "./ui/toast";
-import { type Toast, toast as toasts } from "../ipc";
+import { iconUrl, type Toast, toast as toasts } from "../ipc";
 import { useToastShown } from "../state/browser";
 
 // Our own icons, by the toast's name. Any other has Chromium's.
@@ -47,7 +47,7 @@ function toastIcon(toast: Toast): ReactNode {
   // may not be the toast's: its shape in the toast's text colour instead.
   return (
     <span
-      style={{ maskImage: `url(${toast.icon})`, maskSize: "contain", maskRepeat: "no-repeat" }}
+      style={{ maskImage: `url(${iconUrl(toast.icon)})`, maskSize: "contain", maskRepeat: "no-repeat" }}
       className="size-4 bg-current"
     />
   );

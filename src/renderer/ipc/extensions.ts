@@ -7,7 +7,7 @@ export type ExtensionAction = {
   forcePinned: boolean;
   /** Shown in the address field although not pinned, while its popup opens. */
   poppedOut: boolean;
-  /** An address of the app's icon for Chrome's 28-point button: the icon, with its badge. */
+  /** The icon ID (iconUrl) of Chrome's 28-point button: the icon, with its badge. */
   icon: string | null;
 };
 

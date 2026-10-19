@@ -8,6 +8,7 @@ export * from "./extensions";
 export * from "./find";
 export * from "./follow";
 export * from "./groups";
+export * from "./icons";
 export * from "./menu";
 export * from "./omnibox";
 export * from "./perf";

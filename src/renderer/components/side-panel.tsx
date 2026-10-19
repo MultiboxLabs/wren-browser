@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Menu } from "./ui/menu";
 import { ResizeHandle } from "./ui/resize-handle";
-import { sidePanel, type SidePanelState } from "../ipc";
+import { iconUrl, sidePanel, type SidePanelState } from "../ipc";
 
 /** The panels the menu offers, by Chromium's names for them. */
 export const sidePanels = [
@@ -57,7 +57,7 @@ export function SidePanel({
             onSelect={sidePanel.show}
             trigger={
               <Button icon={icon ? undefined : Icon} iconSize={15} className="font-semibold">
-                {icon && <img aria-hidden src={icon} width={16} height={16} />}
+                {icon && <img aria-hidden src={iconUrl(icon)} width={16} height={16} />}
                 {label}
                 <ChevronDown size={13} strokeWidth={2} className="glyph-2" />
               </Button>
