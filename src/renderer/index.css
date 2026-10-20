@@ -32,6 +32,8 @@ body,
      corners at its padding. */
   --radius-popover: 18px;
   --radius-tile: 8px;
+  /* A dialog over the window (components/ui/dialog.tsx). */
+  --radius-dialog: 16px;
   /* The omnibox over the window, its rows, and the tile a selected row's
      favicon sits on. */
   --radius-omnibox: 12px;
@@ -73,6 +75,7 @@ body,
   --color-menu-highlight: var(--menu-highlight);
   --color-raised: var(--raised);
   --color-raised-hover: var(--raised-hover);
+  --color-prominent: var(--prominent);
   --shadow-raised: var(--raised-edge);
   --color-omnibox-fg: var(--omnibox-fg);
   --color-omnibox-typed: var(--omnibox-typed);
@@ -190,6 +193,9 @@ body,
 }
 
 :root[data-scheme] {
+  /* A default button (Button's prominent): the space's colour, deep enough
+     for white text on it. */
+  --prominent: oklch(from var(--space) 0.55 c h);
   --fg-2: rgb(from var(--glyph) r g b / var(--glyph-2));
   --fg-3: rgb(from var(--glyph) r g b / var(--glyph-3));
   --fg-4: rgb(from var(--glyph) r g b / var(--glyph-4));
@@ -346,6 +352,30 @@ body,
   to {
     opacity: 0;
   }
+}
+
+/* A dialog (components/ui/dialog.tsx), as macOS draws a sheet since Big
+   Sur: a card in the middle of the window, which dims behind it. Neutral and
+   solid, as a popover is (backdrop-filter blurs nothing in the window's
+   page), with the same light inner edge and dark outer one, and a deeper
+   shadow: it stands further off the window. */
+.dialog {
+  --fg: var(--menu-fg);
+  color: var(--fg);
+  background: var(--popover);
+  border-radius: var(--radius-dialog);
+  box-shadow:
+    inset 0 0 0 1px var(--popover-highlight),
+    0 0 0 0.5px var(--popover-edge),
+    0 18px 48px rgb(0 0 0 / 0.3);
+}
+
+/* What dims the window, and takes its clicks, while a dialog is up. */
+:root[data-scheme="light"] .dialog-scrim {
+  background: rgb(0 0 0 / 0.12);
+}
+:root[data-scheme="dark"] .dialog-scrim {
+  background: rgb(0 0 0 / 0.3);
 }
 
 /* The omnibox (components/omnibox/omnibox.tsx), a command bar: neutral, not

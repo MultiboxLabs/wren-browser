@@ -15,9 +15,10 @@ export type Icon = ComponentType<{ size?: number; strokeWidth?: number; classNam
  * How it stands on what is around it: `plain`, a fill only under the
  * pointer (a toolbar's); `filled`, a fill of its own (the favourites);
  * `faint`, a fainter one, for items of a grid that are many (extensions);
- * `raised`, a bezel standing on a popover.
+ * `raised`, a bezel standing on a popover; `prominent`, the space's colour,
+ * for the default button of a dialog.
  */
-export type ButtonVariant = "plain" | "filled" | "faint" | "raised";
+export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent";
 
 /**
  * Its size and corners: `square`, a toolbar's 28 points; `text`, as tall,
@@ -35,8 +36,9 @@ type ButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
   /** The size `icon` is drawn at, when it is an Icon. */
   iconSize?: number;
   /**
-   * The icon's tone: the variant's (`plain` dim, as a toolbar's; the rest
-   * full), or the text's colour, for a coloured button.
+   * The icon's tone: the variant's (`plain` dim, as a toolbar's;
+   * `prominent` its text's; the rest full), or the text's colour, for a
+   * coloured button.
    */
   iconTone?: "dim" | "full" | "inherit";
   /** Its tooltip; and its name, unless its text names it. */
@@ -70,6 +72,12 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
   raised: {
     off: "bg-raised shadow-raised enabled:not-data-[state=open]:hover:bg-raised-hover enabled:not-data-[state=open]:active:bg-pressed data-[state=open]:bg-selected",
     on: "bg-selected"
+  },
+  // Pressed, it darkens, as a native default button does; disabled, it
+  // loses its colour and stands as a raised one.
+  prominent: {
+    off: "bg-prominent text-white shadow-raised enabled:active:brightness-90 disabled:bg-raised",
+    on: "bg-prominent text-white shadow-raised brightness-90"
   }
 };
 
@@ -100,7 +108,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   const form = shape ?? (children === undefined ? "square" : "text");
-  const tone = tones[iconTone ?? (variant === "plain" ? "dim" : "full")];
+  const tone = tones[iconTone ?? (variant === "plain" ? "dim" : variant === "prominent" ? "inherit" : "full")];
   return (
     <Tooltip label={label}>
       <motion.button
