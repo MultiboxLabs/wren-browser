@@ -22,10 +22,11 @@ export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent
 
 /**
  * Its size and corners: `square`, a toolbar's 28 points; `text`, as tall,
- * as wide as its text; `tile`, the cell of a grid, which sets its size; or
- * `none`, laid out wholly by `className`.
+ * as wide as its text; `large`, a dialog's, 36 points tall and as round as a
+ * text field; `tile`, the cell of a grid, which sets its size; or `none`,
+ * laid out wholly by `className`.
  */
-export type ButtonShape = "square" | "text" | "tile" | "none";
+export type ButtonShape = "square" | "text" | "large" | "tile" | "none";
 
 type ButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
   variant?: ButtonVariant;
@@ -73,10 +74,10 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
     off: "bg-raised shadow-raised enabled:not-data-[state=open]:hover:bg-raised-hover enabled:not-data-[state=open]:active:bg-pressed data-[state=open]:bg-selected",
     on: "bg-selected"
   },
-  // Pressed, it darkens, as a native default button does; disabled, it
-  // loses its colour and stands as a raised one.
+  // Pressed, it darkens, as a native default button does. Disabled, it
+  // fades but keeps its colour: grey, it would pass for the Cancel beside it.
   prominent: {
-    off: "bg-prominent text-white shadow-raised enabled:active:brightness-90 disabled:bg-raised",
+    off: "bg-prominent text-white shadow-raised enabled:active:brightness-90 disabled:text-white disabled:opacity-45",
     on: "bg-prominent text-white shadow-raised brightness-90"
   }
 };
@@ -84,6 +85,7 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
 const shapes: Record<ButtonShape, { className: string; scale: number }> = {
   square: { className: "inline-grid size-7 place-items-center rounded-control", scale: 0.94 },
   text: { className: "inline-flex h-7 items-center justify-center gap-1.5 rounded-control px-2.5", scale: 0.97 },
+  large: { className: "inline-flex h-9 min-w-22 items-center justify-center gap-1.5 rounded-field px-4", scale: 0.97 },
   tile: { className: "grid place-items-center rounded-tile", scale: 0.95 },
   none: { className: "", scale: 0.97 }
 };

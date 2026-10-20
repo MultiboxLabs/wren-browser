@@ -32,8 +32,9 @@ body,
      corners at its padding. */
   --radius-popover: 18px;
   --radius-tile: 8px;
-  /* A dialog over the window (components/ui/dialog.tsx). */
-  --radius-dialog: 16px;
+  /* A dialog over the window (components/ui/dialog.tsx): large, as the
+     window's own corners are. */
+  --radius-dialog: 22px;
   /* The omnibox over the window, its rows, and the tile a selected row's
      favicon sits on. */
   --radius-omnibox: 12px;
@@ -51,6 +52,8 @@ body,
      --text-omnibox-fg and the like, which would clash with its colours. */
   --text-omnibox-row: 13px;
   --text-omnibox-large: 18px;
+  /* What a dialog asks. */
+  --text-dialog-title: 16px;
 
   --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.15);
   --shadow-menu: 0 6px 20px rgb(0 0 0 / 0.2);
@@ -77,6 +80,8 @@ body,
   --color-raised-hover: var(--raised-hover);
   --color-prominent: var(--prominent);
   --shadow-raised: var(--raised-edge);
+  --color-field: var(--field);
+  --shadow-field: var(--field-edge);
   --color-omnibox-fg: var(--omnibox-fg);
   --color-omnibox-typed: var(--omnibox-typed);
   --color-omnibox-glyph: var(--omnibox-glyph);
@@ -160,6 +165,11 @@ body,
   --raised: rgb(255 255 255);
   --raised-hover: rgb(250 250 250);
   --raised-edge: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.1);
+  /* A text field (components/ui/text-field.tsx): sunk into what it is on,
+     where a raised button stands out of it, so the two are never taken for
+     each other. */
+  --field: rgb(255 255 255);
+  --field-edge: inset 0 0 0 0.5px rgb(0 0 0 / 0.2), inset 0 1px 1.5px rgb(0 0 0 / 0.06);
 }
 
 :root[data-scheme="dark"] {
@@ -190,6 +200,8 @@ body,
   --raised: rgb(255 255 255 / 0.1);
   --raised-hover: rgb(255 255 255 / 0.14);
   --raised-edge: inset 0 0.5px 0 rgb(255 255 255 / 0.12), 0 1px 2px rgb(0 0 0 / 0.35);
+  --field: rgb(0 0 0 / 0.22);
+  --field-edge: inset 0 0 0 0.5px rgb(255 255 255 / 0.12), inset 0 1px 2px rgb(0 0 0 / 0.3);
 }
 
 :root[data-scheme] {

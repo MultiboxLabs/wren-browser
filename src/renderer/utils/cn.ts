@@ -8,7 +8,9 @@ import { createCn } from "cn/config";
 export const cn = createCn({
   extend: {
     classGroups: {
-      "font-size": [{ text: ["ui", "menu-item", "caption", "subtitle", "omnibox-row", "omnibox-large"] }],
+      "font-size": [
+        { text: ["ui", "menu-item", "caption", "subtitle", "omnibox-row", "omnibox-large", "dialog-title"] }
+      ],
       rounded: [
         {
           rounded: [
@@ -29,7 +31,7 @@ export const cn = createCn({
           ]
         }
       ],
-      shadow: [{ shadow: ["tooltip", "menu", "omnibox-chip", "raised"] }]
+      shadow: [{ shadow: ["tooltip", "menu", "omnibox-chip", "raised", "field"] }]
     }
   }
 });
