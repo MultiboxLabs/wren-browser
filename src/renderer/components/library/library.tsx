@@ -9,6 +9,7 @@ import { Button, type Icon } from "../ui/button";
 import { BackIcon } from "../icons";
 import { cn } from "../../utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
+import { useProfiles } from "../../state/library";
 import { type Section, SectionList } from "./sections";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
@@ -29,6 +30,8 @@ export type LibraryProps = {
 export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   const [section, setSection] = useState<Section>("profiles");
   const [query, setQuery] = useState("");
+  const [naming, setNaming] = useState(false);
+  const { profiles, failed, reload, create, rename, remove } = useProfiles(open);
   const shown = sections.find(({ id }) => id === section)!;
   const railX = useTransform(() => railShift(steps));
   const listX = useTransform(() => listShift(steps));
@@ -46,6 +49,7 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   const choose = (id: Section) => {
     setSection(id);
     setQuery("");
+    setNaming(false);
   };
 
   return (
@@ -111,10 +115,34 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
           </label>
         </div>
 
-        <SectionList key={section} section={section} query={query.trim().toLowerCase()} />
+        <SectionList
+          key={section}
+          section={section}
+          query={query.trim().toLowerCase()}
+          profiles={profiles}
+          failed={failed}
+          onReload={reload}
+          naming={naming}
+          onCreate={create}
+          onRename={rename}
+          onDelete={remove}
+          onNamed={() => setNaming(false)}
+        />
 
         <div className="flex h-12.5 shrink-0 items-center justify-end">
-          <Button icon={Plus} label={`New ${shown.item}`} />
+          <Button
+            icon={Plus}
+            label={`New ${shown.item}`}
+            // There is no list to add a profile to until it has been read.
+            disabled={section === "profiles" && !profiles}
+            onClick={() => {
+              // Only a profile can be made so far.
+              if (section !== "profiles") return;
+              // Its row is at the top of a list that is not searched.
+              setQuery("");
+              setNaming(true);
+            }}
+          />
         </div>
       </motion.div>
     </div>
