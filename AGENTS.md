@@ -34,3 +34,7 @@ Wren Browser is a modern, privacy-focused browser with a minimalistic design.
   their renderer side in `src/renderer/ipc/<part>.ts`. Change both together.
 - Commit directly to `main`; do not create branches unless asked.
 - Commit messages are `feat:`, `fix:` or `chore:`, then a lowercase summary.
+
+## Agents
+
+- For big changes, read `.agent/plans/README.md` and create a plan in `.agent/plans/` first.
