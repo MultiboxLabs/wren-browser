@@ -9,7 +9,8 @@ import { Button, type Icon as IconType } from "../ui/button";
 import { press } from "../ui/press";
 import { Favicon } from "../favicon";
 import { DeleteDialog, RenameDialog } from "./profile-dialogs";
-import { type Boost, boosts as allBoosts, type Profile, spaceOwners, spaces } from "../../state/library";
+import type { ProfileEntry } from "../../ipc";
+import { type Boost, boosts as allBoosts, spaceOwners, spaces } from "../../state/library";
 import { useSpace } from "../../state/space";
 import { cssColor } from "../../utils/color";
 import { cn } from "../../utils/cn";
@@ -27,7 +28,7 @@ export type SectionListProps = {
   /** Lowercased. */
   query: string;
   /** Null until the app has listed them. */
-  profiles: Profile[] | null;
+  profiles: ProfileEntry[] | null;
   /** The app could not list them. */
   failed: boolean;
   /** Asks it to list them again. */
@@ -83,12 +84,12 @@ function Profiles({
   // typed the last time is not left in it.
   const [asked, setAsked] = useState<{
     kind: "rename" | "delete";
-    profile: Profile;
+    profile: ProfileEntry;
     open: boolean;
     serial: number;
   } | null>(null);
   const serial = useRef(0);
-  const ask = (kind: "rename" | "delete", profile: Profile) =>
+  const ask = (kind: "rename" | "delete", profile: ProfileEntry) =>
     setAsked({ kind, profile, open: true, serial: ++serial.current });
   if (!profiles) return failed ? <LoadFailed what="Profiles" onRetry={onReload} /> : <Loading />;
   const shown = profiles.filter((profile) => matches(query, profile.name));

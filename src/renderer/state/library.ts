@@ -3,26 +3,8 @@
 // made up here, as the space's favourites are.
 
 import { useEffect, useState } from "react";
-import { hasApp, type ProfileEntry, profiles } from "../ipc";
+import { hasApp, type NewSpace, type ProfileEntry, profiles } from "../ipc";
 import { personal } from "./space";
-
-export type Profile = ProfileEntry & {
-  /** Its avatar's colour: #rrggbb. */
-  color: string;
-};
-
-/** The colours a profile's avatar takes, one by its ID. */
-const AVATARS = ["#6f00ff", "#0a84ff", "#30d158", "#ff9f0a", "#bf5af2", "#ff375f", "#64d2ff"];
-
-// Chromium keeps no colour for a profile, so its ID chooses one: the same
-// each time, and not shared by every profile.
-function avatar(id: string) {
-  let hash = 0;
-  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return AVATARS[hash % AVATARS.length];
-}
-
-const profile = (entry: ProfileEntry): Profile => ({ ...entry, color: avatar(entry.id) });
 
 /**
  * The user's profiles, as the app lists them, read again each time the
@@ -34,23 +16,24 @@ const profile = (entry: ProfileEntry): Profile => ({ ...entry, color: avatar(ent
  */
 export function useProfiles(open: boolean) {
   // Outside the app (Vite in a browser) there is nothing to wait for.
-  const [list, setList] = useState<Profile[] | null>(hasApp ? null : []);
+  const [list, setList] = useState<ProfileEntry[] | null>(hasApp ? null : []);
   const [failed, setFailed] = useState(false);
   const refresh = () => {
     setFailed(false);
     return profiles.list().then(
-      (entries) => setList(entries.map(profile)),
+      (entries) => setList(entries),
       () => setFailed(true)
     );
   };
   useEffect(() => {
     if (open && hasApp) refresh();
   }, [open]);
-  const create = async (name: string) => {
-    const entry = await profiles.create(name);
+  // `space` is the profile's first space, in place of the default one.
+  const create = async (name: string, space?: NewSpace) => {
+    const entry = await profiles.create(name, space);
     setList((list) => {
       const known = list ?? [];
-      return known.some(({ id }) => id === entry.id) ? known : [...known, profile(entry)];
+      return known.some(({ id }) => id === entry.id) ? known : [...known, entry];
     });
   };
   // The app's list says what changed, as it may have changed nothing.

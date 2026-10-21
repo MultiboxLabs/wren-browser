@@ -7,23 +7,38 @@ use std::thread;
 use std::time::Duration;
 
 use dispatch2::DispatchQueue;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use wren::{MainThread, PageCall, WebView};
 
-use super::{WindowRef, failed};
+use super::{self as ipc, WindowRef, failed};
+use crate::db::{NewSpace, avatar};
 
 /// A profile as the Library lists it.
 #[derive(Serialize)]
 struct Entry {
     id: String,
     name: String,
+    /// Its avatar's colour: #rrggbb.
+    color: &'static str,
+}
+
+/// What `profiles.create` takes: a name, or a name and the profile's first space.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Create {
+    Name(String),
+    Named {
+        name: String,
+        space: Option<NewSpace>,
+    },
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The profiles Chromium lists, in its order.
     let _ = web_view.handle("profiles.list", move |()| Ok::<_, String>(list(mt)));
 
-    // Makes a profile named as asked, and answers with it once it is made.
+    // Makes a profile named as asked, with `space` as its first space if one
+    // is given, and answers with it once both are made.
     let weak = window.clone();
     let _ = web_view.handle_call("profiles.create", move |call| {
         let state = match weak.state() {
@@ -33,14 +48,24 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 return;
             }
         };
-        let name = match call.value::<String>() {
-            Ok(name) if !name.trim().is_empty() => name.trim().to_owned(),
-            Ok(_) => {
-                let _ = call.fail("A profile needs a name.");
+        let (name, space) = match call.value::<Create>().map_err(|error| error.to_string()) {
+            Ok(Create::Name(name)) => (name, None),
+            Ok(Create::Named { name, space }) => (name, space),
+            Err(error) => {
+                let _ = call.fail(&error);
                 return;
             }
+        };
+        let name = name.trim().to_owned();
+        if name.is_empty() {
+            let _ = call.fail("A profile needs a name.");
+            return;
+        }
+        // A space that can't be kept is refused before the profile is made.
+        let space = match space.map(NewSpace::checked).transpose() {
+            Ok(space) => space,
             Err(error) => {
-                let _ = call.fail(&error.to_string());
+                let _ = call.fail(&error);
                 return;
             }
         };
@@ -53,19 +78,24 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             state
                 .creating_profiles
                 .set(state.creating_profiles.get() - 1);
-            // The profile gets its default space now, in the list's order.
+            let id = result.as_ref().ok().map(|profile| profile.id());
+            if let (Some(id), Some(space)) = (&id, space)
+                && let Err(error) = state.db.ensure_space(id, space)
+            {
+                eprintln!("Wren could not give a profile its space: {error}");
+            }
+            // Whatever it has no space of is given the default one.
             state.db.sync_profiles(&mt.profile_list(), true);
+            ipc::broadcast_spaces(&state);
             let listed = list(mt);
             // A page that went before its answer is no error.
-            let _ = match result {
-                Ok(profile) => {
-                    let id = profile.id();
-                    match listed.iter().find(|entry| entry.id == id) {
-                        Some(entry) => call.answer(entry),
-                        None => call.fail("The new profile is not in the list."),
-                    }
-                }
-                Err(error) => call.fail(&failed(error)),
+            let _ = match (result, id) {
+                (Ok(_), Some(id)) => match listed.iter().find(|entry| entry.id == id) {
+                    Some(entry) => call.answer(entry),
+                    None => call.fail("The new profile is not in the list."),
+                },
+                (Err(error), _) => call.fail(&failed(error)),
+                (Ok(_), None) => call.fail("The new profile is not in the list."),
             };
         });
     });
@@ -107,6 +137,7 @@ fn list(mt: MainThread) -> Vec<Entry> {
     mt.profile_list()
         .into_iter()
         .map(|entry| Entry {
+            color: avatar(&entry.id),
             id: entry.id,
             name: entry.name,
         })

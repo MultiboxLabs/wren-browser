@@ -6,10 +6,10 @@
 import { useState } from "react";
 import { Dialog } from "../ui/dialog";
 import { TextField } from "../ui/text-field";
-import type { Profile } from "../../state/library";
+import type { ProfileEntry } from "../../ipc";
 
 type ProfileDialogProps = {
-  profile: Profile;
+  profile: ProfileEntry;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
