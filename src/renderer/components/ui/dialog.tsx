@@ -2,7 +2,8 @@
 // the middle of the window, which dims behind it and takes no clicks while
 // it is up. It asks something and waits for the answer: Return presses its
 // default button, even from a field; Escape (and ⌘. on a Mac) its Cancel
-// button; and a click on the window behind it does nothing.
+// button (or, with no Cancel button, its default one, which is all it
+// answers with); and a click on the window behind it does nothing.
 
 import { LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -31,8 +32,12 @@ export type DialogProps = {
   /** A line or two more on it, below the title. */
   description?: ReactNode;
   action: DialogAction;
-  /** The label of the button that closes it, before the default one. */
-  cancel?: string;
+  /**
+   * The label of the button that closes it, before the default one. None
+   * (`null`) leaves it out, for an alert that has nothing to ask: Escape
+   * then presses the default button.
+   */
+  cancel?: string | null;
   /** Its width, which is 384 points by default. */
   className?: string;
   /** What it holds between its text and its buttons: a field, a list. */
@@ -108,7 +113,7 @@ function Card({ onOpenChange, title, description, action, cancel = "Cancel", cla
       confirm();
     } else if (event.key === "." && event.metaKey && isMac()) {
       event.preventDefault();
-      close();
+      cancel === null ? confirm() : close();
     }
   };
 
@@ -138,7 +143,13 @@ function Card({ onOpenChange, title, description, action, cancel = "Cancel", cla
             const field = card.current?.querySelector<HTMLElement>("input:not(:disabled), textarea:not(:disabled)");
             (field ?? card.current)?.focus();
           }}
-          onEscapeKeyDown={(event) => pending && event.preventDefault()}
+          onEscapeKeyDown={(event) => {
+            if (pending) return event.preventDefault();
+            if (cancel === null) {
+              event.preventDefault();
+              confirm();
+            }
+          }}
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onKeyDown={keys}
@@ -162,9 +173,11 @@ function Card({ onOpenChange, title, description, action, cancel = "Cancel", cla
             </div>
             {children}
             <div className="flex justify-end gap-2.5">
-              <Button variant="raised" shape="large" disabled={slow} onClick={close}>
-                {cancel}
-              </Button>
+              {cancel !== null && (
+                <Button variant="raised" shape="large" disabled={slow} onClick={close}>
+                  {cancel}
+                </Button>
+              )}
               <Button
                 variant="prominent"
                 shape="large"
