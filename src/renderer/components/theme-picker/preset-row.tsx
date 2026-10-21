@@ -5,13 +5,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { colorCss, PRESET_PAGES } from "../../utils/theme";
 import { withPrimary } from "../../utils/theme-pad";
 import { cn } from "../../utils/cn";
-import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import type { EditProps } from "./edit";
 
 export const PAGE_COUNT = PRESET_PAGES.length;
 
 const near = (a: number, b: number) => Math.abs(a - b) < 0.005;
+
+const PAGE_BUTTON =
+  "grid size-6 place-items-center rounded-md opacity-50 outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-current/50";
 
 export function PresetRow({
   doc,
@@ -26,19 +28,23 @@ export function PresetRow({
   const { swatches } = PRESET_PAGES[page];
   return (
     <div className="flex items-center justify-between">
-      <Button
-        icon={ChevronLeft}
-        iconTone="inherit"
-        label="Move to previous preset page."
-        onClick={() => onPage((page + PAGE_COUNT - 1) % PAGE_COUNT)}
-        className="size-5"
-      />
-      <div className="flex gap-1.25">
+      <Tooltip label="Move to previous preset page.">
+        <button
+          type="button"
+          aria-label="Move to previous preset page."
+          onClick={() => onPage((page + PAGE_COUNT - 1) % PAGE_COUNT)}
+          className={PAGE_BUTTON}
+        >
+          <ChevronLeft size={22} strokeWidth={1.5} />
+        </button>
+      </Tooltip>
+      <div className="flex gap-1.5">
         {swatches.map(({ label, color }) => {
           const chosen =
             near(color.brightness, primary.brightness) &&
             near(color.saturation, primary.saturation) &&
             (color.saturation < 0.01 || near(color.hue, primary.hue));
+          const css = colorCss(color);
           return (
             <Tooltip key={label} label={label}>
               <button
@@ -47,22 +53,29 @@ export function PresetRow({
                 aria-pressed={chosen}
                 onClick={() => edit(withPrimary(doc, color))}
                 className={cn(
-                  "size-4.5 rounded-full shadow-[0_0_0_1px_rgb(0_0_0/0.12)] outline-none focus-visible:ring-2 focus-visible:ring-white/70",
-                  chosen && "ring-2 ring-white"
+                  "size-6 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-current/50",
+                  chosen && "ring-2 ring-white ring-offset-1 ring-offset-transparent"
                 )}
-                style={{ background: colorCss(color) }}
+                // Edged by a darker ring of its own colour, as a bezel.
+                style={{
+                  background: css,
+                  boxShadow: `inset 0 0 0 2px color-mix(in oklab, ${css} 78%, black)`
+                }}
               />
             </Tooltip>
           );
         })}
       </div>
-      <Button
-        icon={ChevronRight}
-        iconTone="inherit"
-        label="Move to next preset page."
-        onClick={() => onPage((page + 1) % PAGE_COUNT)}
-        className="size-5"
-      />
+      <Tooltip label="Move to next preset page.">
+        <button
+          type="button"
+          aria-label="Move to next preset page."
+          onClick={() => onPage((page + 1) % PAGE_COUNT)}
+          className={PAGE_BUTTON}
+        >
+          <ChevronRight size={22} strokeWidth={1.5} />
+        </button>
+      </Tooltip>
     </div>
   );
 }

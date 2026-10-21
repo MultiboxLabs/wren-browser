@@ -1,13 +1,16 @@
-// How strongly the colours show, as a slider: a wave that swells with the
-// value, solid up to the thumb and faint after it.
+// How strongly the colours show, as a slider: a capsule with a wave in it
+// that swells with the value, solid up to the thumb and faint after it, and a
+// tall pill for the thumb.
 
 import { type KeyboardEvent, type PointerEvent, useId, useRef } from "react";
 import type { EditProps } from "./edit";
 
-const WIDTH = 132;
-const HEIGHT = 28;
-const THUMB = 6;
-const LENGTH = 26;
+const WIDTH = 216;
+const HEIGHT = 56;
+const THUMB_WIDTH = 24;
+const TRACK_HEIGHT = 16;
+const LENGTH = 27;
+const SWELL = 11;
 const STEP = 0.05;
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
@@ -22,7 +25,12 @@ export function IntensitySlider({ doc, edit, end }: EditProps) {
     edit({ ...doc, theme: { ...doc.theme, intensity: clamp(value) } }, ongoing);
   const valueAt = (event: PointerEvent) => {
     const box = track.current!.getBoundingClientRect();
-    return (((event.clientX - box.left) / box.width) * WIDTH - THUMB / 2) / (WIDTH - THUMB);
+    return (((event.clientX - box.left) / box.width) * WIDTH - THUMB_WIDTH / 2) / (WIDTH - THUMB_WIDTH);
+  };
+  const stop = () => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    end();
   };
   const key = (event: KeyboardEvent) => {
     const change =
@@ -38,13 +46,13 @@ export function IntensitySlider({ doc, edit, end }: EditProps) {
     event.preventDefault();
   };
 
-  const amplitude = 2 + intensity * 9;
+  const amplitude = intensity * SWELL;
   let wave = "";
-  for (let x = 0; x <= WIDTH; x += 2) {
-    const y = HEIGHT / 2 + amplitude * Math.sin((x / LENGTH) * 2 * Math.PI);
-    wave += `${x === 0 ? "M" : "L"}${x},${y.toFixed(2)}`;
+  for (let x = 12; x <= WIDTH - 12; x += 2) {
+    const y = HEIGHT / 2 + amplitude * Math.sin(((x - 12) / LENGTH) * 2 * Math.PI);
+    wave += `${x === 12 ? "M" : "L"}${x},${y.toFixed(2)}`;
   }
-  const thumb = THUMB / 2 + intensity * (WIDTH - THUMB);
+  const thumb = THUMB_WIDTH / 2 + intensity * (WIDTH - THUMB_WIDTH);
   return (
     <svg
       ref={track}
@@ -65,38 +73,42 @@ export function IntensitySlider({ doc, edit, end }: EditProps) {
         set(valueAt(event), true);
       }}
       onPointerMove={(event) => dragging.current && set(valueAt(event), true)}
-      onPointerUp={() => {
-        dragging.current = false;
-        end();
-      }}
-      onPointerCancel={() => {
-        dragging.current = false;
-        end();
-      }}
-      className="shrink-0 cursor-pointer touch-none overflow-visible outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-white/70"
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      className="shrink-0 cursor-pointer touch-none overflow-visible outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-current/40"
     >
       <defs>
         <clipPath id={clip}>
           <rect x={0} y={0} width={thumb} height={HEIGHT} />
         </clipPath>
       </defs>
-      <path d={wave} fill="none" stroke="currentColor" strokeOpacity={0.3} strokeWidth={2.5} strokeLinecap="round" />
+      <rect
+        x={0}
+        y={(HEIGHT - TRACK_HEIGHT) / 2}
+        width={WIDTH}
+        height={TRACK_HEIGHT}
+        rx={TRACK_HEIGHT / 2}
+        fill="currentColor"
+        opacity={0.12}
+      />
+      <path d={wave} fill="none" stroke="currentColor" strokeOpacity={0.28} strokeWidth={2.5} strokeLinecap="round" />
       <path
         d={wave}
         fill="none"
         stroke="currentColor"
+        strokeOpacity={0.6}
         strokeWidth={2.5}
         strokeLinecap="round"
         clipPath={`url(#${clip})`}
       />
       <rect
-        x={thumb - THUMB / 2}
-        y={(HEIGHT - 22) / 2}
-        width={THUMB}
-        height={22}
-        rx={THUMB / 2}
+        x={thumb - THUMB_WIDTH / 2}
+        y={0}
+        width={THUMB_WIDTH}
+        height={HEIGHT}
+        rx={THUMB_WIDTH / 2}
         fill="white"
-        style={{ filter: "drop-shadow(0 1px 2px rgb(0 0 0 / 0.35))" }}
+        style={{ filter: "drop-shadow(0 1px 3px rgb(0 0 0 / 0.25))" }}
       />
     </svg>
   );

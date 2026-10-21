@@ -79,17 +79,23 @@ export function ThemePicker({ value, onChange }: { value: SpaceTheme; onChange: 
     <ThemeSwatch
       as="div"
       theme={doc.theme}
-      aspect={0.65}
-      className="w-70 rounded-[22px]"
-      contentClassName="w-full gap-3 p-3"
+      aspect={0.7}
+      className="w-88 rounded-[26px] backdrop-blur-2xl"
+      contentClassName="w-full gap-3.5 p-4"
     >
-      <AppearanceButtons
-        appearance={doc.theme.appearance}
-        onChange={(appearance) => edit(withAppearance(doc, appearance))}
+      <ColorPad
+        doc={doc}
+        edit={edit}
+        end={end}
+        top={
+          <AppearanceButtons
+            appearance={doc.theme.appearance}
+            onChange={(appearance) => edit(withAppearance(doc, appearance))}
+          />
+        }
       />
-      <ColorPad doc={doc} edit={edit} end={end} />
       <PresetRow doc={doc} edit={edit} page={page} onPage={setPage} />
-      <div className="flex items-end justify-between pt-1">
+      <div className="flex items-center justify-between">
         <IntensitySlider doc={doc} edit={edit} end={end} />
         <NoiseDial doc={doc} edit={edit} end={end} />
       </div>

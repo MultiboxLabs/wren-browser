@@ -1,20 +1,18 @@
-// How much noise the theme has, as a dial: a ring of dots over 300° from about
-// seven o'clock, with a pill at the value. Its centre cycles the texture.
-// Dragging round it, the scroll wheel and the arrow keys set it, in steps of
-// 0.05.
+// How much noise the theme has, as a dial: a ring of dots round a thin circle,
+// and a pill on the ring at the value, which is at twelve o'clock for none and
+// turns clockwise. The circle cycles the texture. Dragging round it, the
+// scroll wheel and the arrow keys set it, in steps of 0.05.
 
-import { Grip } from "lucide-react";
 import { type KeyboardEvent, type PointerEvent, useEffect, useRef } from "react";
 import { TEXTURES } from "../../utils/theme";
 import { Tooltip } from "../ui/tooltip";
 import type { EditProps } from "./edit";
 
-const SIZE = 72;
-const RADIUS = 29;
+const SIZE = 80;
+const RADIUS = 32;
 const DOTS = 24;
-// Clockwise from twelve o'clock, in degrees.
-const START = 210;
-const SWEEP = 300;
+// The whole turn is a dot short of it, so that full noise is not none.
+const SWEEP = (360 * (DOTS - 1)) / DOTS;
 const STEP = 0.05;
 
 const snap = (value: number) => Math.round(Math.min(1, Math.max(0, value)) / STEP) * STEP;
@@ -32,9 +30,14 @@ export function NoiseDial({ doc, edit, end }: EditProps) {
     const box = dial.current!.getBoundingClientRect();
     const dx = event.clientX - (box.left + box.width / 2);
     const dy = event.clientY - (box.top + box.height / 2);
-    const turn = ((((Math.atan2(dx, -dy) * 180) / Math.PI - START) % 360) + 360) % 360;
-    // The gap at the bottom goes to the nearer end.
+    const turn = ((((Math.atan2(dx, -dy) * 180) / Math.PI) % 360) + 360) % 360;
+    // The gap before twelve o'clock goes to the nearer end.
     return turn <= SWEEP ? turn / SWEEP : turn < (SWEEP + 360) / 2 ? 1 : 0;
+  };
+  const stop = () => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    end();
   };
   const key = (event: KeyboardEvent) => {
     const change =
@@ -61,12 +64,13 @@ export function NoiseDial({ doc, edit, end }: EditProps) {
     return () => element.removeEventListener("wheel", wheel);
   }, [noise]);
 
-  const angle = (turn: number) => START + SWEEP * turn;
   const cycle = () => {
     const next = TEXTURES[(TEXTURES.indexOf(texture) + 1) % TEXTURES.length];
     edit({ ...doc, theme: { ...doc.theme, texture: next } });
   };
   const centre = SIZE / 2;
+  const circle =
+    "size-10 rounded-full border-[1.5px] border-current opacity-45 outline-none focus-visible:ring-2 focus-visible:ring-current/50";
   return (
     <div
       ref={dial}
@@ -84,57 +88,41 @@ export function NoiseDial({ doc, edit, end }: EditProps) {
         set(valueAt(event), true);
       }}
       onPointerMove={(event) => dragging.current && set(valueAt(event), true)}
-      onPointerUp={() => {
-        dragging.current = false;
-        end();
-      }}
-      onPointerCancel={() => {
-        dragging.current = false;
-        end();
-      }}
-      className="relative shrink-0 cursor-pointer touch-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      className="relative shrink-0 cursor-pointer touch-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-current/40"
       style={{ width: SIZE, height: SIZE }}
     >
       <svg width={SIZE} height={SIZE} aria-hidden className="absolute inset-0">
-        {Array.from({ length: DOTS }, (_, index) => {
-          const turn = index / (DOTS - 1);
-          return (
-            <circle
-              key={index}
-              cx={centre}
-              cy={centre - RADIUS}
-              r={1.7}
-              fill="currentColor"
-              opacity={turn <= noise ? 0.95 : 0.32}
-              transform={`rotate(${angle(turn)} ${centre} ${centre})`}
-            />
-          );
-        })}
+        {Array.from({ length: DOTS }, (_, index) => (
+          <circle
+            key={index}
+            cx={centre}
+            cy={centre - RADIUS}
+            r={2.7}
+            fill="currentColor"
+            opacity={0.35}
+            transform={`rotate(${(360 / DOTS) * index} ${centre} ${centre})`}
+          />
+        ))}
         <rect
-          x={centre - 2.5}
-          y={centre - RADIUS - 6.5}
-          width={5}
-          height={13}
-          rx={2.5}
+          x={centre - 4}
+          y={centre - RADIUS - 8}
+          width={8}
+          height={16}
+          rx={4}
           fill="white"
-          transform={`rotate(${angle(noise)} ${centre} ${centre})`}
-          style={{ filter: "drop-shadow(0 1px 2px rgb(0 0 0 / 0.35))" }}
+          transform={`rotate(${SWEEP * noise} ${centre} ${centre})`}
+          style={{ filter: "drop-shadow(0 1px 2px rgb(0 0 0 / 0.25))" }}
         />
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         {TEXTURES.length > 1 ? (
           <Tooltip label="Cycle noise texture">
-            <button
-              type="button"
-              aria-label="Cycle noise texture"
-              onClick={cycle}
-              className="grid size-8 place-items-center rounded-full outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white/70"
-            >
-              <Grip size={16} strokeWidth={1.75} />
-            </button>
+            <button type="button" aria-label="Cycle noise texture" onClick={cycle} className={circle} />
           </Tooltip>
         ) : (
-          <Grip size={16} strokeWidth={1.75} aria-hidden className="opacity-70" />
+          <span aria-hidden className={circle} />
         )}
       </div>
     </div>
