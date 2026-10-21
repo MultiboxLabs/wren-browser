@@ -91,13 +91,13 @@ export function IntensitySlider({ doc, edit, end }: EditProps) {
         fill="currentColor"
         opacity={0.12}
       />
-      <path d={wave} fill="none" stroke="currentColor" strokeOpacity={0.28} strokeWidth={2.5} strokeLinecap="round" />
+      <path d={wave} fill="none" stroke="currentColor" strokeOpacity={0.14} strokeWidth={5} strokeLinecap="round" />
       <path
         d={wave}
         fill="none"
         stroke="currentColor"
-        strokeOpacity={0.6}
-        strokeWidth={2.5}
+        strokeOpacity={0.3}
+        strokeWidth={5}
         strokeLinecap="round"
         clipPath={`url(#${clip})`}
       />

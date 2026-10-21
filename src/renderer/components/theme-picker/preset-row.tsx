@@ -13,7 +13,7 @@ export const PAGE_COUNT = PRESET_PAGES.length;
 const near = (a: number, b: number) => Math.abs(a - b) < 0.005;
 
 const PAGE_BUTTON =
-  "grid size-6 place-items-center rounded-md opacity-50 outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-current/50";
+  "grid size-6 place-items-center rounded-md opacity-55 outline-none hover:bg-current/15 hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current/50";
 
 export function PresetRow({
   doc,

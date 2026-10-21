@@ -6,9 +6,9 @@
 import { ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 import type { NewSpace, ProfileEntry, SpaceEntry, SpaceTheme } from "../../ipc";
-import { defaultTheme } from "../../utils/theme";
+import { arrowFill, defaultTheme } from "../../utils/theme";
 import { DEFAULT_ICON, isEmoji, SPACE_ICONS, SpaceIcon } from "../space-icon";
-import { ThemePicker } from "../theme-picker/theme-picker";
+import { PICKER_ASPECT, ThemePicker } from "../theme-picker/theme-picker";
 import { ThemeSwatch } from "../theme-swatch";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
@@ -222,6 +222,7 @@ function ThemeButton({ theme, onChange }: { theme: SpaceTheme; onChange: (theme:
       open={open}
       onOpenChange={setOpen}
       label="Theme"
+      arrowFill={arrowFill(theme, PICKER_ASPECT)}
       trigger={
         <Button shape="none" className="h-9 w-full rounded-field">
           <ThemeSwatch theme={theme} aspect={8} className="h-9 w-full rounded-field" contentClassName="font-medium">

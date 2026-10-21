@@ -9,6 +9,7 @@ export function Popover({
   onOpenChange,
   trigger,
   label,
+  arrowFill,
   children
 }: {
   open: boolean;
@@ -17,6 +18,12 @@ export function Popover({
   trigger: ReactNode;
   /** What it is, for assistive technology. */
   label: string;
+  /**
+   * What fills the arrow, from the bottom up, when what is in the popover is
+   * not the popover's own colour (a layer's `opacity` is how much of it shows):
+   * the popover's colour is under them.
+   */
+  arrowFill?: { color: string; opacity?: number }[];
   children: ReactNode;
 }) {
   return (
@@ -38,7 +45,7 @@ export function Popover({
           {/* Radix gives the <svg> its size, so it is the arrow's own child. */}
           <Radix.Arrow asChild width={ARROW.width} height={ARROW.height}>
             <svg viewBox={`0 0 ${ARROW.width} ${ARROW.height}`} overflow="visible" aria-hidden>
-              <ArrowPaths />
+              <ArrowPaths fill={arrowFill} />
             </svg>
           </Radix.Arrow>
         </Radix.Content>
@@ -52,12 +59,15 @@ const ARROW = { width: 22, height: 9 };
 // The arrow, drawn pointing down from its base as Radix turns it: straight
 // sides into a rounded tip, edged as the popover is. Its fill runs a little
 // past its base, over the popover's own edge, so the two read as one.
-function ArrowPaths() {
+function ArrowPaths({ fill = [] }: { fill?: { color: string; opacity?: number }[] }) {
   const edge = "M0 0C3.4 0 5.6 2.4 8.1 5.6Q11 9.2 13.9 5.6C16.4 2.4 18.6 0 22 0";
   return (
     <>
       <path d={edge} fill="none" stroke="var(--popover-edge)" strokeWidth="1.5" />
       <path d={`${edge}V-2H0Z`} fill="var(--popover)" />
+      {fill.map(({ color, opacity = 1 }, index) => (
+        <path key={index} d={`${edge}V-2H0Z`} fill={color} fillOpacity={opacity} />
+      ))}
       <path d={edge} fill="none" stroke="var(--popover-highlight)" strokeWidth="1" />
     </>
   );

@@ -257,3 +257,27 @@ export function themeStyle(theme: SpaceTheme, aspect = 1): ThemeStyle {
 
   return { underlay, colors, noise };
 }
+
+/**
+ * The layers that fill a popover's arrow so that it is of a picker's colour
+ * where it meets the top of it, as `themeStyle` lays them for a box of
+ * `aspect`: the underlay, then the colour the gradient has at the top's middle.
+ */
+export function arrowFill(theme: SpaceTheme, aspect = 1): { color: string; opacity: number }[] {
+  const { underlay, colors } = themeStyle(theme, aspect);
+  const [first, second] = derivedColors(theme).map(colorCss);
+  let color = first;
+  if (second) {
+    // Where the top's middle is on the gradient's line, as a share of the way to the second colour.
+    const whole = (aspect + 1) / Math.SQRT2;
+    const square = Math.min(aspect, 1) * Math.SQRT2;
+    const start = (whole - square) / 2 / whole;
+    const length = square / whole;
+    const share = Math.min(1, Math.max(0, (aspect / 2 / (aspect + 1) - start) / (0.75 * length)));
+    color = `color-mix(in oklab, ${first}, ${second} ${(share * 100).toFixed(1)}%)`;
+  }
+  return [
+    { color: String(underlay.backgroundColor), opacity: 1 },
+    { color, opacity: Number(colors.opacity) }
+  ];
+}
