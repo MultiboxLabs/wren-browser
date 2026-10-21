@@ -2,12 +2,12 @@
 // deleting it) or to the list (making one).
 
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import { useRef, useState } from "react";
 import type { ProfileEntry } from "../../ipc";
 import { cssColor } from "../../utils/color";
 import { DeleteDialog, RenameDialog } from "./profile-dialogs";
-import { ActionRow, Empty, type ListProps, Loading, LoadFailed, matches, Row } from "./rows";
+import { Empty, type ListProps, Loading, LoadFailed, matches, Row, RowActions } from "./rows";
 
 export type ProfilesProps = {
   /** Null until the app has listed them. */
@@ -70,10 +70,12 @@ export function Profiles({
           />
           <AnimatePresence initial={false}>
             {profile.id === selected && (
-              <ProfileActions
+              <RowActions
                 key="actions"
-                onRename={() => ask("rename", profile)}
-                onDelete={() => ask("delete", profile)}
+                actions={[
+                  { label: "Rename", icon: Pencil, onPress: () => ask("rename", profile) },
+                  { label: "Delete", icon: Trash2, danger: true, onPress: () => ask("delete", profile) }
+                ]}
               />
             )}
           </AnimatePresence>
@@ -98,31 +100,6 @@ export function Profiles({
           />
         ))}
     </div>
-  );
-}
-
-// What can be done to the selected profile: rows that slide down from its
-// own, pushing the profiles under it down. With Reduced Motion they fade.
-function ProfileActions({ onRename, onDelete }: { onRename: () => void; onDelete: () => void }) {
-  const still = useReducedMotion();
-  const ease = { duration: 0.2, ease: [0.23, 1, 0.32, 1] } as const;
-  return (
-    <motion.div
-      initial={{ opacity: 0, ...(still ? {} : { height: 0 }) }}
-      animate={{ opacity: 1, ...(still ? {} : { height: "auto" }) }}
-      exit={{ opacity: 0, ...(still ? {} : { height: 0 }) }}
-      transition={ease}
-      className="overflow-hidden"
-    >
-      <div className="flex flex-col gap-0.5">
-        <ActionRow icon={Pencil} onPress={onRename}>
-          Rename
-        </ActionRow>
-        <ActionRow icon={Trash2} danger onPress={onDelete}>
-          Delete
-        </ActionRow>
-      </div>
-    </motion.div>
   );
 }
 

@@ -4,13 +4,14 @@
 
 import { CircleUserRound, Orbit, Paintbrush, Plus, Search } from "lucide-react";
 import { motion, useTransform } from "motion/react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button, type Icon } from "../ui/button";
 import { BackIcon } from "../icons";
 import { cn } from "../../utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
 import { useProfiles, useSpaces } from "../../state/library";
 import { type Section, SectionList } from "./sections";
+import { SpaceDialog } from "./space-dialogs";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
   { id: "profiles", name: "Profiles", icon: CircleUserRound, item: "Profile" },
@@ -31,6 +32,12 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   const [section, setSection] = useState<Section>("profiles");
   const [query, setQuery] = useState("");
   const [naming, setNaming] = useState(false);
+  // The row chosen in the list, which the "+" of the spaces starts from.
+  const [selected, setSelected] = useState<string | null>(null);
+  // The dialog of a new space, which stays set as it closes, for its exit;
+  // `serial` makes each opening a dialog of its own.
+  const [newSpace, setNewSpace] = useState<{ open: boolean; serial: number; profile: string | null } | null>(null);
+  const serial = useRef(0);
   const { profiles, failed, reload, create, rename, remove } = useProfiles(open);
   const spaces = useSpaces(open);
   const shown = sections.find(({ id }) => id === section)!;
@@ -51,6 +58,7 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
     setSection(id);
     setQuery("");
     setNaming(false);
+    setSelected(null);
   };
 
   return (
@@ -119,6 +127,8 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
         <SectionList
           key={section}
           section={section}
+          selected={selected}
+          onSelect={setSelected}
           query={query.trim().toLowerCase()}
           profiles={profiles}
           failed={failed}
@@ -126,6 +136,8 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
           spaces={spaces.spaces}
           spacesFailed={spaces.failed}
           onReloadSpaces={spaces.reload}
+          onUpdateSpace={spaces.update}
+          onDeleteSpace={spaces.remove}
           naming={naming}
           onCreate={create}
           onRename={rename}
@@ -137,10 +149,16 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
           <Button
             icon={Plus}
             label={`New ${shown.item}`}
-            // There is no list to add a profile to until it has been read.
-            disabled={section === "profiles" && !profiles}
+            // There is no list to add to until it has been read; a space is
+            // made in a profile, so it needs both.
+            disabled={(section === "profiles" && !profiles) || (section === "spaces" && !(profiles && spaces.spaces))}
             onClick={() => {
-              // Only a profile can be made so far.
+              if (section === "spaces") {
+                // In the profile of the space that is chosen, if one is.
+                const chosen = spaces.spaces?.find(({ id }) => String(id) === selected);
+                setNewSpace({ open: true, serial: ++serial.current, profile: chosen?.profile ?? null });
+              }
+              // Boosts are not made yet.
               if (section !== "profiles") return;
               // Its row is at the top of a list that is not searched.
               setQuery("");
@@ -148,6 +166,17 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
             }}
           />
         </div>
+        {newSpace && profiles && (
+          <SpaceDialog
+            key={newSpace.serial}
+            open={newSpace.open}
+            onOpenChange={(open) => setNewSpace({ ...newSpace, open })}
+            profiles={profiles}
+            profile={newSpace.profile}
+            onCreate={spaces.create}
+            onCreateWithProfile={create}
+          />
+        )}
       </motion.div>
     </div>
   );

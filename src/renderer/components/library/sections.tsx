@@ -2,47 +2,47 @@
 
 import { Power } from "lucide-react";
 import { useState } from "react";
-import type { SpaceEntry } from "../../ipc";
 import { Button } from "../ui/button";
 import { Favicon } from "../favicon";
 import { type Boost, boosts as allBoosts } from "../../state/library";
 import { cn } from "../../utils/cn";
 import { Profiles, type ProfilesProps } from "./profiles";
 import { Empty, type ListProps, matches, Row } from "./rows";
-import { Spaces } from "./spaces";
+import { Spaces, type SpacesProps } from "./spaces";
 
 export type Section = "profiles" | "spaces" | "boosts";
 
-export type SectionListProps = ProfilesProps & {
-  section: Section;
-  /** Lowercased. */
-  query: string;
-  /** Null until the app has listed them. */
-  spaces: SpaceEntry[] | null;
-  /** The app could not list them. */
-  spacesFailed: boolean;
-  /** Asks it to list them again. */
-  onReloadSpaces: () => void;
-};
+export type SectionListProps = ProfilesProps &
+  SpacesProps & {
+    section: Section;
+    /** Lowercased. */
+    query: string;
+    /** The row chosen, by its ID; the app's rows are the section's own. */
+    selected: string | null;
+    onSelect: (id: string | null) => void;
+  };
 
 /** The section's list, searched by `query`. */
 export function SectionList({
   section,
   query,
+  selected,
+  onSelect,
   spaces,
   spacesFailed,
   onReloadSpaces,
+  onUpdateSpace,
+  onDeleteSpace,
   ...profileProps
 }: SectionListProps) {
-  const [selected, setSelected] = useState<string | null>(null);
   const list =
     section === "profiles" ? (
-      <Profiles {...profileProps} query={query} selected={selected} onSelect={setSelected} />
+      <Profiles {...profileProps} query={query} selected={selected} onSelect={onSelect} />
     ) : section === "spaces" ? (
       <Spaces
         query={query}
         selected={selected}
-        onSelect={setSelected}
+        onSelect={onSelect}
         profiles={profileProps.profiles}
         spaces={spaces}
         failed={profileProps.failed || spacesFailed}
@@ -50,9 +50,11 @@ export function SectionList({
           profileProps.onReload();
           onReloadSpaces();
         }}
+        onUpdateSpace={onUpdateSpace}
+        onDeleteSpace={onDeleteSpace}
       />
     ) : (
-      <Boosts query={query} selected={selected} onSelect={setSelected} />
+      <Boosts query={query} selected={selected} onSelect={onSelect} />
     );
   return <div className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]">{list}</div>;
 }

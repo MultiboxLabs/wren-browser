@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SpaceTheme } from "../../ipc";
+import { cn } from "../../utils/cn";
 import { PRESET_PAGES } from "../../utils/theme";
 import { type Doc, editorFor, withAppearance } from "../../utils/theme-pad";
 import { ThemeSwatch } from "../theme-swatch";
@@ -30,7 +31,16 @@ function pageOf({ primary }: SpaceTheme) {
   return Math.max(found, 0);
 }
 
-export function ThemePicker({ value, onChange }: { value: SpaceTheme; onChange: (theme: SpaceTheme) => void }) {
+export function ThemePicker({
+  value,
+  onChange,
+  className
+}: {
+  value: SpaceTheme;
+  onChange: (theme: SpaceTheme) => void;
+  /** For its box: its corners, when it sits in another. */
+  className?: string;
+}) {
   const [doc, setDoc] = useState<Doc>(() => ({ theme: value, editor: editorFor(value) }));
   const [page, setPage] = useState(() => pageOf(value));
   // The undo history; `gesture` is whether one is still under way.
@@ -80,7 +90,7 @@ export function ThemePicker({ value, onChange }: { value: SpaceTheme; onChange: 
       as="div"
       theme={doc.theme}
       aspect={0.7}
-      className="w-88 rounded-[26px] backdrop-blur-2xl"
+      className={cn("w-88 rounded-[26px] backdrop-blur-2xl", className)}
       contentClassName="w-full gap-3.5 p-4"
     >
       <ColorPad

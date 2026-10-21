@@ -3,7 +3,7 @@
 // while it is read, failed, or has nothing.
 
 import { LoaderCircle } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Button, type Icon as IconType } from "../ui/button";
 import { press } from "../ui/press";
@@ -114,5 +114,32 @@ export function ActionRow({
       </span>
       {children}
     </Button>
+  );
+}
+
+export type RowAction = { label: string; icon: IconType; danger?: boolean; onPress: () => void };
+
+// What can be done to the selected row: rows that slide down from its own,
+// pushing the rows under it down. With Reduced Motion they fade. Wrap it in
+// `AnimatePresence`, for its exit.
+export function RowActions({ actions }: { actions: RowAction[] }) {
+  const still = useReducedMotion();
+  const ease = { duration: 0.2, ease: [0.23, 1, 0.32, 1] } as const;
+  return (
+    <motion.div
+      initial={{ opacity: 0, ...(still ? {} : { height: 0 }) }}
+      animate={{ opacity: 1, ...(still ? {} : { height: "auto" }) }}
+      exit={{ opacity: 0, ...(still ? {} : { height: 0 }) }}
+      transition={ease}
+      className="overflow-hidden"
+    >
+      <div className="flex flex-col gap-0.5">
+        {actions.map(({ label, icon, danger, onPress }) => (
+          <ActionRow key={label} icon={icon} danger={danger} onPress={onPress}>
+            {label}
+          </ActionRow>
+        ))}
+      </div>
+    </motion.div>
   );
 }
