@@ -9,7 +9,7 @@ import { Button, type Icon } from "../ui/button";
 import { BackIcon } from "../icons";
 import { cn } from "../../utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
-import { useProfiles } from "../../state/library";
+import { useProfiles, useSpaces } from "../../state/library";
 import { type Section, SectionList } from "./sections";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
@@ -32,6 +32,7 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   const [query, setQuery] = useState("");
   const [naming, setNaming] = useState(false);
   const { profiles, failed, reload, create, rename, remove } = useProfiles(open);
+  const spaces = useSpaces(open);
   const shown = sections.find(({ id }) => id === section)!;
   const railX = useTransform(() => railShift(steps));
   const listX = useTransform(() => listShift(steps));
@@ -122,6 +123,9 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
           profiles={profiles}
           failed={failed}
           onReload={reload}
+          spaces={spaces.spaces}
+          spacesFailed={spaces.failed}
+          onReloadSpaces={spaces.reload}
           naming={naming}
           onCreate={create}
           onRename={rename}

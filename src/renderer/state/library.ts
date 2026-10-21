@@ -1,10 +1,9 @@
 // What the Library shows: the profiles, their spaces, and the boosts. The
-// profiles are the app's; the spaces and boosts are not real yet, and are
+// profiles and the spaces are the app's; the boosts are not real yet, and are
 // made up here, as the space's favourites are.
 
 import { useEffect, useState } from "react";
-import { hasApp, type NewSpace, type ProfileEntry, profiles } from "../ipc";
-import { personal } from "./space";
+import { hasApp, type NewSpace, type ProfileEntry, profiles, type SpaceEntry, spaces } from "../ipc";
 
 /**
  * The user's profiles, as the app lists them, read again each time the
@@ -28,6 +27,8 @@ export function useProfiles(open: boolean) {
   useEffect(() => {
     if (open && hasApp) refresh();
   }, [open]);
+  // A profile comes or goes with its spaces, in this window or another.
+  useEffect(() => (hasApp ? spaces.onChanged(() => void refresh()) : undefined), []);
   // `space` is the profile's first space, in place of the default one.
   const create = async (name: string, space?: NewSpace) => {
     const entry = await profiles.create(name, space);
@@ -48,29 +49,39 @@ export function useProfiles(open: boolean) {
   return { profiles: list, failed, reload: refresh, create, rename, remove };
 }
 
-/** Who owns a space, as the Library groups them: made up, as the spaces are. */
-export type SpaceOwner = { id: string; name: string };
-
-/** A space, as the Library lists it: whose it is, and how many tabs it has. */
-export type LibrarySpace = { id: string; name: string; color: string; profile: SpaceOwner["id"]; tabs: number };
+/**
+ * The user's spaces, as the app lists them, read again each time the Library
+ * opens and whenever they change, here or in another window. Shaped as
+ * `useProfiles` is: `spaces` is null until the first reading, `failed` if it
+ * could not be made, and each of `create`, `update` and `remove` rejects if
+ * the app can't.
+ */
+export function useSpaces(open: boolean) {
+  const [list, setList] = useState<SpaceEntry[] | null>(hasApp ? null : []);
+  const [failed, setFailed] = useState(false);
+  const refresh = () => {
+    setFailed(false);
+    return spaces.list().then(setList, () => setFailed(true));
+  };
+  useEffect(() => {
+    if (open && hasApp) refresh();
+  }, [open]);
+  useEffect(() => (hasApp ? spaces.onChanged(() => void refresh()) : undefined), []);
+  // The app tells every window of a change, this one too, which reads it again.
+  const create = async (profile: string, space: NewSpace) => {
+    await spaces.create(profile, space);
+  };
+  const update = async (id: number, change: Partial<NewSpace>) => {
+    await spaces.update(id, change);
+  };
+  const remove = async (id: number) => {
+    await spaces.delete(id);
+  };
+  return { spaces: list, failed, reload: refresh, create, update, remove };
+}
 
 /** A site's own styles and scripts, made by the user. */
 export type Boost = { id: string; name: string; host: string; on: boolean };
-
-export const spaceOwners: SpaceOwner[] = [
-  { id: "personal", name: "Personal" },
-  { id: "work", name: "Work" },
-  { id: "guest", name: "Guest" }
-];
-
-export const spaces: LibrarySpace[] = [
-  { id: personal.id, name: personal.name, color: personal.color, profile: "personal", tabs: 24 },
-  { id: "reading", name: "Reading", color: "#ff9f0a", profile: "personal", tabs: 9 },
-  { id: "games", name: "Games", color: "#30d158", profile: "personal", tabs: 3 },
-  { id: "work", name: "Work", color: "#0a84ff", profile: "work", tabs: 31 },
-  { id: "research", name: "Research", color: "#bf5af2", profile: "work", tabs: 12 },
-  { id: "guest", name: "Guest", color: "#8e8e93", profile: "guest", tabs: 1 }
-];
 
 export const boosts: Boost[] = [
   { id: "slack-compact", name: "Compact Sidebar", host: "app.slack.com", on: true },
