@@ -10,6 +10,7 @@ export function Popover({
   trigger,
   label,
   arrowFill,
+  side = "bottom",
   children
 }: {
   open: boolean;
@@ -24,6 +25,8 @@ export function Popover({
    * the popover's colour is under them.
    */
   arrowFill?: { color: string; opacity?: number }[];
+  /** Which side of the trigger it opens on, if there is room; below by default. */
+  side?: "top" | "right" | "bottom" | "left";
   children: ReactNode;
 }) {
   return (
@@ -32,7 +35,7 @@ export function Popover({
       <Radix.Portal>
         <Radix.Content
           aria-label={label}
-          side="bottom"
+          side={side}
           sideOffset={2}
           collisionPadding={8}
           // Opened by a click, it takes no focus ring to its first control.

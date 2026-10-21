@@ -261,20 +261,28 @@ export function themeStyle(theme: SpaceTheme, aspect = 1): ThemeStyle {
 
 /**
  * The layers that fill a popover's arrow so that it is of a picker's colour
- * where it meets the top of it, as `themeStyle` lays them for a box of
- * `aspect`: the underlay, then the colour the gradient has at the top's middle.
+ * where it meets the picker, as `themeStyle` lays them for a box of `aspect`:
+ * the underlay, then the colour the gradient has at the middle of the edge the
+ * arrow is on (`side` is the popover's side of its trigger: its arrow is on the
+ * opposite edge of it).
  */
-export function arrowFill(theme: SpaceTheme, aspect = 1): { color: string; opacity: number }[] {
+export function arrowFill(
+  theme: SpaceTheme,
+  aspect: number,
+  side: "top" | "right" | "bottom" | "left"
+): { color: string; opacity: number }[] {
   const { underlay, colors } = themeStyle(theme, aspect);
   const [first, second] = derivedColors(theme).map(colorCss);
   let color = first;
   if (second) {
-    // Where the top's middle is on the gradient's line, as a share of the way to the second colour.
+    // The edge's middle, in a box of `aspect` by 1, and its place along the gradient's line.
+    const [x, y] = { bottom: [aspect / 2, 0], top: [aspect / 2, 1], right: [0, 0.5], left: [aspect, 0.5] }[side];
     const whole = (aspect + 1) / Math.SQRT2;
     const square = Math.min(aspect, 1) * Math.SQRT2;
     const start = (whole - square) / 2 / whole;
     const length = square / whole;
-    const share = Math.min(1, Math.max(0, (aspect / 2 / (aspect + 1) - start) / (0.75 * length)));
+    const along = (x + y) / (aspect + 1);
+    const share = Math.min(1, Math.max(0, (along - start) / (0.75 * length)));
     color = `color-mix(in oklab, ${first}, ${second} ${(share * 100).toFixed(1)}%)`;
   }
   return [

@@ -222,7 +222,9 @@ function ThemeButton({ theme, onChange }: { theme: SpaceTheme; onChange: (theme:
       open={open}
       onOpenChange={setOpen}
       label="Theme"
-      arrowFill={arrowFill(theme, PICKER_ASPECT)}
+      // Beside the dialog: it is taller than there is room for above or below it.
+      side="right"
+      arrowFill={arrowFill(theme, PICKER_ASPECT, "right")}
       trigger={
         <Button shape="none" className="h-9 w-full rounded-field">
           <ThemeSwatch theme={theme} aspect={8} className="h-9 w-full rounded-field" contentClassName="font-medium">
@@ -231,7 +233,7 @@ function ThemeButton({ theme, onChange }: { theme: SpaceTheme; onChange: (theme:
         </Button>
       }
     >
-      <div className="overflow-hidden rounded-popover">
+      <div className="max-h-(--radix-popover-content-available-height) overflow-y-auto rounded-popover [scrollbar-width:none]">
         <ThemePicker value={theme} onChange={onChange} className="rounded-none" />
       </div>
     </Popover>
