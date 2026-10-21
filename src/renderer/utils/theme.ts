@@ -170,21 +170,22 @@ export const PRESET_PAGES: { name: string; swatches: PresetSwatch[] }[] = PAGES.
 
 // --- Colours ----------------------------------------------------------------
 
-const rotate = (color: Hsb, degrees: number): Hsb => ({
+export const rotate = (color: Hsb, degrees: number): Hsb => ({
   ...color,
   hue: (((color.hue + degrees / 360) % 1) + 1) % 1
 });
 
-/** The theme's colours, as many as it has: the primary, then the others derived from it. */
-export function derivedColors({ primary, colors, wheel }: SpaceTheme): Hsb[] {
+/** How far each of the theme's colours has its hue turned from the primary's, in degrees. */
+export function hueOffsets({ colors, wheel }: Pick<SpaceTheme, "colors" | "wheel">): number[] {
   const complimentary = wheel === "complimentary";
-  if (colors === 2) return [primary, rotate(primary, complimentary ? 180 : 40)];
-  if (colors === 3) {
-    return complimentary
-      ? [primary, rotate(primary, 150), rotate(primary, 210)]
-      : [primary, rotate(primary, 40), rotate(primary, -40)];
-  }
-  return [primary];
+  if (colors === 2) return [0, complimentary ? 180 : 40];
+  if (colors === 3) return complimentary ? [0, 150, 210] : [0, 40, -40];
+  return [0];
+}
+
+/** The theme's colours, as many as it has: the primary, then the others derived from it. */
+export function derivedColors(theme: SpaceTheme): Hsb[] {
+  return hueOffsets(theme).map((offset) => rotate(theme.primary, offset));
 }
 
 /**

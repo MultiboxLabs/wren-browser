@@ -13,20 +13,37 @@ export type ThemeSwatchProps = {
   aspect?: number;
   /** Sizes and rounds it, as `className` does for any box. */
   className?: string;
+  /** For the box that holds the children. */
+  contentClassName?: string;
+  /** A `div`, for children that are blocks. */
+  as?: "span" | "div";
   children?: ReactNode;
 };
 
-export function ThemeSwatch({ theme, aspect = 1, className, children }: ThemeSwatchProps) {
+export function ThemeSwatch({
+  theme,
+  aspect = 1,
+  className,
+  contentClassName,
+  as: Tag = "span",
+  children
+}: ThemeSwatchProps) {
   const { underlay, colors, noise } = themeStyle(theme, aspect);
   return (
-    <span className={cn("relative grid place-items-center overflow-hidden", className)} style={underlay}>
+    <Tag className={cn("relative grid place-items-center overflow-hidden", className)} style={underlay}>
       <span aria-hidden className="absolute inset-0" style={colors} />
       {noise && <span aria-hidden className="absolute inset-0" style={noise} />}
       {children && (
-        <span className={cn("relative grid", contentScheme(theme) === "light" ? "text-black/65" : "text-white")}>
+        <Tag
+          className={cn(
+            "relative grid",
+            contentScheme(theme) === "light" ? "text-black/65" : "text-white",
+            contentClassName
+          )}
+        >
           {children}
-        </span>
+        </Tag>
       )}
-    </span>
+    </Tag>
   );
 }
