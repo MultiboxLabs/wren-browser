@@ -46,7 +46,7 @@ fn row(row: &Row) -> rusqlite::Result<SpaceRow> {
     })
 }
 
-fn name(name: &str) -> Result<String, String> {
+fn checked_name(name: &str) -> Result<String, String> {
     match name.trim() {
         "" => Err("A space needs a name.".into()),
         name => Ok(name.to_owned()),
@@ -55,7 +55,7 @@ fn name(name: &str) -> Result<String, String> {
 
 // `lucide:` and an icon's name, or an emoji (anything of at most 32 bytes
 // with no ASCII in it).
-fn icon(icon: &str) -> Result<String, String> {
+fn checked_icon(icon: &str) -> Result<String, String> {
     let named = icon.strip_prefix("lucide:").is_some_and(|name| {
         !name.is_empty()
             && name
@@ -70,7 +70,7 @@ fn icon(icon: &str) -> Result<String, String> {
     }
 }
 
-fn json(theme: &SpaceTheme) -> Result<String, String> {
+fn theme_json(theme: &SpaceTheme) -> Result<String, String> {
     serde_json::to_string(theme).map_err(|error| error.to_string())
 }
 
@@ -78,8 +78,8 @@ impl NewSpace {
     /// The space as it is kept (trimmed, its theme in range), or why it can't be.
     pub fn checked(self) -> Result<NewSpace, String> {
         Ok(NewSpace {
-            name: name(&self.name)?,
-            icon: icon(&self.icon)?,
+            name: checked_name(&self.name)?,
+            icon: checked_icon(&self.icon)?,
             theme: self.theme.checked()?,
         })
     }
@@ -123,13 +123,13 @@ impl Db {
     }
 
     pub fn update_space(&self, id: i64, change: SpaceChange) -> Result<SpaceRow, String> {
-        let name = change.name.as_deref().map(name).transpose()?;
-        let icon = change.icon.as_deref().map(icon).transpose()?;
+        let name = change.name.as_deref().map(checked_name).transpose()?;
+        let icon = change.icon.as_deref().map(checked_icon).transpose()?;
         let json = change
             .theme
             .map(SpaceTheme::checked)
             .transpose()?
-            .map(|theme| json(&theme))
+            .map(|theme| theme_json(&theme))
             .transpose()?;
         let changed = self
             .conn
@@ -217,7 +217,7 @@ fn insert(
             "INSERT INTO spaces (profile_id, name, icon, theme, position, created_at)
              VALUES (?1, ?2, ?3, ?4,
                      (SELECT coalesce(max(position) + 1, 0) FROM spaces WHERE profile_id = ?1), ?5)",
-            params![profile, space.name, space.icon, json(&space.theme)?, now()],
+            params![profile, space.name, space.icon, theme_json(&space.theme)?, now()],
         )
         .map_err(sql)?;
     Ok(transaction.last_insert_rowid())

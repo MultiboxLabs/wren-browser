@@ -64,24 +64,24 @@ export function SpaceDialog(props: SpaceDialogProps) {
   const theme = chosenTheme ?? space?.theme ?? defaultTheme(color);
   const trimmed = name.trim();
 
-  let change: Partial<NewSpace> | null = null;
-  if (space) {
-    change = {
-      ...(trimmed !== space.name && { name: trimmed }),
-      ...(icon !== space.icon && { icon }),
-      ...(chosenTheme && JSON.stringify(chosenTheme) !== JSON.stringify(space.theme) && { theme: chosenTheme })
-    };
-  }
+  // What an edit changes: nothing, for a new space.
+  const change: Partial<NewSpace> = space
+    ? {
+        ...(trimmed !== space.name && { name: trimmed }),
+        ...(icon !== space.icon && { icon }),
+        ...(chosenTheme && JSON.stringify(chosenTheme) !== JSON.stringify(space.theme) && { theme: chosenTheme })
+      }
+    : {};
   const made: NewSpace = { name: trimmed, icon, theme };
   const disabled =
-    !trimmed || (space ? Object.keys(change!).length === 0 : profile === NEW_PROFILE && !profileName.trim());
+    !trimmed || (space ? Object.keys(change).length === 0 : profile === NEW_PROFILE && !profileName.trim());
 
   const press = () => {
-    const done = space
-      ? props.onSave(space.id, change!)
+    const done = props.space
+      ? props.onSave(props.space.id, change)
       : profile === NEW_PROFILE
-        ? props.onCreateWithProfile!(profileName.trim(), made)
-        : props.onCreate!(profile, made);
+        ? props.onCreateWithProfile(profileName.trim(), made)
+        : props.onCreate(profile, made);
     return done.catch((error) => {
       setFailed(true);
       throw error;

@@ -19,10 +19,7 @@ export function useProfiles(open: boolean) {
   const [failed, setFailed] = useState(false);
   const refresh = () => {
     setFailed(false);
-    return profiles.list().then(
-      (entries) => setList(entries),
-      () => setFailed(true)
-    );
+    return profiles.list().then(setList, () => setFailed(true));
   };
   useEffect(() => {
     if (open && hasApp) refresh();

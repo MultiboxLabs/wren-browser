@@ -31,7 +31,7 @@ const DARK = [0.01, 0.425] as const;
 const clamp = (value: number, low = 0, high = 1) => Math.min(high, Math.max(low, value));
 
 /** The brightnesses the pad spans, for a colour of brightness `b`. */
-export function rangeFor(appearance: Appearance, b: number): Pick<Editor, "lo" | "hi"> {
+function rangeFor(appearance: Appearance, b: number): Pick<Editor, "lo" | "hi"> {
   if (appearance === "auto") return { lo: Math.max(b - 0.25, 0.01), hi: Math.min(b + 0.25, 0.97) };
   const [lo, hi] = appearance === "light" ? LIGHT : DARK;
   // Wide enough for the colour it holds, which a preset may put outside.
@@ -51,7 +51,7 @@ export function knobAt({ hue, brightness }: Hsb, { lo, hi }: Editor): Point {
 }
 
 /** The colour a knob at `point` stands for. */
-export function colorAt({ x, y }: Point, { saturation, lo, hi }: Editor): Hsb {
+function colorAt({ x, y }: Point, { saturation, lo, hi }: Editor): Hsb {
   const turns = Math.atan2(y, x) / (2 * Math.PI);
   return {
     hue: ((turns % 1) + 1) % 1,

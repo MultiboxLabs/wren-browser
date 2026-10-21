@@ -8,7 +8,7 @@ import { cn } from "../../utils/cn";
 import { Tooltip } from "../ui/tooltip";
 import type { EditProps } from "./edit";
 
-export const PAGE_COUNT = PRESET_PAGES.length;
+const PAGE_COUNT = PRESET_PAGES.length;
 
 const near = (a: number, b: number) => Math.abs(a - b) < 0.005;
 

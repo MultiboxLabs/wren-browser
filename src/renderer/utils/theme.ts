@@ -12,12 +12,12 @@ type Rgb = [number, number, number];
 
 const clamp = (value: number, low = 0, high = 1) => Math.min(high, Math.max(low, value));
 
-export function hexToRgb(hex: string): Rgb {
+function hexToRgb(hex: string): Rgb {
   const channel = (offset: number) => parseInt(hex.slice(offset, offset + 2), 16) / 255;
   return [channel(1), channel(3), channel(5)];
 }
 
-export function rgbToHex([r, g, b]: Rgb) {
+function rgbToHex([r, g, b]: Rgb) {
   const part = (value: number) =>
     Math.round(clamp(value) * 255)
       .toString(16)
@@ -25,7 +25,7 @@ export function rgbToHex([r, g, b]: Rgb) {
   return `#${part(r)}${part(g)}${part(b)}`;
 }
 
-export function rgbToHsb([r, g, b]: Rgb): Hsb {
+function rgbToHsb([r, g, b]: Rgb): Hsb {
   const max = Math.max(r, g, b);
   const delta = max - Math.min(r, g, b);
   let sector = 0;
@@ -37,7 +37,7 @@ export function rgbToHsb([r, g, b]: Rgb): Hsb {
   return { hue: sector / 6, saturation: max === 0 ? 0 : delta / max, brightness: max };
 }
 
-export function hsbToRgb({ hue, saturation, brightness }: Hsb): Rgb {
+function hsbToRgb({ hue, saturation, brightness }: Hsb): Rgb {
   const channel = (offset: number) => {
     const sector = (((hue * 6 + offset) % 6) + 6) % 6;
     return brightness * (1 - saturation * clamp(Math.min(sector, 4 - sector)));
@@ -68,7 +68,7 @@ export function defaultTheme(hex: string): SpaceTheme {
 
 // OKLCH to Display P3, each part 0–1. A colour the gamut doesn't hold keeps
 // its lightness and hue and loses chroma, as far as it must.
-export function oklchToRgb(lightness: number, chroma: number, hue: number): Rgb {
+function oklchToRgb(lightness: number, chroma: number, hue: number): Rgb {
   const at = (c: number) => {
     const a = c * Math.cos((hue * Math.PI) / 180);
     const b = c * Math.sin((hue * Math.PI) / 180);
@@ -105,7 +105,7 @@ export function oklchToRgb(lightness: number, chroma: number, hue: number): Rgb 
 }
 
 /** The nine hues each page has, in order (OKLCH hue, in degrees). */
-export const PRESET_HUES = [
+const PRESET_HUES = [
   { name: "Neutral", hue: 60 },
   { name: "Pink", hue: 350 },
   { name: "Violet", hue: 320 },
@@ -155,7 +155,7 @@ const PAGES: { name: string; swatches: [number, number][] }[] = [
   }
 ];
 
-export type PresetSwatch = { label: string; color: Hsb };
+type PresetSwatch = { label: string; color: Hsb };
 
 /** The palettes' swatches, a page after another, for the picker's row. */
 export const PRESET_PAGES: { name: string; swatches: PresetSwatch[] }[] = PAGES.map(({ name, swatches }) => ({
@@ -163,7 +163,7 @@ export const PRESET_PAGES: { name: string; swatches: PresetSwatch[] }[] = PAGES.
   swatches: swatches.map(([lightness, chroma], index) => {
     const { name: hueName, hue } = PRESET_HUES[index];
     // Grey's nine are not hues.
-    const label = chroma === 0 && name === "Grey" ? `Grey ${index + 1}` : `${name} ${hueName}`;
+    const label = name === "Grey" ? `Grey ${index + 1}` : `${name} ${hueName}`;
     return { label, color: rgbToHsb(oklchToRgb(lightness, chroma, hue)) };
   })
 }));

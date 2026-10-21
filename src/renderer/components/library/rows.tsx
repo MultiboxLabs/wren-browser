@@ -92,7 +92,7 @@ export function Empty({ children }: { children: ReactNode }) {
 
 // A row of the actions: its icon is under the profile's tile, its text under
 // the profile's name.
-export function ActionRow({
+function ActionRow({
   icon: Icon,
   danger,
   onPress,

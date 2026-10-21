@@ -54,15 +54,14 @@ export function Spaces({
     setAsked({ kind, space, open: true, serial: ++serial.current });
   if (!profiles || !spaces) return failed ? <LoadFailed what="Spaces" onRetry={onReload} /> : <Loading />;
   const groups = profiles
-    .map((profile) => ({
-      profile,
-      all: spaces.filter((space) => space.profile === profile.id)
-    }))
-    .map(({ profile, all }) => ({
-      profile,
-      all,
-      spaces: all.filter((space) => matches(query, space.name) || matches(query, profile.name))
-    }))
+    .map((profile) => {
+      const all = spaces.filter((space) => space.profile === profile.id);
+      return {
+        profile,
+        all,
+        spaces: all.filter((space) => matches(query, space.name) || matches(query, profile.name))
+      };
+    })
     .filter((group) => group.spaces.length > 0);
   if (groups.length === 0) return <Empty>No Spaces Found</Empty>;
   const dialog = (open: boolean) => ({ open, onOpenChange: (next: boolean) => setAsked({ ...asked!, open: next }) });

@@ -78,8 +78,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             state
                 .creating_profiles
                 .set(state.creating_profiles.get() - 1);
-            let id = result.as_ref().ok().map(|profile| profile.id());
-            if let (Some(id), Some(space)) = (&id, space)
+            let made = result.map(|profile| profile.id());
+            if let (Ok(id), Some(space)) = (&made, space)
                 && let Err(error) = state.db.ensure_space(id, space)
             {
                 eprintln!("Wren could not give a profile its space: {error}");
@@ -87,15 +87,13 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             // Whatever it has no space of is given the default one.
             state.db.sync_profiles(&mt.profile_list(), true);
             ipc::broadcast_spaces(&state);
-            let listed = list(mt);
             // A page that went before its answer is no error.
-            let _ = match (result, id) {
-                (Ok(_), Some(id)) => match listed.iter().find(|entry| entry.id == id) {
-                    Some(entry) => call.answer(entry),
+            let _ = match made {
+                Ok(id) => match list(mt).into_iter().find(|entry| entry.id == id) {
+                    Some(entry) => call.answer(&entry),
                     None => call.fail("The new profile is not in the list."),
                 },
-                (Err(error), _) => call.fail(&failed(error)),
-                (Ok(_), None) => call.fail("The new profile is not in the list."),
+                Err(error) => call.fail(&failed(error)),
             };
         });
     });

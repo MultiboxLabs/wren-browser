@@ -113,7 +113,8 @@ function Card({ onOpenChange, title, description, action, cancel = "Cancel", cla
       confirm();
     } else if (event.key === "." && event.metaKey && isMac()) {
       event.preventDefault();
-      cancel === null ? confirm() : close();
+      if (cancel === null) confirm();
+      else close();
     }
   };
 
