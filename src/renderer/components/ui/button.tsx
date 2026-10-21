@@ -3,8 +3,8 @@
 // pressed while what it opens is open, and dims while disabled.
 
 import { type HTMLMotionProps, motion } from "motion/react";
-import { type ComponentType, isValidElement, type ReactElement, type ReactNode } from "react";
-import { press } from "./press";
+import { type ComponentType, isValidElement, type ReactElement, type ReactNode, type Ref } from "react";
+import { press, restingBox } from "./press";
 import { Tooltip } from "./tooltip";
 import { cn } from "../../utils/cn";
 
@@ -109,12 +109,28 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
+  const { ref: forwarded, ...rest } = props as { ref?: Ref<HTMLButtonElement> } & typeof props;
   const form = shape ?? (children === undefined ? "square" : "text");
+  // One that opens a popover or a menu (Radix marks its trigger so) still
+  // scales, but reports the box it rests in: what hangs off it must not move
+  // as it scales.
+  const opens = rest["aria-haspopup"] !== undefined;
   const tone = tones[iconTone ?? (variant === "plain" ? "dim" : variant === "prominent" ? "inherit" : "full")];
   return (
     <Tooltip label={label}>
       <motion.button
         {...press(scale ?? shapes[form].scale)}
+        ref={(node) => {
+          const stop = opens && node ? restingBox(node) : undefined;
+          const back = typeof forwarded === "function" ? forwarded(node) : undefined;
+          if (forwarded && typeof forwarded === "object") forwarded.current = node;
+          return () => {
+            stop?.();
+            if (typeof back === "function") back();
+            else if (typeof forwarded === "function") forwarded(null);
+            else if (forwarded) forwarded.current = null;
+          };
+        }}
         type="button"
         aria-label={form === "text" ? undefined : label}
         className={cn(
@@ -123,7 +139,7 @@ export function Button({
           pressed ? variants[variant].on : variants[variant].off,
           className
         )}
-        {...props}
+        {...rest}
       >
         {Icon && (
           <span className={cn("grid", tone, "group-disabled/button:glyph-4")}>

@@ -30,6 +30,12 @@ Wren Browser is a modern, privacy-focused browser with a minimalistic design.
 
 - We wrap Radix UI components in `src/renderer/components/ui` to ensure
   consistency. Do not import `radix-ui` from elsewhere.
+- A control that opens a popover or a menu must not move or resize the box the
+  popover hangs off, as an animation of its size does (the press scale): the
+  popover would move with it. `Button` still scales, but reports the box it
+  rests in (`restingBox` in `ui/press.ts`) when Radix marks it as a trigger
+  (`aria-haspopup`), so use `Button` for one. A trigger that is anything else
+  must do the same, or not animate its size.
 - The page's calls into the main process live in `src/main/ipc/<part>.rs`, with
   their renderer side in `src/renderer/ipc/<part>.ts`. Change both together.
 - Commit directly to `main`; do not create branches unless asked.
