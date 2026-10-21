@@ -201,9 +201,10 @@ export function contentScheme({ appearance, primary }: SpaceTheme): "light" | "d
 /** The textures that have artwork so far. */
 export const TEXTURES: SpaceTheme["texture"][] = ["grain"];
 
-// How strong each texture is at full noise. The others have no artwork yet,
-// and are drawn as the grain.
-const NOISE_FACTOR = { grain: 0.8, sand: 0.15, denim: 0.6, tweed: 0.4 };
+// How strong each texture is at full noise, which is as much as a window
+// should be given: Arc's own factors (0.8 for the grain) are far too heavy
+// here. The others have no artwork yet, and are drawn as the grain.
+const NOISE_FACTOR = { grain: 0.3, sand: 0.15, denim: 0.25, tweed: 0.2 };
 const TEXTURE_IMAGES: Partial<Record<SpaceTheme["texture"], string>> = { grain };
 
 export type ThemeStyle = {

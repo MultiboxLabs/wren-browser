@@ -1,7 +1,7 @@
 // How much noise the theme has, as a dial: a ring of dots round a thin circle,
 // and a pill on the ring at the value, which is at twelve o'clock for none and
 // turns clockwise. The circle cycles the texture. Dragging round it, the
-// scroll wheel and the arrow keys set it, in steps of 0.05.
+// scroll wheel and the arrow keys set it, in steps of 0.1.
 
 import { type KeyboardEvent, type PointerEvent, useEffect, useRef } from "react";
 import { TEXTURES } from "../../utils/theme";
@@ -13,7 +13,8 @@ const RADIUS = 32;
 const DOTS = 24;
 // The whole turn is a dot short of it, so that full noise is not none.
 const SWEEP = (360 * (DOTS - 1)) / DOTS;
-const STEP = 0.05;
+// Ten steps, which are plenty to tell apart.
+const STEP = 0.1;
 
 const snap = (value: number) => Math.round(Math.min(1, Math.max(0, value)) / STEP) * STEP;
 
