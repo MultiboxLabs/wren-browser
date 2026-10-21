@@ -1,6 +1,6 @@
 // The app's state and Wren's callbacks.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -11,6 +11,7 @@ use wren::{
 };
 
 use crate::changes;
+use crate::db::Db;
 use crate::ipc::{self, OmniboxTarget, WindowRef};
 use crate::menus;
 use crate::pages::{SCHEME, Source, UI, serve_page};
@@ -28,6 +29,12 @@ pub struct State {
     pub windows: Windows,
     // What the pages keep between runs, in `data`; all windows share it.
     pub sidebar: SidebarStore,
+    /// What the app keeps of its own, spaces for now.
+    pub db: Db,
+    /// Profiles being made (`profiles.create`) whose call has not finished: a
+    /// change to the list in the meantime must not give them a default space,
+    /// for the call gives them the one the user asked for.
+    pub creating_profiles: Cell<u32>,
     /// The sidebar's performance run, if this is one.
     pub perf: Option<Perf>,
 }
@@ -39,6 +46,8 @@ impl State {
             devtools: RefCell::default(),
             windows: Windows::default(),
             sidebar: SidebarStore::new(&data),
+            db: Db::open(&data),
+            creating_profiles: Cell::new(0),
             perf,
         }
     }
@@ -50,9 +59,16 @@ impl State {
             eprintln!("Wren made no web view.");
             return mt.quit();
         }
+        // Each profile has a space before anything shows them. The list may
+        // be read again once the first profile is open, in case it was not
+        // filled yet.
+        self.db.sync_profiles(&mt.profile_list(), true);
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
-            Ok(profile) => state.restore(mt, profile),
+            Ok(profile) => {
+                state.db.sync_profiles(&mt.profile_list(), true);
+                state.restore(mt, profile)
+            }
             Err(error) => {
                 eprintln!("Wren opened no Profile: {error:?}");
                 mt.quit();
@@ -252,7 +268,16 @@ impl App for Wren {
         }
     }
 
-    fn changed(&self, _: MainThread, changes: &[Change]) {
+    fn changed(&self, mt: MainThread, changes: &[Change]) {
+        let state = &self.state;
+        if changes
+            .iter()
+            .any(|change| change.kind == ChangeKind::Profiles)
+        {
+            state
+                .db
+                .sync_profiles(&mt.profile_list(), state.creating_profiles.get() == 0);
+        }
         for change in changes {
             if matches!(change.kind, ChangeKind::Tabs | ChangeKind::Tab)
                 && let Some(browser) = &change.browser

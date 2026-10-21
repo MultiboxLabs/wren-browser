@@ -1,6 +1,7 @@
 mod app;
 mod changes;
 mod channel;
+mod db;
 mod ipc;
 mod menus;
 mod pages;

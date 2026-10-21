@@ -10,7 +10,7 @@ use dispatch2::DispatchQueue;
 use serde::Serialize;
 use wren::{MainThread, PageCall, WebView};
 
-use super::failed;
+use super::{WindowRef, failed};
 
 /// A profile as the Library lists it.
 #[derive(Serialize)]
@@ -19,12 +19,20 @@ struct Entry {
     name: String,
 }
 
-pub fn handle(web_view: &WebView, mt: MainThread) {
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The profiles Chromium lists, in its order.
     let _ = web_view.handle("profiles.list", move |()| Ok::<_, String>(list(mt)));
 
     // Makes a profile named as asked, and answers with it once it is made.
+    let weak = window.clone();
     let _ = web_view.handle_call("profiles.create", move |call| {
+        let state = match weak.state() {
+            Ok(state) => state,
+            Err(error) => {
+                let _ = call.fail(error);
+                return;
+            }
+        };
         let name = match call.value::<String>() {
             Ok(name) if !name.trim().is_empty() => name.trim().to_owned(),
             Ok(_) => {
@@ -36,13 +44,24 @@ pub fn handle(web_view: &WebView, mt: MainThread) {
                 return;
             }
         };
+        // Until the call finishes, the list changing does not give the new
+        // profile its space (see `State::creating_profiles`).
+        state
+            .creating_profiles
+            .set(state.creating_profiles.get() + 1);
         mt.create_profile(Some(&name), move |result| {
+            state
+                .creating_profiles
+                .set(state.creating_profiles.get() - 1);
+            // The profile gets its default space now, in the list's order.
+            state.db.sync_profiles(&mt.profile_list(), true);
+            let listed = list(mt);
             // A page that went before its answer is no error.
             let _ = match result {
                 Ok(profile) => {
                     let id = profile.id();
-                    match list(mt).into_iter().find(|entry| entry.id == id) {
-                        Some(entry) => call.answer(&entry),
+                    match listed.iter().find(|entry| entry.id == id) {
+                        Some(entry) => call.answer(entry),
                         None => call.fail("The new profile is not in the list."),
                     }
                 }
@@ -58,7 +77,8 @@ pub fn handle(web_view: &WebView, mt: MainThread) {
 
     // TODO: Delete the profile and its data once Wren has a call for it; it
     // takes the profile's ID. Until then the call waits a second and fails, as
-    // the rename does.
+    // the rename does. Where the deletion succeeds, also call
+    // `state.db.forget_profile(id)`: that deletes the profile's spaces.
     let _ = web_view.handle_call("profiles.delete", fail_later);
 }
 
