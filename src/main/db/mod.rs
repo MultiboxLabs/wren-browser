@@ -16,7 +16,6 @@ use rusqlite::Connection;
 
 pub use profiles::avatar;
 pub use spaces::{NewSpace, SpaceChange, SpaceRow};
-pub use theme::SpaceTheme;
 
 use migrations::MIGRATIONS;
 

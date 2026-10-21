@@ -16,6 +16,7 @@ export * from "./profiles";
 export * from "./side-panel";
 export * from "./sidebar";
 export * from "./site";
+export * from "./spaces";
 export * from "./splits";
 export * from "./toast";
 export * from "./window";

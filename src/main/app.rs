@@ -66,7 +66,9 @@ impl State {
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
             Ok(profile) => {
-                state.db.sync_profiles(&mt.profile_list(), true);
+                if state.db.sync_profiles(&mt.profile_list(), true) {
+                    ipc::broadcast_spaces(&state);
+                }
                 state.restore(mt, profile)
             }
             Err(error) => {
@@ -274,9 +276,10 @@ impl App for Wren {
             .iter()
             .any(|change| change.kind == ChangeKind::Profiles)
         {
-            state
-                .db
-                .sync_profiles(&mt.profile_list(), state.creating_profiles.get() == 0);
+            let fill = state.creating_profiles.get() == 0;
+            if state.db.sync_profiles(&mt.profile_list(), fill) {
+                ipc::broadcast_spaces(state);
+            }
         }
         for change in changes {
             if matches!(change.kind, ChangeKind::Tabs | ChangeKind::Tab)

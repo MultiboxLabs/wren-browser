@@ -70,10 +70,19 @@ fn icon(icon: &str) -> Result<String, String> {
     }
 }
 
-fn json(theme: SpaceTheme) -> Result<(SpaceTheme, String), String> {
-    let theme = theme.checked()?;
-    let json = serde_json::to_string(&theme).map_err(|error| error.to_string())?;
-    Ok((theme, json))
+fn json(theme: &SpaceTheme) -> Result<String, String> {
+    serde_json::to_string(theme).map_err(|error| error.to_string())
+}
+
+impl NewSpace {
+    /// The space as it is kept (trimmed, its theme in range), or why it can't be.
+    pub fn checked(self) -> Result<NewSpace, String> {
+        Ok(NewSpace {
+            name: name(&self.name)?,
+            icon: icon(&self.icon)?,
+            theme: self.theme.checked()?,
+        })
+    }
 }
 
 fn now() -> i64 {
@@ -100,25 +109,28 @@ impl Db {
     /// Adds a space to the end of the profile's, and the profile too if the
     /// database has not met it.
     pub fn create_space(&self, profile: &str, space: NewSpace) -> Result<SpaceRow, String> {
-        let name = name(&space.name)?;
-        let icon = icon(&space.icon)?;
-        let (theme, json) = json(space.theme)?;
+        let space = space.checked()?;
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
-        let id = insert(&transaction, profile, &name, &icon, &json)?;
+        let id = insert(&transaction, profile, &space)?;
         transaction.commit().map_err(sql)?;
         Ok(SpaceRow {
             id,
             profile: profile.to_owned(),
-            name,
-            icon,
-            theme,
+            name: space.name,
+            icon: space.icon,
+            theme: space.theme,
         })
     }
 
     pub fn update_space(&self, id: i64, change: SpaceChange) -> Result<SpaceRow, String> {
         let name = change.name.as_deref().map(name).transpose()?;
         let icon = change.icon.as_deref().map(icon).transpose()?;
-        let json = change.theme.map(json).transpose()?.map(|(_, json)| json);
+        let json = change
+            .theme
+            .map(SpaceTheme::checked)
+            .transpose()?
+            .map(|theme| json(&theme))
+            .transpose()?;
         let changed = self
             .conn
             .execute(
@@ -170,9 +182,7 @@ impl Db {
     /// Makes sure the database has the profile, and gives it `default` as its
     /// space if it has none. Whether it added anything.
     pub fn ensure_space(&self, profile: &str, default: NewSpace) -> Result<bool, String> {
-        let name = name(&default.name)?;
-        let icon = icon(&default.icon)?;
-        let (_, json) = json(default.theme)?;
+        let default = default.checked()?;
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
         let mut added = transaction
             .execute("INSERT OR IGNORE INTO profiles (id) VALUES (?1)", [profile])
@@ -186,7 +196,7 @@ impl Db {
             )
             .map_err(sql)?;
         if spaces == 0 {
-            insert(&transaction, profile, &name, &icon, &json)?;
+            insert(&transaction, profile, &default)?;
             added = true;
         }
         transaction.commit().map_err(sql)?;
@@ -197,9 +207,7 @@ impl Db {
 fn insert(
     transaction: &rusqlite::Transaction,
     profile: &str,
-    name: &str,
-    icon: &str,
-    json: &str,
+    space: &NewSpace,
 ) -> Result<i64, String> {
     transaction
         .execute("INSERT OR IGNORE INTO profiles (id) VALUES (?1)", [profile])
@@ -209,7 +217,7 @@ fn insert(
             "INSERT INTO spaces (profile_id, name, icon, theme, position, created_at)
              VALUES (?1, ?2, ?3, ?4,
                      (SELECT coalesce(max(position) + 1, 0) FROM spaces WHERE profile_id = ?1), ?5)",
-            params![profile, name, icon, json, now()],
+            params![profile, space.name, space.icon, json(&space.theme)?, now()],
         )
         .map_err(sql)?;
     Ok(transaction.last_insert_rowid())

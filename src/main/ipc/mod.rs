@@ -14,6 +14,7 @@ mod profiles;
 mod side_panel;
 mod sidebar;
 mod site;
+mod spaces;
 mod splits;
 mod toast;
 mod window;
@@ -35,6 +36,7 @@ pub use menu::send_toggle_sidebar;
 pub use omnibox::{OmniboxTarget, send_omnibox, send_show_omnibox};
 pub use side_panel::send_side_panel;
 pub use site::send_site;
+pub use spaces::broadcast_spaces;
 pub use toast::{OwnToast, send_toast, show_toast};
 pub use window::{send_active, send_full_screen};
 
@@ -75,6 +77,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     toast::handle(web_view, window);
     perf::handle(web_view, window, mt);
     profiles::handle(web_view, window, mt);
+    spaces::handle(web_view, window, mt);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),
