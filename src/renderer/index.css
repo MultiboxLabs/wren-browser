@@ -100,7 +100,16 @@ body,
   --color-on-inverse: var(--on-inverse);
 }
 
+/* The space's colour is a colour, not text, so a space switched to tweens
+   from the last one's, and every colour made from it does with it. */
+@property --space {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
 :root {
+  transition: --space 0.2s ease-out;
   /* How strong the space's colour is over the blur behind it. Focused, the
      blur is live; unfocused, macOS shows the material's flat colour, which
      is what pales the window. */
@@ -564,6 +573,13 @@ body,
   box-shadow:
     0 0 0 0.5px var(--card-edge),
     0 0 6px rgb(0 0 0 / 0.12);
+}
+
+/* Where the page goes, with no tab to show: the space's own colour, a
+   little lighter than the sidebar's, as Arc's; the card's edge and shadow
+   set it apart, as a light space's colour hardly changes. */
+.card.empty {
+  background: color-mix(in srgb, white 7%, transparent);
 }
 
 /* The loading bar above a card (components/loading-bar.tsx): a pill in the

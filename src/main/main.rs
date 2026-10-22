@@ -6,6 +6,7 @@ mod ipc;
 mod menus;
 mod pages;
 mod perf;
+mod placeholder;
 mod sidebar;
 mod spaces;
 mod tabs;

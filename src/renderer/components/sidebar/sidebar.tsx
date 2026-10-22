@@ -1,9 +1,9 @@
 // The sidebar: the toolbar beside the window's buttons, the address, the
 // favourites, and the space's tabs (tab-list.tsx).
 
-import { Archive, Orbit, Plus } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import type { RefObject } from "react";
+import { Archive, Plus } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion, useTransform } from "motion/react";
+import { type RefObject, useRef } from "react";
 import { browser } from "../../ipc";
 import { Button } from "../ui/button";
 import { AddressField } from "../address/field";
@@ -12,9 +12,12 @@ import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../ico
 import type { OmniboxState } from "../omnibox/shown";
 import { scaleTo } from "../../utils/motion";
 import type { SidebarHold } from "./presentation";
+import { useSpaceSwipe } from "./space-swipe";
+import { SpaceSwitcher } from "./space-switcher";
 import { selectTab, TabList } from "./tab-list";
-import { useBrowser } from "../../state/browser";
+import { BrowserOfSpace, useBrowser } from "../../state/browser";
 import { isFolder, useSpace } from "../../state/space";
+import { SLIDE } from "../../state/space-slide";
 
 export type SidebarProps = {
   /** Docked beside the page: its button hides it, rather than keeps it. */
@@ -65,17 +68,27 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
 }
 
 export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary }: SidebarProps) {
-  const { space } = useSpace();
-  const { tabs, current: active } = useBrowser();
-  const selected = active?.id;
-  const current = [
-    ...space.favorites,
-    ...space.pinned.flatMap((item) => (isFolder(item) ? item.tabs : [item])),
-    ...tabs
-  ].find((tab) => tab.id === selected);
+  const { space, spaces, showNow, slide } = useSpace();
+  // A swipe across the sidebar goes to the next space or the previous one.
+  const area = useRef<HTMLDivElement>(null);
+  const at = spaces.findIndex(({ id }) => id === space.id);
+  const neighbour = (by: 1 | -1) => (at < 0 ? undefined : spaces[at + by]);
+  useSpaceSwipe(
+    area,
+    slide,
+    (by) => neighbour(by) !== undefined,
+    (by) => {
+      const next = neighbour(by);
+      if (next) showNow(next.id);
+    }
+  );
+  const swipe = slide.x;
+  // The content fades as it slides away.
+  const fade = useTransform(swipe, (x) => 1 - Math.min(Math.abs(x) / SLIDE, 1) * 0.85);
+  const { current: active } = useBrowser();
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={area} className="flex h-full flex-col">
       <div className="flex h-10 shrink-0 items-center">
         <div className="w-[calc(var(--window-buttons)-8px)] shrink-0" />
         <Button
@@ -109,6 +122,40 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
         </div>
       </div>
 
+      {/* What slides with a swipe: the space's, below the toolbar. It is
+          clipped at the sidebar's sides, with room for the rows' outlines. */}
+      <div className="-mx-2 flex min-h-0 flex-1 flex-col overflow-x-clip px-2">
+        <motion.div style={{ x: swipe, opacity: fade }} className="flex min-h-0 flex-1 flex-col">
+          {/* Each space's own, so one's tabs never leave or arrive in another's. */}
+          <BrowserOfSpace key={space.id} space={space.id}>
+            <SpaceContent omnibox={omnibox} hold={hold} address={address} />
+          </BrowserOfSpace>
+        </motion.div>
+      </div>
+
+      <div className="flex h-12.5 shrink-0 items-center">
+        <Button icon={Archive} label="Library" onClick={onOpenLibrary} />
+        <div className="flex min-w-0 flex-1 justify-center px-1">
+          <SpaceSwitcher />
+        </div>
+        <Button icon={Plus} label="New Space" />
+      </div>
+    </div>
+  );
+}
+
+/** What the sidebar shows of the space, below its toolbar: the address, the favourites and the tabs. */
+function SpaceContent({ omnibox, hold, address }: Pick<SidebarProps, "omnibox" | "hold" | "address">) {
+  const { space } = useSpace();
+  const { tabs, current: active } = useBrowser();
+  const selected = active?.id;
+  const current = [
+    ...space.favorites,
+    ...space.pinned.flatMap((item) => (isFolder(item) ? item.tabs : [item])),
+    ...tabs
+  ].find((tab) => tab.id === selected);
+  return (
+    <>
       <AddressField
         tab={current}
         onPopoverOpenChange={hold.setPopoverOpen}
@@ -133,14 +180,6 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
       </div>
 
       <TabList omnibox={omnibox} whileOpen={hold.whileOpen} />
-
-      <div className="flex h-12.5 shrink-0 items-center">
-        <Button icon={Archive} label="Library" onClick={onOpenLibrary} />
-        <div className="flex flex-1 justify-center">
-          <Button icon={Orbit} iconSize={15} iconTone="inherit" label={space.name} className="text-accent" />
-        </div>
-        <Button icon={Plus} label="New Space" />
-      </div>
-    </div>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 // The sidebar's list: the space's pinned tabs and folders, the New Tab row,
 // and the Browser's tabs, in their groups and splits.
 
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, Orbit, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, Plus, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, memo, type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
 import { Favicon } from "../favicon";
+import { SpaceIcon } from "../space-icon";
 import type { OmniboxState } from "../omnibox/shown";
 import type { SidebarHold } from "./presentation";
 import { useBrowser } from "../../state/browser";
@@ -109,7 +110,9 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
       <div className="relative flex flex-col gap-1.25 pb-8">
         <div className="flex h-9 items-center gap-2.75 pl-2.5 font-semibold text-fg-3">
           <IconSlot>
-            <Orbit size={17} strokeWidth={1.75} className="text-accent" />
+            <span className="grid text-accent">
+              <SpaceIcon icon={space.icon} size={17} strokeWidth={1.75} />
+            </span>
           </IconSlot>
           {space.name}
         </div>

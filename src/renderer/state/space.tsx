@@ -1,8 +1,13 @@
-// A space: a colour, and the tabs that belong to it. Its tabs are the
-// Browser's; until favourites and pinned tabs are real too, the one space and
-// those are made up here.
+// The space the window shows: the app's, with its name, icon and colour, and
+// the spaces it can switch to. Its tabs are the Browser's; until favourites
+// and pinned tabs are real too, those are made up here, and so is the space
+// drawn before the window knows its own, and outside the app.
 
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { appWindow, follow, hasApp, type ProfileEntry, type SpaceEntry } from "../ipc";
+import { contentScheme, primaryHex } from "../utils/theme";
+import { useProfiles, useSpaces } from "./library";
+import { type SpaceSlide, useSpaceSlide } from "./space-slide";
 
 /** A tab of the Browser, by its ID, or a made-up favourite or pinned one, by its address. */
 export type Tab = {
@@ -17,8 +22,13 @@ export type Tab = {
 };
 export type Folder = { id: string; title: string; open: boolean; tabs: Tab[] };
 export type Space = {
-  id: string;
+  /** Its ID in the app's database; 0 for the made-up one. */
+  id: number;
+  /** The profile it belongs to; null for the made-up one. */
+  profile: string | null;
   name: string;
+  /** `lucide:` and an icon's name, or an emoji. */
+  icon: string;
   /** The window's colour while the space is shown: #rrggbb, in Display P3, as macOS's colour picker gives it. */
   color: string;
   /** The blur behind the colour; a light one keeps a saturated colour bright. */
@@ -32,8 +42,10 @@ export const isFolder = (item: Tab | Folder): item is Folder => "tabs" in item;
 const tab = (title: string, url: string): Tab => ({ id: url, title, url });
 
 export const personal: Space = {
-  id: "personal",
+  id: 0,
+  profile: null,
   name: "Personal",
+  icon: "lucide:orbit",
   color: "#6f00ff",
   backdrop: "dark",
   favorites: [
@@ -61,9 +73,30 @@ export const personal: Space = {
   ]
 };
 
+/** A space of the app's, as the window draws it. */
+const shown = (entry: SpaceEntry): Space => ({
+  id: entry.id,
+  profile: entry.profile,
+  name: entry.name,
+  icon: entry.icon,
+  color: primaryHex(entry.theme),
+  backdrop: contentScheme(entry.theme),
+  favorites: [],
+  pinned: []
+});
+
 type SpaceState = {
   /** The space shown in the window. */
   space: Space;
+  /** Every space, in the Library's order: by profile, then by position. */
+  spaces: SpaceEntry[];
+  profiles: ProfileEntry[];
+  /** Brings a space forward in the window, the old one's content sliding out first. */
+  show: (id: number) => void;
+  /** Brings a space forward at once: a swipe, whose fingers slid the old one out. */
+  showNow: (id: number) => void;
+  /** How the sidebar's content moves as the space changes. */
+  slide: SpaceSlide;
   /** Opens a folder of its pinned tabs, or closes it. */
   toggleFolder: (folder: Folder) => void;
 };
@@ -71,13 +104,53 @@ type SpaceState = {
 const SpaceContext = createContext<SpaceState | null>(null);
 
 export function SpaceProvider({ children }: { children: ReactNode }) {
-  const [space, setSpace] = useState<Space>(personal);
+  const { spaces: entries } = useSpaces(true);
+  const { profiles: listed } = useProfiles(true);
+  const [current, setCurrent] = useState<number | null>(null);
+  useEffect(() => (hasApp ? follow(appWindow.space, appWindow.onSpace, setCurrent) : undefined), []);
+  // The made-up space, whose folders open and close here.
+  const [madeUp, setMadeUp] = useState<Space>(personal);
+
+  const profiles = listed ?? [];
+  const spaces = useMemo(() => {
+    const all = entries ?? [];
+    const known = new Set(profiles.map(({ id }) => id));
+    return [
+      ...profiles.flatMap((profile) => all.filter((space) => space.profile === profile.id)),
+      ...all.filter((space) => !known.has(space.profile))
+    ];
+  }, [entries, listed]);
+  const entry = spaces.find(({ id }) => id === current);
+  // Until the spaces are read, the made-up one stands in, as the window's.
+  const space = useMemo(
+    () => (entry ? shown(entry) : current === null ? madeUp : { ...madeUp, id: current }),
+    [entry, madeUp, current]
+  );
+
+  const order = (id: number) => spaces.findIndex((space) => space.id === id);
+  const slide = useSpaceSlide(current, order);
+  // A switch that fails leaves the content where it was.
+  const showNow = (id: number) => {
+    if (hasApp) appWindow.showSpace(id).catch(slide.settle);
+  };
+  const show = (id: number) => {
+    if (id === current) return;
+    const [from, to] = [order(current ?? -1), order(id)];
+    if (from < 0 || to < 0) return showNow(id);
+    slide.leave(to > from ? 1 : -1, () => showNow(id));
+  };
+  // The main menu's ⌃1 to ⌃9 come here, to slide as a press does.
+  const latestShow = useRef(show);
+  latestShow.current = show;
+  useEffect(() => (hasApp ? appWindow.onChooseSpace((id) => latestShow.current(id)) : undefined), []);
   const toggleFolder = (folder: Folder) =>
-    setSpace((space) => ({
+    setMadeUp((space) => ({
       ...space,
       pinned: space.pinned.map((item) => (item === folder ? { ...folder, open: !folder.open } : item))
     }));
-  return <SpaceContext value={{ space, toggleFolder }}>{children}</SpaceContext>;
+  return (
+    <SpaceContext value={{ space, spaces, profiles, show, showNow, slide, toggleFolder }}>{children}</SpaceContext>
+  );
 }
 
 /** The space shown in the window, from the SpaceProvider around it. */

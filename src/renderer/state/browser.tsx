@@ -36,6 +36,8 @@ type BrowserState = {
    * window has its Browser, and outside the app (Vite in a browser).
    */
   id: number | null;
+  /** The space its tabs are of, as the app said with them. */
+  space: number | null;
   /** Its tabs, in its order. */
   tabs: BrowserTabWithFavicon[];
   groups: TabGroup[];
@@ -76,16 +78,33 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const find = useFind();
   const state: BrowserState = {
     id: tabs?.browser ?? null,
-    tabs: list,
+    space: tabs?.space ?? null,
+    // The New Tab page that stands in while there is no tab is not listed.
+    tabs: list.filter((tab) => !tab.hidden),
     groups: tabs?.groups ?? [],
     splits: tabs?.splits ?? [],
-    current: list.find((tab) => tab.id === tabs?.active),
+    // The New Tab page standing in is not shown either: the window shows no tab.
+    current: list.find((tab) => tab.id === tabs?.active && !tab.hidden),
     fullScreen: list.find((tab) => tab.id === tabs?.fullScreen),
     sidePanel: panel?.open && tabs ? panel : null,
     showing,
     find
   };
   return <BrowserContext value={state}>{children}</BrowserContext>;
+}
+
+/**
+ * The Browser of one space, for what draws that space's content: as the
+ * window switches, the app says the new space's tabs before the space, so
+ * the old space's content keeps its own last tabs until it goes, and the
+ * new one's never has the old one's.
+ */
+export function BrowserOfSpace({ space, children }: { space: number; children: ReactNode }) {
+  const state = useBrowser();
+  const own = useRef<BrowserState | null>(null);
+  if (state.space === space) own.current = state;
+  const shown = own.current ?? { ...state, space, id: null, tabs: [], groups: [], splits: [], current: undefined };
+  return <BrowserContext value={shown}>{children}</BrowserContext>;
 }
 
 /** The window's Browser, from the BrowserProvider around it. */

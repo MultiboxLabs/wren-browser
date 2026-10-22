@@ -2,9 +2,10 @@
 // of the window; for the active tab, over the address field while the
 // sidebar is in view, and in the middle while it is away. Each time it
 // opens, it opens afresh. What opens it closes it again (⌘T, the New Tab
-// row, ⌘L); the other kind takes its place. In a space with no tab, the app
-// first makes a Browser on the New Tab page for it to ask, and it opens on
-// that page's address.
+// row, ⌘L); the other kind takes its place, and ⌘W closes the one for a
+// new tab. In a space the window has no Browser for yet, there is no tab to
+// open in: it is the one for a new tab, and the app first makes the space a
+// Browser, with no tab yet, for it to ask.
 
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { hasApp, omnibox, type OmniboxTarget } from "../../ipc";
@@ -12,8 +13,6 @@ import type { OmniboxPlace } from "./omnibox";
 
 export type ShownOmnibox = {
   target: OmniboxTarget;
-  /** What it was opened for: `target`, unless a space with no tab had it open on its new page. */
-  asked: OmniboxTarget;
   place: OmniboxPlace;
   /** Each opening's own, so a new one starts afresh. */
   key: number;
@@ -38,27 +37,36 @@ export function useShownOmnibox(address: RefObject<HTMLElement | null>, hasBrows
   }, [hasBrowser]);
   const opened = useRef(0);
 
-  const show = (target: OmniboxTarget, toggles: boolean) => {
-    // What opened it closes it; Chromium asking for the one open leaves it.
-    const open = latest.current;
-    if (open && (toggles ? open.asked : open.target) === target) {
-      if (!toggles) return;
-      omnibox.close();
-      return setShown(null);
-    }
+  const hide = () => {
+    omnibox.close();
+    setShown(null);
+  };
+  const show = (asked: OmniboxTarget, toggles: boolean) => {
+    // With no Browser, there is no tab to open in: it is for a new tab, and
+    // the app makes the space a Browser for it to ask first.
+    const unready = hasApp && !browser.current;
+    const target = unready ? "new-tab" : asked;
+    if (latest.current?.target === target) return toggles ? hide() : undefined;
     const box = address.current?.getBoundingClientRect();
     // Off the window's left edge, the sidebar is away.
     const place: OmniboxPlace =
       target === "current" && box && box.right > 0 ? { left: box.left, top: box.top } : "center";
     const key = ++opened.current;
-    if (!hasApp || browser.current) return setShown({ target, asked: target, place, key });
+    const open = () => setShown({ target, place, key });
+    if (!unready) return open();
     // Unless another opening came in the meantime.
     omnibox.prepare().then(
-      () => opened.current === key && setShown({ target: "current", asked: target, place, key }),
+      () => opened.current === key && open(),
       () => {}
     );
   };
   useEffect(() => (hasApp ? omnibox.onShow(({ target, toggles }) => show(target, toggles)) : undefined), []);
+  useEffect(() => (hasApp ? omnibox.onHide(() => latest.current && hide()) : undefined), []);
+  // The app is told which is open, for ⌘W.
+  const target = shown?.target ?? null;
+  useEffect(() => {
+    if (hasApp) omnibox.shown(target).catch(() => {});
+  }, [target]);
 
   return {
     shown,

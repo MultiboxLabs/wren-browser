@@ -12,6 +12,8 @@ export const appWindow = {
   onSpace: (listener: (space: number | null) => void) => wren.on<number | null>("window.space", listener),
   /** Brings a space forward: its tabs, or the space empty until one is opened. Fails if the space is gone. */
   showSpace: (space: number) => wren.invoke<null>("window.showSpace", space),
+  /** The user chose a space from the main menu, for the page to bring forward as a press would. */
+  onChooseSpace: (listener: (space: number) => void) => wren.on<number>("window.chooseSpace", listener),
   /** Whether the window is full screen, or going to be. */
   fullScreen: () => wren.invoke<boolean>("window.fullScreen"),
   onFullScreen: (listener: (fullScreen: boolean) => void) => wren.on<boolean>("window.fullScreen", listener),

@@ -65,8 +65,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 }
 
-/// Tells every window's page that the spaces changed, to read them again.
+/// Tells every window's page that the spaces changed, to read them again,
+/// and lists them anew in the main menu.
 pub fn broadcast_spaces(state: &State) {
+    if let Some(mt) = MainThread::get() {
+        state.update_menu(mt);
+    }
     for window in state.windows.all() {
         let _ = window.page.web_view.send("spaces.changed", &());
     }
