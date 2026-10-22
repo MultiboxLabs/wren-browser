@@ -177,7 +177,7 @@ export function Omnibox({
               id="omnibox-list"
               role="listbox"
               className={cn(
-                "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2.5 [scrollbar-width:none]",
+                "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2.5 scrollbar-none",
                 anchored ? "scroll-pt-0.5 scroll-pb-2.5 pt-0.5" : "scroll-pt-1.5 scroll-pb-2.5 pt-1.5"
               )}
             >

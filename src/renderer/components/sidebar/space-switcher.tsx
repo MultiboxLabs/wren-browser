@@ -31,10 +31,10 @@ export function SpaceSwitcher() {
   const owners = new Set(spaces.map(({ profile }) => profile));
   const label = (name: string, profile: string) => {
     const owner = profiles.find(({ id }) => id === profile)?.name;
-    return owners.size > 1 && owner ? `${name} — ${owner}` : name;
+    return owners.size > 1 && owner ? `${name}` : name;
   };
   return (
-    <div ref={row} className="flex min-w-0 gap-0.5 overflow-x-auto [scrollbar-width:none]">
+    <div ref={row} className="flex min-w-0 gap-0.5 overflow-x-auto scrollbar-none">
       {spaces.map((entry) => {
         const current = entry.id === space.id;
         return (
@@ -43,7 +43,6 @@ export function SpaceSwitcher() {
             icon={<SpaceIcon icon={entry.icon} size={15} />}
             iconTone={current ? "inherit" : "dim"}
             label={label(entry.name, entry.profile)}
-            pressed={current}
             data-current={current || undefined}
             className={cn(current && "text-accent")}
             onClick={() => show(entry.id)}
