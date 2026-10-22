@@ -163,6 +163,11 @@ impl App for Wren {
             }
         }
         for change in changes {
+            if change.kind == ChangeKind::ForegroundRequest
+                && let Some(browser) = &change.browser
+            {
+                state.bring_forward(browser);
+            }
             if matches!(change.kind, ChangeKind::Tabs | ChangeKind::Tab)
                 && let Some(browser) = &change.browser
                 && let Some(window) = self.state.devtools.borrow().get(browser)

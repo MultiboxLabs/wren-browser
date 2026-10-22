@@ -269,6 +269,13 @@ impl PageWindow {
         }
     }
 
+    /// Brings the window to the front, and the app with it, as Chrome does
+    /// for a window Chromium wants in front.
+    pub fn bring_forward(&self) {
+        self.window.makeKeyAndOrderFront(None);
+        NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).activate();
+    }
+
     /// Whether the window is full screen, or going to be.
     pub fn is_full_screen(&self) -> bool {
         self.title_bar.full_screen.get()

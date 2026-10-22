@@ -1,6 +1,7 @@
 use wren::WebView;
 
 use super::{WindowRef, with_window};
+use crate::db::SpaceId;
 use crate::window::{BrowserWindow, PageWindow};
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
@@ -24,6 +25,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
     let _ = web_view.handle("window.space", move |()| {
         with_window(&weak, |window| Ok(window.space()))
+    });
+
+    // Brings a space forward in the window; "window.space" follows.
+    let weak = window.clone();
+    let _ = web_view.handle("window.showSpace", move |space: SpaceId| {
+        weak.state()?.show_space(weak.id, space)
     });
 
     // Whether the window is full screen; "window.fullScreen" says when it

@@ -62,6 +62,10 @@ impl State {
             let Some(state) = state.upgrade() else { return };
             if let Some(window) = state.windows.get(id) {
                 window.full_screen_finished(full_screen);
+                // A Browser that asked to come forward meanwhile does now.
+                if !full_screen && let Some(browser) = window.wanting_foreground() {
+                    state.bring_forward(&browser);
+                }
             }
         });
         // Below and right of the window in use, so a new one does not hide it.
@@ -122,8 +126,10 @@ impl State {
                     Ok(browser) => browser,
                     Err(error) => return state.failed_browser(id, space, &error),
                 };
-                // A window closed in the meantime takes no Browser.
-                let Some(window) = state.windows.get(id).filter(|w| !w.is_closing()) else {
+                // A window closed in the meantime takes no Browser, nor one
+                // whose space was deleted.
+                let window = state.windows.get(id);
+                let Some(window) = window.filter(|w| !w.is_closing() && w.is_opening(space)) else {
                     let _ = browser.close();
                     return;
                 };
@@ -134,6 +140,80 @@ impl State {
                 then(&window, &browser);
             });
         });
+    }
+
+    /// Brings `space` forward in window `id`: its Browser if the window has
+    /// one, or else the space empty, until a tab is opened in it.
+    pub fn show_space(&self, id: WindowId, space: SpaceId) -> Result<(), String> {
+        let window = self.windows.get(id).ok_or("The window is closing.")?;
+        if self.db.space(space)?.is_none() {
+            return Err("That space is gone.".into());
+        }
+        if window.space() == Some(space) {
+            return Ok(());
+        }
+        // A Browser made for the omnibox, which opened nothing, goes with it.
+        window.close_if_unused();
+        // Full screen for a page is the old Browser's.
+        if window.wants_full_screen_for_page(false) {
+            window.page.set_full_screen(false);
+        }
+        let front = window.switch_to(space);
+        self.touch_space(space);
+        match front {
+            Some(browser) => {
+                ipc::send_browser(&window, &browser);
+                if let Some(tab) = browser.active_tab() {
+                    let _ = tab.focus();
+                }
+            }
+            None => ipc::send_no_browser(&window),
+        }
+        Ok(())
+    }
+
+    /// Chromium asked for `browser`, in the background, to come forward (a
+    /// notification clicked, an extension): its window switches to its
+    /// space, and comes to the front. While a page has the window in full
+    /// screen, it waits until the page is done (`wanting_foreground`).
+    pub fn bring_forward(&self, browser: &Browser) {
+        let Some(window) = self.windows.of(browser) else {
+            return;
+        };
+        let Some(space) = window.space_of(browser) else {
+            return;
+        };
+        let in_full_screen = window
+            .browser()
+            .is_some_and(|front| front.fullscreen_tab().is_some());
+        if in_full_screen {
+            return;
+        }
+        if let Err(error) = self.show_space(window.id, space) {
+            eprintln!("Wren could not switch spaces: {error}");
+        }
+        window.page.bring_forward();
+    }
+
+    /// `space`, of `profile`, was deleted: each window on it switches to the
+    /// profile's most recent space, and its Browser closes with its tabs.
+    pub fn space_deleted(&self, space: SpaceId, profile: &str) {
+        for window in self.windows.showing(space) {
+            if window.space() == Some(space) {
+                let next = self.db.recent_space(profile);
+                let shown = match next {
+                    Ok(Some(next)) => self.show_space(window.id, next.id),
+                    Ok(None) => Err("The profile has no space left.".into()),
+                    Err(error) => Err(error),
+                };
+                if let Err(error) = shown {
+                    eprintln!("Wren could not leave a deleted space: {error}");
+                }
+            }
+            if let Some(browser) = window.forget(space) {
+                let _ = browser.close();
+            }
+        }
     }
 
     fn failed_browser(&self, id: WindowId, space: SpaceId, error: &wren::Error) {

@@ -6,7 +6,7 @@ use wren::{MainThread, WebView};
 
 use super::WindowRef;
 use crate::app::State;
-use crate::db::{NewSpace, SpaceChange, SpaceRow};
+use crate::db::{NewSpace, SpaceChange, SpaceId, SpaceRow};
 
 /// A space to make: whose it is, then what it has.
 #[derive(Deserialize)]
@@ -18,7 +18,7 @@ struct Create {
 
 #[derive(Deserialize)]
 struct Update {
-    id: i64,
+    id: SpaceId,
     #[serde(flatten)]
     change: SpaceChange,
 }
@@ -52,11 +52,14 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         Ok::<SpaceRow, String>(space)
     });
 
-    // Fails for a profile's last space.
+    // Fails for a profile's last space. The windows on it move to another of
+    // the profile's, and its Browsers close with their tabs.
     let weak = window.clone();
-    let _ = web_view.handle("spaces.delete", move |id: i64| {
+    let _ = web_view.handle("spaces.delete", move |id: SpaceId| {
         let state = weak.state()?;
+        let profile = state.db.space(id)?.ok_or("That space is gone.")?.profile;
         state.db.delete_space(id)?;
+        state.space_deleted(id, &profile);
         broadcast_spaces(&state);
         Ok::<_, String>(())
     });
