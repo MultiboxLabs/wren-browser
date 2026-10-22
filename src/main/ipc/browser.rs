@@ -30,8 +30,9 @@ pub struct Tab {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tabs {
-    /// The Browser's ID, which names its side panel's element.
-    browser: i32,
+    /// The Browser's ID, which names its side panel's element; none while
+    /// the window's space has no Browser.
+    browser: Option<i32>,
     tabs: Vec<Tab>,
     active: Option<i32>,
     /// The tab whose page has the whole window, if one has.
@@ -209,6 +210,19 @@ pub fn send_tabs(window: &BrowserWindow, browser: &Browser) {
         .send("browser.tabs", &tab_list(browser));
 }
 
+/// Tells the page there are no tabs: its space has no Browser.
+pub fn send_no_tabs(window: &BrowserWindow) {
+    let none = Tabs {
+        browser: None,
+        tabs: Vec::new(),
+        active: None,
+        full_screen: None,
+        groups: Vec::new(),
+        splits: Vec::new(),
+    };
+    let _ = window.page.web_view.send("browser.tabs", &none);
+}
+
 /// Tells the page a tab's favicon changed, for it to ask again.
 pub fn send_favicon(window: &BrowserWindow, tab: BrowserTab) {
     let _ = window.page.web_view.send("tab.favicon", &tab.id());
@@ -244,7 +258,7 @@ fn tab_list(browser: &Browser) -> Tabs {
         })
         .collect();
     Tabs {
-        browser: browser.id(),
+        browser: Some(browser.id()),
         tabs,
         active: browser.active_tab().map(BrowserTab::id),
         full_screen: browser.fullscreen_tab().map(BrowserTab::id),

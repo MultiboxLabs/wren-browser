@@ -92,6 +92,11 @@ pub fn send_site(window: &BrowserWindow, browser: &Browser) {
     let _ = window.page.web_view.send("site.state", &site(browser));
 }
 
+/// Tells the page there is no site: its space has no Browser.
+pub fn send_no_site(window: &BrowserWindow) {
+    let _ = window.page.web_view.send("site.state", &None::<Site>);
+}
+
 fn site(browser: &Browser) -> Option<Site> {
     let state = browser.site_state().ok()?;
     let permissions = (0..browser.site_permission_count())

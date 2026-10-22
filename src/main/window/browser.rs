@@ -1,13 +1,15 @@
-// A browser window: its page, and the Browsers it shows, one for each
-// Profile. All are attached to the page's view; one is in front, and the
-// rest wait in the background.
+// A browser window: its page, and the Browsers it shows, at most one for each
+// space it has been on. All are attached to the page's view; the current
+// space's is in front, and the rest wait in the background. A space can be
+// without one: its last tab closed, or the window has not opened a tab in it.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
-use wren::{Browser, BubbleAnchor, Profile};
+use wren::{Browser, BubbleAnchor};
 
 use super::PageWindow;
+use crate::db::SpaceId;
 
 /// The page's mark on its page info button, which the site's bubbles (page
 /// info, permission prompts), the extensions menu and unpinned extensions'
@@ -19,68 +21,106 @@ const PAGE_INFO: &str = "page-info";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct WindowId(pub u64);
 
+/// What a window has for a space: its Browser, or one on the way.
+enum Slot {
+    Opening,
+    Open(Browser),
+}
+
 pub struct BrowserWindow {
     pub id: WindowId,
     pub page: PageWindow,
-    // By the Profile's ID.
-    browsers: RefCell<HashMap<String, (Profile, Browser)>>,
-    front: RefCell<Option<String>>,
+    spaces: RefCell<HashMap<SpaceId, Slot>>,
+    // The space in front; none only for the window the app opens at startup,
+    // until its first Browser.
+    current: Cell<Option<SpaceId>>,
+    // Whether a Browser has come to the window, and given it its frame.
+    framed: Cell<bool>,
+    // A Browser made for the omnibox to ask, in a space that had none; it
+    // goes again if the omnibox opens nothing (`close_if_unused`).
+    provisional: RefCell<Option<Browser>>,
+    // The user closed the window: it goes once its Browsers have.
+    closing: Cell<bool>,
     // Whether the window went full screen for a page, and comes back once
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
 }
 
 impl BrowserWindow {
-    pub fn new(id: WindowId, page: PageWindow) -> BrowserWindow {
+    pub fn new(id: WindowId, page: PageWindow, space: Option<SpaceId>) -> BrowserWindow {
         BrowserWindow {
             id,
             page,
-            browsers: RefCell::default(),
-            front: RefCell::default(),
+            spaces: RefCell::default(),
+            current: Cell::new(space),
+            framed: Cell::default(),
+            provisional: RefCell::default(),
+            closing: Cell::default(),
             full_screen_for_page: Cell::default(),
         }
     }
 
-    /// The Browser in front, whose tabs the page shows.
-    pub fn browser(&self) -> Option<Browser> {
-        let front = self.front.borrow();
-        let browsers = self.browsers.borrow();
-        front
-            .as_ref()
-            .and_then(|id| browsers.get(id))
-            .map(|(_, browser)| browser.clone())
+    /// The space in front.
+    pub fn space(&self) -> Option<SpaceId> {
+        self.current.get()
     }
 
-    /// The Profile of the Browser in front.
-    pub fn profile(&self) -> Option<Profile> {
-        let front = self.front.borrow();
-        let browsers = self.browsers.borrow();
-        front
-            .as_ref()
-            .and_then(|id| browsers.get(id))
-            .map(|(profile, _)| profile.clone())
+    /// The Browser in front, the current space's, whose tabs the page shows.
+    pub fn browser(&self) -> Option<Browser> {
+        self.browser_of(self.current.get()?)
+    }
+
+    /// The window's Browser for `space`, if it has one open.
+    pub fn browser_of(&self, space: SpaceId) -> Option<Browser> {
+        match self.spaces.borrow().get(&space) {
+            Some(Slot::Open(browser)) => Some(browser.clone()),
+            _ => None,
+        }
+    }
+
+    /// The space `browser` is the window's Browser for.
+    pub fn space_of(&self, browser: &Browser) -> Option<SpaceId> {
+        self.spaces
+            .borrow()
+            .iter()
+            .find(|(_, slot)| matches!(slot, Slot::Open(each) if each == browser))
+            .map(|(space, _)| *space)
     }
 
     /// Whether `browser` is one of the window's.
     pub fn has_browser(&self, browser: &Browser) -> bool {
-        self.browsers
+        self.space_of(browser).is_some()
+    }
+
+    /// Whether the window has a Browser open, for any space.
+    pub fn has_browsers(&self) -> bool {
+        self.spaces
             .borrow()
             .values()
-            .any(|(_, each)| each == browser)
+            .any(|slot| matches!(slot, Slot::Open(_)))
     }
 
     /// Closes the window's Browsers. The window goes as the last of them
-    /// closes (`remove`).
+    /// closes (`App::browser_closed`).
     pub fn close_browsers(&self) {
+        self.closing.set(true);
         let browsers: Vec<Browser> = self
-            .browsers
+            .spaces
             .borrow()
             .values()
-            .map(|(_, browser)| browser.clone())
+            .filter_map(|slot| match slot {
+                Slot::Open(browser) => Some(browser.clone()),
+                Slot::Opening => None,
+            })
             .collect();
         for browser in browsers {
             let _ = browser.close();
         }
+    }
+
+    /// Whether the user closed the window, which waits for its Browsers.
+    pub fn is_closing(&self) -> bool {
+        self.closing.get()
     }
 
     /// Whether `browser` is the one in front.
@@ -88,27 +128,104 @@ impl BrowserWindow {
         self.browser().as_ref() == Some(browser)
     }
 
-    /// Shows `browser` as its Profile's in this window: in front if the
-    /// window has none there yet, otherwise in the background.
-    pub fn add(&self, profile: Profile, browser: Browser) {
+    /// Notes that a Browser for `space` is on the way; false if the window
+    /// has one already, or one on the way, so none is made twice.
+    pub fn set_opening(&self, space: SpaceId) -> bool {
+        let mut spaces = self.spaces.borrow_mut();
+        if spaces.contains_key(&space) {
+            return false;
+        }
+        spaces.insert(space, Slot::Opening);
+        true
+    }
+
+    /// Shows `browser` as the window's for `space`: in front if that is the
+    /// current space, or the window has none yet, otherwise in the
+    /// background.
+    pub fn add(&self, space: SpaceId, browser: Browser) {
         browser.attach_to_view(Some(self.page.web_view.view()));
         self.name_anchors(&browser);
         // Its pages take a window that is full screen already without asking.
         if self.page.is_full_screen() {
             let _ = browser.set_fullscreen(true);
         }
-        let id = profile.id();
-        let mut front = self.front.borrow_mut();
-        if front.is_none() {
-            *front = Some(id.clone());
-            // A restored window comes back where and as large as it was.
-            if let Some(bounds) = browser.requested_bounds() {
-                self.page.restore_frame(bounds);
-            }
-        } else {
+        if self.current.get().is_none() {
+            self.current.set(Some(space));
+        }
+        if self.current.get() != Some(space) {
             let _ = browser.set_backgrounded(true);
         }
-        self.browsers.borrow_mut().insert(id, (profile, browser));
+        // A restored window comes back where and as large as it was.
+        if !self.framed.replace(true)
+            && let Some(bounds) = browser.requested_bounds()
+        {
+            self.page.restore_frame(bounds);
+        }
+        self.spaces.borrow_mut().insert(space, Slot::Open(browser));
+    }
+
+    /// Brings `space` forward: the Browser in front goes to the background
+    /// first, so two are never in front, then the space's comes forward if
+    /// the window has one. Answers the Browser in front now.
+    pub fn switch_to(&self, space: SpaceId) -> Option<Browser> {
+        if let Some(old) = self.browser() {
+            let _ = old.set_backgrounded(true);
+        }
+        self.current.set(Some(space));
+        let new = self.browser()?;
+        let _ = new.set_backgrounded(false);
+        Some(new)
+    }
+
+    /// Forgets a Browser that has closed, and answers the space it was for.
+    /// The current space stays the current space, without one.
+    pub fn remove(&self, browser: &Browser) -> Option<SpaceId> {
+        let space = self.space_of(browser)?;
+        self.spaces.borrow_mut().remove(&space);
+        let mut provisional = self.provisional.borrow_mut();
+        if provisional.as_ref() == Some(browser) {
+            *provisional = None;
+        }
+        Some(space)
+    }
+
+    /// Forgets the window's Browser for `space`, or the one on the way, and
+    /// answers it.
+    pub fn forget(&self, space: SpaceId) -> Option<Browser> {
+        match self.spaces.borrow_mut().remove(&space)? {
+            Slot::Open(browser) => Some(browser),
+            Slot::Opening => None,
+        }
+    }
+
+    /// Notes `browser` as made for the omnibox, to go again if the omnibox
+    /// opens nothing in it.
+    pub fn set_provisional(&self, browser: &Browser) {
+        *self.provisional.borrow_mut() = Some(browser.clone());
+    }
+
+    /// The omnibox opened something: its Browser stays.
+    pub fn keep_provisional(&self) {
+        self.provisional.borrow_mut().take();
+    }
+
+    /// The omnibox closed. A Browser made for it that still has only its
+    /// New Tab page closes, and the space is without one again.
+    pub fn close_if_unused(&self) {
+        let Some(browser) = self.provisional.borrow_mut().take() else {
+            return;
+        };
+        let tabs = browser.tabs();
+        let unused = match tabs.as_slice() {
+            [tab] => {
+                let url = tab.url();
+                url.is_empty() || url.starts_with("chrome://newtab")
+            }
+            _ => false,
+        };
+        if unused {
+            let _ = browser.close();
+        }
     }
 
     /// Whether the window goes full screen for a page of the Browser in front
@@ -131,8 +248,10 @@ impl BrowserWindow {
         if !full_screen {
             self.full_screen_for_page.set(false);
         }
-        for (_, browser) in self.browsers.borrow().values() {
-            let _ = browser.set_fullscreen(full_screen);
+        for slot in self.spaces.borrow().values() {
+            if let Slot::Open(browser) = slot {
+                let _ = browser.set_fullscreen(full_screen);
+            }
         }
     }
 
@@ -150,37 +269,6 @@ impl BrowserWindow {
                 eprintln!("Wren named no anchor {}: {error:?}", anchor.name());
             }
         }
-    }
-
-    /// Forgets a Browser that has closed; whether it was this window's.
-    pub fn remove(&self, browser: &Browser) -> bool {
-        let mut browsers = self.browsers.borrow_mut();
-        let Some(id) = browsers
-            .iter()
-            .find(|(_, (_, each))| each == browser)
-            .map(|(id, _)| id.clone())
-        else {
-            return false;
-        };
-        browsers.remove(&id);
-        let mut front = self.front.borrow_mut();
-        if front.as_ref() == Some(&id) {
-            // Another comes forward, if there is one.
-            *front = browsers.iter().next().map(|(id, (_, browser))| {
-                let _ = browser.set_backgrounded(false);
-                id.clone()
-            });
-        }
-        true
-    }
-
-    /// Whether the window has a Browser of `profile`.
-    pub fn has_profile(&self, profile: &Profile) -> bool {
-        self.browsers.borrow().contains_key(&profile.id())
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.browsers.borrow().is_empty()
     }
 }
 

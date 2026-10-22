@@ -59,6 +59,18 @@ pub fn send_side_panel(window: &BrowserWindow, browser: &Browser) {
         .send("sidePanel.state", &side_panel(browser));
 }
 
+/// Tells the page no side panel is open: its space has no Browser.
+pub fn send_no_side_panel(window: &BrowserWindow) {
+    let none = SidePanel {
+        open: false,
+        icon: None,
+        id: String::new(),
+        title: String::new(),
+        width: 0.0,
+    };
+    let _ = window.page.web_view.send("sidePanel.state", &none);
+}
+
 fn side_panel(browser: &Browser) -> SidePanel {
     let state = browser.side_panel_state().ok();
     let id = browser.side_panel_id();

@@ -108,6 +108,11 @@ pub fn send_find(window: &BrowserWindow, browser: &Browser) {
     let _ = window.page.web_view.send("find.state", &bar(browser));
 }
 
+/// Tells the page no find is open: its space has no Browser.
+pub fn send_no_find(window: &BrowserWindow) {
+    let _ = window.page.web_view.send("find.state", &None::<FindBar>);
+}
+
 /// Tells the page a find opened, or was asked for again: its field has the
 /// string, and takes the keyboard if `focus`.
 pub fn send_show_find(

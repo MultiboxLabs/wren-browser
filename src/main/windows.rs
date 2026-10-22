@@ -5,7 +5,7 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use wren::{Browser, Profile};
+use wren::Browser;
 
 use crate::window::{BrowserWindow, WindowId};
 
@@ -61,15 +61,14 @@ impl Windows {
         self.open.borrow().len()
     }
 
-    /// Whether a window shows a Browser of `profile`.
-    pub fn has_profile(&self, profile: &Profile) -> bool {
-        self.open.borrow().iter().any(|w| w.has_profile(profile))
-    }
-
-    /// A window that waits for its first Browser: one just opened, or the
-    /// first at startup. A Browser Chromium opens goes to it.
-    pub fn empty(&self) -> Option<Rc<BrowserWindow>> {
-        self.open.borrow().iter().find(|w| w.is_empty()).cloned()
+    /// The window the app opens at startup, while it waits for its first
+    /// Browser: the one window with no space yet.
+    pub fn waiting(&self) -> Option<Rc<BrowserWindow>> {
+        self.open
+            .borrow()
+            .iter()
+            .find(|w| w.space().is_none())
+            .cloned()
     }
 
     /// Notes that `id` is the window in use.

@@ -21,6 +21,14 @@ pub fn send_anchors(window: &BrowserWindow, browser: &Browser) {
         .send("anchors.showing", &showing(browser));
 }
 
+/// Tells the page no bubble hangs off its marks: its space has no Browser.
+pub fn send_no_anchors(window: &BrowserWindow) {
+    let _ = window
+        .page
+        .web_view
+        .send("anchors.showing", &Vec::<String>::new());
+}
+
 fn showing(browser: &Browser) -> Vec<String> {
     let mut marks: Vec<String> = marks(browser)
         .into_iter()

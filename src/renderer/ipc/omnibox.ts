@@ -94,6 +94,12 @@ export const omnibox = {
   /** Clears the list, and gives the active tab's page the keyboard back. */
   close: () => wren.invoke<null>("omnibox.close"),
   /**
+   * Makes sure the window has a Browser to ask: in a space with no tab, one
+   * on the New Tab page, which goes again if the omnibox opens nothing.
+   * Whether it made one, once it is there.
+   */
+  prepare: () => wren.invoke<boolean>("omnibox.prepare"),
+  /**
    * The omnibox for `target`: New Tab and Open Location from the main menu,
    * which close it instead if that one is open (`toggles`), or Chromium
    * wanting the address field.

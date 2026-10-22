@@ -106,6 +106,11 @@ pub fn send_toast(window: &BrowserWindow, browser: &Browser) {
     let _ = window.page.web_view.send("toast.state", &toast(browser));
 }
 
+/// Tells the page no toast is showing: its space has no Browser.
+pub fn send_no_toast(window: &BrowserWindow) {
+    let _ = window.page.web_view.send("toast.state", &None::<Toast>);
+}
+
 fn open(browser: &Browser) -> Option<Popover> {
     browser.open_popover(PopoverKind::Toast)
 }
