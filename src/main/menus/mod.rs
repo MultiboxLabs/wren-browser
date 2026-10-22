@@ -11,6 +11,8 @@ use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
 use objc2_foundation::NSString;
 use wren::{ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifiers, MenuRole};
 
+use crate::db::SpaceId;
+
 pub use group::{color_name, least_used_color, show_group_menu};
 pub use site::{show_permission_menu, show_site_menu};
 pub use tab::show_tab_menu;
@@ -25,8 +27,12 @@ pub const MOVE_TAB_UP: &str = "move-tab-up";
 pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
+/// A space's item is this and the space's ID.
+pub const SPACE: &str = "space:";
 
-pub fn set_main_menu(mt: MainThread) {
+/// Sets the main menu, whose Spaces menu lists `spaces`, each by its ID and
+/// name, in the Library's order. Set again as the spaces change.
+pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)]) {
     let mut menu = vec![
         MenuItem::submenu(
             "Wren",
@@ -56,8 +62,8 @@ pub fn set_main_menu(mt: MainThread) {
                 keyed(OPEN_LOCATION, "Open Location…", "l", MenuModifiers::PRIMARY),
                 MenuItem::chromium(Command::NewSplitTab),
                 MenuItem::Separator,
-                // Keeps the window's last tab, which Chromium's would close
-                // with the Browser.
+                // The app's own: the last tab closes the space's Browser, and
+                // with no tab, the window.
                 keyed(CLOSE_TAB, "Close Tab", "w", MenuModifiers::PRIMARY),
                 // The app's own, so the close button's path is taken: the
                 // last window closes the app. An upper-case key is the key
@@ -115,6 +121,7 @@ pub fn set_main_menu(mt: MainThread) {
                 MenuItem::role(MenuRole::ToggleFullScreen),
             ],
         ),
+        spaces_menu(spaces),
         MenuItem::submenu(
             "History",
             vec![
@@ -182,6 +189,23 @@ pub fn set_main_menu(mt: MainThread) {
     if let Err(error) = mt.set_main_menu(&menu) {
         eprintln!("Wren took no main menu: {error:?}");
     }
+}
+
+// The spaces, which bring one forward in the window in front; the first
+// nine with ⌃1 to ⌃9, as Arc's.
+fn spaces_menu(spaces: &[(SpaceId, String)]) -> MenuItem {
+    let items = spaces
+        .iter()
+        .enumerate()
+        .map(|(index, (id, name))| {
+            let id = format!("{SPACE}{id}");
+            match index {
+                0..9 => keyed(&id, name, &(index + 1).to_string(), MenuModifiers::CONTROL),
+                _ => MenuItem::item(id, name.clone()),
+            }
+        })
+        .collect();
+    MenuItem::submenu("Spaces", items)
 }
 
 // For working on the app, in a development build only.

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { SidebarState } from "../../ipc";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
@@ -48,6 +48,13 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const shown = fullScreen ?? current;
   const address = useRef<HTMLDivElement>(null);
   const omnibox = useShownOmnibox(address, browser !== null);
+  // The omnibox is the space's: it closes as the window switches.
+  const spaceId = space.id;
+  const firstSpace = useRef(spaceId);
+  useEffect(() => {
+    if (spaceId !== firstSpace.current) omnibox.done();
+    firstSpace.current = spaceId;
+  }, [spaceId]);
   const box = useRef<HTMLElement>(null);
   const sidebar = useSidebarPresentation(saved, omnibox.shown !== null, box);
 
@@ -65,7 +72,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
             fullScreen={fullScreen !== undefined}
           />
         ) : (
-          <div className="card no-drag min-w-0 flex-1" />
+          <div className="card empty no-drag min-w-0 flex-1" />
         )}
         {browser !== null && sidePanel && !fullScreen && <SidePanel browser={browser} panel={sidePanel} />}
       </main>

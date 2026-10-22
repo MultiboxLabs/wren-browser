@@ -36,11 +36,10 @@ pub struct BrowserWindow {
     current: Cell<Option<SpaceId>>,
     // Whether a Browser has come to the window, and given it its frame.
     framed: Cell<bool>,
-    // A Browser made for the omnibox to ask, in a space that had none; it
-    // goes again if the omnibox opens nothing (`close_if_unused`).
-    provisional: RefCell<Option<Browser>>,
     // The user closed the window: it goes once its Browsers have.
     closing: Cell<bool>,
+    // The page shows the omnibox for a new tab, which ⌘W closes.
+    new_tab_omnibox: Cell<bool>,
     // Whether the window went full screen for a page, and comes back once
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
@@ -54,8 +53,8 @@ impl BrowserWindow {
             spaces: RefCell::default(),
             current: Cell::new(space),
             framed: Cell::default(),
-            provisional: RefCell::default(),
             closing: Cell::default(),
+            new_tab_omnibox: Cell::default(),
             full_screen_for_page: Cell::default(),
         }
     }
@@ -136,6 +135,16 @@ impl BrowserWindow {
         })
     }
 
+    /// Notes whether the page shows the omnibox for a new tab.
+    pub fn set_new_tab_omnibox(&self, shown: bool) {
+        self.new_tab_omnibox.set(shown);
+    }
+
+    /// Whether the page shows the omnibox for a new tab.
+    pub fn has_new_tab_omnibox(&self) -> bool {
+        self.new_tab_omnibox.get()
+    }
+
     /// Whether `browser` is the one in front.
     pub fn is_front(&self, browser: &Browser) -> bool {
         self.browser().as_ref() == Some(browser)
@@ -195,25 +204,16 @@ impl BrowserWindow {
     pub fn remove(&self, browser: &Browser) -> Option<SpaceId> {
         let space = self.space_of(browser)?;
         self.spaces.borrow_mut().remove(&space);
-        let mut provisional = self.provisional.borrow_mut();
-        if provisional.as_ref() == Some(browser) {
-            *provisional = None;
-        }
         Some(space)
     }
 
     /// Forgets the window's Browser for `space`, or the one on the way, and
     /// answers it.
     pub fn forget(&self, space: SpaceId) -> Option<Browser> {
-        let browser = match self.spaces.borrow_mut().remove(&space)? {
-            Slot::Open(browser) => browser,
-            Slot::Opening => return None,
-        };
-        let mut provisional = self.provisional.borrow_mut();
-        if provisional.as_ref() == Some(&browser) {
-            *provisional = None;
+        match self.spaces.borrow_mut().remove(&space)? {
+            Slot::Open(browser) => Some(browser),
+            Slot::Opening => None,
         }
-        Some(browser)
     }
 
     /// Whether a Browser for `space` is on the way, and still wanted.
@@ -224,36 +224,6 @@ impl BrowserWindow {
     /// Whether the window shows `space`, or keeps its Browser.
     pub fn has_space(&self, space: SpaceId) -> bool {
         self.current.get() == Some(space) || self.spaces.borrow().contains_key(&space)
-    }
-
-    /// Notes `browser` as made for the omnibox, to go again if the omnibox
-    /// opens nothing in it.
-    pub fn set_provisional(&self, browser: &Browser) {
-        *self.provisional.borrow_mut() = Some(browser.clone());
-    }
-
-    /// The omnibox opened something: its Browser stays.
-    pub fn keep_provisional(&self) {
-        self.provisional.borrow_mut().take();
-    }
-
-    /// The omnibox closed. A Browser made for it that still has only its
-    /// New Tab page closes, and the space is without one again.
-    pub fn close_if_unused(&self) {
-        let Some(browser) = self.provisional.borrow_mut().take() else {
-            return;
-        };
-        let tabs = browser.tabs();
-        let unused = match tabs.as_slice() {
-            [tab] => {
-                let url = tab.url();
-                url.is_empty() || url.starts_with("chrome://newtab")
-            }
-            _ => false,
-        };
-        if unused {
-            let _ = browser.close();
-        }
     }
 
     /// Whether the window goes full screen for a page of the Browser in front

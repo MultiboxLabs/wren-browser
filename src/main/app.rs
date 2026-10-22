@@ -16,9 +16,10 @@ use crate::ipc::{self, OmniboxTarget};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
+use crate::placeholder;
 use crate::sidebar::SidebarStore;
 use crate::tabs;
-use crate::window::{PlainWindow, WindowId};
+use crate::window::{BrowserWindow, PlainWindow, WindowId};
 use crate::windows::Windows;
 
 // What the app holds, shared with the closures it hands Wren.
@@ -69,6 +70,7 @@ impl State {
                 if state.db.sync_profiles(&mt.profile_list(), true) {
                     ipc::broadcast_spaces(&state);
                 }
+                state.update_menu(mt);
                 state.restore(mt, profile)
             }
             Err(error) => {
@@ -100,6 +102,25 @@ impl State {
             }
         });
     }
+
+    // ⌘W: the omnibox for a new tab, as if it were that tab; else the active
+    // tab; or, with none of its own, the window, as Chrome's goes with its
+    // last tab.
+    fn close_tab(self: &Rc<Self>, mt: MainThread, window: &BrowserWindow) {
+        if window.has_new_tab_omnibox() {
+            return ipc::send_close_omnibox(window);
+        }
+        let active = window
+            .browser()
+            .filter(placeholder::has_tabs)
+            .and_then(|browser| Some((browser.active_tab()?, browser)));
+        match active {
+            Some((tab, browser)) => {
+                let _ = tabs::close(&browser, &[tab]);
+            }
+            None => self.close_window(mt, window.id),
+        }
+    }
 }
 
 pub struct Wren {
@@ -109,7 +130,7 @@ pub struct Wren {
 
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
-        menus::set_main_menu(mt);
+        self.state.update_menu(mt);
         let source = self.source.clone();
         let _ = mt.set_scheme_handler(
             SCHEME,
@@ -163,16 +184,20 @@ impl App for Wren {
             }
         }
         for change in changes {
-            if change.kind == ChangeKind::ForegroundRequest
-                && let Some(browser) = &change.browser
-            {
-                state.bring_forward(browser);
-            }
-            if matches!(change.kind, ChangeKind::Tabs | ChangeKind::Tab)
-                && let Some(browser) = &change.browser
-                && let Some(window) = self.state.devtools.borrow().get(browser)
-            {
-                window.show_active_tab();
+            let Some(browser) = &change.browser else {
+                continue;
+            };
+            match change.kind {
+                ChangeKind::ForegroundRequest => state.bring_forward(browser),
+                // A placeholder goes, or stays, as the tabs change; undocked
+                // DevTools shows its active tab.
+                ChangeKind::Tabs | ChangeKind::Tab => {
+                    placeholder::settle(browser);
+                    if let Some(window) = state.devtools.borrow().get(browser) {
+                        window.show_active_tab();
+                    }
+                }
+                _ => {}
             }
         }
         for window in self.state.windows.all() {
@@ -204,6 +229,10 @@ impl App for Wren {
         let Some(window) = window else {
             return;
         };
+        // The page switches, so the sidebar slides as a press makes it.
+        if let Some(space) = id.strip_prefix(menus::SPACE).and_then(|id| id.parse().ok()) {
+            return ipc::send_choose_space(&window, space);
+        }
         if id == menus::CLOSE_WINDOW {
             return self.state.close_window(mt, window.id);
         }
@@ -235,19 +264,13 @@ impl App for Wren {
             }
             return;
         }
+        if id == menus::CLOSE_TAB {
+            return self.state.close_tab(mt, &window);
+        }
         let Some(browser) = window.browser() else {
-            // A space with no tab closes its window, as a window does in
-            // Chrome once its last tab has.
-            if id == menus::CLOSE_TAB {
-                self.state.close_window(mt, window.id);
-            }
             return;
         };
         let _ = match id {
-            menus::CLOSE_TAB => match browser.active_tab() {
-                Some(tab) => tabs::close(&browser, &[tab]),
-                None => Ok(()),
-            },
             menus::COPY_URL => tabs::copy_url(&browser),
             menus::MOVE_TAB_UP | menus::MOVE_TAB_DOWN => match browser.active_tab() {
                 Some(tab) => tabs::move_by(
@@ -316,19 +339,6 @@ impl App for Wren {
             }
         });
         true
-    }
-
-    // Chromium wants the address field: the omnibox opens on the active
-    // tab's address, and stays open if it is.
-    fn focus_location_bar(&self, _: MainThread, browser: Browser) {
-        if let Some(window) = self
-            .state
-            .windows
-            .of(&browser)
-            .filter(|window| window.is_front(&browser))
-        {
-            ipc::send_show_omnibox(&window, OmniboxTarget::Current, false);
-        }
     }
 
     // Chromium closes a Browser whose last tab closes. Its window stays, with

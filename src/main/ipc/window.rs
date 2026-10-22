@@ -77,6 +77,12 @@ pub fn send_space(window: &BrowserWindow) {
     let _ = window.page.web_view.send("window.space", &window.space());
 }
 
+/// Tells the page the user chose `space` from the main menu, for it to bring
+/// forward as a press in the sidebar does.
+pub fn send_choose_space(window: &BrowserWindow, space: SpaceId) {
+    let _ = window.page.web_view.send("window.chooseSpace", &space);
+}
+
 /// Tells the page the window is going full screen, or coming back.
 pub fn send_full_screen(window: &PageWindow, full_screen: bool) {
     let _ = window.web_view.send("window.fullScreen", &full_screen);

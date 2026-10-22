@@ -93,16 +93,15 @@ export const omnibox = {
   delete: (result: string, index: number) => wren.invoke<null>("omnibox.delete", { result, index }),
   /** Clears the list, and gives the active tab's page the keyboard back. */
   close: () => wren.invoke<null>("omnibox.close"),
-  /**
-   * Makes sure the window has a Browser to ask: in a space with no tab, one
-   * on the New Tab page, which goes again if the omnibox opens nothing.
-   * Whether it made one, once it is there.
-   */
-  prepare: () => wren.invoke<boolean>("omnibox.prepare"),
+  /** Makes sure the window's space has a Browser to ask, making it one with no tab yet; settled once it has. */
+  prepare: () => wren.invoke<null>("omnibox.prepare"),
+  /** Which omnibox the page shows, if one: ⌘W closes the one for a new tab rather than a tab. */
+  shown: (target: OmniboxTarget | null) => wren.invoke<null>("omnibox.shown", target),
+  /** The app closes the omnibox: ⌘W with the one for a new tab open. */
+  onHide: (listener: () => void) => wren.on<null>("omnibox.hide", listener),
   /**
    * The omnibox for `target`: New Tab and Open Location from the main menu,
-   * which close it instead if that one is open (`toggles`), or Chromium
-   * wanting the address field.
+   * which close it instead if that one is open (`toggles`).
    */
   onShow: (listener: (show: { target: OmniboxTarget; toggles: boolean }) => void) =>
     wren.on<{ target: OmniboxTarget; toggles: boolean }>("omnibox.show", listener)

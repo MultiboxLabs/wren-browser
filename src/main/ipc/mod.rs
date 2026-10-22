@@ -33,12 +33,12 @@ pub use browser::{send_favicon, send_tabs};
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
 pub use menu::send_toggle_sidebar;
-pub use omnibox::{OmniboxTarget, send_omnibox, send_show_omnibox};
+pub use omnibox::{OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox};
 pub use side_panel::send_side_panel;
 pub use site::send_site;
 pub use spaces::broadcast_spaces;
 pub use toast::{OwnToast, send_toast, show_toast};
-pub use window::{send_active, send_full_screen, send_space};
+pub use window::{send_active, send_choose_space, send_full_screen, send_space};
 
 /// The window a page is in, as its handlers find it again: not the window
 /// itself, which owns the page and its handlers.
@@ -80,9 +80,10 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     spaces::handle(web_view, window, mt);
 }
 
-/// Tells the page all it shows of `browser`, as it comes in front.
+/// Tells the page all it shows of `browser`, as it comes in front, and then
+/// that its space is the window's: the page has the new space's tabs as it
+/// switches to it.
 pub fn send_browser(window: &BrowserWindow, browser: &Browser) {
-    send_space(window);
     send_tabs(window, browser);
     send_side_panel(window, browser);
     send_site(window, browser);
@@ -90,11 +91,12 @@ pub fn send_browser(window: &BrowserWindow, browser: &Browser) {
     send_anchors(window, browser);
     send_toast(window, browser);
     send_find(window, browser);
+    send_space(window);
 }
 
-/// Tells the page its space has no Browser: no tabs, and nothing of one.
+/// Tells the page its space has no Browser: no tabs, and nothing of one;
+/// then the space, as `send_browser` does.
 pub fn send_no_browser(window: &BrowserWindow) {
-    send_space(window);
     browser::send_no_tabs(window);
     side_panel::send_no_side_panel(window);
     site::send_no_site(window);
@@ -102,6 +104,7 @@ pub fn send_no_browser(window: &BrowserWindow) {
     anchors::send_no_anchors(window);
     toast::send_no_toast(window);
     find::send_no_find(window);
+    send_space(window);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),

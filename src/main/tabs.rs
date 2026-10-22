@@ -5,18 +5,22 @@ use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSpl
 
 use crate::ipc::{self, OwnToast};
 use crate::menus;
+use crate::placeholder;
 
 /// A tab on `url`, at the top of the list, as the sidebar shows new tabs.
 pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
     browser.add_tab(url, Some(0), true).map(drop)
 }
 
-/// Closes `tabs`. Chromium closes a Browser with its last tab, so the
-/// window keeps one, on the New Tab page, when they are all it has.
+/// Whether `url` is Chromium's New Tab page, or none yet.
+pub fn is_new_tab(url: &str) -> bool {
+    url.is_empty() || url.starts_with("chrome://newtab")
+}
+
+/// Closes `tabs`. When they are all the Browser has, a placeholder stands
+/// in for them, and the Browser stays (placeholder.rs).
 pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
-    if browser.tabs().iter().all(|tab| tabs.contains(tab)) {
-        browser.add_tab("", None, true)?;
-    }
+    placeholder::stand_in(browser, tabs)?;
     for tab in tabs {
         tab.close()?;
     }
@@ -237,7 +241,7 @@ pub fn copy_url(browser: &Browser) -> Result<(), Error> {
     let Some(url) = browser.active_tab().map(|tab| tab.url()) else {
         return Ok(());
     };
-    if url.is_empty() || url.starts_with("chrome://newtab") {
+    if is_new_tab(&url) {
         return Ok(());
     }
     menus::copy(&url);

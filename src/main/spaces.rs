@@ -10,7 +10,9 @@ use wren::{Browser, MainThread, Profile, ProfileKind};
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
+use crate::menus;
 use crate::pages::UI;
+use crate::placeholder;
 use crate::window::{BrowserWindow, PageWindow, WindowId};
 
 impl State {
@@ -76,26 +78,26 @@ impl State {
         Some(id)
     }
 
-    /// Opens a window on `space`, with a Browser on the New Tab page: New
+    /// Opens a window on `space`, with a Browser that has no tab yet: New
     /// Window.
     pub fn open_window_on(self: &Rc<Self>, mt: MainThread, space: SpaceId) {
         let Some(id) = self.open_window(mt, Some(space)) else {
             return eprintln!("Wren opened no window.");
         };
         self.touch_space(space);
-        self.open_space_browser(mt, id, space, "", |_, _| {});
+        self.open_space_browser(mt, id, space, || {});
     }
 
-    /// Makes window `id` a Browser for `space` on `url` ("" for the New Tab
-    /// page), unless it has one or one is on the way; `then` runs once it is
-    /// shown. A space whose Browser could not be made stays without one.
+    /// Makes window `id` a Browser for `space`, with no tab yet but its
+    /// placeholder (placeholder.rs), unless it has one or one is on the way;
+    /// `then` runs once it is shown. A space whose Browser could not be made
+    /// stays without one.
     pub fn open_space_browser(
         self: &Rc<Self>,
         mt: MainThread,
         id: WindowId,
         space: SpaceId,
-        url: &str,
-        then: impl FnOnce(&BrowserWindow, &Browser) + 'static,
+        then: impl FnOnce() + 'static,
     ) {
         let Some(window) = self.windows.get(id) else {
             return;
@@ -115,13 +117,12 @@ impl State {
             }
         };
         let state = self.clone();
-        let url = url.to_owned();
         mt.open_profile(Some(&profile), move |result| {
             let profile = match result {
                 Ok(profile) => profile,
                 Err(error) => return state.failed_browser(id, space, &error),
             };
-            profile.create_browser(&url, move |result| {
+            placeholder::create_browser(&profile, move |result| {
                 let browser = match result {
                     Ok(browser) => browser,
                     Err(error) => return state.failed_browser(id, space, &error),
@@ -137,7 +138,7 @@ impl State {
                 if window.is_front(&browser) {
                     ipc::send_browser(&window, &browser);
                 }
-                then(&window, &browser);
+                then();
             });
         });
     }
@@ -152,8 +153,6 @@ impl State {
         if window.space() == Some(space) {
             return Ok(());
         }
-        // A Browser made for the omnibox, which opened nothing, goes with it.
-        window.close_if_unused();
         // Full screen for a page is the old Browser's.
         if window.wants_full_screen_for_page(false) {
             window.page.set_full_screen(false);
@@ -247,6 +246,7 @@ impl State {
             let _ = browser.close();
             return;
         };
+        placeholder::adopt(&browser);
         window.add(space, browser.clone());
         if window.is_front(&browser) {
             ipc::send_browser(&window, &browser);
@@ -256,7 +256,7 @@ impl State {
 
     /// Restores `profile`'s last session, whose windows arrive in
     /// `place_opened`; with nothing restored, the window that waits for a
-    /// Browser opens on the profile's most recent space, on the New Tab page.
+    /// Browser opens on the profile's most recent space, with no tab yet.
     pub fn restore(self: &Rc<Self>, mt: MainThread, profile: Profile) {
         let state = self.clone();
         profile.clone().restore_last_session(move |result| {
@@ -272,7 +272,7 @@ impl State {
             window.switch_to(space);
             ipc::send_space(&window);
             state.touch_space(space);
-            state.open_space_browser(mt, window.id, space, "", |_, _| {});
+            state.open_space_browser(mt, window.id, space, || {});
         });
     }
 
@@ -294,6 +294,49 @@ impl State {
             }
             recent()
         })
+    }
+
+    /// Every space, in the Library's order: by profile in Chromium's list,
+    /// then by position. Each is named, with its profile's name when there
+    /// is more than one.
+    pub fn ordered_spaces(&self, mt: MainThread) -> Vec<(SpaceId, String)> {
+        let profiles = mt.profile_list();
+        let mut spaces = match self.db.list_spaces() {
+            Ok(spaces) => spaces,
+            Err(error) => {
+                eprintln!("Wren could not read the spaces: {error}");
+                Vec::new()
+            }
+        };
+        // The list is by profile, then position; the sort keeps that within
+        // each, and puts a profile Chromium does not list last.
+        let place = |profile: &str| {
+            profiles
+                .iter()
+                .position(|entry| entry.id == profile)
+                .unwrap_or(usize::MAX)
+        };
+        spaces.sort_by_key(|space| place(&space.profile));
+        let many = spaces
+            .windows(2)
+            .any(|pair| pair[0].profile != pair[1].profile);
+        spaces
+            .into_iter()
+            .map(|space| {
+                let owner = profiles.iter().find(|entry| entry.id == space.profile);
+                let name = match owner {
+                    Some(owner) if many => format!("{} — {}", space.name, owner.name),
+                    _ => space.name,
+                };
+                (space.id, name)
+            })
+            .collect()
+    }
+
+    /// Sets the main menu again, for its Spaces menu to list the spaces as
+    /// they are now.
+    pub fn update_menu(&self, mt: MainThread) {
+        menus::set_main_menu(mt, &self.ordered_spaces(mt));
     }
 
     /// Notes that `space` is in use now.

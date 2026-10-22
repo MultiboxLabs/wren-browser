@@ -4,8 +4,10 @@ use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, WebVie
 use super::groups::Group;
 use super::splits::Split;
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
+use crate::db::SpaceId;
 use crate::menus;
 use crate::pages::icons;
+use crate::placeholder;
 use crate::tabs;
 use crate::window::BrowserWindow;
 
@@ -24,6 +26,9 @@ pub struct Tab {
     group: Option<String>,
     /// Its split's ID, if it is in one.
     split: Option<String>,
+    /// It stands in for the Browser's tabs while it has none: the page
+    /// neither lists nor shows it.
+    hidden: bool,
 }
 
 /// The tabs of the Browser in front, in its order, and which is active.
@@ -33,6 +38,9 @@ pub struct Tabs {
     /// The Browser's ID, which names its side panel's element; none while
     /// the window's space has no Browser.
     browser: Option<i32>,
+    /// The space they are the tabs of, so the page never shows them as
+    /// another's while it switches.
+    space: Option<SpaceId>,
     tabs: Vec<Tab>,
     active: Option<i32>,
     /// The tab whose page has the whole window, if one has.
@@ -84,7 +92,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The tabs; "browser.tabs" says when they change.
     let weak = window.clone();
     let _ = web_view.handle("browser.tabs", move |()| {
-        with_browser(&weak, |_, browser| Ok(tab_list(browser)))
+        with_browser(&weak, |window, browser| Ok(tab_list(window, browser)))
     });
 
     // A tab's favicon's icon ID, or null; "tab.favicon" says when it
@@ -207,13 +215,14 @@ pub fn send_tabs(window: &BrowserWindow, browser: &Browser) {
     let _ = window
         .page
         .web_view
-        .send("browser.tabs", &tab_list(browser));
+        .send("browser.tabs", &tab_list(window, browser));
 }
 
 /// Tells the page there are no tabs: its space has no Browser.
 pub fn send_no_tabs(window: &BrowserWindow) {
     let none = Tabs {
         browser: None,
+        space: window.space(),
         tabs: Vec::new(),
         active: None,
         full_screen: None,
@@ -228,7 +237,7 @@ pub fn send_favicon(window: &BrowserWindow, tab: BrowserTab) {
     let _ = window.page.web_view.send("tab.favicon", &tab.id());
 }
 
-fn tab_list(browser: &Browser) -> Tabs {
+fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
     let mut groups: Vec<TabGroup> = Vec::new();
     let mut splits: Vec<TabSplit> = Vec::new();
     let tabs = browser
@@ -254,11 +263,13 @@ fn tab_list(browser: &Browser) -> Tabs {
                 crashed: state.is_some_and(|state| state.crash != TabCrash::None),
                 group: group.map(|group| group.to_string()),
                 split: split.map(|split| split.to_string()),
+                hidden: placeholder::is_placeholder(tab),
             }
         })
         .collect();
     Tabs {
         browser: Some(browser.id()),
+        space: window.space_of(browser),
         tabs,
         active: browser.active_tab().map(BrowserTab::id),
         full_screen: browser.fullscreen_tab().map(BrowserTab::id),

@@ -1,7 +1,7 @@
 // The omnibox: Chromium's suggestions for what is typed in the page's field,
 // and opening one as Chrome does, so history and search engines learn from
 // it. The page draws the field and the list (pages/ui/omnibox.tsx); the main
-// menu and Chromium ask it to open (`send_show_omnibox`).
+// menu asks it to open (`send_show_omnibox`).
 
 use serde::{Deserialize, Serialize};
 use wren::{
@@ -84,7 +84,7 @@ enum BangDisposition {
 
 /// What the omnibox is for: a new tab, as the New Tab command opens it, or
 /// the active tab's address, as Open Location does.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OmniboxTarget {
     NewTab,
@@ -128,39 +128,44 @@ struct Suggestion {
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
-    // Makes sure the window has a Browser for the omnibox to ask, as a space
-    // with no tab has none: one on the New Tab page, which the omnibox then
-    // opens in, and which goes again if it opens nothing. Answers whether it
-    // made one, once it is there.
+    // Makes sure the window's space has a Browser for the omnibox to ask, as
+    // one it has opened no tab in has none: one with no tab yet but its
+    // placeholder. Answers once it is there.
     let weak = window.clone();
     let _ = web_view.handle_call("omnibox.prepare", move |call| {
-        let found = with_window(&weak, |window| {
-            Ok((window.browser().is_some(), window.space()))
+        // The window's space, if it has no Browser.
+        let without = with_window(&weak, |window| match (window.browser(), window.space()) {
+            (Some(_), _) => Ok(None),
+            (None, Some(space)) => Ok(Some(space)),
+            (None, None) => Err("The window has no space yet.".to_owned()),
         });
-        let space = match found {
-            Ok((true, _)) => {
-                let _ = call.answer(&false);
-                return;
+        match (without, weak.state()) {
+            (Ok(None), _) => {
+                let _ = call.answer(&());
             }
-            Ok((false, Some(space))) => space,
-            Ok((false, None)) => {
-                let _ = call.fail("The window has no space yet.");
-                return;
+            // A Browser that is not made drops the call, which fails it.
+            (Ok(Some(space)), Ok(state)) => {
+                state.open_space_browser(mt, weak.id, space, move || {
+                    let _ = call.answer(&());
+                });
             }
-            Err(error) => {
+            (Err(error), _) => {
                 let _ = call.fail(&error);
-                return;
             }
-        };
-        let Ok(state) = weak.state() else {
-            let _ = call.fail("The app is closing.");
-            return;
-        };
-        // A Browser that is not made drops the call, which fails it.
-        state.open_space_browser(mt, weak.id, space, "", move |window, browser| {
-            window.set_provisional(browser);
-            let _ = call.answer(&true);
-        });
+            (_, Err(error)) => {
+                let _ = call.fail(error);
+            }
+        }
+    });
+
+    // Which omnibox the page shows, if one: ⌘W closes the one for a new tab
+    // rather than a tab.
+    let weak = window.clone();
+    let _ = web_view.handle("omnibox.shown", move |shown: Option<OmniboxTarget>| {
+        with_window(&weak, |window| {
+            window.set_new_tab_omnibox(matches!(shown, Some(OmniboxTarget::NewTab)));
+            Ok(())
+        })
     });
 
     // The active tab's address as the field shows it to be edited, or ""
@@ -200,8 +205,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // One opened in the background leaves the omnibox as it is.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.open", move |open: Open| {
-        with_browser(&weak, |window, browser| {
-            window.keep_provisional();
+        with_browser(&weak, |_, browser| {
             let (result, index) = (open.chosen.result()?, open.chosen.index);
             let opened = match open.disposition {
                 Disposition::Current => {
@@ -238,8 +242,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // address: the page takes it from a list it loaded.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.navigate", move |navigate: Navigate| {
-        with_browser(&weak, |window, browser| {
-            window.keep_provisional();
+        with_browser(&weak, |_, browser| {
             let Navigate { url, disposition } = navigate;
             if !(url.starts_with("https://") || url.starts_with("http://")) {
                 return Err("Only a web address opens.".into());
@@ -276,14 +279,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
-    // Closes the list, and gives the active tab's page the keyboard back. A
-    // Browser made for the omnibox that it opened nothing in goes again.
+    // Closes the list, and gives the active tab's page the keyboard back.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.close", move |()| {
-        with_browser(&weak, |window, browser| {
+        with_browser(&weak, |_, browser| {
             browser.omnibox_stop().map_err(failed)?;
             give_back_keyboard(browser);
-            window.close_if_unused();
             Ok(())
         })
     });
@@ -311,6 +312,11 @@ pub fn send_show_omnibox(window: &BrowserWindow, target: OmniboxTarget, toggles:
         .page
         .web_view
         .send("omnibox.show", &Show { target, toggles });
+}
+
+/// Tells the page to close the omnibox, as a press outside it does.
+pub fn send_close_omnibox(window: &BrowserWindow) {
+    let _ = window.page.web_view.send("omnibox.hide", &());
 }
 
 // A new tab goes at the top of the sidebar's list, where Chromium's would

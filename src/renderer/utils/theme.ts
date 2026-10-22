@@ -188,6 +188,9 @@ export function derivedColors(theme: SpaceTheme): Hsb[] {
   return hueOffsets(theme).map((offset) => rotate(theme.primary, offset));
 }
 
+/** The theme's primary colour, as "#rrggbb" in Display P3. */
+export const primaryHex = (theme: SpaceTheme) => rgbToHex(hsbToRgb(theme.primary));
+
 /**
  * What the theme is drawn on, for the icons and text over it: its appearance,
  * or for an automatic one, whether its primary colour is light.
