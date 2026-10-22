@@ -208,13 +208,6 @@ impl Db {
 }
 
 // Which space was used last: the windows open on a profile's most recent one.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "the windows use these from phase 2 of window-spaces"
-    )
-)]
 impl Db {
     // Most recently used first; one never used after every used one, then by
     // position.

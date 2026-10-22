@@ -74,6 +74,15 @@ pub fn send_extensions(window: &BrowserWindow, browser: &Browser) {
         .send("extensions.actions", &actions(browser));
 }
 
+/// Tells the page there are no extensions' buttons: its space has no
+/// Browser.
+pub fn send_no_extensions(window: &BrowserWindow) {
+    let _ = window
+        .page
+        .web_view
+        .send("extensions.actions", &Vec::<Action>::new());
+}
+
 fn actions(browser: &Browser) -> Vec<Action> {
     browser
         .extension_action_ids()

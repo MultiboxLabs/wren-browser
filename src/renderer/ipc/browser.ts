@@ -18,8 +18,8 @@ export type BrowserTab = {
 
 /** The tabs of the window's Browser in front, in its order, and which is active. */
 export type BrowserTabs = {
-  /** The Browser's ID, which names its side panel's element. */
-  browser: number;
+  /** The Browser's ID, which names its side panel's element; null while the window's space has no Browser. */
+  browser: number | null;
   tabs: BrowserTab[];
   active: number | null;
   /** The tab whose page has the whole window, if one has. */

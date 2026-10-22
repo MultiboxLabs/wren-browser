@@ -7,6 +7,7 @@ mod menus;
 mod pages;
 mod perf;
 mod sidebar;
+mod spaces;
 mod tabs;
 mod window;
 mod windows;

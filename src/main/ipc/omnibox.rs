@@ -5,11 +5,11 @@
 
 use serde::{Deserialize, Serialize};
 use wren::{
-    Browser, LocationText, OmniboxFlags, OmniboxResult, OpenDisposition, SuggestionKind,
-    SuggestionText, WebView,
+    Browser, LocationText, MainThread, OmniboxFlags, OmniboxResult, OpenDisposition,
+    SuggestionKind, SuggestionText, WebView,
 };
 
-use super::{WindowRef, failed, give_back_keyboard, with_browser};
+use super::{WindowRef, failed, give_back_keyboard, with_browser, with_window};
 use crate::pages::icons;
 use crate::tabs;
 use crate::window::BrowserWindow;
@@ -127,7 +127,42 @@ struct Suggestion {
     icon: Option<String>,
 }
 
-pub fn handle(web_view: &WebView, window: &WindowRef) {
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
+    // Makes sure the window has a Browser for the omnibox to ask, as a space
+    // with no tab has none: one on the New Tab page, which the omnibox then
+    // opens in, and which goes again if it opens nothing. Answers whether it
+    // made one, once it is there.
+    let weak = window.clone();
+    let _ = web_view.handle_call("omnibox.prepare", move |call| {
+        let found = with_window(&weak, |window| {
+            Ok((window.browser().is_some(), window.space()))
+        });
+        let space = match found {
+            Ok((true, _)) => {
+                let _ = call.answer(&false);
+                return;
+            }
+            Ok((false, Some(space))) => space,
+            Ok((false, None)) => {
+                let _ = call.fail("The window has no space yet.");
+                return;
+            }
+            Err(error) => {
+                let _ = call.fail(&error);
+                return;
+            }
+        };
+        let Ok(state) = weak.state() else {
+            let _ = call.fail("The app is closing.");
+            return;
+        };
+        // A Browser that is not made drops the call, which fails it.
+        state.open_space_browser(mt, weak.id, space, "", move |window, browser| {
+            window.set_provisional(browser);
+            let _ = call.answer(&true);
+        });
+    });
+
     // The active tab's address as the field shows it to be edited, or ""
     // on a page with none to show (the New Tab page).
     let weak = window.clone();
@@ -165,7 +200,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     // One opened in the background leaves the omnibox as it is.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.open", move |open: Open| {
-        with_browser(&weak, |_, browser| {
+        with_browser(&weak, |window, browser| {
+            window.keep_provisional();
             let (result, index) = (open.chosen.result()?, open.chosen.index);
             let opened = match open.disposition {
                 Disposition::Current => {
@@ -202,7 +238,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     // address: the page takes it from a list it loaded.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.navigate", move |navigate: Navigate| {
-        with_browser(&weak, |_, browser| {
+        with_browser(&weak, |window, browser| {
+            window.keep_provisional();
             let Navigate { url, disposition } = navigate;
             if !(url.starts_with("https://") || url.starts_with("http://")) {
                 return Err("Only a web address opens.".into());
@@ -239,12 +276,14 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         })
     });
 
-    // Closes the list, and gives the active tab's page the keyboard back.
+    // Closes the list, and gives the active tab's page the keyboard back. A
+    // Browser made for the omnibox that it opened nothing in goes again.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.close", move |()| {
-        with_browser(&weak, |_, browser| {
+        with_browser(&weak, |window, browser| {
             browser.omnibox_stop().map_err(failed)?;
             give_back_keyboard(browser);
+            window.close_if_unused();
             Ok(())
         })
     });

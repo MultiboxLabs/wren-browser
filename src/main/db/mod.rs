@@ -15,7 +15,7 @@ use std::path::Path;
 use rusqlite::Connection;
 
 pub use profiles::avatar;
-pub use spaces::{NewSpace, SpaceChange, SpaceRow};
+pub use spaces::{NewSpace, SpaceChange, SpaceId, SpaceRow};
 
 use migrations::MIGRATIONS;
 

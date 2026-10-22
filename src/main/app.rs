@@ -12,19 +12,19 @@ use wren::{
 
 use crate::changes;
 use crate::db::Db;
-use crate::ipc::{self, OmniboxTarget, WindowRef};
+use crate::ipc::{self, OmniboxTarget};
 use crate::menus;
-use crate::pages::{SCHEME, Source, UI, serve_page};
+use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
 use crate::sidebar::SidebarStore;
 use crate::tabs;
-use crate::window::{BrowserWindow, PageWindow, PlainWindow, WindowId};
+use crate::window::{PlainWindow, WindowId};
 use crate::windows::Windows;
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
     // The pages', not the user's.
-    ui_profile: RefCell<Option<Profile>>,
+    pub(crate) ui_profile: RefCell<Option<Profile>>,
     devtools: RefCell<HashMap<Browser, PlainWindow>>,
     pub windows: Windows,
     // What the pages keep between runs, in `data`; all windows share it.
@@ -55,7 +55,7 @@ impl State {
     // Opens the first window, then the user's own Profile, the one Chromium
     // starts with, with the tabs it had when the app last quit.
     fn start(self: &Rc<Self>, mt: MainThread) {
-        if self.open_window(mt).is_none() {
+        if self.open_window(mt, None).is_none() {
             eprintln!("Wren made no web view.");
             return mt.quit();
         }
@@ -78,66 +78,17 @@ impl State {
         });
     }
 
-    // Opens a window, empty until a Browser is shown in it (`show`). Its
-    // page is the UI's, in a Profile of its own.
-    fn open_window(self: &Rc<Self>, mt: MainThread) -> Option<WindowId> {
-        let profile = self.ui_profile.borrow().clone()?;
-        let id = self.windows.next_id();
-        let weak = Rc::downgrade(self);
-        let page = PageWindow::open(&profile, &UI, "Wren", (1280.0, 800.0), move || {
-            if let Some(state) = weak.upgrade() {
-                state.close_window(mt, id);
-            }
-            // The window goes as its Browsers close (`browser_closed`).
-            false
-        })?;
-        ipc::handle_ui(&page.web_view, &WindowRef::new(self, id), mt);
-        // The page and the backdrop are drawn as in use while the window is.
-        let state = Rc::downgrade(self);
-        page.watch_active(mt, move |active| {
-            let Some(state) = state.upgrade() else { return };
-            let Some(window) = state.windows.get(id) else {
-                return;
-            };
-            if active {
-                state.windows.set_active(id);
-            }
-            window.page.set_active(active);
-            ipc::send_active(&window.page, active);
-        });
-        let state = Rc::downgrade(self);
-        page.watch_full_screen(move |full_screen| {
-            let Some(state) = state.upgrade() else { return };
-            if let Some(window) = state.windows.get(id) {
-                ipc::send_full_screen(&window.page, full_screen);
-            }
-        });
-        let state = Rc::downgrade(self);
-        page.watch_full_screen_finished(move |full_screen| {
-            let Some(state) = state.upgrade() else { return };
-            if let Some(window) = state.windows.get(id) {
-                window.full_screen_finished(full_screen);
-            }
-        });
-        // Below and right of the window in use, so a new one does not hide it.
-        if let Some(front) = self.windows.front() {
-            page.cascade_from(&front.page);
-        }
-        self.windows.add(BrowserWindow::new(id, page));
-        Some(id)
-    }
-
     // The close button of window `id`. The last window closes the app, which
     // keeps its session for the next run. Another leaves by closing its
-    // Browsers, as Chrome's does.
-    fn close_window(self: &Rc<Self>, mt: MainThread, id: WindowId) {
+    // Browsers, as Chrome's does, and goes once they have.
+    pub(crate) fn close_window(self: &Rc<Self>, mt: MainThread, id: WindowId) {
         if self.windows.len() <= 1 {
             return mt.quit();
         }
         let Some(window) = self.windows.get(id) else {
             return;
         };
-        if !window.is_empty() {
+        if window.has_browsers() {
             return window.close_browsers();
         }
         // It has no Browser to close, and is not dropped inside its own
@@ -148,73 +99,6 @@ impl State {
                 state.windows.remove(id);
             }
         });
-    }
-
-    // Restores `profile`'s last session, whose windows arrive in
-    // `browser_opened`; or, with nothing to restore, opens a window of it on
-    // the New Tab page.
-    fn restore(self: &Rc<Self>, mt: MainThread, profile: Profile) {
-        let state = self.clone();
-        profile.clone().restore_last_session(move |result| {
-            if let Err(error) = result {
-                eprintln!("Wren restored no session: {error:?}");
-            }
-            if !state.windows.has_profile(&profile) {
-                state.open_browser(mt, profile);
-            }
-        });
-    }
-
-    // Opens a Browser of `profile` on the New Tab page, in the window that
-    // waits for one, or else in a new window.
-    fn open_browser(self: &Rc<Self>, mt: MainThread, profile: Profile) {
-        if self.windows.empty().is_none() && self.open_window(mt).is_none() {
-            return eprintln!("Wren opened no window.");
-        }
-        let state = self.clone();
-        profile
-            .clone()
-            .create_browser("", move |result| match result {
-                Ok(browser) => state.show(mt, profile, browser),
-                Err(error) => {
-                    eprintln!("Wren opened no Browser: {error:?}");
-                    state.drop_empty_windows(mt);
-                }
-            });
-    }
-
-    // A window left with no Browser to show goes, or the app does if it was
-    // the only one.
-    fn drop_empty_windows(self: &Rc<Self>, mt: MainThread) {
-        if self.windows.len() <= 1 {
-            return mt.quit();
-        }
-        while let Some(empty) = self.windows.empty() {
-            self.windows.remove(empty.id);
-        }
-    }
-
-    // Shows `browser` as `profile`'s, in the window that waits for a Browser
-    // or else in a new one.
-    fn show(self: &Rc<Self>, mt: MainThread, profile: Profile, browser: Browser) {
-        let window = self.windows.empty().or_else(|| {
-            let id = self.open_window(mt)?;
-            self.windows.get(id)
-        });
-        let Some(window) = window else {
-            let _ = browser.close();
-            return;
-        };
-        window.add(profile, browser.clone());
-        // The page asked before there was a Browser.
-        if window.is_front(&browser) {
-            ipc::send_tabs(&window, &browser);
-            ipc::send_side_panel(&window, &browser);
-            ipc::send_site(&window, &browser);
-            ipc::send_extensions(&window, &browser);
-            ipc::send_anchors(&window, &browser);
-            ipc::send_toast(&window, &browser);
-        }
     }
 }
 
@@ -245,8 +129,9 @@ impl App for Wren {
 
     // Required: Chromium opened a Browser of its own. A normal one, a
     // restored window or one a page or the omnibox asked for, is shown in a
-    // window of its own. Other kinds (a popup) close. DevTools gets a plain
-    // window of its own.
+    // window of its own, on its profile's most recent space; an incognito one
+    // closes, as other kinds (a popup) do. DevTools gets a plain window of
+    // its own.
     fn browser_opened(
         &self,
         mt: MainThread,
@@ -259,14 +144,10 @@ impl App for Wren {
             self.state.devtools.borrow_mut().insert(opened, window);
             return;
         }
-        let profile = (kind == BrowserType::Normal)
-            .then(|| opened.profile())
-            .flatten();
-        match profile {
-            Some(profile) => self.state.show(mt, profile, opened),
-            None => {
-                let _ = opened.close();
-            }
+        if kind == BrowserType::Normal {
+            self.state.place_opened(mt, opened);
+        } else {
+            let _ = opened.close();
         }
     }
 
@@ -298,18 +179,26 @@ impl App for Wren {
     // one the user was in last.
     fn menu_command(&self, mt: MainThread, id: &str, browser: Option<Browser>) {
         let windows = &self.state.windows;
-        let Some(window) = browser
+        let window = browser
             .and_then(|browser| windows.of(&browser))
-            .or_else(|| windows.front())
-        else {
-            return;
-        };
+            .or_else(|| windows.front());
+        // On the space of the window in front, or with none, the one used last.
         if id == menus::NEW_WINDOW {
-            if let Some(profile) = window.profile() {
-                self.state.open_browser(mt, profile);
+            let space = window
+                .as_ref()
+                .and_then(|window| window.space())
+                .or_else(|| {
+                    let recent = self.state.db.most_recent_space();
+                    recent.ok().flatten().map(|space| space.id)
+                });
+            if let Some(space) = space {
+                self.state.open_window_on(mt, space);
             }
             return;
         }
+        let Some(window) = window else {
+            return;
+        };
         if id == menus::CLOSE_WINDOW {
             return self.state.close_window(mt, window.id);
         }
@@ -342,6 +231,11 @@ impl App for Wren {
             return;
         }
         let Some(browser) = window.browser() else {
+            // A space with no tab closes its window, as a window does in
+            // Chrome once its last tab has.
+            if id == menus::CLOSE_TAB {
+                self.state.close_window(mt, window.id);
+            }
             return;
         };
         let _ = match id {
@@ -432,6 +326,9 @@ impl App for Wren {
         }
     }
 
+    // Chromium closes a Browser whose last tab closes. Its window stays, with
+    // the space empty, unless the user is closing the window: that goes with
+    // its last Browser, and the app with the last window.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {
@@ -440,14 +337,18 @@ impl App for Wren {
         let Some(window) = self.state.windows.of(&browser) else {
             return;
         };
-        // Chromium closes a Browser whose last tab closes. A window with no
-        // Browser left has nothing to show, so it goes, and the app with the
-        // last window, as when its close button is pressed.
-        if window.remove(&browser) && window.is_empty() {
-            self.state.windows.remove(window.id);
-            if self.state.windows.len() == 0 {
-                mt.quit();
+        let space = window.remove(&browser);
+        if window.is_closing() {
+            if !window.has_browsers() {
+                self.state.windows.remove(window.id);
+                if self.state.windows.len() == 0 {
+                    mt.quit();
+                }
             }
+            return;
+        }
+        if space.is_some() && space == window.space() {
+            ipc::send_no_browser(&window);
         }
     }
 }

@@ -38,7 +38,7 @@ pub use side_panel::send_side_panel;
 pub use site::send_site;
 pub use spaces::broadcast_spaces;
 pub use toast::{OwnToast, send_toast, show_toast};
-pub use window::{send_active, send_full_screen};
+pub use window::{send_active, send_full_screen, send_space};
 
 /// The window a page is in, as its handlers find it again: not the window
 /// itself, which owns the page and its handlers.
@@ -72,12 +72,36 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     site::handle(web_view, window, mt);
     extensions::handle(web_view, window);
     anchors::handle(web_view, window);
-    omnibox::handle(web_view, window);
+    omnibox::handle(web_view, window, mt);
     find::handle(web_view, window);
     toast::handle(web_view, window);
     perf::handle(web_view, window, mt);
     profiles::handle(web_view, window, mt);
     spaces::handle(web_view, window, mt);
+}
+
+/// Tells the page all it shows of `browser`, as it comes in front.
+pub fn send_browser(window: &BrowserWindow, browser: &Browser) {
+    send_space(window);
+    send_tabs(window, browser);
+    send_side_panel(window, browser);
+    send_site(window, browser);
+    send_extensions(window, browser);
+    send_anchors(window, browser);
+    send_toast(window, browser);
+    send_find(window, browser);
+}
+
+/// Tells the page its space has no Browser: no tabs, and nothing of one.
+pub fn send_no_browser(window: &BrowserWindow) {
+    send_space(window);
+    browser::send_no_tabs(window);
+    side_panel::send_no_side_panel(window);
+    site::send_no_site(window);
+    extensions::send_no_extensions(window);
+    anchors::send_no_anchors(window);
+    toast::send_no_toast(window);
+    find::send_no_find(window);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),

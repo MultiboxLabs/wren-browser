@@ -7,6 +7,9 @@ export const appWindow = {
   /** Whether the window is in use: main, or under a sheet or bubble of its own. */
   active: () => wren.invoke<boolean>("window.active"),
   onActive: (listener: (active: boolean) => void) => wren.on<boolean>("window.active", listener),
+  /** The space the window shows; null while it waits for its first Browser. */
+  space: () => wren.invoke<number | null>("window.space"),
+  onSpace: (listener: (space: number | null) => void) => wren.on<number | null>("window.space", listener),
   /** Whether the window is full screen, or going to be. */
   fullScreen: () => wren.invoke<boolean>("window.fullScreen"),
   onFullScreen: (listener: (fullScreen: boolean) => void) => wren.on<boolean>("window.fullScreen", listener),

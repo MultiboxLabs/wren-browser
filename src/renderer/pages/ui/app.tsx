@@ -47,7 +47,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   // panel make way for it, and come back as they were.
   const shown = fullScreen ?? current;
   const address = useRef<HTMLDivElement>(null);
-  const omnibox = useShownOmnibox(address);
+  const omnibox = useShownOmnibox(address, browser !== null);
   const box = useRef<HTMLElement>(null);
   const sidebar = useSidebarPresentation(saved, omnibox.shown !== null, box);
 
