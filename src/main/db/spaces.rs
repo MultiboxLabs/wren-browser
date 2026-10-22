@@ -8,10 +8,13 @@ use serde::{Deserialize, Serialize};
 use super::theme::SpaceTheme;
 use super::{Db, sql};
 
+/// A space's ID, its row's.
+pub type SpaceId = i64;
+
 /// A space as it is kept, and as the page has it.
 #[derive(Clone, Debug, Serialize)]
 pub struct SpaceRow {
-    pub id: i64,
+    pub id: SpaceId,
     pub profile: String,
     pub name: String,
     pub icon: String,
@@ -122,7 +125,7 @@ impl Db {
         })
     }
 
-    pub fn update_space(&self, id: i64, change: SpaceChange) -> Result<SpaceRow, String> {
+    pub fn update_space(&self, id: SpaceId, change: SpaceChange) -> Result<SpaceRow, String> {
         let name = change.name.as_deref().map(checked_name).transpose()?;
         let icon = change.icon.as_deref().map(checked_icon).transpose()?;
         let json = change
@@ -152,7 +155,7 @@ impl Db {
     }
 
     /// Deletes a space, unless it is its profile's last.
-    pub fn delete_space(&self, id: i64) -> Result<(), String> {
+    pub fn delete_space(&self, id: SpaceId) -> Result<(), String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
         let profile: Option<String> = transaction
             .query_row("SELECT profile_id FROM spaces WHERE id = ?1", [id], |row| {
@@ -204,11 +207,83 @@ impl Db {
     }
 }
 
+// Which space was used last: the windows open on a profile's most recent one.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "the windows use these from phase 2 of window-spaces"
+    )
+)]
+impl Db {
+    // Most recently used first; one never used after every used one, then by
+    // position.
+    const RECENT: &str = "ORDER BY last_used_at IS NULL, last_used_at DESC, position";
+
+    pub fn space(&self, id: SpaceId) -> Result<Option<SpaceRow>, String> {
+        self.conn
+            .query_row(
+                &format!("SELECT {COLUMNS} FROM spaces WHERE id = ?1"),
+                [id],
+                row,
+            )
+            .optional()
+            .map_err(sql)
+    }
+
+    /// Notes that the space is in use now. A space that is gone is no error.
+    /// The time is in milliseconds, and never before the last space's, so
+    /// two used one after the other keep their order.
+    pub fn touch_space(&self, id: SpaceId) -> Result<(), String> {
+        self.conn
+            .execute(
+                "UPDATE spaces SET last_used_at =
+                   max(?2, (SELECT coalesce(max(last_used_at), 0) + 1 FROM spaces))
+                 WHERE id = ?1",
+                params![
+                    id,
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map_or(0, |since| since.as_millis() as i64)
+                ],
+            )
+            .map(drop)
+            .map_err(sql)
+    }
+
+    /// The profile's most recently used space.
+    pub fn recent_space(&self, profile: &str) -> Result<Option<SpaceRow>, String> {
+        self.conn
+            .query_row(
+                &format!(
+                    "SELECT {COLUMNS} FROM spaces WHERE profile_id = ?1 {} LIMIT 1",
+                    Self::RECENT
+                ),
+                [profile],
+                row,
+            )
+            .optional()
+            .map_err(sql)
+    }
+
+    /// The most recently used space of every profile's.
+    pub fn most_recent_space(&self) -> Result<Option<SpaceRow>, String> {
+        self.conn
+            .query_row(
+                &format!("SELECT {COLUMNS} FROM spaces {} LIMIT 1", Self::RECENT),
+                [],
+                row,
+            )
+            .optional()
+            .map_err(sql)
+    }
+}
+
 fn insert(
     transaction: &rusqlite::Transaction,
     profile: &str,
     space: &NewSpace,
-) -> Result<i64, String> {
+) -> Result<SpaceId, String> {
     transaction
         .execute("INSERT OR IGNORE INTO profiles (id) VALUES (?1)", [profile])
         .map_err(sql)?;
@@ -221,4 +296,69 @@ fn insert(
         )
         .map_err(sql)?;
     Ok(transaction.last_insert_rowid())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::test_db as db;
+
+    fn add(db: &Db, profile: &str, name: &str) -> SpaceId {
+        let space = NewSpace {
+            name: name.into(),
+            icon: "lucide:orbit".into(),
+            theme: SpaceTheme::default_for("#ffffff"),
+        };
+        db.create_space(profile, space).unwrap().id
+    }
+
+    fn recent(db: &Db, profile: &str) -> Option<SpaceId> {
+        db.recent_space(profile).unwrap().map(|space| space.id)
+    }
+
+    #[test]
+    fn unused_spaces_come_by_position() {
+        let db = db();
+        let first = add(&db, "a", "First");
+        add(&db, "a", "Second");
+        assert_eq!(recent(&db, "a"), Some(first));
+    }
+
+    #[test]
+    fn the_last_touched_is_the_recent_one() {
+        let db = db();
+        let first = add(&db, "a", "First");
+        let second = add(&db, "a", "Second");
+        let other = add(&db, "b", "Other");
+        db.touch_space(second).unwrap();
+        assert_eq!(recent(&db, "a"), Some(second));
+        // Right after, most likely within the same millisecond.
+        db.touch_space(first).unwrap();
+        assert_eq!(recent(&db, "a"), Some(first));
+        db.touch_space(other).unwrap();
+        assert_eq!(recent(&db, "a"), Some(first));
+        assert_eq!(
+            db.most_recent_space().unwrap().map(|space| space.id),
+            Some(other)
+        );
+    }
+
+    #[test]
+    fn an_unknown_profile_has_none() {
+        let db = db();
+        add(&db, "a", "First");
+        assert_eq!(recent(&db, "b"), None);
+        db.touch_space(12345).unwrap();
+    }
+
+    #[test]
+    fn a_space_is_found_by_id() {
+        let db = db();
+        let id = add(&db, "a", "First");
+        assert_eq!(
+            db.space(id).unwrap().map(|space| space.name),
+            Some("First".into())
+        );
+        assert!(db.space(id + 1).unwrap().is_none());
+    }
 }

@@ -81,20 +81,7 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::migrations::MIGRATIONS;
-    use rusqlite::Connection;
-
-    fn db() -> Db {
-        let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
-        for step in MIGRATIONS {
-            conn.execute_batch(step).unwrap();
-        }
-        Db {
-            conn,
-            listed: Default::default(),
-        }
-    }
+    use crate::db::test_db as db;
 
     fn entry(id: &str, name: &str) -> ProfileListEntry {
         ProfileListEntry {

@@ -42,6 +42,20 @@ impl Db {
     }
 }
 
+/// A database in memory with the schema, for tests.
+#[cfg(test)]
+fn test_db() -> Db {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+    for step in MIGRATIONS {
+        conn.execute_batch(step).unwrap();
+    }
+    Db {
+        conn,
+        listed: RefCell::default(),
+    }
+}
+
 fn open_file(data: &Path) -> Result<Connection, String> {
     fs::create_dir_all(data).map_err(|error| error.to_string())?;
     let conn = Connection::open(data.join("wren.sqlite")).map_err(|error| error.to_string())?;
