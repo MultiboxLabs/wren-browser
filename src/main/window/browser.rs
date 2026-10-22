@@ -123,6 +123,19 @@ impl BrowserWindow {
         self.closing.get()
     }
 
+    /// A Browser in the background that Chromium has asked to come forward.
+    pub fn wanting_foreground(&self) -> Option<Browser> {
+        let front = self.browser();
+        self.spaces.borrow().values().find_map(|slot| match slot {
+            Slot::Open(browser)
+                if Some(browser) != front.as_ref() && browser.wants_foreground() =>
+            {
+                Some(browser.clone())
+            }
+            _ => None,
+        })
+    }
+
     /// Whether `browser` is the one in front.
     pub fn is_front(&self, browser: &Browser) -> bool {
         self.browser().as_ref() == Some(browser)
@@ -192,10 +205,25 @@ impl BrowserWindow {
     /// Forgets the window's Browser for `space`, or the one on the way, and
     /// answers it.
     pub fn forget(&self, space: SpaceId) -> Option<Browser> {
-        match self.spaces.borrow_mut().remove(&space)? {
-            Slot::Open(browser) => Some(browser),
-            Slot::Opening => None,
+        let browser = match self.spaces.borrow_mut().remove(&space)? {
+            Slot::Open(browser) => browser,
+            Slot::Opening => return None,
+        };
+        let mut provisional = self.provisional.borrow_mut();
+        if provisional.as_ref() == Some(&browser) {
+            *provisional = None;
         }
+        Some(browser)
+    }
+
+    /// Whether a Browser for `space` is on the way, and still wanted.
+    pub fn is_opening(&self, space: SpaceId) -> bool {
+        matches!(self.spaces.borrow().get(&space), Some(Slot::Opening))
+    }
+
+    /// Whether the window shows `space`, or keeps its Browser.
+    pub fn has_space(&self, space: SpaceId) -> bool {
+        self.current.get() == Some(space) || self.spaces.borrow().contains_key(&space)
     }
 
     /// Notes `browser` as made for the omnibox, to go again if the omnibox

@@ -10,6 +10,8 @@ export const appWindow = {
   /** The space the window shows; null while it waits for its first Browser. */
   space: () => wren.invoke<number | null>("window.space"),
   onSpace: (listener: (space: number | null) => void) => wren.on<number | null>("window.space", listener),
+  /** Brings a space forward: its tabs, or the space empty until one is opened. Fails if the space is gone. */
+  showSpace: (space: number) => wren.invoke<null>("window.showSpace", space),
   /** Whether the window is full screen, or going to be. */
   fullScreen: () => wren.invoke<boolean>("window.fullScreen"),
   onFullScreen: (listener: (fullScreen: boolean) => void) => wren.on<boolean>("window.fullScreen", listener),
