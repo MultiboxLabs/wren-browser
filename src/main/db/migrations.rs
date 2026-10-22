@@ -22,4 +22,9 @@ pub const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX spaces_by_profile ON spaces(profile_id, position);
     ",
+    // When each space was last used, in milliseconds since 1970, so a window
+    // can open on its profile's most recent one. NULL is never.
+    "
+    ALTER TABLE spaces ADD COLUMN last_used_at INTEGER;
+    ",
 ];
