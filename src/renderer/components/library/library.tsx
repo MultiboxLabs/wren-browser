@@ -15,8 +15,9 @@ import { SpaceDialog } from "./space-dialogs";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
   { id: "profiles", name: "Profiles", icon: CircleUserRound, item: "Profile" },
-  { id: "spaces", name: "Spaces", icon: Orbit, item: "Space" },
-  { id: "boosts", name: "Boosts", icon: Paintbrush, item: "Boost" }
+  { id: "spaces", name: "Spaces", icon: Orbit, item: "Space" }
+  // TODO: boosts feature
+  // { id: "boosts", name: "Boosts", icon: Paintbrush, item: "Boost" }
 ];
 
 export type LibraryProps = {
