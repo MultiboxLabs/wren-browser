@@ -233,7 +233,7 @@ function ThemeButton({ theme, onChange }: { theme: SpaceTheme; onChange: (theme:
         </Button>
       }
     >
-      <div className="max-h-(--radix-popover-content-available-height) overflow-y-auto rounded-popover [scrollbar-width:none]">
+      <div className="max-h-(--radix-popover-content-available-height) overflow-y-auto rounded-popover scrollbar-none">
         <ThemePicker value={theme} onChange={onChange} className="rounded-none" />
       </div>
     </Popover>

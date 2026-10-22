@@ -56,7 +56,7 @@ export function SectionList({
     ) : (
       <Boosts query={query} selected={selected} onSelect={onSelect} />
     );
-  return <div className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-width:none]">{list}</div>;
+  return <div className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 scrollbar-none">{list}</div>;
 }
 
 function Boosts({ query, selected, onSelect }: ListProps) {
