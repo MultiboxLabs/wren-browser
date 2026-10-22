@@ -392,7 +392,8 @@ body,
 
 /* The omnibox (components/omnibox/omnibox.tsx), a command bar: neutral, not
    the space's, but for its selected row, which is the space's colour. A
-   little of what is under it shows through, blurred. A
+   little of what is under it shows through, blurred, while the window is
+   active; in the background it is solid (see the palette below). A
    light inner edge and a dark outer one. */
 :root[data-scheme] .omnibox {
   /* Calmed: a vivid space's colour would glare as a row. */
@@ -453,6 +454,17 @@ body,
   --omnibox-tile: rgb(0 0 0 / 0.05);
   --omnibox-arrow: rgb(0 0 0 / 0.6);
   --omnibox-text-selection: rgb(0 0 0 / 0.15);
+}
+
+/* Unfocused, the blur behind them is not live (see --tint), so what showed
+   through would be flat and muddy: they are solid. */
+:root[data-scheme="dark"][data-active="false"] .omnibox,
+:root[data-scheme="dark"][data-active="false"] .find-bar {
+  --omnibox-bg: rgb(40 40 43);
+}
+:root[data-scheme="light"][data-active="false"] .omnibox,
+:root[data-scheme="light"][data-active="false"] .find-bar {
+  --omnibox-bg: rgb(238 238 238);
 }
 
 /* The pulse as the field enters a search engine's keyword mode:
