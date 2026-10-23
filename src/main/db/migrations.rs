@@ -27,4 +27,23 @@ pub const MIGRATIONS: &[&str] = &[
     "
     ALTER TABLE spaces ADD COLUMN last_used_at INTEGER;
     ",
+    // The windows open at quit, so each comes back with its spaces. A
+    // window's key is in the session tag of each of its Browsers; its frame
+    // is in AppKit's screen coordinates, NULL until it is first kept.
+    "
+    CREATE TABLE windows (
+      id TEXT PRIMARY KEY,
+      position INTEGER NOT NULL,
+      current_space INTEGER REFERENCES spaces(id) ON DELETE SET NULL,
+      frame_x REAL,
+      frame_y REAL,
+      frame_width REAL,
+      frame_height REAL
+    );
+    CREATE TABLE window_spaces (
+      window_id TEXT NOT NULL REFERENCES windows(id) ON DELETE CASCADE,
+      space_id INTEGER NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+      PRIMARY KEY (window_id, space_id)
+    );
+    ",
 ];

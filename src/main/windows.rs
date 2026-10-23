@@ -53,6 +53,14 @@ impl Windows {
         open.iter().find(|w| w.has_browser(browser)).cloned()
     }
 
+    /// The window whose key is `key`, unless the user is closing it.
+    pub fn by_key(&self, key: &str) -> Option<Rc<BrowserWindow>> {
+        let open = self.open.borrow();
+        open.iter()
+            .find(|w| w.key == key && !w.is_closing())
+            .cloned()
+    }
+
     /// The windows that are open now, oldest first.
     pub fn all(&self) -> Vec<Rc<BrowserWindow>> {
         self.open.borrow().clone()

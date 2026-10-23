@@ -34,7 +34,7 @@ use wren::{MainThread, Profile, RequestedBounds, TabCrash, WebView, WebViewKind,
 
 use crate::pages::Page;
 
-pub use browser::{BrowserWindow, WindowId, marks};
+pub use browser::{BrowserWindow, WindowId, marks, tagged};
 pub use plain::PlainWindow;
 use title_bar::TitleBar;
 
@@ -209,9 +209,9 @@ impl PageWindow {
             .setFrame_display(NSRect::new(origin, frame.size), false);
     }
 
-    /// Puts the window where a restored Browser's window was. AppKit moves
-    /// it back onto a screen if that one has gone; without a position, only
-    /// the size is its own.
+    /// Puts the window where a restored Browser's window was, or where the
+    /// window was when it was kept. AppKit moves it back onto a screen if
+    /// that one has gone; without a position, only the size is its own.
     pub fn restore_frame(&self, bounds: RequestedBounds) {
         let size = NSSize::new(bounds.width, bounds.height);
         let origin = match bounds.origin {
@@ -223,6 +223,20 @@ impl PageWindow {
             .window
             .constrainFrameRect_toScreen(frame, self.window.screen().as_deref());
         self.window.setFrame_display(frame, false);
+    }
+
+    /// Where the window is and how large, as `restore_frame` takes it; none
+    /// in full screen, whose frame is the screen's.
+    pub fn frame(&self) -> Option<RequestedBounds> {
+        if self.is_full_screen() {
+            return None;
+        }
+        let frame = self.window.frame();
+        Some(RequestedBounds {
+            origin: Some((frame.origin.x, frame.origin.y)),
+            width: frame.size.width,
+            height: frame.size.height,
+        })
     }
 
     /// Whether the window is the one in use: a browser window, or under the
