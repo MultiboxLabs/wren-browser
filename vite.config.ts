@@ -1,7 +1,9 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { cn } from "cn/vite";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
+import { cnTables } from "./scripts/cn-tables";
 
 // The renderer: an entry for each page, src/renderer/pages/<page>/index.html,
 // which the app serves as wren://<page>/. Each entry's HTML preloads all of
@@ -11,7 +13,8 @@ export default defineConfig({
   root: "src/renderer",
   base: "/",
   // React Compiler memoizes the components and hooks it can prove pure.
-  plugins: [react({ compiler: true }), tailwindcss()],
+  // `cn` compiles its class-merging tables (scripts/cn-tables.ts).
+  plugins: [react({ compiler: true }), tailwindcss(), cn(cnTables)],
   build: {
     outDir: "../../dist/renderer",
     emptyOutDir: true,

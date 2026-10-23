@@ -3,3 +3,5 @@ target/
 dist/
 *.app
 .DS_Store
+# Compiled by `cn` (scripts/cn-tables.ts).
+src/renderer/utils/cn-tables.ts

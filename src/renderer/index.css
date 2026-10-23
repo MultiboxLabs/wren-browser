@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* cn's compiled tables name every class it knows, not ones the pages use. */
+@source not "./utils/cn-tables.ts";
 
 html,
 body,

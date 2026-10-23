@@ -7,7 +7,7 @@
     "build": "bun run scripts/build.ts",
     "start": "bun run build --run",
     "perf": "bun run scripts/perf.ts",
-    "check": "cargo check && cargo clippy --all-targets && tsc",
+    "check": "bun run scripts/cn-tables.ts && cargo check && cargo clippy --all-targets && tsc",
     "sync-bangs": "bun run scripts/sync-bangs.ts",
     "format": "prettier --write ."
   },
