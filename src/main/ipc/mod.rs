@@ -38,7 +38,8 @@ pub use side_panel::send_side_panel;
 pub use site::send_site;
 pub use spaces::broadcast_spaces;
 pub use toast::{OwnToast, send_toast, show_toast};
-pub use window::{send_active, send_choose_space, send_full_screen, send_space};
+use window::send_space;
+pub use window::{send_active, send_choose_space, send_full_screen};
 
 /// The window a page is in, as its handlers find it again: not the window
 /// itself, which owns the page and its handlers.

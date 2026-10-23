@@ -9,7 +9,7 @@ import { useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 
 export function SpaceSwitcher() {
-  const { space, spaces, profiles, show } = useSpace();
+  const { space, spaces, show } = useSpace();
   const row = useRef<HTMLDivElement>(null);
   // The current one stays in view as it changes.
   useLayoutEffect(() => {
@@ -27,12 +27,6 @@ export function SpaceSwitcher() {
       />
     );
   }
-  // Each is named by its profile too when there is more than one.
-  const owners = new Set(spaces.map(({ profile }) => profile));
-  const label = (name: string, profile: string) => {
-    const owner = profiles.find(({ id }) => id === profile)?.name;
-    return owners.size > 1 && owner ? `${name}` : name;
-  };
   return (
     <div ref={row} className="flex min-w-0 gap-0.5 overflow-x-auto scrollbar-none">
       {spaces.map((entry) => {
@@ -42,7 +36,7 @@ export function SpaceSwitcher() {
             key={entry.id}
             icon={<SpaceIcon icon={entry.icon} size={15} />}
             iconTone={current ? "inherit" : "dim"}
-            label={label(entry.name, entry.profile)}
+            label={entry.name}
             data-current={current || undefined}
             className={cn(current && "text-accent")}
             onClick={() => show(entry.id)}

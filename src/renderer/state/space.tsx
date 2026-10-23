@@ -4,7 +4,7 @@
 // drawn before the window knows its own, and outside the app.
 
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { appWindow, follow, hasApp, type ProfileEntry, type SpaceEntry } from "../ipc";
+import { appWindow, follow, hasApp, type SpaceEntry } from "../ipc";
 import { contentScheme, primaryHex } from "../utils/theme";
 import { useProfiles, useSpaces } from "./library";
 import { type SpaceSlide, useSpaceSlide } from "./space-slide";
@@ -24,8 +24,6 @@ export type Folder = { id: string; title: string; open: boolean; tabs: Tab[] };
 export type Space = {
   /** Its ID in the app's database; 0 for the made-up one. */
   id: number;
-  /** The profile it belongs to; null for the made-up one. */
-  profile: string | null;
   name: string;
   /** `lucide:` and an icon's name, or an emoji. */
   icon: string;
@@ -43,7 +41,6 @@ const tab = (title: string, url: string): Tab => ({ id: url, title, url });
 
 export const personal: Space = {
   id: 0,
-  profile: null,
   name: "Personal",
   icon: "lucide:orbit",
   color: "#6f00ff",
@@ -76,7 +73,6 @@ export const personal: Space = {
 /** A space of the app's, as the window draws it. */
 const shown = (entry: SpaceEntry): Space => ({
   id: entry.id,
-  profile: entry.profile,
   name: entry.name,
   icon: entry.icon,
   color: primaryHex(entry.theme),
@@ -90,7 +86,6 @@ type SpaceState = {
   space: Space;
   /** Every space, in the Library's order: by profile, then by position. */
   spaces: SpaceEntry[];
-  profiles: ProfileEntry[];
   /** Brings a space forward in the window, the old one's content sliding out first. */
   show: (id: number) => void;
   /** Brings a space forward at once: a swipe, whose fingers slid the old one out. */
@@ -105,14 +100,15 @@ const SpaceContext = createContext<SpaceState | null>(null);
 
 export function SpaceProvider({ children }: { children: ReactNode }) {
   const { spaces: entries } = useSpaces(true);
+  // For their order, which is Chromium's.
   const { profiles: listed } = useProfiles(true);
   const [current, setCurrent] = useState<number | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.space, appWindow.onSpace, setCurrent) : undefined), []);
   // The made-up space, whose folders open and close here.
   const [madeUp, setMadeUp] = useState<Space>(personal);
 
-  const profiles = listed ?? [];
   const spaces = useMemo(() => {
+    const profiles = listed ?? [];
     const all = entries ?? [];
     const known = new Set(profiles.map(({ id }) => id));
     return [
@@ -148,9 +144,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       ...space,
       pinned: space.pinned.map((item) => (item === folder ? { ...folder, open: !folder.open } : item))
     }));
-  return (
-    <SpaceContext value={{ space, spaces, profiles, show, showNow, slide, toggleFolder }}>{children}</SpaceContext>
-  );
+  return <SpaceContext value={{ space, spaces, show, showNow, slide, toggleFolder }}>{children}</SpaceContext>;
 }
 
 /** The space shown in the window, from the SpaceProvider around it. */

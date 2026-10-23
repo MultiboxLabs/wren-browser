@@ -1,11 +1,12 @@
 // What the app does to a Browser's tabs, whether the page, the main menu or
 // a context menu asks.
 
+pub mod placeholder;
+
 use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSplit};
 
 use crate::ipc::{self, OwnToast};
 use crate::menus;
-use crate::placeholder;
 
 /// A tab on `url`, at the top of the list, as the sidebar shows new tabs.
 pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
@@ -18,7 +19,7 @@ pub fn is_new_tab(url: &str) -> bool {
 }
 
 /// Closes `tabs`. When they are all the Browser has, a placeholder stands
-/// in for them, and the Browser stays (placeholder.rs).
+/// in for them, and the Browser stays (`placeholder`).
 pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
     placeholder::stand_in(browser, tabs)?;
     for tab in tabs {

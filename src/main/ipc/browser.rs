@@ -7,8 +7,7 @@ use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::db::SpaceId;
 use crate::menus;
 use crate::pages::icons;
-use crate::placeholder;
-use crate::tabs;
+use crate::tabs::{self, placeholder};
 use crate::window::BrowserWindow;
 
 /// A tab as the sidebar draws it. Its favicon comes apart ("tab.favicon").

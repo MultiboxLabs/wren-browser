@@ -6,13 +6,10 @@ mod ipc;
 mod menus;
 mod pages;
 mod perf;
-mod placeholder;
-mod session;
 mod sidebar;
 mod spaces;
 mod tabs;
 mod window;
-mod windows;
 
 use std::rc::Rc;
 

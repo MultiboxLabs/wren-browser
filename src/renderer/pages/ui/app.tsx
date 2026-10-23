@@ -49,12 +49,11 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const address = useRef<HTMLDivElement>(null);
   const omnibox = useShownOmnibox(address, browser !== null);
   // The omnibox is the space's: it closes as the window switches.
-  const spaceId = space.id;
-  const firstSpace = useRef(spaceId);
+  const lastSpace = useRef(space.id);
   useEffect(() => {
-    if (spaceId !== firstSpace.current) omnibox.done();
-    firstSpace.current = spaceId;
-  }, [spaceId]);
+    if (space.id !== lastSpace.current) omnibox.done();
+    lastSpace.current = space.id;
+  }, [space.id]);
   const box = useRef<HTMLElement>(null);
   const sidebar = useSidebarPresentation(saved, omnibox.shown !== null, box);
 

@@ -12,8 +12,7 @@ use wren::{Browser, MainThread, Profile, RequestedBounds};
 
 use crate::app::State;
 use crate::db::{SavedWindow, WindowFrame};
-use crate::ipc;
-use crate::placeholder;
+use crate::tabs::placeholder;
 use crate::window::{BrowserWindow, tagged};
 
 impl State {
@@ -64,15 +63,14 @@ impl State {
         self.restore(mt, startup, true);
         for id in profiles.into_iter().filter(|id| *id != startup_id) {
             let state = self.clone();
-            // Restoring from now, so a Browser of the startup profile's
-            // restore is not taken for one of a later launch.
-            self.restoring.set(self.restoring.get() + 1);
+            // Restoring from now, while the profile opens.
+            self.restore_started();
             mt.open_profile(Some(&id), move |result| {
                 match result {
                     Ok(profile) => state.restore(mt, profile, false),
                     Err(error) => eprintln!("Wren opened no Profile to restore: {error:?}"),
                 }
-                state.restoring.set(state.restoring.get() - 1);
+                state.restore_finished();
             });
         }
     }
@@ -83,9 +81,9 @@ impl State {
     // tab yet.
     fn restore(self: &Rc<Self>, mt: MainThread, profile: Profile, fills: bool) {
         let state = self.clone();
-        self.restoring.set(self.restoring.get() + 1);
+        self.restore_started();
         profile.clone().restore_last_session(move |result| {
-            state.restoring.set(state.restoring.get() - 1);
+            state.restore_finished();
             if let Err(error) = result {
                 eprintln!("Wren restored no session: {error:?}");
             }
@@ -95,10 +93,9 @@ impl State {
             let Some(space) = state.recent_space(mt, &profile) else {
                 return eprintln!("Wren found no space to open.");
             };
-            window.switch_to(space);
-            ipc::send_space(&window);
-            state.save_window(&window);
-            state.touch_space(space);
+            if let Err(error) = state.show_space(window.id, space) {
+                return eprintln!("Wren could not open a space: {error}");
+            }
             state.open_space_browser(mt, window.id, space, || {});
         });
     }
@@ -108,23 +105,19 @@ impl State {
     /// front if that is the window's current space, else in the background.
     /// False if the tag names no window open now, a space that is gone or
     /// another profile's, or one the window has a Browser for already.
-    pub fn place_tagged(&self, browser: &Browser, profile: &Profile) -> bool {
+    pub(super) fn place_tagged(&self, browser: &Browser, profile: &Profile) -> bool {
         let Some((key, space)) = tagged(browser) else {
             return false;
         };
         let Some(window) = self.windows.by_key(&key) else {
             return false;
         };
-        let owned = matches!(self.db.space(space), Ok(Some(row)) if row.profile == profile.id());
-        if !owned || window.browser_of(space).is_some() || window.is_opening(space) {
+        let free = window.browser_of(space).is_none() && !window.is_opening(space);
+        if !free || !self.is_space_of(space, profile) {
             return false;
         }
         placeholder::adopt(browser);
-        window.add(space, browser.clone());
-        if window.is_front(browser) {
-            ipc::send_browser(&window, browser);
-        }
-        self.save_window(&window);
+        self.host(&window, space, browser);
         true
     }
 
@@ -134,8 +127,8 @@ impl State {
     /// tag names a window that did not come back. It closes, rather than
     /// come back as a window of one space at the closed one's size. Reopen
     /// Closed Window, later, still brings it back.
-    pub fn is_left_by_closed_window(&self, browser: &Browser) -> bool {
-        self.restoring.get() > 0
+    pub(super) fn is_left_by_closed_window(&self, browser: &Browser) -> bool {
+        self.is_restoring()
             && tagged(browser).is_some_and(|(key, _)| self.windows.by_key(&key).is_none())
     }
 
@@ -178,11 +171,26 @@ impl State {
 
     /// Keeps a window about to open, and answers its key. One the database
     /// cannot keep has a key of its own still, for its Browsers' tags.
-    pub fn new_window_key(&self) -> String {
+    pub(super) fn new_window_key(&self) -> String {
         self.db.add_window().unwrap_or_else(|error| {
             eprintln!("Wren could not keep a window: {error}");
             let now = SystemTime::now().duration_since(UNIX_EPOCH);
             format!("unkept-{:x}", now.map_or(0, |since| since.as_nanos()))
         })
+    }
+
+    /// Whether a profile's last session is being restored. Chromium asks to
+    /// bring forward what it had active as it restores it, which is no
+    /// request of the user's.
+    pub fn is_restoring(&self) -> bool {
+        self.restoring.get() > 0
+    }
+
+    fn restore_started(&self) {
+        self.restoring.set(self.restoring.get() + 1);
+    }
+
+    fn restore_finished(&self) {
+        self.restoring.set(self.restoring.get() - 1);
     }
 }

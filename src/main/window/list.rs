@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use wren::Browser;
 
-use crate::window::{BrowserWindow, WindowId};
+use super::{BrowserWindow, WindowId};
 
 #[derive(Default)]
 pub struct Windows {
