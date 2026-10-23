@@ -3,7 +3,7 @@
 // space's is in front, and the rest wait in the background. A space can be
 // without one: its last tab closed, or the window has not opened a tab in it.
 // Each Browser carries the window's key and its space in its session tag, so
-// a restore puts it back (spaces/session.rs).
+// a restore puts it back (tag.rs).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use wren::{Browser, BubbleAnchor};
 
 use super::PageWindow;
+use super::tag::Tag;
 use crate::db::SpaceId;
 use crate::tabs::placeholder;
 
@@ -202,9 +203,7 @@ impl BrowserWindow {
     /// current space, or the window has none yet, otherwise in the
     /// background.
     pub fn add(&self, space: SpaceId, browser: Browser) {
-        if let Err(error) = browser.set_session_tag(&session_tag(&self.key, space)) {
-            eprintln!("Wren could not tag a Browser: {error:?}");
-        }
+        Tag::update(&browser, |tag| tag.window = Some((self.key.clone(), space)));
         browser.attach_to_view(Some(self.page.web_view.view()));
         self.name_anchors(&browser);
         // Its pages take a window that is full screen already without asking.
@@ -308,18 +307,6 @@ impl BrowserWindow {
             }
         }
     }
-}
-
-/// The tag of window `key`'s Browser for `space`: "<key>/<space>".
-fn session_tag(key: &str, space: SpaceId) -> String {
-    format!("{key}/{space}")
-}
-
-/// The window key and the space a Browser's tag names, if it has one.
-pub fn tagged(browser: &Browser) -> Option<(String, SpaceId)> {
-    let tag = browser.session_tag();
-    let (key, space) = tag.split_once('/')?;
-    Some((key.to_owned(), space.parse().ok()?))
 }
 
 /// `browser`'s anchors, each with the name of the page's mark it is.

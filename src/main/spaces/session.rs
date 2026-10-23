@@ -13,7 +13,7 @@ use wren::{Browser, MainThread, Profile, RequestedBounds};
 use crate::app::State;
 use crate::db::{SavedWindow, WindowFrame};
 use crate::tabs::placeholder;
-use crate::window::{BrowserWindow, tagged};
+use crate::window::{BrowserWindow, Tag};
 
 impl State {
     /// Opens the windows kept at the last quit, in the order they opened,
@@ -106,7 +106,7 @@ impl State {
     /// False if the tag names no window open now, a space that is gone or
     /// another profile's, or one the window has a Browser for already.
     pub(super) fn place_tagged(&self, browser: &Browser, profile: &Profile) -> bool {
-        let Some((key, space)) = tagged(browser) else {
+        let Some((key, space)) = Tag::of(browser).window else {
             return false;
         };
         let Some(window) = self.windows.by_key(&key) else {
@@ -129,7 +129,9 @@ impl State {
     /// Closed Window, later, still brings it back.
     pub(super) fn is_left_by_closed_window(&self, browser: &Browser) -> bool {
         self.is_restoring()
-            && tagged(browser).is_some_and(|(key, _)| self.windows.by_key(&key).is_none())
+            && Tag::of(browser)
+                .window
+                .is_some_and(|(key, _)| self.windows.by_key(&key).is_none())
     }
 
     /// Keeps `window`'s current space and the spaces it has a Browser for.

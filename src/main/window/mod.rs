@@ -4,6 +4,7 @@
 mod browser;
 mod list;
 mod plain;
+mod tag;
 mod title_bar;
 
 use std::cell::{Cell, RefCell};
@@ -35,9 +36,10 @@ use wren::{MainThread, Profile, RequestedBounds, TabCrash, WebView, WebViewKind,
 
 use crate::pages::Page;
 
-pub use browser::{BrowserWindow, WindowId, marks, tagged};
+pub use browser::{BrowserWindow, WindowId, marks};
 pub use list::Windows;
 pub use plain::PlainWindow;
+pub use tag::Tag;
 
 /// Whether closing the last window quits the app. A Mac app keeps running
 /// with none, as Chrome does, until the user quits it.

@@ -3,9 +3,8 @@
 // Browser would have none, a New Tab page stands in. The page neither lists
 // nor shows it. It closes once a tab opens beside it, and is a tab like any
 // other once it leaves the New Tab page. Chromium keeps it in the session as
-// any tab, and which tab it is is only known while the app runs: a restored
-// Browser with nothing but New Tab pages takes one of them as its own again
-// (`adopt`).
+// any tab; its persistent ID, in the Browser's session tag (window/tag.rs),
+// says which tab it is after a restore (`adopt`).
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -13,6 +12,7 @@ use std::collections::HashMap;
 use wren::{Browser, BrowserTab, Error, Profile};
 
 use super::is_new_tab;
+use crate::window::Tag;
 
 thread_local! {
     // Each placeholder, with the tabs it stands in for, which are closing as
@@ -52,18 +52,21 @@ pub fn create_browser(profile: &Profile, done: impl FnOnce(Result<Browser, Error
     });
 }
 
-/// A Browser Chromium opened (a restored one) that has nothing but New Tab
-/// pages has no tab of its own: its active one is its placeholder, and the
-/// rest close.
+/// A Browser Chromium opened (a restored one) takes back the placeholder
+/// its tag names, if that tab came back, still on the New Tab page. A tab
+/// reopened from an earlier launch has a new ID, and comes back as a tab of
+/// its own.
 pub fn adopt(browser: &Browser) {
-    let tabs = browser.tabs();
-    if tabs.is_empty() || !tabs.iter().all(|tab| is_new_tab(&tab.url())) {
+    let Some(id) = Tag::of(browser).placeholder else {
         return;
-    }
-    let kept = browser.active_tab().unwrap_or(tabs[0]);
-    hold(kept, &[]);
-    for tab in tabs.into_iter().filter(|tab| *tab != kept) {
-        let _ = tab.close();
+    };
+    let found = browser
+        .tabs()
+        .into_iter()
+        .find(|tab| tab.persistent_id() == id && is_new_tab(&tab.url()));
+    match found {
+        Some(tab) => hold(tab, &[]),
+        None => Tag::update(browser, |tag| tag.placeholder = None),
     }
 }
 
@@ -84,15 +87,21 @@ pub fn settle(browser: &Browser) {
     for (tab, closing) in held {
         if !is_new_tab(&tab.url()) {
             HELD.with(|held| held.borrow_mut().remove(&tab));
+            Tag::update(browser, |tag| tag.placeholder = None);
         } else if tabs
             .iter()
             .any(|other| *other != tab && !closing.contains(other))
         {
+            Tag::update(browser, |tag| tag.placeholder = None);
             let _ = tab.close();
         }
     }
 }
 
+// Makes `tab` its Browser's placeholder, standing in for `closing`.
 fn hold(tab: BrowserTab, closing: &[BrowserTab]) {
     HELD.with(|held| held.borrow_mut().insert(tab, closing.to_vec()));
+    if let Some(browser) = tab.browser() {
+        Tag::update(&browser, |tag| tag.placeholder = Some(tab.persistent_id()));
+    }
 }
