@@ -31,9 +31,6 @@ function pageOf({ primary }: SpaceTheme) {
   return Math.max(found, 0);
 }
 
-/** The picker's width over its height, as its gradient is laid for it. */
-export const PICKER_ASPECT = 0.62;
-
 export function ThemePicker({
   value,
   onChange,
@@ -92,7 +89,6 @@ export function ThemePicker({
     <ThemeSwatch
       as="div"
       theme={doc.theme}
-      aspect={PICKER_ASPECT}
       className={cn("w-88 rounded-[26px] backdrop-blur-2xl", className)}
       contentClassName="w-full gap-3.5 p-4"
     >

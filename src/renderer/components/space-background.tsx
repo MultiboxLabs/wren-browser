@@ -6,9 +6,10 @@
 // window is halfway.
 
 import { AnimatePresence, motion } from "motion/react";
-import { type RefObject, useLayoutEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import type { SpaceTheme } from "../ipc";
 import { useWindowActive } from "../state/window";
+import { useAspect } from "../utils/aspect";
 import { cn } from "../utils/cn";
 import { ThemeLayers } from "./theme-swatch";
 
@@ -30,27 +31,9 @@ export function SpaceBackground({ theme, className }: { theme: SpaceTheme; class
           // As the space's colour tweens, in index.css.
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
-          <ThemeLayers theme={theme} aspect={aspect} active={active} />
+          <ThemeLayers theme={theme} layout={{ aspect, active }} />
         </motion.div>
       </AnimatePresence>
     </div>
   );
-}
-
-// The box's width over its height, as it is resized.
-function useAspect(box: RefObject<HTMLElement | null>) {
-  const [aspect, setAspect] = useState(1);
-  useLayoutEffect(() => {
-    const element = box.current;
-    if (!element) return;
-    const measure = () => {
-      const { width, height } = element.getBoundingClientRect();
-      if (width > 0 && height > 0) setAspect(width / height);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [box]);
-  return aspect;
 }

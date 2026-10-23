@@ -6,9 +6,10 @@
 import { ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 import type { NewSpace, ProfileEntry, SpaceEntry, SpaceTheme } from "../../ipc";
+import { useWindowAspect } from "../../utils/aspect";
 import { arrowFill, defaultTheme } from "../../utils/theme";
 import { DEFAULT_ICON, isEmoji, SPACE_ICONS, SpaceIcon } from "../space-icon";
-import { PICKER_ASPECT, ThemePicker } from "../theme-picker/theme-picker";
+import { ThemePicker } from "../theme-picker/theme-picker";
 import { ThemeSwatch } from "../theme-swatch";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
@@ -217,6 +218,7 @@ function IconButton({ icon, theme, onChange }: { icon: string; theme: SpaceTheme
 // The theme, drawn on a bar that opens the picker.
 function ThemeButton({ theme, onChange }: { theme: SpaceTheme; onChange: (theme: SpaceTheme) => void }) {
   const [open, setOpen] = useState(false);
+  const windowAspect = useWindowAspect();
   return (
     <Popover
       open={open}
@@ -224,10 +226,10 @@ function ThemeButton({ theme, onChange }: { theme: SpaceTheme; onChange: (theme:
       label="Theme"
       // Beside the dialog: it is taller than there is room for above or below it.
       side="right"
-      arrowFill={arrowFill(theme, PICKER_ASPECT, "right")}
+      arrowFill={arrowFill(theme, windowAspect, "right")}
       trigger={
         <Button shape="none" className="h-9 w-full rounded-field">
-          <ThemeSwatch theme={theme} aspect={8} className="h-9 w-full rounded-field" contentClassName="font-medium">
+          <ThemeSwatch theme={theme} className="h-9 w-full rounded-field" contentClassName="font-medium">
             Theme
           </ThemeSwatch>
         </Button>

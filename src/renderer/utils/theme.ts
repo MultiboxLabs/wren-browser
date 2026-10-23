@@ -223,16 +223,60 @@ export type ThemeStyle = {
 /** How clear the theme's colours are, of its intensity: `0.2 + 0.55 × intensity`. */
 const colorAlpha = (theme: SpaceTheme) => 0.55 * theme.intensity + 0.2;
 
+// How much of the second colour a point of the window has over its first:
+// 0 at the start of their line, 1 three quarters along it, and on, unclamped.
+// The line runs corner to corner of the largest square in the middle of the
+// window, which is `windowAspect` wide over its height; the point is `u`
+// across it and `v` down it, each 0–1.
+function share(windowAspect: number, u: number, v: number) {
+  const square = Math.min(windowAspect, 1);
+  return (windowAspect * u + v - (windowAspect + 1) / 2 + square) / (2 * square) / 0.75;
+}
+
+// That line as a CSS gradient's, for a box of `aspect` that draws the
+// window's gradient stretched to fit it: the gradient's angle, and where on
+// CSS's line through the box the first colour ends and the second is whole.
+function baseLine(aspect: number, windowAspect: number) {
+  // Stretched, the line runs (windowAspect / aspect, 1) in the box, down
+  // being y. CSS's angle is clockwise from up, and its line spans the box.
+  const angle = Math.atan2(windowAspect / aspect, -1);
+  const [x, y] = [Math.sin(angle), -Math.cos(angle)];
+  const length = aspect * Math.abs(x) + Math.abs(y);
+  // The share at a fraction of CSS's line, which runs through the box's middle.
+  const at = (fraction: number) => {
+    const offset = (fraction - 0.5) * length;
+    return share(windowAspect, 0.5 + (offset * x) / aspect, 0.5 + offset * y);
+  };
+  const [from, to] = [at(0), at(1)];
+  const stop = (value: number) => `${(((value - from) / (to - from)) * 100).toFixed(2)}%`;
+  return { angle: `${((angle * 180) / Math.PI).toFixed(2)}deg`, first: stop(0), second: stop(1) };
+}
+
+export type ThemeLayout = {
+  /** The box's width over its height. */
+  aspect: number;
+  /**
+   * The window's, whose gradient the box draws stretched to fit it, so that
+   * a swatch of any shape is the window in small: as `aspect` if not given,
+   * for the window itself.
+   */
+  window?: number;
+  /**
+   * Whether the window is in use. Out of use, the colours are paler, lighter
+   * and less of them, as a window in the background fades (the blur behind
+   * it is flat then), and the noise is a quarter as strong.
+   */
+  active?: boolean;
+};
+
 /**
- * The CSS of a theme's layers: an element each, stacked, filling a box of
- * `aspect` (width over height). Arc draws them in a Metal view; the same
- * layers are built here from the same numbers.
- *
- * In a window that is not `active`, the colours are paler, lighter and less
- * of them, as a window in the background fades (the blur behind it is flat
- * then), and the noise is a quarter as strong.
+ * The CSS of a theme's layers: an element each, stacked, filling a box laid
+ * out as `layout` says.
  */
-export function themeStyle(theme: SpaceTheme, aspect = 1, active = true): ThemeStyle {
+export function themeStyle(
+  theme: SpaceTheme,
+  { aspect, window: windowAspect = aspect, active = true }: ThemeLayout
+): ThemeStyle {
   const alpha = colorAlpha(theme);
   const under = Math.min(alpha, 0.5);
   const underlay: CSSProperties = {
@@ -250,15 +294,8 @@ export function themeStyle(theme: SpaceTheme, aspect = 1, active = true): ThemeS
   if (!second) {
     colors.backgroundColor = color(first);
   } else {
-    // Arc's line runs corner to corner of the largest square in the box, and
-    // reaches the second colour three quarters along it. CSS's 135° line spans
-    // the whole box, (w + h)/√2 long, so the same stops are placed on it.
-    const whole = (aspect + 1) / Math.SQRT2;
-    const square = Math.min(aspect, 1) * Math.SQRT2;
-    const start = (whole - square) / 2 / whole;
-    const length = square / whole;
-    const stop = (fraction: number) => `${((start + fraction * length) * 100).toFixed(2)}%`;
-    const base = `linear-gradient(135deg in oklab, ${color(first)} ${stop(0)}, ${color(second)} ${stop(0.75)})`;
+    const line = baseLine(aspect, windowAspect);
+    const base = `linear-gradient(${line.angle} in oklab, ${color(first)} ${line.first}, ${color(second)} ${line.second})`;
     // The third colour is laid over it from clear at the top to full at the
     // bottom: its own colour, clear, so it never passes through black.
     colors.backgroundImage = third
@@ -281,29 +318,23 @@ export function themeStyle(theme: SpaceTheme, aspect = 1, active = true): ThemeS
 
 /**
  * The layers that fill a popover's arrow so that it is of a picker's colour
- * where it meets the picker, as `themeStyle` lays them for a box of `aspect`:
- * the underlay, then the colour the gradient has at the middle of the edge the
- * arrow is on (`side` is the popover's side of its trigger: its arrow is on the
- * opposite edge of it).
+ * where it meets the picker, a swatch of a window of `windowAspect` (its width
+ * over its height): the underlay, then the colour the gradient has at the middle of
+ * the edge the arrow is on (`side` is the popover's side of its trigger: its
+ * arrow is on the opposite edge of it).
  */
 export function arrowFill(
   theme: SpaceTheme,
-  aspect: number,
+  windowAspect: number,
   side: "top" | "right" | "bottom" | "left"
 ): { color: string; opacity: number }[] {
-  const { underlay } = themeStyle(theme, aspect);
+  const { underlay } = themeStyle(theme, { aspect: windowAspect });
   const [first, second] = derivedColors(theme).map((color) => colorCss(color));
   let color = first;
   if (second) {
-    // The edge's middle, in a box of `aspect` by 1, and its place along the gradient's line.
-    const [x, y] = { bottom: [aspect / 2, 0], top: [aspect / 2, 1], right: [0, 0.5], left: [aspect, 0.5] }[side];
-    const whole = (aspect + 1) / Math.SQRT2;
-    const square = Math.min(aspect, 1) * Math.SQRT2;
-    const start = (whole - square) / 2 / whole;
-    const length = square / whole;
-    const along = (x + y) / (aspect + 1);
-    const share = Math.min(1, Math.max(0, (along - start) / (0.75 * length)));
-    color = `color-mix(in oklab, ${first}, ${second} ${(share * 100).toFixed(1)}%)`;
+    // The edge's middle, across and down the picker.
+    const [u, v] = { bottom: [0.5, 0], top: [0.5, 1], right: [0, 0.5], left: [1, 0.5] }[side];
+    color = `color-mix(in oklab, ${first}, ${second} ${(clamp(share(windowAspect, u, v)) * 100).toFixed(1)}%)`;
   }
   return [
     { color: String(underlay.backgroundColor), opacity: 1 },
