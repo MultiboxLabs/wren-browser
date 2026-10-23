@@ -130,7 +130,8 @@ struct Suggestion {
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // Makes sure the window's space has a Browser for the omnibox to ask, as
     // one it has opened no tab in has none: one with no tab yet but its
-    // placeholder. Answers once it is there.
+    // placeholder. Answers once it is there. Any Browser will do, so this
+    // asks for one, not whether the space is empty (`browser_with_tabs`).
     let weak = window.clone();
     let _ = web_view.handle_call("omnibox.prepare", move |call| {
         // The window's space, if it has no Browser.

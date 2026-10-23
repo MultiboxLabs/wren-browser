@@ -12,6 +12,7 @@ use wren::{Browser, BubbleAnchor};
 
 use super::PageWindow;
 use crate::db::SpaceId;
+use crate::tabs::placeholder;
 
 /// The page's mark on its page info button, which the site's bubbles (page
 /// info, permission prompts), the extensions menu and unpinned extensions'
@@ -81,6 +82,16 @@ impl BrowserWindow {
     /// The Browser in front, the current space's, whose tabs the page shows.
     pub fn browser(&self) -> Option<Browser> {
         self.browser_of(self.current.get()?)
+    }
+
+    /// The Browser in front, if the current space has tabs of its own in it.
+    /// A space without is empty, whichever way: it has no Browser (none made
+    /// yet, one that failed to open, or one Chromium closed, as a page's
+    /// `window.close()` does), or one holding only its placeholder. This is
+    /// the one check for an empty space; `browser` is for what needs a
+    /// Browser to ask, tabs or not.
+    pub fn browser_with_tabs(&self) -> Option<Browser> {
+        self.browser().filter(placeholder::has_tabs)
     }
 
     /// The window's Browser for `space`, if it has one open.

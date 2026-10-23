@@ -79,7 +79,9 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const state: BrowserState = {
     id: tabs?.browser ?? null,
     space: tabs?.space ?? null,
-    // The New Tab page that stands in while there is no tab is not listed.
+    // The New Tab page that stands in while there is no tab is not listed;
+    // this, and `current` below, are the page's one check for an empty
+    // space, as `BrowserWindow::browser_with_tabs` is the app's.
     tabs: list.filter((tab) => !tab.hidden),
     groups: tabs?.groups ?? [],
     splits: tabs?.splits ?? [],

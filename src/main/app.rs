@@ -118,8 +118,7 @@ impl State {
             return ipc::send_close_omnibox(window);
         }
         let active = window
-            .browser()
-            .filter(placeholder::has_tabs)
+            .browser_with_tabs()
             .and_then(|browser| Some((browser.active_tab()?, browser)));
         match active {
             Some((tab, browser)) => {
