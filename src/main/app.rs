@@ -158,16 +158,16 @@ impl App for Wren {
     }
 
     // Required: Chromium opened a Browser of its own. A normal one, a
-    // restored window or one a page or the omnibox asked for, is shown in a
-    // window of its own, on its profile's most recent space; an incognito one
-    // closes, as other kinds (a popup) do. DevTools gets a plain window of
-    // its own.
+    // restored window or one a link or the omnibox asked for, is shown in a
+    // window of its own, on the space it came from (`place_opened`);
+    // an incognito one closes, as other kinds (a popup) do. DevTools gets a
+    // plain window of its own.
     fn browser_opened(
         &self,
         mt: MainThread,
         opened: Browser,
         kind: BrowserType,
-        _: Option<Browser>,
+        opener: Option<Browser>,
     ) {
         if kind == BrowserType::Devtools {
             let window = PlainWindow::new(opened.clone());
@@ -175,7 +175,7 @@ impl App for Wren {
             return;
         }
         if kind == BrowserType::Normal {
-            self.state.place_opened(mt, opened);
+            self.state.place_opened(mt, opened, opener);
         } else {
             let _ = opened.close();
         }

@@ -274,10 +274,18 @@ impl State {
     }
 
     /// Shows a Browser Chromium opened: a restored one back where it was
-    /// (`place_tagged`), and any other (a page's new window) in a window of
-    /// its own, on its profile's most recently used space; or, at startup,
-    /// in the window that waits for its first.
-    pub fn place_opened(self: &Rc<Self>, mt: MainThread, browser: Browser) {
+    /// (`place_tagged`), and any other (a link opened in a new window) in a
+    /// window of its own, on the space it came from: its opener's, or else
+    /// that of the window in front, as New Window's, if either is of its
+    /// profile; otherwise its profile's most recently used space. At
+    /// startup, it goes in the window that waits for its first. Chromium
+    /// names no opener for a link opened in a new window.
+    pub fn place_opened(
+        self: &Rc<Self>,
+        mt: MainThread,
+        browser: Browser,
+        opener: Option<Browser>,
+    ) {
         let Some(profile) = browser
             .profile()
             .filter(|profile| profile.kind() != ProfileKind::OffTheRecord)
@@ -292,7 +300,13 @@ impl State {
             let _ = browser.close();
             return;
         }
-        let Some(space) = self.recent_space(mt, &profile) else {
+        let of_profile = |space: &SpaceId| matches!(self.db.space(*space), Ok(Some(row)) if row.profile == profile.id());
+        let space = opener
+            .and_then(|opener| self.windows.of(&opener)?.space_of(&opener))
+            .filter(of_profile)
+            .or_else(|| self.windows.front()?.space().filter(of_profile))
+            .or_else(|| self.recent_space(mt, &profile));
+        let Some(space) = space else {
             eprintln!("Wren found no space for a Browser.");
             let _ = browser.close();
             return;
