@@ -100,6 +100,7 @@ mod tests {
         ProfileListEntry {
             id: id.into(),
             name: name.into(),
+            avatar: 0,
         }
     }
 

@@ -30,6 +30,7 @@ pub fn show_permission_menu(
         label,
         enabled: !permission.managed,
         checked: permission.setting == setting,
+        hidden: false,
         key: None,
     };
     let mut items = vec![choice(

@@ -202,6 +202,7 @@ fn development_menu() -> MenuItem {
             label: "Toggle UI Devtools".into(),
             enabled: true,
             checked: false,
+            hidden: false,
             key: None,
         }],
     )
@@ -222,6 +223,7 @@ fn keyed(id: &str, label: &str, key: &str, modifiers: MenuModifiers) -> MenuItem
         label: label.into(),
         enabled: true,
         checked: false,
+        hidden: false,
         key: Some(MenuKey::new(key, modifiers)),
     }
 }

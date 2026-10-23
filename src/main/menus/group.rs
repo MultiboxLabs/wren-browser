@@ -22,6 +22,7 @@ pub fn show_group_menu(
             label: color_label(color).into(),
             enabled: true,
             checked: color == current,
+            hidden: false,
             key: None,
         })
         .collect();
