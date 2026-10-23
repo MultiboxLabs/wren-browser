@@ -231,23 +231,36 @@ impl State {
         window.page.bring_forward();
     }
 
-    /// `space`, of `profile`, was deleted: each window on it switches to the
-    /// profile's most recent space, and its Browser closes with its tabs.
-    pub fn space_deleted(&self, space: SpaceId, profile: &str) {
-        for window in self.windows.showing(space) {
-            if window.space() == Some(space) {
-                let next = self.db.recent_space(profile);
+    /// Spaces were deleted, one alone or a profile's with it: each window
+    /// on one switches to the most recently used space left, of `profile`
+    /// if given (the deleted space's), and its Browsers of those spaces
+    /// close with their tabs.
+    pub fn leave_gone_spaces(&self, profile: Option<&str>) {
+        let exists = |space| matches!(self.db.space(space), Ok(Some(_)));
+        for window in self.windows.all() {
+            if let Some(current) = window.space()
+                && !exists(current)
+            {
+                let mut next = profile.map(|profile| self.db.recent_space(profile));
+                if !matches!(next, Some(Ok(Some(_)))) {
+                    next = Some(self.db.most_recent_space());
+                }
                 let shown = match next {
-                    Ok(Some(next)) => self.show_space(window.id, next.id),
-                    Ok(None) => Err("The profile has no space left.".into()),
-                    Err(error) => Err(error),
+                    Some(Ok(Some(next))) => self.show_space(window.id, next.id),
+                    Some(Err(error)) => Err(error),
+                    _ => Err("No space is left.".into()),
                 };
                 if let Err(error) = shown {
                     eprintln!("Wren could not leave a deleted space: {error}");
                 }
             }
-            if let Some(browser) = window.forget(space) {
-                let _ = browser.close();
+            for space in window.kept_spaces() {
+                if exists(space) {
+                    continue;
+                }
+                if let Some(browser) = window.forget(space) {
+                    let _ = browser.close();
+                }
             }
             self.save_window(&window);
         }

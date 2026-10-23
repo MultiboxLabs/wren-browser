@@ -188,7 +188,9 @@ impl App for Wren {
             .any(|change| change.kind == ChangeKind::Profiles)
         {
             let fill = state.creating_profiles.get() == 0;
+            // A profile deleted elsewhere takes its spaces with it.
             if state.db.sync_profiles(&mt.profile_list(), fill) {
+                state.leave_gone_spaces(None);
                 ipc::broadcast_spaces(state);
             }
         }

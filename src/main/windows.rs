@@ -7,7 +7,6 @@ use std::rc::Rc;
 
 use wren::Browser;
 
-use crate::db::SpaceId;
 use crate::window::{BrowserWindow, WindowId};
 
 #[derive(Default)]
@@ -78,15 +77,6 @@ impl Windows {
             .iter()
             .find(|w| w.space().is_none())
             .cloned()
-    }
-
-    /// The windows that show `space`, or keep its Browser.
-    pub fn showing(&self, space: SpaceId) -> Vec<Rc<BrowserWindow>> {
-        let open = self.open.borrow();
-        open.iter()
-            .filter(|w| w.has_space(space))
-            .cloned()
-            .collect()
     }
 
     /// Notes that `id` is the window in use.

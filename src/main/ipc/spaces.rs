@@ -59,7 +59,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let state = weak.state()?;
         let profile = state.db.space(id)?.ok_or("That space is gone.")?.profile;
         state.db.delete_space(id)?;
-        state.space_deleted(id, &profile);
+        state.leave_gone_spaces(Some(&profile));
         broadcast_spaces(&state);
         Ok::<_, String>(())
     });
