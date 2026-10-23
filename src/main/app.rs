@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use wren::{
     App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
-    PopoverRequest, PopoverTrigger, Profile,
+    PopoverRequest, PopoverTrigger, Profile, QuitPrompt,
 };
 
 use crate::changes;
@@ -38,6 +38,8 @@ pub struct State {
     pub(crate) restoring: Cell<u32>,
     /// The sidebar's performance run, if this is one.
     pub perf: Option<Perf>,
+    /// The warning before quitting a window's page shows (ipc/quit.rs).
+    pub quit_prompt: RefCell<Option<ipc::OpenQuitPrompt>>,
 }
 
 impl State {
@@ -51,6 +53,7 @@ impl State {
             creating_profiles: Cell::new(0),
             restoring: Cell::new(0),
             perf,
+            quit_prompt: RefCell::default(),
         }
     }
 
@@ -96,6 +99,7 @@ impl State {
         let Some(window) = self.windows.get(id) else {
             return;
         };
+        ipc::quit_window_closing(self, id);
         self.forget_window(&window);
         if window.has_browsers() {
             return window.close_browsers();
@@ -191,6 +195,14 @@ impl App for Wren {
                 ipc::broadcast_spaces(state);
             }
         }
+        // Warn Before Quitting's item is checked as the setting is, which
+        // Chrome's settings page and Always Quit change too.
+        if changes
+            .iter()
+            .any(|change| change.kind == ChangeKind::QuitWarning)
+        {
+            state.update_menu(mt);
+        }
         for change in changes {
             let Some(browser) = &change.browser else {
                 continue;
@@ -225,6 +237,13 @@ impl App for Wren {
         let window = browser
             .and_then(|browser| windows.of(&browser))
             .or_else(|| windows.front());
+        // Needs no window; the menu follows the change.
+        if id == menus::TOGGLE_QUIT_WARNING {
+            if let Err(error) = mt.set_quit_warning(!mt.quit_warning().on) {
+                eprintln!("Wren could not change Warn Before Quitting: {error:?}");
+            }
+            return;
+        }
         // On the space of the window in front, or with none, the one used last.
         if id == menus::NEW_WINDOW {
             return match window.as_ref().and_then(|window| window.space()) {
@@ -345,6 +364,12 @@ impl App for Wren {
             }
         });
         true
+    }
+
+    // ⌘Q warns in the page of the window in front, in place of Chromium's
+    // "Hold ⌘Q to Quit".
+    fn quit_prompt(&self, mt: MainThread, prompt: &QuitPrompt) -> PopoverAnswer {
+        ipc::show_quit_prompt(&self.state, mt, prompt)
     }
 
     // Each window open now comes back where it is.

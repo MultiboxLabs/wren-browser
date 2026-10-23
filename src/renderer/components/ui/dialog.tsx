@@ -5,7 +5,7 @@
 // button (or, with no Cancel button, its default one, which is all it
 // answers with); and a click on the window behind it does nothing.
 
-import { LoaderCircle } from "lucide-react";
+import { CornerDownLeft, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Dialog as Radix } from "radix-ui";
 import { type KeyboardEvent, type ReactNode, useRef, useState } from "react";
@@ -27,6 +27,8 @@ export type DialogAction = {
 export type DialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Above the title: what it is about, as an app's icon. */
+  icon?: ReactNode;
   /** What it asks, in a line of its own. */
   title: string;
   /** A line or two more on it, below the title. */
@@ -38,6 +40,13 @@ export type DialogProps = {
    * then presses the default button.
    */
   cancel?: string | null;
+  /**
+   * A button of another answer, apart from the others at the left, as
+   * "Always Quit". It closes the dialog once it is pressed, as Cancel does.
+   */
+  secondary?: { label: string; onPress: () => void };
+  /** Its buttons show their keys: Escape on Cancel, Return on the default one. */
+  keys?: boolean;
   /** Its width, which is 384 points by default. */
   className?: string;
   /** What it holds between its text and its buttons: a field, a list. */
@@ -69,7 +78,18 @@ const OUT = { duration: 0.16, ease: [0, 0, 0.58, 1] as const };
 // of a disabled button.
 const SLOW = 400;
 
-function Card({ onOpenChange, title, description, action, cancel = "Cancel", className, children }: DialogProps) {
+function Card({
+  onOpenChange,
+  icon,
+  title,
+  description,
+  action,
+  cancel = "Cancel",
+  secondary,
+  keys: showKeys = false,
+  className,
+  children
+}: DialogProps) {
   const still = useReducedMotion();
   // Its scale, as a transform: Motion runs that on the compositor, where
   // its `scale` would run on the main thread, which drops frames while a
@@ -167,6 +187,7 @@ function Card({ onOpenChange, title, description, action, cancel = "Cancel", cla
             )}
           >
             <div className="flex flex-col gap-2.5">
+              {icon && <div className="mb-1.5">{icon}</div>}
               <Radix.Title className="text-dialog-title font-semibold">{title}</Radix.Title>
               {description !== undefined && (
                 <Radix.Description className="leading-normal text-fg-2">{description}</Radix.Description>
@@ -174,9 +195,24 @@ function Card({ onOpenChange, title, description, action, cancel = "Cancel", cla
             </div>
             {children}
             <div className="flex justify-end gap-2.5">
+              {secondary && (
+                <Button
+                  variant="raised"
+                  shape="large"
+                  disabled={slow}
+                  onClick={() => {
+                    secondary.onPress();
+                    close();
+                  }}
+                  className="mr-auto"
+                >
+                  {secondary.label}
+                </Button>
+              )}
               {cancel !== null && (
                 <Button variant="raised" shape="large" disabled={slow} onClick={close}>
                   {cancel}
+                  {showKeys && <Key name="escape" />}
                 </Button>
               )}
               <Button
@@ -186,13 +222,31 @@ function Card({ onOpenChange, title, description, action, cancel = "Cancel", cla
                 aria-busy={pending}
                 onClick={confirm}
               >
-                <Working slow={slow}>{action.label}</Working>
+                <Working slow={slow}>
+                  {action.label}
+                  {showKeys && <Key name="return" />}
+                </Working>
               </Button>
             </div>
           </motion.div>
         </Radix.Content>
       </div>
     </Radix.Portal>
+  );
+}
+
+// The key that presses the button it is on, after its label, faint, so the
+// label still reads first: Escape a soft chip with its name, Return its
+// arrow alone.
+function Key({ name }: { name: "escape" | "return" }) {
+  if (name === "return") return <CornerDownLeft size={14} strokeWidth={2.25} aria-hidden className="opacity-60" />;
+  return (
+    <kbd
+      aria-hidden
+      className="grid h-4 place-items-center rounded-[4px] bg-current/12 px-1 font-sans text-[9px] leading-none font-bold tracking-wide uppercase opacity-60"
+    >
+      esc
+    </kbd>
   );
 }
 
@@ -204,7 +258,7 @@ function Working({ slow, children }: { slow: boolean; children: ReactNode }) {
   const swap = "col-start-1 row-start-1 transition-[opacity,filter] duration-150 ease-out";
   return (
     <span className="grid place-items-center">
-      <span className={cn(swap, slow && "opacity-0 blur-[2px]")}>{children}</span>
+      <span className={cn(swap, "inline-flex items-center gap-1.5", slow && "opacity-0 blur-[2px]")}>{children}</span>
       <LoaderCircle
         size={15}
         strokeWidth={2}

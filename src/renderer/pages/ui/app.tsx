@@ -16,6 +16,7 @@ import { useSavedSidebar } from "../../components/sidebar/state";
 import { TabView } from "../../components/tab-view";
 import { Perf } from "../../perf/mount";
 import { BrowserToast } from "../../components/toast";
+import { QuitDialog } from "../../components/quit-dialog";
 import { cn } from "../../utils/cn";
 
 // Waits for the sidebar's saved state, so it opens as it was left.
@@ -123,6 +124,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
         />
       )}
       <BrowserToast />
+      <QuitDialog />
       <AnimatePresence>
         {omnibox.shown && (
           <Omnibox

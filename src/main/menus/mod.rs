@@ -27,12 +27,15 @@ pub const MOVE_TAB_UP: &str = "move-tab-up";
 pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
+pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
 /// A space's item is this and the space's ID.
 pub const SPACE: &str = "space:";
 
 /// Sets the main menu, whose Spaces menu lists `spaces`, each by its ID and
-/// name, in the Library's order. Set again as the spaces change.
+/// name, in the Library's order. Set again as the spaces change, and as Warn
+/// Before Quitting does.
 pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)]) {
+    let warning = mt.quit_warning();
     let mut menu = vec![
         MenuItem::submenu(
             "Wren",
@@ -45,6 +48,16 @@ pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)]) {
                 MenuItem::role(MenuRole::HideOthers),
                 MenuItem::role(MenuRole::ShowAll),
                 MenuItem::Separator,
+                // Chrome's, above Quit: whether ⌘Q asks first
+                // (ipc/quit.rs). Policy may set it.
+                MenuItem::Item {
+                    id: TOGGLE_QUIT_WARNING.into(),
+                    label: "Warn Before Quitting (⌘Q)".into(),
+                    enabled: !warning.managed,
+                    checked: warning.on,
+                    hidden: false,
+                    key: None,
+                },
                 MenuItem::role(MenuRole::Quit),
             ],
         ),

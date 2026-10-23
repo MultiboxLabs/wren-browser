@@ -13,6 +13,7 @@ export * from "./menu";
 export * from "./omnibox";
 export * from "./perf";
 export * from "./profiles";
+export * from "./quit";
 export * from "./side-panel";
 export * from "./sidebar";
 export * from "./site";
