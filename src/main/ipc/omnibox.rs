@@ -187,7 +187,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // "omnibox.suggestions" brings the rest as they arrive.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.query", move |query: Query| {
-        with_browser(&weak, |_, browser| {
+        with_browser(&weak, |window, browser| {
             let mut flags = OmniboxFlags::empty();
             if query.no_inline {
                 flags |= OmniboxFlags::NO_INLINE;
@@ -198,15 +198,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             browser
                 .omnibox_query(&query.text, query.cursor, query.keyword.as_deref(), flags)
                 .map_err(failed)?;
+            window.set_omnibox_query(Some(browser.clone()));
             Ok(suggestions(browser))
         })
     });
 
-    // Opens a suggestion, then clears the list, as Chrome reverts its field.
+    // Opens a suggestion, then stops the query, as Chrome reverts its field.
     // One opened in the background leaves the omnibox as it is.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.open", move |open: Open| {
-        with_browser(&weak, |_, browser| {
+        with_browser(&weak, |window, browser| {
             let (result, index) = (open.chosen.result()?, open.chosen.index);
             let opened = match open.disposition {
                 Disposition::Current => {
@@ -228,7 +229,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             if matches!(open.disposition, Disposition::BackgroundTab) {
                 return opened.map_err(failed);
             }
-            let _ = browser.omnibox_stop();
+            let _ = stop(window, browser);
             opened.map_err(failed)?;
             // A new tab gets it as it arrives in its element (App::changed),
             // and a new window as it is shown.
@@ -243,7 +244,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // address: the page takes it from a list it loaded.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.navigate", move |navigate: Navigate| {
-        with_browser(&weak, |_, browser| {
+        with_browser(&weak, |window, browser| {
             let Navigate { url, disposition } = navigate;
             if !(url.starts_with("https://") || url.starts_with("http://")) {
                 return Err("Only a web address opens.".into());
@@ -254,7 +255,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                     .map(drop)
                     .map_err(failed);
             }
-            let _ = browser.omnibox_stop();
+            let _ = stop(window, browser);
             match disposition {
                 BangDisposition::Current => {
                     let tab = browser
@@ -280,11 +281,11 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
-    // Closes the list, and gives the active tab's page the keyboard back.
+    // Stops the query, and gives the active tab's page the keyboard back.
     let weak = window.clone();
     let _ = web_view.handle("omnibox.close", move |()| {
-        with_browser(&weak, |_, browser| {
-            browser.omnibox_stop().map_err(failed)?;
+        with_browser(&weak, |window, browser| {
+            stop(window, browser).map_err(failed)?;
             give_back_keyboard(browser);
             Ok(())
         })
@@ -292,11 +293,18 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
 }
 
 /// Tells the page Chromium's suggestions changed: more arrived, or an icon.
+/// Only for the omnibox's query: once it stops, Chromium's list is cleared,
+/// which is no news of the list the page shows as it closes.
 pub fn send_omnibox(window: &BrowserWindow, browser: &Browser) {
-    let _ = window
-        .page
-        .web_view
-        .send("omnibox.suggestions", &suggestions(browser));
+    if !window.asks_omnibox(browser) {
+        return;
+    }
+    if let Some(suggestions) = suggestions(browser) {
+        let _ = window
+            .page
+            .web_view
+            .send("omnibox.suggestions", &suggestions);
+    }
 }
 
 /// Tells the page to open the omnibox for `target`; and, if `toggles`, to
@@ -318,6 +326,13 @@ pub fn send_show_omnibox(window: &BrowserWindow, target: OmniboxTarget, toggles:
 /// Tells the page to close the omnibox, as a press outside it does.
 pub fn send_close_omnibox(window: &BrowserWindow) {
     let _ = window.page.web_view.send("omnibox.hide", &());
+}
+
+// Stops the omnibox's query, which clears Chromium's suggestions; the page
+// hears nothing of it.
+fn stop(window: &BrowserWindow, browser: &Browser) -> Result<(), wren::Error> {
+    window.set_omnibox_query(None);
+    browser.omnibox_stop()
 }
 
 // A new tab goes at the top of the sidebar's list, where Chromium's would

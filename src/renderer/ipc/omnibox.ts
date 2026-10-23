@@ -62,15 +62,14 @@ export type OpenDisposition = "current" | "new-tab" | "background-tab" | "new-wi
 export type BangDisposition = "current" | "new-tab" | "background-tab";
 
 /** Chromium's pages show on the app's scheme, as typed text goes to Chromium with theirs. */
-const shown = (suggestions: Suggestions | null): Suggestions | null =>
-  suggestions && {
-    ...suggestions,
-    suggestions: suggestions.suggestions.map((suggestion) => ({
-      ...suggestion,
-      contents: shownUrl(suggestion.contents),
-      fill: shownUrl(suggestion.fill)
-    }))
-  };
+const shown = (suggestions: Suggestions): Suggestions => ({
+  ...suggestions,
+  suggestions: suggestions.suggestions.map((suggestion) => ({
+    ...suggestion,
+    contents: shownUrl(suggestion.contents),
+    fill: shownUrl(suggestion.fill)
+  }))
+});
 
 export const omnibox = {
   /** The active tab's address to edit, or "" on a page with none to show. */
@@ -81,17 +80,20 @@ export const omnibox = {
     // The caret keeps its place in the text, whose scheme is longer.
     const cursor =
       query.cursor + (text.length - query.text.length > 0 && query.cursor > 4 ? text.length - query.text.length : 0);
-    return wren.invoke<Suggestions | null>("omnibox.query", { ...query, text, cursor }).then(shown);
+    return wren
+      .invoke<Suggestions | null>("omnibox.query", { ...query, text, cursor })
+      .then((suggestions) => suggestions && shown(suggestions));
   },
-  onSuggestions: (listener: (suggestions: Suggestions | null) => void) =>
-    wren.on<Suggestions | null>("omnibox.suggestions", (suggestions) => listener(shown(suggestions))),
-  /** Opens a suggestion as Chrome does, so history and search engines learn from it, and clears the list. */
+  /** More of Chromium's suggestions for the query, or an icon of one. Nothing is heard once the omnibox stops. */
+  onSuggestions: (listener: (suggestions: Suggestions) => void) =>
+    wren.on<Suggestions>("omnibox.suggestions", (suggestions) => listener(shown(suggestions))),
+  /** Opens a suggestion as Chrome does, so history and search engines learn from it, and ends the query. */
   open: (result: string, index: number, disposition: OpenDisposition) =>
     wren.invoke<null>("omnibox.open", { result, index, disposition }),
-  /** Opens a bang's address, clearing the list as `open` does, unless it opens behind the active tab. */
+  /** Opens a bang's address, ending the query as `open` does, unless it opens behind the active tab. */
   navigate: (url: string, disposition: BangDisposition) => wren.invoke<null>("omnibox.navigate", { url, disposition }),
   delete: (result: string, index: number) => wren.invoke<null>("omnibox.delete", { result, index }),
-  /** Clears the list, and gives the active tab's page the keyboard back. */
+  /** Ends the query, and gives the active tab's page the keyboard back. */
   close: () => wren.invoke<null>("omnibox.close"),
   /** Makes sure the window's space has a Browser to ask, making it one with no tab yet; settled once it has. */
   prepare: () => wren.invoke<null>("omnibox.prepare"),

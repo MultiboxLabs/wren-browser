@@ -47,6 +47,9 @@ pub struct BrowserWindow {
     closing: Cell<bool>,
     // The page shows the omnibox for a new tab, which ⌘W closes.
     new_tab_omnibox: Cell<bool>,
+    // The Browser the page's omnibox asks for suggestions, from its query
+    // until it stops (ipc/omnibox.rs).
+    omnibox_query: RefCell<Option<Browser>>,
     // Whether the window went full screen for a page, and comes back once
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
@@ -71,6 +74,7 @@ impl BrowserWindow {
             framed: Cell::new(framed),
             closing: Cell::default(),
             new_tab_omnibox: Cell::default(),
+            omnibox_query: RefCell::default(),
             full_screen_for_page: Cell::default(),
         }
     }
@@ -181,6 +185,16 @@ impl BrowserWindow {
     /// Whether the page shows the omnibox for a new tab.
     pub fn has_new_tab_omnibox(&self) -> bool {
         self.new_tab_omnibox.get()
+    }
+
+    /// Notes the Browser the page's omnibox asks, or that it asks none.
+    pub fn set_omnibox_query(&self, browser: Option<Browser>) {
+        *self.omnibox_query.borrow_mut() = browser;
+    }
+
+    /// Whether the page's omnibox asks `browser` for suggestions.
+    pub fn asks_omnibox(&self, browser: &Browser) -> bool {
+        self.omnibox_query.borrow().as_ref() == Some(browser)
     }
 
     /// Whether `browser` is the one in front.
