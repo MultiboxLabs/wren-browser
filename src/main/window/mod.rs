@@ -71,6 +71,8 @@ impl PageWindow {
         let mtm = MainThreadMarker::new().unwrap();
         let options = WebViewOptions {
             kind: WebViewKind::BrowserUi,
+            // Only Toggle UI Devtools opens the UI's DevTools, not Inspect.
+            disallow_user_devtools_activation: true,
             messages: page.messages,
             embeds_views: page.embeds_views,
             anchors: page.anchors,
