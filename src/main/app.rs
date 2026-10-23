@@ -16,11 +16,9 @@ use crate::ipc::{self, OmniboxTarget};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
-use crate::placeholder;
 use crate::sidebar::SidebarStore;
-use crate::tabs;
-use crate::window::{BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId};
-use crate::windows::Windows;
+use crate::tabs::{self, placeholder};
+use crate::window::{BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId, Windows};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -36,8 +34,8 @@ pub struct State {
     /// change to the list in the meantime must not give them a default space,
     /// for the call gives them the one the user asked for.
     pub creating_profiles: Cell<u32>,
-    /// Profiles whose last session is being restored (session.rs).
-    pub restoring: Cell<u32>,
+    /// Profiles whose last session is being restored (spaces/session.rs).
+    pub(crate) restoring: Cell<u32>,
     /// The sidebar's performance run, if this is one.
     pub perf: Option<Perf>,
 }
@@ -58,7 +56,7 @@ impl State {
 
     // Opens the windows open at the last quit, or else the first window, then
     // the user's own Profile, the one Chromium starts with, and each profile
-    // they wait for, with the tabs they had (session.rs).
+    // they wait for, with the tabs they had (spaces/session.rs).
     fn start(self: &Rc<Self>, mt: MainThread) {
         // Each profile has a space before anything shows them. The list may
         // be read again once the first profile is open, in case it was not
@@ -202,7 +200,7 @@ impl App for Wren {
                 // A restore asks for the Browser Chromium had active to come
                 // forward, which would take the window off the space it was
                 // kept on.
-                ChangeKind::ForegroundRequest if state.restoring.get() == 0 => {
+                ChangeKind::ForegroundRequest if !state.is_restoring() => {
                     state.bring_forward(browser)
                 }
                 // A placeholder goes, or stays, as the tabs change; undocked

@@ -2,6 +2,7 @@
 // title bar, sidebar and panels are the page's.
 
 mod browser;
+mod list;
 mod plain;
 mod title_bar;
 
@@ -35,6 +36,7 @@ use wren::{MainThread, Profile, RequestedBounds, TabCrash, WebView, WebViewKind,
 use crate::pages::Page;
 
 pub use browser::{BrowserWindow, WindowId, marks, tagged};
+pub use list::Windows;
 pub use plain::PlainWindow;
 
 /// Whether closing the last window quits the app. A Mac app keeps running

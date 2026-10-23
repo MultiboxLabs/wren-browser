@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 use wren::{Browser, BrowserTab, Error, Profile};
 
-use crate::tabs::is_new_tab;
+use super::is_new_tab;
 
 thread_local! {
     // Each placeholder, with the tabs it stands in for, which are closing as

@@ -3,7 +3,7 @@
 // space's is in front, and the rest wait in the background. A space can be
 // without one: its last tab closed, or the window has not opened a tab in it.
 // Each Browser carries the window's key and its space in its session tag, so
-// a restore puts it back (session.rs).
+// a restore puts it back (spaces/session.rs).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;

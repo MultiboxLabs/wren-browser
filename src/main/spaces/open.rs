@@ -1,18 +1,16 @@
-// The spaces windows show: the Browser a window has for each, which is in
-// front, and where a new Browser goes. A window has at most one Browser for
-// each space it has been on, and may have none; a Browser Chromium opens
-// gets a window of its own, on its profile's most recently used space.
+// Opening windows, and where each Browser goes: one the app makes for a
+// window's space, and one Chromium opens, which goes back where it was if
+// it was restored, or else gets a window of its own.
 
 use std::rc::Rc;
 
-use wren::{Browser, MainThread, Profile, ProfileKind, RequestedBounds};
+use wren::{Browser, MainThread, ProfileKind, RequestedBounds};
 
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
-use crate::menus;
 use crate::pages::UI;
-use crate::placeholder;
+use crate::tabs::placeholder;
 use crate::window::{BrowserWindow, PageWindow, WindowId};
 
 impl State {
@@ -31,7 +29,7 @@ impl State {
     /// Opens window `key`, as `open_window` does: at `frame` if it has one,
     /// else below and right of the window in use. Its page is the UI's, in a
     /// Profile of its own.
-    pub fn open_keyed_window(
+    pub(super) fn open_keyed_window(
         self: &Rc<Self>,
         mt: MainThread,
         key: String,
@@ -124,9 +122,9 @@ impl State {
     }
 
     /// Makes window `id` a Browser for `space`, with no tab yet but its
-    /// placeholder (placeholder.rs), unless it has one or one is on the way;
-    /// `then` runs once it is shown. A space whose Browser could not be made
-    /// stays without one.
+    /// placeholder (tabs/placeholder.rs), unless it has one or one is on the
+    /// way; `then` runs once it is shown. A space whose Browser could not be
+    /// made stays without one.
     pub fn open_space_browser(
         self: &Rc<Self>,
         mt: MainThread,
@@ -169,101 +167,10 @@ impl State {
                     let _ = browser.close();
                     return;
                 };
-                window.add(space, browser.clone());
-                if window.is_front(&browser) {
-                    ipc::send_browser(&window, &browser);
-                }
-                state.save_window(&window);
+                state.host(&window, space, &browser);
                 then();
             });
         });
-    }
-
-    /// Brings `space` forward in window `id`: its Browser if the window has
-    /// one, or else the space empty, until a tab is opened in it.
-    pub fn show_space(&self, id: WindowId, space: SpaceId) -> Result<(), String> {
-        let window = self.windows.get(id).ok_or("The window is closing.")?;
-        if self.db.space(space)?.is_none() {
-            return Err("That space is gone.".into());
-        }
-        if window.space() == Some(space) {
-            return Ok(());
-        }
-        // Full screen for a page is the old Browser's.
-        if window.wants_full_screen_for_page(false) {
-            window.page.set_full_screen(false);
-        }
-        let front = window.switch_to(space);
-        self.save_window(&window);
-        self.touch_space(space);
-        match front {
-            Some(browser) => {
-                ipc::send_browser(&window, &browser);
-                if let Some(tab) = browser.active_tab() {
-                    let _ = tab.focus();
-                }
-            }
-            None => ipc::send_no_browser(&window),
-        }
-        Ok(())
-    }
-
-    /// Chromium asked for `browser`, in the background, to come forward (a
-    /// notification clicked, an extension): its window switches to its
-    /// space, and comes to the front. While a page has the window in full
-    /// screen, it waits until the page is done (`wanting_foreground`).
-    pub fn bring_forward(&self, browser: &Browser) {
-        let Some(window) = self.windows.of(browser) else {
-            return;
-        };
-        let Some(space) = window.space_of(browser) else {
-            return;
-        };
-        let in_full_screen = window
-            .browser()
-            .is_some_and(|front| front.fullscreen_tab().is_some());
-        if in_full_screen {
-            return;
-        }
-        if let Err(error) = self.show_space(window.id, space) {
-            eprintln!("Wren could not switch spaces: {error}");
-        }
-        window.page.bring_forward();
-    }
-
-    /// Spaces were deleted, one alone or a profile's with it: each window
-    /// on one switches to the most recently used space left, of `profile`
-    /// if given (the deleted space's), and its Browsers of those spaces
-    /// close with their tabs.
-    pub fn leave_gone_spaces(&self, profile: Option<&str>) {
-        let exists = |space| matches!(self.db.space(space), Ok(Some(_)));
-        for window in self.windows.all() {
-            if let Some(current) = window.space()
-                && !exists(current)
-            {
-                let mut next = profile.map(|profile| self.db.recent_space(profile));
-                if !matches!(next, Some(Ok(Some(_)))) {
-                    next = Some(self.db.most_recent_space());
-                }
-                let shown = match next {
-                    Some(Ok(Some(next))) => self.show_space(window.id, next.id),
-                    Some(Err(error)) => Err(error),
-                    _ => Err("No space is left.".into()),
-                };
-                if let Err(error) = shown {
-                    eprintln!("Wren could not leave a deleted space: {error}");
-                }
-            }
-            for space in window.kept_spaces() {
-                if exists(space) {
-                    continue;
-                }
-                if let Some(browser) = window.forget(space) {
-                    let _ = browser.close();
-                }
-            }
-            self.save_window(&window);
-        }
     }
 
     fn failed_browser(&self, id: WindowId, space: SpaceId, error: &wren::Error) {
@@ -300,7 +207,7 @@ impl State {
             let _ = browser.close();
             return;
         }
-        let of_profile = |space: &SpaceId| matches!(self.db.space(*space), Ok(Some(row)) if row.profile == profile.id());
+        let of_profile = |space: &SpaceId| self.is_space_of(*space, &profile);
         let space = opener
             .and_then(|opener| self.windows.of(&opener)?.space_of(&opener))
             .filter(of_profile)
@@ -320,81 +227,17 @@ impl State {
             return;
         };
         placeholder::adopt(&browser);
-        window.add(space, browser.clone());
-        if window.is_front(&browser) {
-            ipc::send_browser(&window, &browser);
-        }
-        self.save_window(&window);
+        self.host(&window, space, &browser);
         self.touch_space(space);
     }
 
-    // The profile's most recently used space. A profile Chromium has just
-    // made may have none yet: it is given its first.
-    pub(crate) fn recent_space(&self, mt: MainThread, profile: &Profile) -> Option<SpaceId> {
-        let id = profile.id();
-        let recent = || match self.db.recent_space(&id) {
-            Ok(space) => space.map(|space| space.id),
-            Err(error) => {
-                eprintln!("Wren could not read the spaces: {error}");
-                None
-            }
-        };
-        recent().or_else(|| {
-            let fill = self.creating_profiles.get() == 0;
-            if self.db.sync_profiles(&mt.profile_list(), fill) {
-                ipc::broadcast_spaces(self);
-            }
-            recent()
-        })
-    }
-
-    /// Every space, in the Library's order: by profile in Chromium's list,
-    /// then by position. Each is named, with its profile's name when there
-    /// is more than one.
-    pub fn ordered_spaces(&self, mt: MainThread) -> Vec<(SpaceId, String)> {
-        let profiles = mt.profile_list();
-        let mut spaces = match self.db.list_spaces() {
-            Ok(spaces) => spaces,
-            Err(error) => {
-                eprintln!("Wren could not read the spaces: {error}");
-                Vec::new()
-            }
-        };
-        // The list is by profile, then position; the sort keeps that within
-        // each, and puts a profile Chromium does not list last.
-        let place = |profile: &str| {
-            profiles
-                .iter()
-                .position(|entry| entry.id == profile)
-                .unwrap_or(usize::MAX)
-        };
-        spaces.sort_by_key(|space| place(&space.profile));
-        let many = spaces
-            .windows(2)
-            .any(|pair| pair[0].profile != pair[1].profile);
-        spaces
-            .into_iter()
-            .map(|space| {
-                let owner = profiles.iter().find(|entry| entry.id == space.profile);
-                let name = match owner {
-                    Some(owner) if many => format!("{} — {}", space.name, owner.name),
-                    _ => space.name,
-                };
-                (space.id, name)
-            })
-            .collect()
-    }
-
-    /// Sets the main menu again, for its Spaces menu to list the spaces as
-    /// they are now.
-    pub fn update_menu(&self, mt: MainThread) {
-        menus::set_main_menu(mt, &self.ordered_spaces(mt));
-    }
-
-    /// Notes that `space` is in use now.
-    pub fn touch_space(&self, space: SpaceId) {
-        if let Err(error) = self.db.touch_space(space) {
-            eprintln!("Wren could not note a space's use: {error}");
+    /// Shows `browser` as `window`'s for `space`, in front if that is its
+    /// current space, and keeps the window as it is now.
+    pub(super) fn host(&self, window: &BrowserWindow, space: SpaceId, browser: &Browser) {
+        window.add(space, browser.clone());
+        if window.is_front(browser) {
+            ipc::send_browser(window, browser);
         }
+        self.save_window(window);
     }
 }
