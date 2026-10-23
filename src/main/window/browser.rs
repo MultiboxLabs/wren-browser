@@ -2,6 +2,8 @@
 // space it has been on. All are attached to the page's view; the current
 // space's is in front, and the rest wait in the background. A space can be
 // without one: its last tab closed, or the window has not opened a tab in it.
+// Each Browser carries the window's key and its space in its session tag, so
+// a restore puts it back (session.rs).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -29,6 +31,9 @@ enum Slot {
 
 pub struct BrowserWindow {
     pub id: WindowId,
+    /// Its row in the database, which lasts across launches as its ID does
+    /// not.
+    pub key: String,
     pub page: PageWindow,
     spaces: RefCell<HashMap<SpaceId, Slot>>,
     // The space in front; none only for the window the app opens at startup,
@@ -46,13 +51,22 @@ pub struct BrowserWindow {
 }
 
 impl BrowserWindow {
-    pub fn new(id: WindowId, page: PageWindow, space: Option<SpaceId>) -> BrowserWindow {
+    /// `framed`: the window has its frame already, from the database, and a
+    /// Browser's does not move it.
+    pub fn new(
+        id: WindowId,
+        key: String,
+        page: PageWindow,
+        space: Option<SpaceId>,
+        framed: bool,
+    ) -> BrowserWindow {
         BrowserWindow {
             id,
+            key,
             page,
             spaces: RefCell::default(),
             current: Cell::new(space),
-            framed: Cell::default(),
+            framed: Cell::new(framed),
             closing: Cell::default(),
             new_tab_omnibox: Cell::default(),
             full_screen_for_page: Cell::default(),
@@ -89,6 +103,18 @@ impl BrowserWindow {
     /// Whether `browser` is one of the window's.
     pub fn has_browser(&self, browser: &Browser) -> bool {
         self.space_of(browser).is_some()
+    }
+
+    /// The spaces the window has a Browser open for.
+    pub fn open_spaces(&self) -> Vec<SpaceId> {
+        let spaces = self.spaces.borrow();
+        let mut open: Vec<SpaceId> = spaces
+            .iter()
+            .filter(|(_, slot)| matches!(slot, Slot::Open(_)))
+            .map(|(space, _)| *space)
+            .collect();
+        open.sort_unstable();
+        open
     }
 
     /// Whether the window has a Browser open, for any space.
@@ -165,6 +191,9 @@ impl BrowserWindow {
     /// current space, or the window has none yet, otherwise in the
     /// background.
     pub fn add(&self, space: SpaceId, browser: Browser) {
+        if let Err(error) = browser.set_session_tag(&session_tag(&self.key, space)) {
+            eprintln!("Wren could not tag a Browser: {error:?}");
+        }
         browser.attach_to_view(Some(self.page.web_view.view()));
         self.name_anchors(&browser);
         // Its pages take a window that is full screen already without asking.
@@ -268,6 +297,18 @@ impl BrowserWindow {
             }
         }
     }
+}
+
+/// The tag of window `key`'s Browser for `space`: "<key>/<space>".
+fn session_tag(key: &str, space: SpaceId) -> String {
+    format!("{key}/{space}")
+}
+
+/// The window key and the space a Browser's tag names, if it has one.
+pub fn tagged(browser: &Browser) -> Option<(String, SpaceId)> {
+    let tag = browser.session_tag();
+    let (key, space) = tag.split_once('/')?;
+    Some((key.to_owned(), space.parse().ok()?))
 }
 
 /// `browser`'s anchors, each with the name of the page's mark it is.

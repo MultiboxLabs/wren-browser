@@ -5,7 +5,7 @@
 
 use std::rc::Rc;
 
-use wren::{Browser, MainThread, Profile, ProfileKind};
+use wren::{Browser, MainThread, Profile, ProfileKind, RequestedBounds};
 
 use crate::app::State;
 use crate::db::SpaceId;
@@ -18,11 +18,25 @@ use crate::window::{BrowserWindow, PageWindow, WindowId};
 impl State {
     /// Opens a window on `space`, with no Browser yet; with no space, the
     /// window waits for its first Browser to give it one (`place_opened`).
-    /// Its page is the UI's, in a Profile of its own.
+    /// It is kept in the database while it is open (session.rs).
     pub fn open_window(
         self: &Rc<Self>,
         mt: MainThread,
         space: Option<SpaceId>,
+    ) -> Option<WindowId> {
+        let key = self.new_window_key();
+        self.open_keyed_window(mt, key, space, None)
+    }
+
+    /// Opens window `key`, as `open_window` does: at `frame` if it has one,
+    /// else below and right of the window in use. Its page is the UI's, in a
+    /// Profile of its own.
+    pub fn open_keyed_window(
+        self: &Rc<Self>,
+        mt: MainThread,
+        key: String,
+        space: Option<SpaceId>,
+        frame: Option<RequestedBounds>,
     ) -> Option<WindowId> {
         let profile = self.ui_profile.borrow().clone()?;
         let id = self.windows.next_id();
@@ -48,6 +62,9 @@ impl State {
                 if let Some(space) = window.space() {
                     state.touch_space(space);
                 }
+            } else {
+                // Where it is now, should the app not quit as it should.
+                state.save_frame(&window);
             }
             window.page.set_active(active);
             ipc::send_active(&window.page, active);
@@ -70,11 +87,19 @@ impl State {
                 }
             }
         });
-        // Below and right of the window in use, so a new one does not hide it.
-        if let Some(front) = self.windows.front() {
-            page.cascade_from(&front.page);
+        // Where it was kept, or else below and right of the window in use, so
+        // a new one does not hide it.
+        match frame {
+            Some(frame) => page.restore_frame(frame),
+            None => {
+                if let Some(front) = self.windows.front() {
+                    page.cascade_from(&front.page);
+                }
+            }
         }
-        self.windows.add(BrowserWindow::new(id, page, space));
+        let framed = frame.is_some();
+        self.windows
+            .add(BrowserWindow::new(id, key, page, space, framed));
         Some(id)
     }
 
@@ -138,6 +163,7 @@ impl State {
                 if window.is_front(&browser) {
                     ipc::send_browser(&window, &browser);
                 }
+                state.save_window(&window);
                 then();
             });
         });
@@ -158,6 +184,7 @@ impl State {
             window.page.set_full_screen(false);
         }
         let front = window.switch_to(space);
+        self.save_window(&window);
         self.touch_space(space);
         match front {
             Some(browser) => {
@@ -212,6 +239,7 @@ impl State {
             if let Some(browser) = window.forget(space) {
                 let _ = browser.close();
             }
+            self.save_window(&window);
         }
     }
 
@@ -222,9 +250,10 @@ impl State {
         }
     }
 
-    /// Shows a Browser Chromium opened (a restored window, a page's new
-    /// window) in a window of its own, on its profile's most recently used
-    /// space; or, at startup, in the window that waits for its first.
+    /// Shows a Browser Chromium opened: a restored one back where it was
+    /// (`place_tagged`), and any other (a page's new window) in a window of
+    /// its own, on its profile's most recently used space; or, at startup,
+    /// in the window that waits for its first.
     pub fn place_opened(self: &Rc<Self>, mt: MainThread, browser: Browser) {
         let Some(profile) = browser
             .profile()
@@ -233,6 +262,9 @@ impl State {
             let _ = browser.close();
             return;
         };
+        if self.place_tagged(&browser, &profile) {
+            return;
+        }
         let Some(space) = self.recent_space(mt, &profile) else {
             eprintln!("Wren found no space for a Browser.");
             let _ = browser.close();
@@ -251,34 +283,13 @@ impl State {
         if window.is_front(&browser) {
             ipc::send_browser(&window, &browser);
         }
+        self.save_window(&window);
         self.touch_space(space);
-    }
-
-    /// Restores `profile`'s last session, whose windows arrive in
-    /// `place_opened`; with nothing restored, the window that waits for a
-    /// Browser opens on the profile's most recent space, with no tab yet.
-    pub fn restore(self: &Rc<Self>, mt: MainThread, profile: Profile) {
-        let state = self.clone();
-        profile.clone().restore_last_session(move |result| {
-            if let Err(error) = result {
-                eprintln!("Wren restored no session: {error:?}");
-            }
-            let Some(window) = state.windows.waiting() else {
-                return;
-            };
-            let Some(space) = state.recent_space(mt, &profile) else {
-                return eprintln!("Wren found no space to open.");
-            };
-            window.switch_to(space);
-            ipc::send_space(&window);
-            state.touch_space(space);
-            state.open_space_browser(mt, window.id, space, || {});
-        });
     }
 
     // The profile's most recently used space. A profile Chromium has just
     // made may have none yet: it is given its first.
-    fn recent_space(&self, mt: MainThread, profile: &Profile) -> Option<SpaceId> {
+    pub(crate) fn recent_space(&self, mt: MainThread, profile: &Profile) -> Option<SpaceId> {
         let id = profile.id();
         let recent = || match self.db.recent_space(&id) {
             Ok(space) => space.map(|space| space.id),

@@ -53,17 +53,21 @@ impl State {
         }
     }
 
-    // Opens the first window, then the user's own Profile, the one Chromium
-    // starts with, with the tabs it had when the app last quit.
+    // Opens the windows open at the last quit, or else the first window, then
+    // the user's own Profile, the one Chromium starts with, and each profile
+    // they wait for, with the tabs they had (session.rs).
     fn start(self: &Rc<Self>, mt: MainThread) {
-        if self.open_window(mt, None).is_none() {
-            eprintln!("Wren made no web view.");
-            return mt.quit();
-        }
         // Each profile has a space before anything shows them. The list may
         // be read again once the first profile is open, in case it was not
         // filled yet.
         self.db.sync_profiles(&mt.profile_list(), true);
+        if !self.open_saved_windows(mt) {
+            self.open_window(mt, None);
+        }
+        if self.windows.len() == 0 {
+            eprintln!("Wren made no web view.");
+            return mt.quit();
+        }
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
             Ok(profile) => {
@@ -71,7 +75,7 @@ impl State {
                     ipc::broadcast_spaces(&state);
                 }
                 state.update_menu(mt);
-                state.restore(mt, profile)
+                state.restore_sessions(mt, profile)
             }
             Err(error) => {
                 eprintln!("Wren opened no Profile: {error:?}");
@@ -81,8 +85,9 @@ impl State {
     }
 
     // The close button of window `id`. The last window closes the app, which
-    // keeps its session for the next run. Another leaves by closing its
-    // Browsers, as Chrome's does, and goes once they have.
+    // keeps it and its session for the next run. Another is forgotten, and
+    // leaves by closing its Browsers, as Chrome's does, and goes once they
+    // have.
     pub(crate) fn close_window(self: &Rc<Self>, mt: MainThread, id: WindowId) {
         if self.windows.len() <= 1 {
             return mt.quit();
@@ -90,6 +95,7 @@ impl State {
         let Some(window) = self.windows.get(id) else {
             return;
         };
+        self.forget_window(&window);
         if window.has_browsers() {
             return window.close_browsers();
         }
@@ -339,6 +345,13 @@ impl App for Wren {
             }
         });
         true
+    }
+
+    // Each window open now comes back where it is.
+    fn will_quit(&self, _: MainThread) {
+        for window in self.state.windows.all() {
+            self.state.save_frame(&window);
+        }
     }
 
     // Chromium closes a Browser whose last tab closes. Its window stays, with
