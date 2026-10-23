@@ -155,6 +155,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                         if let Err(error) = state.db.forget_profile(&id) {
                             eprintln!("Wren could not forget a profile: {error}");
                         }
+                        state.leave_gone_spaces(None);
                         ipc::broadcast_spaces(&state);
                         call.answer_json(None)
                     }

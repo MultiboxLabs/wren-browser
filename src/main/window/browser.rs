@@ -250,9 +250,9 @@ impl BrowserWindow {
         matches!(self.spaces.borrow().get(&space), Some(Slot::Opening))
     }
 
-    /// Whether the window shows `space`, or keeps its Browser.
-    pub fn has_space(&self, space: SpaceId) -> bool {
-        self.current.get() == Some(space) || self.spaces.borrow().contains_key(&space)
+    /// The spaces the window has a Browser for, or one on the way.
+    pub fn kept_spaces(&self) -> Vec<SpaceId> {
+        self.spaces.borrow().keys().copied().collect()
     }
 
     /// Whether the window goes full screen for a page of the Browser in front
