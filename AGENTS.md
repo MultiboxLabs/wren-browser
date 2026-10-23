@@ -20,8 +20,9 @@ Wren Browser is a modern, privacy-focused browser with a minimalistic design.
 
 ## Commands
 
-- `bun run check` runs `cargo check`, `cargo clippy --all-targets` and `tsc`.
-  Run it before committing.
+- `bun run check` builds `cn`'s class-merging tables
+  (`scripts/cn-tables.ts`), then runs `cargo check`,
+  `cargo clippy --all-targets` and `tsc`. Run it before committing.
 - `bun run format` runs Prettier.
 - `bun run dev` runs the pages from Vite's dev server; `bun run start` builds
   and runs `Wren.app`; `build` and `start` take `--channel stable|beta|dev`.
