@@ -94,7 +94,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           onPointerLeave={sidebar.leave}
         >
           <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel">
-            <SpaceBackground theme={space.theme} className="absolute inset-0 rounded-[inherit]" />
+            <SpaceBackground theme={space.theme} material className="absolute inset-0 rounded-[inherit]" />
           </motion.div>
           <div className="relative h-full">
             <MakesWay open={sidebar.library.open} motion={sidebar.library.motion}>

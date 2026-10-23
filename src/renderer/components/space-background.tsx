@@ -4,6 +4,12 @@
 // new one fades in as the old fades out: added together (plus-lighter), the
 // two fades are an even mix of them, with no dip or bump in how clear the
 // window is halfway.
+//
+// The theme is see-through, made to be over the window's blur, which macOS
+// tints light or dark as the theme is. A box over something else (the
+// floating sidebar, over the page) has a stand-in for it under the theme, or
+// what is behind would show through it: a white page would lift a dark
+// theme, and a dark one would sink a light one.
 
 import { AnimatePresence, motion } from "motion/react";
 import { useRef } from "react";
@@ -11,9 +17,23 @@ import type { SpaceTheme } from "../ipc";
 import { useWindowActive } from "../state/window";
 import { useAspect } from "../utils/aspect";
 import { cn } from "../utils/cn";
+import { contentScheme } from "../utils/theme";
 import { ThemeLayers } from "./theme-swatch";
 
-export function SpaceBackground({ theme, className }: { theme: SpaceTheme; className?: string }) {
+// The stand-in for the window's blur: about its flat colour, light or dark,
+// clear enough that what is behind still shows a little through it.
+const MATERIAL = { light: "rgb(236 236 236 / 0.6)", dark: "rgb(30 30 30 / 0.6)" };
+
+export function SpaceBackground({
+  theme,
+  material = false,
+  className
+}: {
+  theme: SpaceTheme;
+  /** Over something other than the window's blur: a stand-in for it is under the theme. */
+  material?: boolean;
+  className?: string;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const aspect = useAspect(box);
   const active = useWindowActive();
@@ -31,6 +51,13 @@ export function SpaceBackground({ theme, className }: { theme: SpaceTheme; class
           // As the space's colour tweens, in index.css.
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
+          {material && (
+            <span
+              aria-hidden
+              className="absolute inset-0"
+              style={{ backgroundColor: MATERIAL[contentScheme(theme)] }}
+            />
+          )}
           <ThemeLayers theme={theme} layout={{ aspect, active }} />
         </motion.div>
       </AnimatePresence>
