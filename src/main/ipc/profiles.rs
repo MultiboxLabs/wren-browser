@@ -33,6 +33,13 @@ enum Create {
     },
 }
 
+/// What `profiles.rename` takes.
+#[derive(Deserialize)]
+struct Rename {
+    id: String,
+    name: String,
+}
+
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The profiles Chromium lists, in its order.
     let _ = web_view.handle("profiles.list", move |()| Ok::<_, String>(list(mt)));
@@ -98,10 +105,28 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         });
     });
 
-    // TODO: Rename the profile once Wren has a call for it; it takes
-    // `{ id, name }`. Until then the call waits a second and fails, to see the
-    // page's working and failed states.
-    let _ = web_view.handle_call("profiles.rename", fail_later);
+    // Renames a profile, answering once Chromium has its new name. The list
+    // changing tells every window (`App::changed`).
+    let _ = web_view.handle_call("profiles.rename", move |call| {
+        let Rename { id, name } = match call.value() {
+            Ok(rename) => rename,
+            Err(error) => {
+                let _ = call.fail(&error.to_string());
+                return;
+            }
+        };
+        let name = name.trim().to_owned();
+        if name.is_empty() {
+            let _ = call.fail("A profile needs a name.");
+            return;
+        }
+        mt.open_profile(Some(&id), move |result| {
+            let _ = match result.and_then(|profile| profile.rename(&name)) {
+                Ok(()) => call.answer_json(None),
+                Err(error) => call.fail(&failed(error)),
+            };
+        });
+    });
 
     // TODO: Delete the profile and its data once Wren has a call for it; it
     // takes the profile's ID. Until then the call waits a second and fails, as

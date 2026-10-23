@@ -18,7 +18,7 @@ export const profiles = {
    */
   create: (name: string, space?: NewSpace) =>
     wren.invoke<ProfileEntry>("profiles.create", space ? { name, space } : name),
-  // TODO: Fails in the app until Wren can rename a profile.
+  /** Renames one. Fails for a name that is empty. */
   rename: (id: string, name: string) => wren.invoke<null>("profiles.rename", { id, name }),
   // TODO: Fails in the app until Wren can delete a profile.
   delete: (id: string) => wren.invoke<null>("profiles.delete", id)
