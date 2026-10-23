@@ -14,11 +14,12 @@ import { type Section, SectionList } from "./sections";
 import { SpaceDialog } from "./space-dialogs";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
-  { id: "profiles", name: "Profiles", icon: CircleUserRound, item: "Profile" },
-  { id: "spaces", name: "Spaces", icon: Orbit, item: "Space" }
+  { id: "spaces", name: "Spaces", icon: Orbit, item: "Space" },
+  { id: "profiles", name: "Profiles", icon: CircleUserRound, item: "Profile" }
   // TODO: boosts feature
   // { id: "boosts", name: "Boosts", icon: Paintbrush, item: "Boost" }
 ];
+const DEFAULT_SECTION: Section = "spaces";
 
 export type LibraryProps = {
   open: boolean;
@@ -30,7 +31,7 @@ export type LibraryProps = {
 };
 
 export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
-  const [section, setSection] = useState<Section>("profiles");
+  const [section, setSection] = useState<Section>(DEFAULT_SECTION);
   const [query, setQuery] = useState("");
   const [naming, setNaming] = useState(false);
   // The row chosen in the list, which the "+" of the spaces starts from.
