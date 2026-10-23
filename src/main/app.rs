@@ -350,11 +350,6 @@ impl App for Wren {
                 None => Ok(()),
             },
             menus::COPY_URL => tabs::copy_url(&browser),
-            menus::BACK | menus::FORWARD => match browser.active_tab() {
-                Some(tab) if id == menus::BACK => tab.go_back(),
-                Some(tab) => tab.go_forward(),
-                None => Ok(()),
-            },
             menus::MOVE_TAB_UP | menus::MOVE_TAB_DOWN => match browser.active_tab() {
                 Some(tab) => tabs::move_by(
                     mt,

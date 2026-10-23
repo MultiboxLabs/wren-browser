@@ -21,8 +21,6 @@ pub const OPEN_LOCATION: &str = "open-location";
 pub const CLOSE_TAB: &str = "close-tab";
 pub const CLOSE_WINDOW: &str = "close-window";
 pub const COPY_URL: &str = "copy-url";
-pub const BACK: &str = "back";
-pub const FORWARD: &str = "forward";
 pub const MOVE_TAB_UP: &str = "move-tab-up";
 pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
@@ -122,13 +120,6 @@ pub fn set_main_menu(mt: MainThread) {
             vec![
                 MenuItem::chromium(Command::Back),
                 MenuItem::chromium(Command::Forward),
-                // Chrome has ⌘← and ⌘→ for these too, but a Chromium item
-                // takes one key. So the app's own items repeat them, shown
-                // twice.
-                // TODO: Make these hidden items, or Chromium's keys
-                // alternates, once Wren has a way to.
-                keyed(BACK, "Back", "ArrowLeft", MenuModifiers::PRIMARY),
-                keyed(FORWARD, "Forward", "ArrowRight", MenuModifiers::PRIMARY),
                 MenuItem::chromium(Command::Home),
                 MenuItem::Separator,
                 MenuItem::chromium(Command::History),
