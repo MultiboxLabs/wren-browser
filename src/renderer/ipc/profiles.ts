@@ -20,6 +20,9 @@ export const profiles = {
     wren.invoke<ProfileEntry>("profiles.create", space ? { name, space } : name),
   /** Renames one. Fails for a name that is empty. */
   rename: (id: string, name: string) => wren.invoke<null>("profiles.rename", { id, name }),
-  // TODO: Fails in the app until Wren can delete a profile.
+  /**
+   * Deletes one, with its data and its spaces, once its windows have closed.
+   * Fails for the last profile, or if a page keeps its tab open.
+   */
   delete: (id: string) => wren.invoke<null>("profiles.delete", id)
 };

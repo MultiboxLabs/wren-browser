@@ -1,14 +1,8 @@
 // The user's profiles: the list Chromium keeps, and making, renaming and
 // deleting them. The Library shows them.
 
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::thread;
-use std::time::Duration;
-
-use dispatch2::DispatchQueue;
 use serde::{Deserialize, Serialize};
-use wren::{MainThread, PageCall, WebView};
+use wren::{MainThread, WebView};
 
 use super::{self as ipc, WindowRef, failed};
 use crate::db::{NewSpace, avatar};
@@ -128,30 +122,45 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         });
     });
 
-    // TODO: Delete the profile and its data once Wren has a call for it; it
-    // takes the profile's ID. Until then the call waits a second and fails, as
-    // the rename does. Where the deletion succeeds, also call
-    // `state.db.forget_profile(id)`: that deletes the profile's spaces.
-    let _ = web_view.handle_call("profiles.delete", fail_later);
-}
-
-thread_local! {
-    // Calls waiting to fail, by ID. A call stays on the main thread; only
-    // its ID goes to the thread that waits.
-    static WAITING: RefCell<HashMap<u64, PageCall>> = RefCell::new(HashMap::new());
-    static NEXT_ID: Cell<u64> = const { Cell::new(0) };
-}
-
-// Fails the call a second from now, as one the app could not do.
-fn fail_later(call: PageCall) {
-    let id = NEXT_ID.with(|next| next.replace(next.get() + 1));
-    WAITING.with(|waiting| waiting.borrow_mut().insert(id, call));
-    thread::spawn(move || {
-        thread::sleep(Duration::from_secs(1));
-        DispatchQueue::main().exec_async(move || {
-            if let Some(call) = WAITING.with(|waiting| waiting.borrow_mut().remove(&id)) {
-                let _ = call.fail("Wren cannot do this yet.");
+    // Deletes a profile and its data, once its Browsers have closed, and its
+    // spaces with it. A page that keeps its tab open fails it.
+    let weak = window.clone();
+    let _ = web_view.handle_call("profiles.delete", move |call| {
+        let state = match weak.state() {
+            Ok(state) => state,
+            Err(error) => {
+                let _ = call.fail(error);
+                return;
             }
+        };
+        let id = match call.value::<String>() {
+            Ok(id) => id,
+            Err(error) => {
+                let _ = call.fail(&error.to_string());
+                return;
+            }
+        };
+        mt.open_profile(Some(&id), move |result| {
+            let profile = match result {
+                Ok(profile) => profile,
+                Err(error) => {
+                    let _ = call.fail(&failed(error));
+                    return;
+                }
+            };
+            let id = profile.id();
+            profile.delete(move |result| {
+                let _ = match result {
+                    Ok(()) => {
+                        if let Err(error) = state.db.forget_profile(&id) {
+                            eprintln!("Wren could not forget a profile: {error}");
+                        }
+                        ipc::broadcast_spaces(&state);
+                        call.answer_json(None)
+                    }
+                    Err(error) => call.fail(&failed(error)),
+                };
+            });
         });
     });
 }
