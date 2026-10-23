@@ -88,8 +88,8 @@ impl Source {
     }
 }
 
-// Answers wren://<host>/<path> for a page. Every page has the renderer's one
-// entry, index.html, which shows the page its host names.
+// Answers wren://<host>/<path> for a page. Its address with no path is its
+// entry, pages/<host>/index.html in the renderer.
 pub fn serve_page(request: SchemeRequest, source: &Source) {
     let url = request.url();
     let Some((host, path)) = url
@@ -109,6 +109,21 @@ pub fn serve_page(request: SchemeRequest, source: &Source) {
         return;
     }
     let path = path.split('#').next().unwrap_or("");
+    // Another page's files are not this one's: a tab must not show the UI's
+    // page on the game's address.
+    if let Some(rest) = path.strip_prefix("pages/")
+        && !rest.starts_with(&format!("{host}/"))
+    {
+        let _ = request.respond(SchemeResponse::Failure(SchemeFailure::NotFound));
+        return;
+    }
+    let entry;
+    let path = if path.is_empty() || path.starts_with('?') {
+        entry = format!("pages/{host}/index.html{path}");
+        &entry
+    } else {
+        path
+    };
     // The UI's icons come from the app, whatever serves its files.
     if page.host == UI.host
         && let Some(name) = path.strip_prefix(icons::PATH)

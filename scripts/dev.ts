@@ -16,8 +16,9 @@ await $`WREN_CHANNEL=dev cargo build`;
 await $`wren bundle --executable target/debug/wren-browser --manifest ${manifest} --output ${app}`;
 
 const vite = Bun.spawn(["bunx", "vite"], { stdout: "inherit", stderr: "inherit" });
+// Ready once it serves the UI's page: the root has no page of its own.
 while (
-  !(await fetch(url).then(
+  !(await fetch(`${url}/pages/ui/`).then(
     (response) => response.ok,
     () => false
   ))

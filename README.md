@@ -19,8 +19,8 @@ src/main/            the main process (Rust)
     title_bar.rs     the window's buttons, where the page puts them
   sidebar.rs         the sidebar's state, kept between runs
   tabs.rs            what the app does to a Browser's tabs
-src/renderer/        the renderer (Vite root): one entry for every page
-  main.tsx           shows the page wren://<page>/ names
+src/renderer/        the renderer (Vite root): an entry for each page
+  boot.tsx           what every page starts with
   pages/ui/          wren://ui    a browser window
   components/        what the pages are made of: ui/ (Radix wrappers), then omnibox/, sidebar/, address/
   state/             the page's view of the Browser, the window and the space
@@ -63,8 +63,9 @@ build made without it is Dev.
 
 ## Adding a page
 
-1. Add `src/renderer/pages/<name>/` and its component to `pages` in
-   `src/renderer/main.tsx`.
+1. Add `src/renderer/pages/<name>/` with an `index.html` and a `main.tsx` that
+   shows its component with `boot`, as `pages/ui/` does, and add `<name>` to
+   the entries in `vite.config.ts`.
 2. Add a `Page` with host `<name>` to `PAGES` in `src/main/pages/mod.rs`.
 
 ## How pages are served

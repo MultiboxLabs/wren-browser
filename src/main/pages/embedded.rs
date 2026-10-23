@@ -6,12 +6,9 @@ use wren::{SchemeFailure, SchemeResponse};
 
 include!(concat!(env!("OUT_DIR"), "/renderer.rs"));
 
-/// The renderer's file at `path`, relative to its root ("" is the entry).
+/// The renderer's file at `path`, relative to its root.
 pub fn file(path: &str) -> SchemeResponse {
-    let path = match path.split('?').next().unwrap_or("") {
-        "" => "index.html",
-        path => path,
-    };
+    let path = path.split('?').next().unwrap_or("");
     match FILES.iter().find(|(name, _)| *name == path) {
         Some((name, body)) => SchemeResponse::data(*body, content_type(name)),
         None => SchemeResponse::Failure(SchemeFailure::NotFound),
