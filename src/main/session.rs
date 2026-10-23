@@ -64,9 +64,15 @@ impl State {
         self.restore(mt, startup, true);
         for id in profiles.into_iter().filter(|id| *id != startup_id) {
             let state = self.clone();
-            mt.open_profile(Some(&id), move |result| match result {
-                Ok(profile) => state.restore(mt, profile, false),
-                Err(error) => eprintln!("Wren opened no Profile to restore: {error:?}"),
+            // Restoring from now, so a Browser of the startup profile's
+            // restore is not taken for one of a later launch.
+            self.restoring.set(self.restoring.get() + 1);
+            mt.open_profile(Some(&id), move |result| {
+                match result {
+                    Ok(profile) => state.restore(mt, profile, false),
+                    Err(error) => eprintln!("Wren opened no Profile to restore: {error:?}"),
+                }
+                state.restoring.set(state.restoring.get() - 1);
             });
         }
     }
@@ -77,7 +83,9 @@ impl State {
     // tab yet.
     fn restore(self: &Rc<Self>, mt: MainThread, profile: Profile, fills: bool) {
         let state = self.clone();
+        self.restoring.set(self.restoring.get() + 1);
         profile.clone().restore_last_session(move |result| {
+            state.restoring.set(state.restoring.get() - 1);
             if let Err(error) = result {
                 eprintln!("Wren restored no session: {error:?}");
             }
@@ -118,6 +126,17 @@ impl State {
         }
         self.save_window(&window);
         true
+    }
+
+    /// Whether a restored `browser` is what is left of a window the user
+    /// closed. Chromium keeps the last Browser a window closes in the session,
+    /// as Chrome keeps the last window, while the window is forgotten: its
+    /// tag names a window that did not come back. It closes, rather than
+    /// come back as a window of one space at the closed one's size. Reopen
+    /// Closed Window, later, still brings it back.
+    pub fn is_left_by_closed_window(&self, browser: &Browser) -> bool {
+        self.restoring.get() > 0
+            && tagged(browser).is_some_and(|(key, _)| self.windows.by_key(&key).is_none())
     }
 
     /// Keeps `window`'s current space and the spaces it has a Browser for.

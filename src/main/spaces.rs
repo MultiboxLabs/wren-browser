@@ -275,6 +275,10 @@ impl State {
         if self.place_tagged(&browser, &profile) {
             return;
         }
+        if self.is_left_by_closed_window(&browser) {
+            let _ = browser.close();
+            return;
+        }
         let Some(space) = self.recent_space(mt, &profile) else {
             eprintln!("Wren found no space for a Browser.");
             let _ = browser.close();

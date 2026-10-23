@@ -36,6 +36,8 @@ pub struct State {
     /// change to the list in the meantime must not give them a default space,
     /// for the call gives them the one the user asked for.
     pub creating_profiles: Cell<u32>,
+    /// Profiles whose last session is being restored (session.rs).
+    pub restoring: Cell<u32>,
     /// The sidebar's performance run, if this is one.
     pub perf: Option<Perf>,
 }
@@ -49,6 +51,7 @@ impl State {
             sidebar: SidebarStore::new(&data),
             db: Db::open(&data),
             creating_profiles: Cell::new(0),
+            restoring: Cell::new(0),
             perf,
         }
     }
