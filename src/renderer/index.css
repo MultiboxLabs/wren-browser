@@ -110,19 +110,18 @@ body,
 
 :root {
   transition: --space 0.2s ease-out;
-  /* How strong the space's colour is over the blur behind it. Focused, the
-     blur is live; unfocused, macOS shows the material's flat colour, which
-     is what pales the window. */
-  --tint: 58%;
-  /* The space's colour as the window shows it. To calm a saturated one,
-     lower its chroma here: oklch(from var(--space) l calc(c * 0.8) h). */
+  /* The space's colour as the window shows it, for what is drawn of it
+     alone (the window itself is drawn with the whole theme, in
+     components/space-background.tsx). To calm a saturated one, lower its
+     chroma here: oklch(from var(--space) l calc(c * 0.8) h). */
   --space-shown: oklch(from var(--space) l calc(c * 0.92) h);
   /* Room the window's own buttons take at the top left. */
   --window-buttons: 0px;
 }
 
 /* Unfocused, the space's colour is paler: lighter, and less of it, as a
-   window in the background fades. */
+   window in the background fades, and as its theme does (themeStyle in
+   utils/theme.ts). */
 :root[data-active="false"] {
   --space-shown: oklch(from var(--space) 0.58 calc(c * 0.5) h);
 }
@@ -141,7 +140,8 @@ body,
    toward the space rather than pure white or black. The rest is white (or
    black) at fixed opacities: icons and the address (fg-2), headings and
    placeholders (fg-3), and what is disabled (fg-4). They are the same
-   focused or not; the window pales by itself when unfocused (see --tint). */
+   focused or not; the window pales by itself when unfocused (see
+   --space-shown). */
 :root[data-scheme="light"] {
   color-scheme: light;
   --ink: oklch(from var(--space) 0.22 calc(c * 0.8) h);
@@ -245,10 +245,6 @@ body,
   opacity: var(--glyph-4);
 }
 
-.browser {
-  background: color-mix(in display-p3, var(--space-shown) var(--tint), transparent);
-}
-
 /* The UI's page, its menus and tooltips among it (they are on <body>). */
 :root[data-scheme] body {
   color: var(--fg);
@@ -311,15 +307,19 @@ body,
   -webkit-app-region: no-drag;
 }
 
-/* The sidebar while it floats over the page: the space's colour over the
-   page blurred, deeper than the window around it, with a light hairline
-   for an edge. */
+/* The sidebar while it floats over the page: the space's theme (a
+   SpaceBackground in it) over the page blurred, with a light hairline for
+   an edge, drawn over the theme. */
 .peek {
-  background: color-mix(in display-p3, var(--space-shown) 76%, transparent);
   backdrop-filter: blur(40px) saturate(1.4);
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.28),
-    0 8px 24px rgb(0 0 0 / 0.25);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+.peek::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.28);
 }
 
 /* A popover (components/ui/popover.tsx): the system's neutral colours, as
@@ -467,7 +467,7 @@ body,
   --omnibox-text-selection: rgb(0 0 0 / 0.15);
 }
 
-/* Unfocused, the blur behind them is not live (see --tint), so what showed
+/* Unfocused, the blur behind them is not live, so what showed
    through would be flat and muddy: they are solid. */
 :root[data-scheme="dark"][data-active="false"] .omnibox,
 :root[data-scheme="dark"][data-active="false"] .find-bar {

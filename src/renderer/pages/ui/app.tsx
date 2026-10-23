@@ -9,6 +9,7 @@ import { useShowWindow, useWindowTheme } from "../../state/window";
 import { Omnibox } from "../../components/omnibox/omnibox";
 import { useShownOmnibox } from "../../components/omnibox/shown";
 import { SidePanel } from "../../components/side-panel";
+import { SpaceBackground } from "../../components/space-background";
 import { Sidebar } from "../../components/sidebar/sidebar";
 import { Library, MakesWay } from "../../components/library/library";
 import { SIDEBAR_WIDTH, useSidebarPresentation } from "../../components/sidebar/presentation";
@@ -59,82 +60,88 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const sidebar = useSidebarPresentation(saved, omnibox.shown !== null, box);
 
   return (
-    <div className="browser drag flex h-full">
-      {/* The room left of the page: the docked sidebar is over it. */}
-      {!fullScreen && <motion.div style={{ width: sidebar.motion.slot }} className="shrink-0" />}
+    <>
+      {/* Before the window's content, which is positioned so that it is over it. */}
+      <SpaceBackground theme={space.theme} className="fixed inset-0" />
+      <div className="drag relative flex h-full">
+        {/* The room left of the page: the docked sidebar is over it. */}
+        {!fullScreen && <motion.div style={{ width: sidebar.motion.slot }} className="shrink-0" />}
 
-      <main className={cn("flex min-w-0 flex-1", !fullScreen && "py-2.5 pr-2.5")}>
-        {shown ? (
-          <TabView
-            tab={shown}
-            split={splits.find((split) => split.id === shown.split)}
-            tabs={tabs}
-            fullScreen={fullScreen !== undefined}
-          />
-        ) : (
-          <div className="card empty no-drag min-w-0 flex-1" />
-        )}
-        {browser !== null && sidePanel && !fullScreen && <SidePanel browser={browser} panel={sidePanel} />}
-      </main>
-
-      {/* Where the pointer brings the hidden sidebar out. */}
-      {!sidebar.open && !fullScreen && (
-        <div className="no-drag fixed inset-y-0 left-0 w-2.5" onPointerEnter={sidebar.reveal} />
-      )}
-      <motion.aside
-        ref={box}
-        // Kept while hidden, so it slides away and back as it was.
-        inert={sidebar.presentation === "hidden" || fullScreen !== undefined}
-        style={sidebar.motion.box}
-        className={cn("fixed pl-2", !sidebar.open && "no-drag", fullScreen && "hidden")}
-        onPointerLeave={sidebar.leave}
-      >
-        <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel" />
-        <div className="relative h-full">
-          <MakesWay open={sidebar.library.open} motion={sidebar.library.motion}>
-            <Sidebar
-              open={sidebar.open}
-              onToggle={sidebar.toggle}
-              hold={sidebar.hold}
-              omnibox={omnibox}
-              address={address}
-              onOpenLibrary={() => sidebar.library.setOpen(true)}
+        <main className={cn("flex min-w-0 flex-1", !fullScreen && "py-2.5 pr-2.5")}>
+          {shown ? (
+            <TabView
+              tab={shown}
+              split={splits.find((split) => split.id === shown.split)}
+              tabs={tabs}
+              fullScreen={fullScreen !== undefined}
             />
-          </MakesWay>
-          <Library
-            open={sidebar.library.open}
-            onClose={() => sidebar.library.setOpen(false)}
+          ) : (
+            <div className="card empty no-drag min-w-0 flex-1" />
+          )}
+          {browser !== null && sidePanel && !fullScreen && <SidePanel browser={browser} panel={sidePanel} />}
+        </main>
+
+        {/* Where the pointer brings the hidden sidebar out. */}
+        {!sidebar.open && !fullScreen && (
+          <div className="no-drag fixed inset-y-0 left-0 w-2.5" onPointerEnter={sidebar.reveal} />
+        )}
+        <motion.aside
+          ref={box}
+          // Kept while hidden, so it slides away and back as it was.
+          inert={sidebar.presentation === "hidden" || fullScreen !== undefined}
+          style={sidebar.motion.box}
+          className={cn("fixed pl-2", !sidebar.open && "no-drag", fullScreen && "hidden")}
+          onPointerLeave={sidebar.leave}
+        >
+          <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel">
+            <SpaceBackground theme={space.theme} className="absolute inset-0 rounded-[inherit]" />
+          </motion.div>
+          <div className="relative h-full">
+            <MakesWay open={sidebar.library.open} motion={sidebar.library.motion}>
+              <Sidebar
+                open={sidebar.open}
+                onToggle={sidebar.toggle}
+                hold={sidebar.hold}
+                omnibox={omnibox}
+                address={address}
+                onOpenLibrary={() => sidebar.library.setOpen(true)}
+              />
+            </MakesWay>
+            <Library
+              open={sidebar.library.open}
+              onClose={() => sidebar.library.setOpen(false)}
+              width={sidebar.width}
+              motion={sidebar.library.motion}
+            />
+          </div>
+        </motion.aside>
+        {sidebar.open && !sidebar.library.open && !fullScreen && (
+          // The gap to the page. After the sidebar, whose tabs scroll right up
+          // to the page: the later of two overlapping boxes takes the clicks
+          // and, for app-region, says whether a press moves the window.
+          <ResizeHandle
             width={sidebar.width}
-            motion={sidebar.library.motion}
-          />
-        </div>
-      </motion.aside>
-      {sidebar.open && !sidebar.library.open && !fullScreen && (
-        // The gap to the page. After the sidebar, whose tabs scroll right up
-        // to the page: the later of two overlapping boxes takes the clicks
-        // and, for app-region, says whether a press moves the window.
-        <ResizeHandle
-          width={sidebar.width}
-          range={SIDEBAR_WIDTH}
-          edge="right"
-          style={{ left: sidebar.width }}
-          className="fixed inset-y-0 w-2"
-          onResize={sidebar.setWidth}
-          onEnd={sidebar.endResize}
-        />
-      )}
-      <BrowserToast />
-      <QuitDialog />
-      <AnimatePresence>
-        {omnibox.shown && (
-          <Omnibox
-            key={omnibox.shown.key}
-            target={omnibox.shown.target}
-            place={omnibox.shown.place}
-            onDone={omnibox.done}
+            range={SIDEBAR_WIDTH}
+            edge="right"
+            style={{ left: sidebar.width }}
+            className="fixed inset-y-0 w-2"
+            onResize={sidebar.setWidth}
+            onEnd={sidebar.endResize}
           />
         )}
-      </AnimatePresence>
-    </div>
+        <BrowserToast />
+        <QuitDialog />
+        <AnimatePresence>
+          {omnibox.shown && (
+            <Omnibox
+              key={omnibox.shown.key}
+              target={omnibox.shown.target}
+              place={omnibox.shown.place}
+              onDone={omnibox.done}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   );
 }

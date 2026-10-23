@@ -45,10 +45,11 @@ function hsbToRgb({ hue, saturation, brightness }: Hsb): Rgb {
   return [channel(5), channel(3), channel(1)];
 }
 
-/** A colour for CSS, in Display P3. */
-export function colorCss(color: Hsb) {
+/** A colour for CSS, in Display P3; `alpha` makes it as clear. */
+export function colorCss(color: Hsb, alpha?: number) {
   const [r, g, b] = hsbToRgb(color);
-  return `color(display-p3 ${r.toFixed(4)} ${g.toFixed(4)} ${b.toFixed(4)})`;
+  const clear = alpha === undefined ? "" : ` / ${alpha.toFixed(4)}`;
+  return `color(display-p3 ${r.toFixed(4)} ${g.toFixed(4)} ${b.toFixed(4)}${clear})`;
 }
 
 /** The theme a new space has, of a colour: one colour, as Arc's default. */
@@ -213,28 +214,41 @@ const TEXTURE_IMAGES: Partial<Record<SpaceTheme["texture"], string>> = { grain }
 export type ThemeStyle = {
   /** Under the colours: white for a light theme, black for a dark one. */
   underlay: CSSProperties;
-  /** The colours, as a layer of their own, which is what intensity makes more or less clear. */
+  /** The colours, each as clear as intensity makes it. */
   colors: CSSProperties;
   /** Over both, multiplied; none without noise. */
   noise: CSSProperties | null;
 };
 
+/** How clear the theme's colours are, of its intensity: `0.2 + 0.55 × intensity`. */
+const colorAlpha = (theme: SpaceTheme) => 0.55 * theme.intensity + 0.2;
+
 /**
  * The CSS of a theme's layers: an element each, stacked, filling a box of
  * `aspect` (width over height). Arc draws them in a Metal view; the same
  * layers are built here from the same numbers.
+ *
+ * In a window that is not `active`, the colours are paler, lighter and less
+ * of them, as a window in the background fades (the blur behind it is flat
+ * then), and the noise is a quarter as strong.
  */
-export function themeStyle(theme: SpaceTheme, aspect = 1): ThemeStyle {
-  const opacity = 0.55 * theme.intensity + 0.2;
-  const under = Math.min(opacity, 0.5);
+export function themeStyle(theme: SpaceTheme, aspect = 1, active = true): ThemeStyle {
+  const alpha = colorAlpha(theme);
+  const under = Math.min(alpha, 0.5);
   const underlay: CSSProperties = {
     backgroundColor: contentScheme(theme) === "light" ? `rgb(255 255 255 / ${under})` : `rgb(0 0 0 / ${0.35 * under})`
   };
 
-  const [first, second, third] = derivedColors(theme).map(colorCss);
-  const colors: CSSProperties = { opacity };
+  // Each colour is as clear as intensity makes it, rather than the layer as a
+  // whole: the third, laid over the others, adds to them where it shows.
+  const color = (hsb: Hsb, share = 1) => {
+    const css = colorCss(hsb, alpha * share);
+    return active ? css : `oklch(from ${css} 0.58 calc(c * 0.5) h)`;
+  };
+  const [first, second, third] = derivedColors(theme);
+  const colors: CSSProperties = {};
   if (!second) {
-    colors.backgroundColor = first;
+    colors.backgroundColor = color(first);
   } else {
     // Arc's line runs corner to corner of the largest square in the box, and
     // reaches the second colour three quarters along it. CSS's 135° line spans
@@ -244,9 +258,12 @@ export function themeStyle(theme: SpaceTheme, aspect = 1): ThemeStyle {
     const start = (whole - square) / 2 / whole;
     const length = square / whole;
     const stop = (fraction: number) => `${((start + fraction * length) * 100).toFixed(2)}%`;
-    const base = `linear-gradient(135deg in oklab, ${first} ${stop(0)}, ${second} ${stop(0.75)})`;
-    // The third colour is laid over it from clear at the top to full at the bottom.
-    colors.backgroundImage = third ? `linear-gradient(to bottom in oklab, transparent, ${third}), ${base}` : base;
+    const base = `linear-gradient(135deg in oklab, ${color(first)} ${stop(0)}, ${color(second)} ${stop(0.75)})`;
+    // The third colour is laid over it from clear at the top to full at the
+    // bottom: its own colour, clear, so it never passes through black.
+    colors.backgroundImage = third
+      ? `linear-gradient(to bottom in oklab, ${color(third, 0)}, ${color(third)}), ${base}`
+      : base;
   }
 
   const noise: CSSProperties | null =
@@ -255,7 +272,7 @@ export function themeStyle(theme: SpaceTheme, aspect = 1): ThemeStyle {
           backgroundImage: `url(${TEXTURE_IMAGES[theme.texture] ?? grain})`,
           backgroundSize: "128px",
           mixBlendMode: "multiply",
-          opacity: theme.noise * NOISE_FACTOR[theme.texture]
+          opacity: theme.noise * NOISE_FACTOR[theme.texture] * (active ? 1 : 0.25)
         }
       : null;
 
@@ -274,8 +291,8 @@ export function arrowFill(
   aspect: number,
   side: "top" | "right" | "bottom" | "left"
 ): { color: string; opacity: number }[] {
-  const { underlay, colors } = themeStyle(theme, aspect);
-  const [first, second] = derivedColors(theme).map(colorCss);
+  const { underlay } = themeStyle(theme, aspect);
+  const [first, second] = derivedColors(theme).map((color) => colorCss(color));
   let color = first;
   if (second) {
     // The edge's middle, in a box of `aspect` by 1, and its place along the gradient's line.
@@ -290,6 +307,6 @@ export function arrowFill(
   }
   return [
     { color: String(underlay.backgroundColor), opacity: 1 },
-    { color, opacity: Number(colors.opacity) }
+    { color, opacity: colorAlpha(theme) }
   ];
 }

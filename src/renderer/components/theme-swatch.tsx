@@ -20,6 +20,21 @@ export type ThemeSwatchProps = {
   children?: ReactNode;
 };
 
+/**
+ * A theme's layers (its underlay, colours and noise), each filling the
+ * positioned box they are put in, which is `aspect` wide over its height.
+ */
+export function ThemeLayers({ theme, aspect, active }: { theme: SpaceTheme; aspect: number; active?: boolean }) {
+  const { underlay, colors, noise } = themeStyle(theme, aspect, active);
+  return (
+    <>
+      <span aria-hidden className="absolute inset-0" style={underlay} />
+      <span aria-hidden className="absolute inset-0" style={colors} />
+      {noise && <span aria-hidden className="absolute inset-0" style={noise} />}
+    </>
+  );
+}
+
 export function ThemeSwatch({
   theme,
   aspect = 1,
@@ -28,11 +43,9 @@ export function ThemeSwatch({
   as: Tag = "span",
   children
 }: ThemeSwatchProps) {
-  const { underlay, colors, noise } = themeStyle(theme, aspect);
   return (
-    <Tag className={cn("relative grid place-items-center overflow-hidden", className)} style={underlay}>
-      <span aria-hidden className="absolute inset-0" style={colors} />
-      {noise && <span aria-hidden className="absolute inset-0" style={noise} />}
+    <Tag className={cn("relative grid place-items-center overflow-hidden", className)}>
+      <ThemeLayers theme={theme} aspect={aspect} />
       {children && (
         <Tag
           className={cn(

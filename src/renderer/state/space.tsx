@@ -4,8 +4,8 @@
 // drawn before the window knows its own, and outside the app.
 
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { appWindow, follow, hasApp, type SpaceEntry } from "../ipc";
-import { contentScheme, primaryHex } from "../utils/theme";
+import { appWindow, follow, hasApp, type SpaceEntry, type SpaceTheme } from "../ipc";
+import { contentScheme, defaultTheme, primaryHex } from "../utils/theme";
 import { useProfiles, useSpaces } from "./library";
 import { type SpaceSlide, useSpaceSlide } from "./space-slide";
 
@@ -27,7 +27,12 @@ export type Space = {
   name: string;
   /** `lucide:` and an icon's name, or an emoji. */
   icon: string;
-  /** The window's colour while the space is shown: #rrggbb, in Display P3, as macOS's colour picker gives it. */
+  /** What the window is drawn with while the space is shown (components/space-background.tsx). */
+  theme: SpaceTheme;
+  /**
+   * The theme's primary colour, which the text and fills are made from:
+   * #rrggbb, in Display P3, as macOS's colour picker gives it.
+   */
   color: string;
   /** The blur behind the colour; a light one keeps a saturated colour bright. */
   backdrop: "light" | "dark";
@@ -43,6 +48,7 @@ export const personal: Space = {
   id: 0,
   name: "Personal",
   icon: "lucide:orbit",
+  theme: defaultTheme("#6f00ff"),
   color: "#6f00ff",
   backdrop: "dark",
   favorites: [
@@ -75,6 +81,7 @@ const shown = (entry: SpaceEntry): Space => ({
   id: entry.id,
   name: entry.name,
   icon: entry.icon,
+  theme: entry.theme,
   color: primaryHex(entry.theme),
   backdrop: contentScheme(entry.theme),
   favorites: [],
