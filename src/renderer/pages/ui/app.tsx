@@ -5,7 +5,7 @@ import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { BrowserProvider, useBrowser } from "../../state/browser";
 import { SpaceProvider, useSpace } from "../../state/space";
-import { useWindowTheme } from "../../state/window";
+import { useShowWindow, useWindowTheme } from "../../state/window";
 import { Omnibox } from "../../components/omnibox/omnibox";
 import { useShownOmnibox } from "../../components/omnibox/shown";
 import { SidePanel } from "../../components/side-panel";
@@ -40,6 +40,7 @@ export function App() {
 function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const { space } = useSpace();
   useWindowTheme(space);
+  useShowWindow();
 
   const { id: browser, splits, tabs, current, fullScreen, sidePanel } = useBrowser();
   // A page in full screen has the whole window: the sidebar and the side

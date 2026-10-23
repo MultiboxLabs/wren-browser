@@ -1,4 +1,9 @@
 export const appWindow = {
+  /**
+   * Shows the window, once the page has drawn what it shows. Until then it is
+   * hidden; later calls do nothing.
+   */
+  show: () => wren.invoke<null>("window.show"),
   /** Whether the window is in use: main, or under a sheet or bubble of its own. */
   active: () => wren.invoke<boolean>("window.active"),
   onActive: (listener: (active: boolean) => void) => wren.on<boolean>("window.active", listener),

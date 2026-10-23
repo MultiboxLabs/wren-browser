@@ -120,8 +120,10 @@ impl PageWindow {
         view.setAutoresizingMask(fill);
         content.addSubview(&view);
 
-        // Shows the window once the page has drawn, so it never opens blank;
-        // on a failed load or a crash too, or it would never open.
+        // The page shows the window once it has drawn what it shows (`show`),
+        // so it never opens blank or half drawn. A failed load or a crash
+        // shows it too, or it would never open. Wren's `drawn` is too soon:
+        // it is true from the page's first frame, before its UI is in it.
         let shown = window.clone();
         // The page is not a tab, so nothing else would bring it back from a
         // crash. The handler cannot own the web view (it owns the handler),
@@ -137,11 +139,8 @@ impl PageWindow {
                 let _ = web_view.reload();
             }
             crashed.set(now_crashed);
-            if (state.drawn || state.load_error != 0 || state.crash != TabCrash::None)
-                && !shown.isVisible()
-            {
-                shown.makeKeyAndOrderFront(None);
-                NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).activate();
+            if state.load_error != 0 || state.crash != TabCrash::None {
+                show(&shown);
             }
         })));
         let _ = web_view.focus();
@@ -189,6 +188,11 @@ impl PageWindow {
             observers: RefCell::new(observers),
             title_bar,
         })
+    }
+
+    /// Shows the window, in front and in use, once; later calls do nothing.
+    pub fn show(&self) {
+        show(&self.window);
     }
 
     /// Puts the window just below and right of `other` and at its size, as
@@ -383,6 +387,16 @@ fn appearance(dark: bool) -> Option<Retained<NSAppearance>> {
         }
     };
     NSAppearance::appearanceNamed(name)
+}
+
+// Brings the window in front and the app with it, the first time only: a
+// later call would take the user from a window they went to since.
+fn show(window: &NSWindow) {
+    if window.isVisible() {
+        return;
+    }
+    window.makeKeyAndOrderFront(None);
+    NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).activate();
 }
 
 fn is_full_screen(window: &NSWindow) -> bool {

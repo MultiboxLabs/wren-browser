@@ -29,6 +29,21 @@ export function useWindowActive() {
   return active;
 }
 
+/**
+ * Shows the window once what the page has drawn is on screen: the first
+ * frame after this mounts has painted by the second animation frame. Until
+ * then the app keeps the window hidden, so it never opens empty.
+ */
+export function useShowWindow() {
+  useEffect(() => {
+    if (!hasApp) return;
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => void appWindow.show().catch(() => {}));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+}
+
 /** Whether the window is full screen, from as it starts to go until it starts to come back. */
 export function useFullScreen() {
   const [fullScreen, setFullScreen] = useState(false);

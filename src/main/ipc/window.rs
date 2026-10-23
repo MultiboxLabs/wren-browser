@@ -4,6 +4,15 @@ use super::{WindowRef, with_window};
 use crate::window::PageWindow;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
+    // The page has drawn what it shows: the window is shown, the first time.
+    let weak = window.clone();
+    let _ = web_view.handle("window.show", move |()| {
+        with_window(&weak, |window| {
+            window.page.show();
+            Ok(())
+        })
+    });
+
     // Whether the window is in use; "window.active" says when it changes.
     let weak = window.clone();
     let _ = web_view.handle("window.active", move |()| {
