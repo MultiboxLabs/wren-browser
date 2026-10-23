@@ -19,7 +19,7 @@ use crate::perf::Perf;
 use crate::placeholder;
 use crate::sidebar::SidebarStore;
 use crate::tabs;
-use crate::window::{BrowserWindow, PlainWindow, WindowId};
+use crate::window::{BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId};
 use crate::windows::Windows;
 
 // What the app holds, shared with the closures it hands Wren.
@@ -84,12 +84,12 @@ impl State {
         });
     }
 
-    // The close button of window `id`. The last window closes the app, which
-    // keeps it and its session for the next run. Another is forgotten, and
-    // leaves by closing its Browsers, as Chrome's does, and goes once they
-    // have.
+    // The close button of window `id`. Where the last window quits the app
+    // (not on a Mac), it is kept with its session for the next run. Any
+    // other is forgotten, and leaves by closing its Browsers, as Chrome's
+    // does, and goes once they have.
     pub(crate) fn close_window(self: &Rc<Self>, mt: MainThread, id: WindowId) {
-        if self.windows.len() <= 1 {
+        if QUITS_WITH_LAST_WINDOW && self.windows.len() <= 1 {
             return mt.quit();
         }
         let Some(window) = self.windows.get(id) else {
@@ -220,17 +220,10 @@ impl App for Wren {
             .or_else(|| windows.front());
         // On the space of the window in front, or with none, the one used last.
         if id == menus::NEW_WINDOW {
-            let space = window
-                .as_ref()
-                .and_then(|window| window.space())
-                .or_else(|| {
-                    let recent = self.state.db.most_recent_space();
-                    recent.ok().flatten().map(|space| space.id)
-                });
-            if let Some(space) = space {
-                self.state.open_window_on(mt, space);
-            }
-            return;
+            return match window.as_ref().and_then(|window| window.space()) {
+                Some(space) => self.state.open_window_on(mt, space),
+                None => self.state.open_recent_window(mt),
+            };
         }
         let Some(window) = window else {
             return;
@@ -354,9 +347,16 @@ impl App for Wren {
         }
     }
 
+    // The Dock icon, with no window open: a new one.
+    fn reopen(&self, mt: MainThread, _: bool) {
+        if self.state.windows.len() == 0 {
+            self.state.open_recent_window(mt);
+        }
+    }
+
     // Chromium closes a Browser whose last tab closes. Its window stays, with
     // the space empty, unless the user is closing the window: that goes with
-    // its last Browser, and the app with the last window.
+    // its last Browser, and the app with the last window where it quits so.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {
@@ -369,7 +369,7 @@ impl App for Wren {
         if window.is_closing() {
             if !window.has_browsers() {
                 self.state.windows.remove(window.id);
-                if self.state.windows.len() == 0 {
+                if QUITS_WITH_LAST_WINDOW && self.state.windows.len() == 0 {
                     mt.quit();
                 }
             }

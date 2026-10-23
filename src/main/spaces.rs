@@ -113,6 +113,16 @@ impl State {
         self.open_space_browser(mt, id, space, || {});
     }
 
+    /// Opens a window on the space used last, of any profile: the Dock icon,
+    /// or New Window, with no window open.
+    pub fn open_recent_window(self: &Rc<Self>, mt: MainThread) {
+        match self.db.most_recent_space() {
+            Ok(Some(space)) => self.open_window_on(mt, space.id),
+            Ok(None) => eprintln!("Wren found no space to open."),
+            Err(error) => eprintln!("Wren could not read the spaces: {error}"),
+        }
+    }
+
     /// Makes window `id` a Browser for `space`, with no tab yet but its
     /// placeholder (placeholder.rs), unless it has one or one is on the way;
     /// `then` runs once it is shown. A space whose Browser could not be made

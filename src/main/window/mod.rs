@@ -36,6 +36,10 @@ use crate::pages::Page;
 
 pub use browser::{BrowserWindow, WindowId, marks, tagged};
 pub use plain::PlainWindow;
+
+/// Whether closing the last window quits the app. A Mac app keeps running
+/// with none, as Chrome does, until the user quits it.
+pub const QUITS_WITH_LAST_WINDOW: bool = !cfg!(target_os = "macos");
 use title_bar::TitleBar;
 
 /// A window showing one page. Its web view drops first, which takes the page
