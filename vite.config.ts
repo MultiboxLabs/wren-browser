@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import { cn } from "cn/vite";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
-import { cnTables } from "./scripts/cn-tables";
+import { cnTables } from "./scripts/cn-tables.ts";
 
 // The renderer: an entry for each page, src/renderer/pages/<page>/index.html,
 // which the app serves as wren://<page>/. Each entry's HTML preloads all of
