@@ -197,7 +197,12 @@ impl App for Wren {
                 continue;
             };
             match change.kind {
-                ChangeKind::ForegroundRequest => state.bring_forward(browser),
+                // A restore asks for the Browser Chromium had active to come
+                // forward, which would take the window off the space it was
+                // kept on.
+                ChangeKind::ForegroundRequest if state.restoring.get() == 0 => {
+                    state.bring_forward(browser)
+                }
                 // A placeholder goes, or stays, as the tabs change; undocked
                 // DevTools shows its active tab.
                 ChangeKind::Tabs | ChangeKind::Tab => {
