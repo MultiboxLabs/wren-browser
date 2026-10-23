@@ -63,6 +63,9 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) {
                 if change.tab_fields.contains(TabFields::FAVICON) {
                     ipc::send_favicon(window, tab);
                 }
+                if change.tab_fields.contains(TabFields::STATUS) {
+                    ipc::send_status(window, tab);
+                }
                 // A newly active tab's page arrives in the page's
                 // element after the page asks for it, and gets the
                 // keyboard then.

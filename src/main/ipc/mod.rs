@@ -29,7 +29,7 @@ use crate::app::State;
 use crate::window::{BrowserWindow, WindowId};
 
 pub use anchors::send_anchors;
-pub use browser::{send_favicon, send_tabs};
+pub use browser::{send_favicon, send_status, send_tabs};
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
 pub use menu::send_toggle_sidebar;

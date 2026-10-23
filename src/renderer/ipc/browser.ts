@@ -18,6 +18,9 @@ export type BrowserTab = {
   hidden: boolean;
 };
 
+/** The address of the link under the pointer in a tab's page, or of the link with the keyboard; null for none. */
+export type TabStatus = { tab: number; link: string | null };
+
 /** The tabs of the window's Browser in front, in its order, and which is active. */
 export type BrowserTabs = {
   /** The Browser's ID, which names its side panel's element; null while the window's space has no Browser. */
@@ -45,6 +48,10 @@ export const browser = {
   favicon: (id: number) => wren.invoke<string | null>("tab.favicon", id),
   /** Hears which tab's favicon changed, to ask for it again. */
   onFavicon: (listener: (id: number) => void) => wren.on<number>("tab.favicon", listener),
+  /** The address of the link under the pointer in a tab's page, or null. */
+  status: (id: number) => wren.invoke<string | null>("tab.status", id),
+  /** Hears a tab's link under the pointer change; a tab its Browser does not show has none. */
+  onStatus: (listener: (status: TabStatus) => void) => wren.on<TabStatus>("tab.status", listener),
   /** A tab on an address, at the top. */
   open: (url: string) => wren.invoke<null>("tabs.open", url),
   /** Puts the active tab's address on the clipboard. */

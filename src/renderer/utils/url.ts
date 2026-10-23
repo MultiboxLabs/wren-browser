@@ -42,5 +42,11 @@ export function address(url: string) {
   }
 }
 
+/** A link's address as its status shows it: a web address without "https://" or "www.", any other as the page shows it. */
+export function linkAddress(url: string) {
+  url = shownUrl(url);
+  return url.startsWith("https://") ? url.slice("https://".length).replace(/^www\./, "") : url;
+}
+
 /** Chromium's New Tab page, which has no address to show. */
 export const isNewTab = (url: string) => url === "" || url.startsWith("chrome://newtab");

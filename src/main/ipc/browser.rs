@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, WebView};
+use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, TabStatus, WebView};
 
 use super::groups::Group;
 use super::splits::Split;
@@ -28,6 +28,14 @@ pub struct Tab {
     /// It stands in for the Browser's tabs while it has none: the page
     /// neither lists nor shows it.
     hidden: bool,
+}
+
+/// The address of the link under the pointer in a tab's page, or of the
+/// link with the keyboard, which the page shows over it ("tab.status").
+#[derive(Serialize)]
+struct Status {
+    tab: i32,
+    link: Option<String>,
 }
 
 /// The tabs of the Browser in front, in its order, and which is active.
@@ -101,6 +109,13 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |_, browser| {
             Ok(tab(mt, browser, id)?.favicon_png().map(icons::id))
         })
+    });
+
+    // The address of the link under the pointer in a tab's page, or null;
+    // "tab.status" says when it changes.
+    let weak = window.clone();
+    let _ = web_view.handle("tab.status", move |id: i32| {
+        with_browser(&weak, |_, browser| Ok(link(tab(mt, browser, id)?)))
     });
 
     // A tab on an address, at the top of the list.
@@ -234,6 +249,24 @@ pub fn send_no_tabs(window: &BrowserWindow) {
 /// Tells the page a tab's favicon changed, for it to ask again.
 pub fn send_favicon(window: &BrowserWindow, tab: BrowserTab) {
     let _ = window.page.web_view.send("tab.favicon", &tab.id());
+}
+
+/// Tells the page the link under the pointer in a tab's page changed.
+pub fn send_status(window: &BrowserWindow, tab: BrowserTab) {
+    let status = Status {
+        tab: tab.id(),
+        link: link(tab),
+    };
+    let _ = window.page.web_view.send("tab.status", &status);
+}
+
+// The address of the link Chrome's status bubble shows for a tab, if it
+// shows one; not its loading line.
+fn link(tab: BrowserTab) -> Option<String> {
+    tab.state()
+        .is_ok_and(|state| state.status == TabStatus::Link)
+        .then(|| tab.status_text())
+        .filter(|text| !text.is_empty())
 }
 
 fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
