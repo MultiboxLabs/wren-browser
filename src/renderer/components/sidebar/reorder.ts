@@ -9,7 +9,7 @@
 
 import { type DragEvent, type PointerEvent, useLayoutEffect, useRef, useState } from "react";
 import { browser, type TabUnit } from "../../ipc";
-import { addressOf, carriesAddress } from "./dropped-address";
+import { addressesOf, carriesAddress } from "./dropped-address";
 import { useEdgeScroll } from "./edge-scroll";
 import { type DropMark, type Grabbed, type Held, type Landing, landingAt, OUTSIDE } from "./landing";
 import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
@@ -20,6 +20,18 @@ const UNIT_TYPE = "application/x-wren-unit";
 
 const tabUnit = (kind: UnitKind, tab: number): TabUnit =>
   kind === "split" ? { split: tab } : kind === "group" ? { group: tab } : { tab };
+
+// A tab on each of `urls`, in order from `index`, one at a time so each
+// lands after the last. A tab that fails to open ends it.
+async function openAll(urls: string[], index: number, group: number | null) {
+  for (const [offset, url] of urls.entries()) {
+    try {
+      await browser.openAt(url, index + offset, group);
+    } catch {
+      return;
+    }
+  }
+}
 
 const sameMark = (a: DropMark | null, b: DropMark | null) =>
   a === b || (!!a && !!b && a.kind === b.kind && a.top === b.top && a.left === b.left && a.width === b.width);
@@ -143,13 +155,13 @@ export function useTabReorder(order: string) {
         const own = held.current;
         if (!own && !carriesAddress(event.dataTransfer)) return;
         event.preventDefault();
-        const url = own ? null : addressOf(event.dataTransfer);
+        const urls = own ? [] : addressesOf(event.dataTransfer);
         const scroller = event.currentTarget;
         const place = landingAt(scroller, own ?? OUTSIDE, event.clientX, event.clientY);
         end();
         if (!place) return;
         if (!own) {
-          if (url && place.kind === "move") browser.openAt(url, place.index, place.group).catch(() => {});
+          if (place.kind === "move") void openAll(urls, place.index, place.group);
         } else if (place.kind === "split") {
           const [first, second] = place.side === "left" ? [own.tab, place.targetTab] : [place.targetTab, own.tab];
           browser.split(first, second).catch(() => {});

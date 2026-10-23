@@ -153,7 +153,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
-    // A web address dropped on the list: a tab on it, where it was dropped.
+    // A web address or a file dropped on the list: a tab on it, where it was
+    // dropped.
     let weak = window.clone();
     let _ = web_view.handle("tabs.openAt", move |at: OpenAt| {
         with_browser(&weak, |_, browser| {

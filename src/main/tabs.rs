@@ -93,7 +93,8 @@ pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) ->
 }
 
 /// A tab on `url`, shown, at `index` and in `group` (None: none). The page
-/// puts what is dropped on it here, so only a web address is let through.
+/// puts what is dropped on it here, so only a web address or a file's is let
+/// through.
 pub fn open_at(
     mt: MainThread,
     browser: &Browser,
@@ -101,7 +102,10 @@ pub fn open_at(
     index: usize,
     group: Option<TabGroup>,
 ) -> Result<(), Error> {
-    if !(url.starts_with("https://") || url.starts_with("http://")) {
+    if !["https://", "http://", "file://"]
+        .iter()
+        .any(|scheme| url.starts_with(scheme))
+    {
         return Err(Error::InvalidArgument);
     }
     let tab = browser.add_tab(url, Some(index), true)?;
