@@ -187,9 +187,14 @@ impl BrowserWindow {
         self.new_tab_omnibox.get()
     }
 
-    /// Notes the Browser the page's omnibox asks, or that it asks none.
-    pub fn set_omnibox_query(&self, browser: Option<Browser>) {
-        *self.omnibox_query.borrow_mut() = browser;
+    /// Notes the Browser the page's omnibox asks.
+    pub fn set_omnibox_query(&self, browser: Browser) {
+        *self.omnibox_query.borrow_mut() = Some(browser);
+    }
+
+    /// Notes that the page's omnibox asks none, and answers the one it did.
+    pub fn take_omnibox_query(&self) -> Option<Browser> {
+        self.omnibox_query.borrow_mut().take()
     }
 
     /// Whether the page's omnibox asks `browser` for suggestions.
@@ -255,6 +260,9 @@ impl BrowserWindow {
     /// Forgets a Browser that has closed, and answers the space it was for.
     /// The current space stays the current space, without one.
     pub fn remove(&self, browser: &Browser) -> Option<SpaceId> {
+        if self.asks_omnibox(browser) {
+            self.take_omnibox_query();
+        }
         let space = self.space_of(browser)?;
         self.spaces.borrow_mut().remove(&space);
         Some(space)

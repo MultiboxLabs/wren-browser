@@ -198,7 +198,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             browser
                 .omnibox_query(&query.text, query.cursor, query.keyword.as_deref(), flags)
                 .map_err(failed)?;
-            window.set_omnibox_query(Some(browser.clone()));
+            window.set_omnibox_query(browser.clone());
             Ok(suggestions(browser))
         })
     });
@@ -328,10 +328,19 @@ pub fn send_close_omnibox(window: &BrowserWindow) {
     let _ = window.page.web_view.send("omnibox.hide", &());
 }
 
+/// Stops the query of the Browser the page's omnibox asks, if it asks one:
+/// the window is leaving that Browser for another space's, and the page
+/// closes its omnibox as it does.
+pub fn stop_omnibox(window: &BrowserWindow) {
+    if let Some(browser) = window.take_omnibox_query() {
+        let _ = browser.omnibox_stop();
+    }
+}
+
 // Stops the omnibox's query, which clears Chromium's suggestions; the page
 // hears nothing of it.
 fn stop(window: &BrowserWindow, browser: &Browser) -> Result<(), wren::Error> {
-    window.set_omnibox_query(None);
+    window.take_omnibox_query();
     browser.omnibox_stop()
 }
 

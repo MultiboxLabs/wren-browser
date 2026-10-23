@@ -34,7 +34,9 @@ pub use browser::{send_favicon, send_status, send_tabs};
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
 pub use menu::send_toggle_sidebar;
-pub use omnibox::{OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox};
+pub use omnibox::{
+    OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox, stop_omnibox,
+};
 pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
 pub use side_panel::send_side_panel;
 pub use site::send_site;

@@ -19,10 +19,12 @@ impl State {
         if window.space() == Some(space) {
             return Ok(());
         }
-        // Full screen for a page is the old Browser's.
+        // Full screen for a page is the old Browser's, as is the omnibox's
+        // query: the page closes its omnibox as it switches.
         if window.wants_full_screen_for_page(false) {
             window.page.set_full_screen(false);
         }
+        ipc::stop_omnibox(&window);
         let front = window.switch_to(space);
         self.save_window(&window);
         self.touch_space(space);
