@@ -120,7 +120,10 @@ mod tests {
         assert!(!db.sync_profiles(&both));
         let spaces = db.list_spaces().unwrap();
         assert_eq!(spaces.len(), 1);
-        assert_eq!((spaces[0].profile.as_str(), spaces[0].name.as_str()), ("a", "Alpha"));
+        assert_eq!(
+            (spaces[0].profile.as_str(), spaces[0].name.as_str()),
+            ("a", "Alpha")
+        );
 
         // A new profile has none, and "a" is forgotten, with the app's
         // last space: "c", first now, is given one.
