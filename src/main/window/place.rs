@@ -5,6 +5,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use wren::{Profile, ProfileKind};
+
 use crate::db::SpaceId;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -16,6 +18,26 @@ pub enum Place {
 }
 
 impl Place {
+    /// The place that shows `profile`: its own, or its original's
+    /// off-the-record side.
+    pub fn of_profile(profile: &Profile) -> Place {
+        Place::Profile {
+            id: profile.original().id(),
+            off_the_record: profile.kind() == ProfileKind::OffTheRecord,
+        }
+    }
+
+    /// Whether it is a profile's off-the-record side, which is never kept.
+    pub fn is_off_the_record(&self) -> bool {
+        matches!(
+            self,
+            Place::Profile {
+                off_the_record: true,
+                ..
+            }
+        )
+    }
+
     /// The space it is, if it is one.
     pub fn space(&self) -> Option<SpaceId> {
         match self {

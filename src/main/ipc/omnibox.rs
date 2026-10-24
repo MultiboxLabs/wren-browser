@@ -128,16 +128,16 @@ struct Suggestion {
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
-    // Makes sure the window's space has a Browser for the omnibox to ask, as
-    // one it has opened no tab in has none: one with no tab yet but its
+    // Makes sure the window's place has a Browser for the omnibox to ask,
+    // as one it has opened no tab in has none: one with no tab yet but its
     // placeholder. Answers once it is there. Any Browser will do, so this
-    // asks for one, not whether the space is empty (`browser_with_tabs`).
+    // asks for one, not whether the place is empty (`browser_with_tabs`).
     let weak = window.clone();
     let _ = web_view.handle_call("omnibox.prepare", move |call| {
-        // The window's space, if it has no Browser.
-        let without = with_window(&weak, |window| match (window.browser(), window.space()) {
+        // The window's place, if it has no Browser.
+        let without = with_window(&weak, |window| match (window.browser(), window.place()) {
             (Some(_), _) => Ok(None),
-            (None, Some(space)) => Ok(Some(space)),
+            (None, Some(place)) => Ok(Some(place)),
             (None, None) => Err("The window has no space yet.".to_owned()),
         });
         match (without, weak.state()) {
@@ -145,8 +145,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 let _ = call.answer(&());
             }
             // A Browser that is not made drops the call, which fails it.
-            (Ok(Some(space)), Ok(state)) => {
-                state.open_space_browser(mt, weak.id, space, move || {
+            (Ok(Some(place)), Ok(state)) => {
+                state.open_browser(mt, weak.id, place, move || {
                     let _ = call.answer(&());
                 });
             }

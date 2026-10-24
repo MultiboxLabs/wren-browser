@@ -169,9 +169,9 @@ impl App for Wren {
 
     // Required: Chromium opened a Browser of its own. A normal one, a
     // restored window or one a link or the omnibox asked for, is shown in a
-    // window of its own, on the space it came from (`place_opened`);
-    // an incognito one closes, as other kinds (a popup) do. DevTools gets a
-    // plain window of its own.
+    // window of its own, on the space it came from, or an incognito one on
+    // its profile's off-the-record side (`place_opened`); other kinds (a
+    // popup) close. DevTools gets a plain window of its own.
     fn browser_opened(
         &self,
         mt: MainThread,
@@ -198,11 +198,14 @@ impl App for Wren {
             .any(|change| change.kind == ChangeKind::Profiles)
         {
             let fill = state.creating_profiles.get() == 0;
-            // A profile deleted elsewhere takes its spaces with it.
+            // A profile deleted elsewhere takes its spaces and windows with
+            // it. One renamed is told too: the page and the main menu show
+            // profiles' names.
             if state.db.sync_profiles(&mt.profile_list(), fill) {
                 state.leave_gone_spaces(None);
-                ipc::broadcast_spaces(state);
             }
+            state.leave_gone_profiles(mt);
+            ipc::broadcast_spaces(state);
         }
         // Warn Before Quitting's item is checked as the setting is, which
         // Chrome's settings page and Always Quit change too.
@@ -253,19 +256,23 @@ impl App for Wren {
             }
             return;
         }
-        // On the space of the window in front, or with none, the one used last.
+        // From the window in front, if one is.
         if id == menus::NEW_WINDOW {
-            return match window.as_ref().and_then(|window| window.space()) {
-                Some(space) => self.state.open_window_on(mt, space),
-                None => self.state.open_recent_window(mt),
-            };
+            return self.state.new_window(mt, window.as_deref());
+        }
+        if id == menus::NEW_INCOGNITO_WINDOW {
+            return self.state.new_incognito_window(mt, window.as_deref());
         }
         let Some(window) = window else {
             return;
         };
-        // The page switches, so the sidebar slides as a press makes it.
+        // The page switches, so the sidebar slides as a press makes it. A
+        // window on a profile never switches.
         if let Some(space) = id.strip_prefix(menus::SPACE).and_then(|id| id.parse().ok()) {
-            return ipc::send_choose_space(&window, space);
+            if !window.is_profile_window() {
+                ipc::send_choose_space(&window, space);
+            }
+            return;
         }
         if id == menus::CLOSE_WINDOW {
             return self.state.close_window(mt, window.id);
@@ -398,6 +405,7 @@ impl App for Wren {
     // Chromium closes a Browser whose last tab closes. Its window stays, with
     // the space empty, unless the user is closing the window: that goes with
     // its last Browser, and the app with the last window where it quits so.
+    // A window on a profile goes with its one Browser.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {
@@ -415,6 +423,10 @@ impl App for Wren {
                 }
             }
             return;
+        }
+        // A window on a profile goes with its Browser.
+        if window.is_profile_window() {
+            return self.state.close_window(mt, window.id);
         }
         if place.is_some() && place == window.place() {
             ipc::send_no_browser(&window);

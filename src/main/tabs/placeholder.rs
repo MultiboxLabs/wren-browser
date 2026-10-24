@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use wren::{Browser, BrowserTab, Error, Profile};
 
 use super::is_new_tab;
-use crate::window::Tag;
+use crate::window::{Place, Tag};
 
 thread_local! {
     // Each placeholder, with the tabs it stands in for, which are closing as
@@ -31,9 +31,11 @@ pub fn has_tabs(browser: &Browser) -> bool {
 }
 
 /// Before `closing` close: if they are all the Browser has, a placeholder
-/// opens to stand in for them, so the Browser stays.
+/// opens to stand in for them, so the Browser stays. A window on a profile
+/// goes with its Browser instead, so its Browser has none.
 pub fn stand_in(browser: &Browser, closing: &[BrowserTab]) -> Result<(), Error> {
-    if browser.tabs().iter().all(|tab| closing.contains(tab)) {
+    let of_profile = matches!(Tag::of(browser).window, Some((_, Place::Profile { .. })));
+    if !of_profile && browser.tabs().iter().all(|tab| closing.contains(tab)) {
         hold(browser.add_tab("", None, true)?, closing);
     }
     Ok(())

@@ -97,7 +97,7 @@ impl State {
             if let Err(error) = state.show_space(window.id, space) {
                 return eprintln!("Wren could not open a space: {error}");
             }
-            state.open_space_browser(mt, window.id, space, || {});
+            state.open_browser(mt, window.id, Place::Space(space), || {});
         });
     }
 
@@ -181,8 +181,7 @@ impl State {
     pub(super) fn new_window_key(&self) -> String {
         self.db.add_window().unwrap_or_else(|error| {
             eprintln!("Wren could not keep a window: {error}");
-            let now = SystemTime::now().duration_since(UNIX_EPOCH);
-            format!("unkept-{:x}", now.map_or(0, |since| since.as_nanos()))
+            unkept_window_key()
         })
     }
 
@@ -200,4 +199,11 @@ impl State {
     fn restore_finished(&self) {
         self.restoring.set(self.restoring.get() - 1);
     }
+}
+
+/// A key for a window the database does not keep, for its Browsers' tags:
+/// an off-the-record one, or one the database failed to keep.
+pub(super) fn unkept_window_key() -> String {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH);
+    format!("unkept-{:x}", now.map_or(0, |since| since.as_nanos()))
 }

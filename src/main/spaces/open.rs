@@ -1,10 +1,12 @@
 // Opening windows, and where each Browser goes: one the app makes for a
-// window's space, and one Chromium opens, which goes back where it was if
+// window's place, and one Chromium opens, which goes back where it was if
 // it was restored, or else gets a window of its own.
 
 use std::rc::Rc;
 
 use wren::{Browser, MainThread, ProfileKind, RequestedBounds};
+
+use super::session::unkept_window_key;
 
 use crate::app::State;
 use crate::db::SpaceId;
@@ -108,7 +110,71 @@ impl State {
             return eprintln!("Wren opened no window.");
         };
         self.touch_space(space);
-        self.open_space_browser(mt, id, space, || {});
+        self.open_browser(mt, id, Place::Space(space), || {});
+    }
+
+    /// Opens a window on a profile, or its off-the-record side, with a
+    /// Browser that has no tab yet. Its off-the-record side's is never kept.
+    pub fn open_profile_window(self: &Rc<Self>, mt: MainThread, place: Place) {
+        let Some(id) = self.open_place_window(mt, place.clone()) else {
+            return eprintln!("Wren opened no window.");
+        };
+        self.open_browser(mt, id, place, || {});
+    }
+
+    // Opens a window on `place`, kept unless it is off the record.
+    fn open_place_window(self: &Rc<Self>, mt: MainThread, place: Place) -> Option<WindowId> {
+        let key = match place.is_off_the_record() {
+            true => unkept_window_key(),
+            false => self.new_window_key(),
+        };
+        self.open_keyed_window(mt, key, Some(place), None)
+    }
+
+    /// New Window, from `window` if one is in front: on its space; or for
+    /// its profile, on the profile's most recent space if it has one now,
+    /// else another window on the profile, as an off-the-record one does.
+    /// With none, on the space used last.
+    pub fn new_window(self: &Rc<Self>, mt: MainThread, window: Option<&BrowserWindow>) {
+        match window.and_then(BrowserWindow::place) {
+            Some(Place::Space(space)) => self.open_window_on(mt, space),
+            Some(Place::Profile {
+                id,
+                off_the_record: false,
+            }) if let Ok(Some(space)) = self.db.recent_space(&id) => {
+                self.open_window_on(mt, space.id)
+            }
+            Some(place) => self.open_profile_window(mt, place),
+            None => self.open_recent_window(mt),
+        }
+    }
+
+    /// New Incognito Window: on the off-the-record side of `window`'s
+    /// profile, or with none in front, of the startup profile's.
+    pub fn new_incognito_window(self: &Rc<Self>, mt: MainThread, window: Option<&BrowserWindow>) {
+        let profile = match window.and_then(BrowserWindow::place) {
+            Some(Place::Space(space)) => match self.db.space(space) {
+                Ok(row) => row.map(|row| row.profile),
+                Err(error) => return eprintln!("Wren could not read the spaces: {error}"),
+            },
+            Some(Place::Profile { id, .. }) => Some(id),
+            None => None,
+        };
+        let open = move |state: &Rc<State>, id: String| {
+            let place = Place::Profile {
+                id,
+                off_the_record: true,
+            };
+            state.open_profile_window(mt, place);
+        };
+        if let Some(id) = profile {
+            return open(self, id);
+        }
+        let state = self.clone();
+        mt.open_profile(None, move |result| match result {
+            Ok(profile) => open(&state, profile.id()),
+            Err(error) => eprintln!("Wren opened no Profile: {error:?}"),
+        });
     }
 
     /// Opens a window on the space used last, of any profile: the Dock icon,
@@ -121,37 +187,43 @@ impl State {
         }
     }
 
-    /// Makes window `id` a Browser for `space`, with no tab yet but its
+    /// Makes window `id` a Browser for `place`, with no tab yet but its
     /// placeholder (tabs/placeholder.rs), unless it has one or one is on the
-    /// way; `then` runs once it is shown. A space whose Browser could not be
+    /// way; `then` runs once it is shown. A place whose Browser could not be
     /// made stays without one.
-    pub fn open_space_browser(
+    pub fn open_browser(
         self: &Rc<Self>,
         mt: MainThread,
         id: WindowId,
-        space: SpaceId,
+        place: Place,
         then: impl FnOnce() + 'static,
     ) {
         let Some(window) = self.windows.get(id) else {
             return;
         };
-        let place = Place::Space(space);
         if !window.set_opening(&place) {
             return;
         }
-        let profile = match self.db.space(space) {
-            Ok(Some(row)) => row.profile,
-            Ok(None) => {
-                window.forget(&place);
-                return eprintln!("Wren opened no Browser: the space is gone.");
-            }
-            Err(error) => {
-                window.forget(&place);
-                return eprintln!("Wren opened no Browser: {error}");
-            }
+        let (profile, off_the_record) = match &place {
+            Place::Space(space) => match self.db.space(*space) {
+                Ok(Some(row)) => (row.profile, false),
+                Ok(None) => {
+                    window.forget(&place);
+                    return eprintln!("Wren opened no Browser: the space is gone.");
+                }
+                Err(error) => {
+                    window.forget(&place);
+                    return eprintln!("Wren opened no Browser: {error}");
+                }
+            },
+            Place::Profile { id, off_the_record } => (id.clone(), *off_the_record),
         };
         let state = self.clone();
         mt.open_profile(Some(&profile), move |result| {
+            let result = match off_the_record {
+                true => result.and_then(|profile| profile.off_the_record()),
+                false => result,
+            };
             let profile = match result {
                 Ok(profile) => profile,
                 Err(error) => return state.failed_browser(id, &place, &error),
@@ -161,8 +233,8 @@ impl State {
                     Ok(browser) => browser,
                     Err(error) => return state.failed_browser(id, &place, &error),
                 };
-                // A window closed in the meantime takes no Browser, nor one
-                // whose space was deleted.
+                // A window closed in the meantime takes no Browser, nor a
+                // space's that was deleted.
                 let window = state.windows.get(id);
                 let Some(window) = window.filter(|w| !w.is_closing() && w.is_opening(&place))
                 else {
@@ -188,20 +260,30 @@ impl State {
     /// that of the window in front, as New Window's, if either is of its
     /// profile; otherwise its profile's most recently used space. At
     /// startup, it goes in the window that waits for its first. Chromium
-    /// names no opener for a link opened in a new window.
+    /// names no opener for a link opened in a new window. An off-the-record
+    /// one gets an off-the-record window of its own.
     pub fn place_opened(
         self: &Rc<Self>,
         mt: MainThread,
         browser: Browser,
         opener: Option<Browser>,
     ) {
-        let Some(profile) = browser
-            .profile()
-            .filter(|profile| profile.kind() != ProfileKind::OffTheRecord)
-        else {
+        let Some(profile) = browser.profile() else {
             let _ = browser.close();
             return;
         };
+        if profile.kind() == ProfileKind::OffTheRecord {
+            let place = Place::of_profile(&profile);
+            match self.open_place_window(mt, place.clone()) {
+                Some(id) if let Some(window) = self.windows.get(id) => {
+                    self.host(&window, place, &browser)
+                }
+                _ => {
+                    let _ = browser.close();
+                }
+            }
+            return;
+        }
         if self.place_tagged(&browser, &profile) {
             return;
         }
