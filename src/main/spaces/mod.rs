@@ -21,9 +21,9 @@ use crate::ipc;
 use crate::menus;
 
 impl State {
-    /// The profile's most recently used space. A profile Chromium has just
-    /// made may have none yet: it is given its first. One whose spaces the
-    /// user deleted has none.
+    /// The profile's most recently used space, if it has one. A profile
+    /// Chromium has just made is not in the database yet: it is added, with
+    /// no space, so a window on it can be kept.
     pub(super) fn recent_space(&self, mt: MainThread, profile: &Profile) -> Option<SpaceId> {
         let id = profile.id();
         let recent = || match self.db.recent_space(&id) {
@@ -34,8 +34,7 @@ impl State {
             }
         };
         recent().or_else(|| {
-            let fill = self.creating_profiles.get() == 0;
-            if self.db.sync_profiles(&mt.profile_list(), fill) {
+            if self.db.sync_profiles(&mt.profile_list()) {
                 ipc::broadcast_spaces(self);
             }
             recent()

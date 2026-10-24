@@ -39,7 +39,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("profiles.list", move |()| Ok::<_, String>(list(mt)));
 
     // Makes a profile named as asked, with `space` as its first space if one
-    // is given, and answers with it once both are made.
+    // is given, or else none, and answers with it once both are made.
     let weak = window.clone();
     let _ = web_view.handle_call("profiles.create", move |call| {
         let state = match weak.state() {
@@ -70,23 +70,14 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 return;
             }
         };
-        // Until the call finishes, the list changing does not give the new
-        // profile its space (see `State::creating_profiles`).
-        state
-            .creating_profiles
-            .set(state.creating_profiles.get() + 1);
         mt.create_profile(Some(&name), move |result| {
-            state
-                .creating_profiles
-                .set(state.creating_profiles.get() - 1);
             let made = result.map(|profile| profile.id());
             if let (Ok(id), Some(space)) = (&made, space)
-                && let Err(error) = state.db.add_profile(id, space)
+                && let Err(error) = state.db.create_space(id, space)
             {
                 eprintln!("Wren could not give a profile its space: {error}");
             }
-            // Given none, it gets the default one.
-            state.db.sync_profiles(&mt.profile_list(), true);
+            state.db.sync_profiles(&mt.profile_list());
             ipc::broadcast_spaces(&state);
             // A page that went before its answer is no error.
             let _ = match made {
@@ -97,6 +88,17 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 Err(error) => call.fail(&failed(error)),
             };
         });
+    });
+
+    // Opens a window for a profile: on its most recent space, or with none,
+    // on the profile.
+    let weak = window.clone();
+    let _ = web_view.handle("profiles.openWindow", move |id: String| {
+        if !mt.profile_list().iter().any(|profile| profile.id == id) {
+            return Err("That profile is gone.".to_owned());
+        }
+        weak.state()?.open_window_for_profile(mt, id);
+        Ok(())
     });
 
     // Renames a profile, answering once Chromium has its new name. The list
