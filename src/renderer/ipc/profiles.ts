@@ -13,11 +13,13 @@ export const profiles = {
   list: () => wren.invoke<ProfileEntry[]>("profiles.list"),
   /**
    * Makes one, and answers with it once it is made. Its first space is `space`,
-   * or else one named for it. Fails for a name that is empty, or a space that
+   * or else it has none. Fails for a name that is empty, or a space that
    * can't be kept.
    */
   create: (name: string, space?: NewSpace) =>
     wren.invoke<ProfileEntry>("profiles.create", space ? { name, space } : name),
+  /** Opens a window for one: on its most recent space, or with none, on the profile. Fails for one that is gone. */
+  openWindow: (id: string) => wren.invoke<null>("profiles.openWindow", id),
   /** Renames one. Fails for a name that is empty. */
   rename: (id: string, name: string) => wren.invoke<null>("profiles.rename", { id, name }),
   /**

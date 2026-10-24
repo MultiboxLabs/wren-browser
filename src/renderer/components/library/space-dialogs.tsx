@@ -44,7 +44,7 @@ export type SpaceDialogProps = DialogProps &
         profile: string | null;
         /** Makes it in a profile; rejects if it can't. */
         onCreate: (profile: string, space: NewSpace) => Promise<void>;
-        /** Makes the profile too, with this as its first space, which is what a new profile has instead of the default one. */
+        /** Makes the profile too, with this as its first space; a new profile has none otherwise. */
         onCreateWithProfile: (name: string, space: NewSpace) => Promise<void>;
       }
   );

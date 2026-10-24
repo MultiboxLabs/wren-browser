@@ -40,7 +40,7 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   // `serial` makes each opening a dialog of its own.
   const [newSpace, setNewSpace] = useState<{ open: boolean; serial: number; profile: string | null } | null>(null);
   const serial = useRef(0);
-  const { profiles, failed, reload, create, rename, remove } = useProfiles(open);
+  const { profiles, failed, reload, create, rename, remove, openWindow } = useProfiles(open);
   const spaces = useSpaces(open);
   const shown = sections.find(({ id }) => id === section)!;
   const railX = useTransform(() => railShift(steps));
@@ -142,6 +142,7 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
           onDeleteSpace={spaces.remove}
           naming={naming}
           onCreate={create}
+          onOpenWindow={openWindow}
           onRename={rename}
           onDelete={remove}
           onNamed={() => setNaming(false)}

@@ -11,7 +11,8 @@ import { hasApp, type NewSpace, type ProfileEntry, profiles, type SpaceEntry, sp
  * until the first reading, and `failed` if that one could not be made (a
  * later one that fails leaves the last list, which is still the best there
  * is); `reload` tries again. `create` makes a profile, `rename` and `remove`
- * change one, and each rejects if the app can't.
+ * change one, and each rejects if the app can't; `openWindow` opens a window
+ * for one.
  */
 export function useProfiles(open: boolean) {
   // Outside the app (Vite in a browser) there is nothing to wait for.
@@ -26,7 +27,7 @@ export function useProfiles(open: boolean) {
   }, [open]);
   // A profile comes or goes with its spaces, in this window or another.
   useEffect(() => (hasApp ? spaces.onChanged(() => void refresh()) : undefined), []);
-  // `space` is the profile's first space, in place of the default one.
+  // `space` is the profile's first space; without, it has none.
   const create = async (name: string, space?: NewSpace) => {
     const entry = await profiles.create(name, space);
     setList((list) => {
@@ -43,7 +44,8 @@ export function useProfiles(open: boolean) {
     await profiles.delete(id);
     await refresh();
   };
-  return { profiles: list, failed, reload: refresh, create, rename, remove };
+  const openWindow = (id: string) => void profiles.openWindow(id).catch(refresh);
+  return { profiles: list, failed, reload: refresh, create, rename, remove, openWindow };
 }
 
 /**

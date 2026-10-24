@@ -177,21 +177,13 @@ impl Db {
         transaction.commit().map_err(sql)
     }
 
-    /// Adds a profile the database has not met, with `first` as its space.
-    /// One it has met keeps the spaces it has, none if the user deleted
-    /// them. Whether it added it.
-    pub fn add_profile(&self, profile: &str, first: NewSpace) -> Result<bool, String> {
-        let first = first.checked()?;
-        let transaction = self.conn.unchecked_transaction().map_err(sql)?;
-        let added = transaction
+    /// Adds a profile the database has not met, with no space. Whether it
+    /// added it.
+    pub fn add_profile(&self, profile: &str) -> Result<bool, String> {
+        self.conn
             .execute("INSERT OR IGNORE INTO profiles (id) VALUES (?1)", [profile])
-            .map_err(sql)?
-            > 0;
-        if added {
-            insert(&transaction, profile, &first)?;
-        }
-        transaction.commit().map_err(sql)?;
-        Ok(added)
+            .map(|added| added > 0)
+            .map_err(sql)
     }
 
     /// Whether the app has a space, of any profile.

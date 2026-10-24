@@ -1,7 +1,8 @@
 // The Library's profiles: the list, with how many spaces each has, and what
-// can be done to one (renaming it, deleting it) or to the list (making one).
+// can be done to one (opening a window for it, renaming it, deleting it) or
+// to the list (making one).
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { AppWindow, Pencil, Plus, Trash2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState } from "react";
 import type { ProfileEntry, SpaceEntry } from "../../ipc";
@@ -24,6 +25,8 @@ export type ProfilesProps = {
   onCreate: (name: string) => Promise<void>;
   /** The profile is named no more: made, or given up. */
   onNamed: () => void;
+  /** Opens a window for the profile: on its most recent space, or with none, on the profile. */
+  onOpenWindow: (id: string) => void;
   /** Renames the profile; rejects if it can't be renamed. */
   onRename: (id: string, name: string) => Promise<void>;
   /** Deletes the profile; rejects if it can't be deleted. */
@@ -39,6 +42,7 @@ export function Profiles({
   naming,
   onCreate,
   onNamed,
+  onOpenWindow,
   onRename,
   onDelete,
   selected,
@@ -77,6 +81,7 @@ export function Profiles({
               <RowActions
                 key="actions"
                 actions={[
+                  { label: "Open in New Window", icon: AppWindow, onPress: () => onOpenWindow(profile.id) },
                   { label: "Rename", icon: Pencil, onPress: () => ask("rename", profile) },
                   { label: "Delete", icon: Trash2, danger: true, onPress: () => ask("delete", profile) }
                 ]}

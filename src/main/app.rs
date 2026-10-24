@@ -31,10 +31,6 @@ pub struct State {
     pub sidebar: SidebarStore,
     /// What the app keeps of its own, spaces for now.
     pub db: Db,
-    /// Profiles being made (`profiles.create`) whose call has not finished: a
-    /// change to the list in the meantime must not give them a default space,
-    /// for the call gives them the one the user asked for.
-    pub creating_profiles: Cell<u32>,
     /// Profiles whose last session is being restored (spaces/session.rs).
     pub(crate) restoring: Cell<u32>,
     /// The sidebar's performance run, if this is one.
@@ -56,7 +52,6 @@ impl State {
             windows: Windows::default(),
             sidebar: SidebarStore::new(&data),
             db: Db::open(&data),
-            creating_profiles: Cell::new(0),
             restoring: Cell::new(0),
             perf,
             quit_prompt: RefCell::default(),
@@ -72,7 +67,7 @@ impl State {
         // Each profile has a space before anything shows them. The list may
         // be read again once the first profile is open, in case it was not
         // filled yet.
-        self.db.sync_profiles(&mt.profile_list(), true);
+        self.db.sync_profiles(&mt.profile_list());
         if !self.open_saved_windows(mt) {
             self.open_window(mt, None);
         }
@@ -83,7 +78,7 @@ impl State {
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
             Ok(profile) => {
-                if state.db.sync_profiles(&mt.profile_list(), true) {
+                if state.db.sync_profiles(&mt.profile_list()) {
                     ipc::broadcast_spaces(&state);
                 }
                 // A kept window on a profile deleted since goes.
@@ -199,11 +194,10 @@ impl App for Wren {
             .iter()
             .any(|change| change.kind == ChangeKind::Profiles)
         {
-            let fill = state.creating_profiles.get() == 0;
             // A profile deleted elsewhere takes its spaces and windows with
             // it. One renamed is told too: the page and the main menu show
             // profiles' names.
-            if state.db.sync_profiles(&mt.profile_list(), fill) {
+            if state.db.sync_profiles(&mt.profile_list()) {
                 state.leave_gone_spaces(None);
             }
             state.leave_gone_profiles(mt);
