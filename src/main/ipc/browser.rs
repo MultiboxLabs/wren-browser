@@ -3,6 +3,7 @@ use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, TabSta
 
 use super::groups::Group;
 use super::splits::Split;
+use super::window::page_space;
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::db::SpaceId;
 use crate::menus;
@@ -46,7 +47,7 @@ pub struct Tabs {
     /// the window's space has no Browser.
     browser: Option<i32>,
     /// The space they are the tabs of, so the page never shows them as
-    /// another's while it switches.
+    /// another's while it switches; a window on a profile's made-up one.
     space: Option<SpaceId>,
     tabs: Vec<Tab>,
     active: Option<i32>,
@@ -236,7 +237,7 @@ pub fn send_tabs(window: &BrowserWindow, browser: &Browser) {
 pub fn send_no_tabs(window: &BrowserWindow) {
     let none = Tabs {
         browser: None,
-        space: window.space(),
+        space: page_space(window.place()),
         tabs: Vec::new(),
         active: None,
         full_screen: None,
@@ -301,7 +302,7 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
         .collect();
     Tabs {
         browser: Some(browser.id()),
-        space: window.space_of(browser),
+        space: page_space(window.place_of(browser)),
         tabs,
         active: browser.active_tab().map(BrowserTab::id),
         full_screen: browser.fullscreen_tab().map(BrowserTab::id),
