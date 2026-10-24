@@ -37,7 +37,7 @@ export function SectionList({
 }: SectionListProps) {
   const list =
     section === "profiles" ? (
-      <Profiles {...profileProps} query={query} selected={selected} onSelect={onSelect} />
+      <Profiles {...profileProps} spaces={spaces} query={query} selected={selected} onSelect={onSelect} />
     ) : section === "spaces" ? (
       <Spaces
         query={query}

@@ -1,10 +1,10 @@
-// The Library's profiles: the list, and what can be done to one (renaming it,
-// deleting it) or to the list (making one).
+// The Library's profiles: the list, with how many spaces each has, and what
+// can be done to one (renaming it, deleting it) or to the list (making one).
 
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState } from "react";
-import type { ProfileEntry } from "../../ipc";
+import type { ProfileEntry, SpaceEntry } from "../../ipc";
 import { cssColor } from "../../utils/color";
 import { DeleteDialog, RenameDialog } from "./profile-dialogs";
 import { Empty, type ListProps, Loading, LoadFailed, matches, Row, RowActions } from "./rows";
@@ -14,6 +14,8 @@ export type ProfilesProps = {
   profiles: ProfileEntry[] | null;
   /** The app could not list them. */
   failed: boolean;
+  /** Each profile's spaces are counted in its row; null until the app has listed them. */
+  spaces: SpaceEntry[] | null;
   /** Asks it to list them again. */
   onReload: () => void;
   /** A new profile is being named, in a row at the top of the profiles. */
@@ -33,6 +35,7 @@ export function Profiles({
   profiles,
   failed,
   onReload,
+  spaces,
   naming,
   onCreate,
   onNamed,
@@ -67,6 +70,7 @@ export function Profiles({
             onPress={() => onSelect(profile.id === selected ? null : profile.id)}
             tile={<ProfileTile name={profile.name} color={profile.color} />}
             title={profile.name}
+            trailing={spaces && <SpaceCount count={spaces.filter((space) => space.profile === profile.id).length} />}
           />
           <AnimatePresence initial={false}>
             {profile.id === selected && (
@@ -100,6 +104,15 @@ export function Profiles({
           />
         ))}
     </div>
+  );
+}
+
+// How many spaces the profile has, at the row's end.
+function SpaceCount({ count }: { count: number }) {
+  return (
+    <span className="shrink-0 pr-1.5 text-subtitle text-fg-2 tabular-nums">
+      {count === 0 ? "No Spaces" : count === 1 ? "1 Space" : `${count} Spaces`}
+    </span>
   );
 }
 
