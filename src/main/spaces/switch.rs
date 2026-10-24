@@ -43,6 +43,7 @@ impl State {
             }
             None => ipc::send_no_browser(&window),
         }
+        self.update_title(&window);
         Ok(())
     }
 

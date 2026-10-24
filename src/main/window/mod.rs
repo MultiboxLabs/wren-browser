@@ -207,6 +207,12 @@ impl PageWindow {
         show(&self.window);
     }
 
+    /// Names the window, as the Window menu, the Dock and Mission Control
+    /// show it; the title bar does not, as it is the page's.
+    pub fn set_title(&self, title: &str) {
+        self.window.setTitle(&NSString::from_str(title));
+    }
+
     /// Puts the window just below and right of `other` and at its size, as
     /// AppKit cascades windows; AppKit keeps it on a screen. A window in
     /// full screen has no place to cascade from.

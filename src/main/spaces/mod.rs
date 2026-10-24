@@ -19,6 +19,7 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
 use crate::menus;
+use crate::window::{BrowserWindow, Place};
 
 impl State {
     /// The profile's most recently used space, if it has one. A profile
@@ -76,6 +77,29 @@ impl State {
                 (space.id, name)
             })
             .collect()
+    }
+
+    /// Names `window` for its active tab, or with none, for the space it
+    /// shows, or the profile, as the page names it.
+    pub fn update_title(&self, window: &BrowserWindow) {
+        let tab = window
+            .browser_with_tabs()
+            .and_then(|browser| browser.active_tab())
+            .map(|tab| tab.title())
+            .filter(|title| !title.is_empty());
+        let title = tab.or_else(|| match window.place()? {
+            Place::Space(space) => Some(self.db.space(space).ok()??.name),
+            Place::Profile {
+                off_the_record: true,
+                ..
+            } => Some("Incognito".into()),
+            Place::Profile { id, .. } => MainThread::get()?
+                .profile_list()
+                .into_iter()
+                .find(|entry| entry.id == id)
+                .map(|entry| entry.name),
+        });
+        window.page.set_title(title.as_deref().unwrap_or("Wren"));
     }
 
     /// Sets the main menu again, for its Spaces menu to list the spaces as

@@ -6,10 +6,12 @@ use wren::{Change, ChangeKind, TabFields};
 use crate::ipc;
 use crate::window::BrowserWindow;
 
-/// Tells `window`'s page of the changes to its Browser in front.
-pub fn apply(window: &BrowserWindow, changes: &[Change]) {
+/// Tells `window`'s page of the changes to its Browser in front, and
+/// answers whether the window's title may have changed with them: the
+/// active tab's title, or which tab is active, or whether one is.
+pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
     let Some(browser) = window.browser() else {
-        return;
+        return false;
     };
     // What the sidebar draws of a tab, besides its favicon.
     let drawn = TabFields::TITLE
@@ -24,6 +26,7 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) {
     // changes as well as Chromium's word on it.
     let mut site_changed = false;
     let mut extensions_changed = false;
+    let mut title_changed = false;
     for change in changes {
         // A new extension's anchor is named, in the background too.
         if change.kind == ChangeKind::ExtensionActions
@@ -39,6 +42,7 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) {
             ChangeKind::Tabs => {
                 tabs_changed = true;
                 site_changed = true;
+                title_changed = true;
             }
             // The tab in full screen is among them.
             ChangeKind::Group | ChangeKind::Split | ChangeKind::Fullscreen => tabs_changed = true,
@@ -58,8 +62,9 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) {
             ChangeKind::Tab => {
                 let Some(tab) = change.tab else { continue };
                 tabs_changed |= change.tab_fields.intersects(drawn);
-                site_changed |=
-                    change.tab_fields.contains(TabFields::URL) && browser.active_tab() == Some(tab);
+                let active = browser.active_tab() == Some(tab);
+                site_changed |= change.tab_fields.contains(TabFields::URL) && active;
+                title_changed |= change.tab_fields.contains(TabFields::TITLE) && active;
                 if change.tab_fields.contains(TabFields::FAVICON) {
                     ipc::send_favicon(window, tab);
                 }
@@ -70,7 +75,7 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) {
                 // element after the page asks for it, and gets the
                 // keyboard then.
                 if change.tab_fields.contains(TabFields::IN_ELEMENT)
-                    && browser.active_tab() == Some(tab)
+                    && active
                     && tab.state().is_ok_and(|state| state.in_element)
                 {
                     let _ = tab.focus();
@@ -90,4 +95,5 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) {
         ipc::send_extensions(window, &browser);
         ipc::send_anchors(window, &browser);
     }
+    title_changed
 }

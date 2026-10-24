@@ -74,5 +74,7 @@ pub fn broadcast_spaces(state: &State) {
     }
     for window in state.windows.all() {
         let _ = window.page.web_view.send("spaces.changed", &());
+        // One with no tab is named for its space.
+        state.update_title(&window);
     }
 }

@@ -100,6 +100,10 @@ impl State {
         let framed = frame.is_some();
         self.windows
             .add(BrowserWindow::new(id, key, page, place, framed));
+        // Named for its place until a tab is in front, or should none come.
+        if let Some(window) = self.windows.get(id) {
+            self.update_title(&window);
+        }
         Some(id)
     }
 
@@ -313,6 +317,7 @@ impl State {
         window.add(place, browser.clone());
         if window.is_front(browser) {
             ipc::send_browser(window, browser);
+            self.update_title(window);
         }
         self.save_window(window);
     }

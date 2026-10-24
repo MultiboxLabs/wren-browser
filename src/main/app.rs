@@ -240,7 +240,9 @@ impl App for Wren {
             }
         }
         for window in self.state.windows.all() {
-            changes::apply(&window, changes);
+            if changes::apply(&window, changes) {
+                state.update_title(&window);
+            }
         }
     }
 
@@ -434,6 +436,7 @@ impl App for Wren {
         }
         if place.is_some() && place == window.place() {
             ipc::send_no_browser(&window);
+            self.state.update_title(&window);
         }
     }
 }
