@@ -284,7 +284,7 @@ export function CannotDeleteSpaceAlert({
       open={open}
       onOpenChange={onOpenChange}
       title={`“${space.name}” Cannot Be Deleted`}
-      description="A profile needs at least one space, and this is its only one."
+      description="Wren needs at least one space, and this is its only one."
       cancel={null}
       action={{ label: "OK", onPress: () => {} }}
     />

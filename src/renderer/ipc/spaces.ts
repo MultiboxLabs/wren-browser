@@ -28,7 +28,7 @@ export const spaces = {
   create: (profile: string, space: NewSpace) => wren.invoke<SpaceEntry>("spaces.create", { profile, ...space }),
   /** Changes what is given, and answers with the space as it is now. */
   update: (id: number, change: Partial<NewSpace>) => wren.invoke<SpaceEntry>("spaces.update", { id, ...change }),
-  /** Fails for a profile's last space. */
+  /** Fails for the app's last space; a profile can be left with none. */
   delete: (id: number) => wren.invoke<null>("spaces.delete", id),
   /** The spaces changed, here or in another window: read them again. */
   onChanged: (listener: () => void) => wren.on<null>("spaces.changed", listener)
