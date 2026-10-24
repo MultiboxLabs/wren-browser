@@ -3,6 +3,7 @@
 
 mod browser;
 mod list;
+mod place;
 mod plain;
 mod tag;
 mod title_bar;
@@ -38,6 +39,7 @@ use crate::pages::Page;
 
 pub use browser::{BrowserWindow, WindowId, marks};
 pub use list::Windows;
+pub use place::Place;
 pub use plain::PlainWindow;
 pub use tag::Tag;
 

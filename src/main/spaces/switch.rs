@@ -6,13 +6,16 @@ use wren::Browser;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
-use crate::window::WindowId;
+use crate::window::{Place, WindowId};
 
 impl State {
     /// Brings `space` forward in window `id`: its Browser if the window has
     /// one, or else the space empty, until a tab is opened in it.
     pub fn show_space(&self, id: WindowId, space: SpaceId) -> Result<(), String> {
         let window = self.windows.get(id).ok_or("The window is closing.")?;
+        if window.is_profile_window() {
+            return Err("A profile window shows no spaces.".into());
+        }
         if self.db.space(space)?.is_none() {
             return Err("That space is gone.".into());
         }
@@ -83,7 +86,7 @@ impl State {
                 .into_iter()
                 .filter(|space| !exists(*space));
             for space in gone {
-                if let Some(browser) = window.forget(space) {
+                if let Some(browser) = window.forget(&Place::Space(space)) {
                     let _ = browser.close();
                 }
             }

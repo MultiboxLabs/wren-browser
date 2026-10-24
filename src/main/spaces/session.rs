@@ -13,7 +13,7 @@ use wren::{Browser, MainThread, Profile, RequestedBounds};
 use crate::app::State;
 use crate::db::{SavedWindow, WindowFrame};
 use crate::tabs::placeholder;
-use crate::window::{BrowserWindow, Tag};
+use crate::window::{BrowserWindow, Place, Tag};
 
 impl State {
     /// Opens the windows kept at the last quit, in the order they opened,
@@ -44,7 +44,8 @@ impl State {
             width: frame.width,
             height: frame.height,
         });
-        let id = self.open_keyed_window(mt, saved.key.clone(), space, frame);
+        let place = space.map(Place::Space);
+        let id = self.open_keyed_window(mt, saved.key.clone(), place, frame);
         if id.is_none() {
             eprintln!("Wren could not open a window it kept.");
         }
@@ -103,21 +104,25 @@ impl State {
     /// Puts `browser`, of `profile`, back into the window and space its tag
     /// names: a restored one, or one Reopen Closed Window brought back. In
     /// front if that is the window's current space, else in the background.
-    /// False if the tag names no window open now, a space that is gone or
-    /// another profile's, or one the window has a Browser for already.
+    /// False if the tag names no window open now, a place that is not a
+    /// space, a space that is gone or another profile's, or one the window
+    /// has a Browser for already.
     pub(super) fn place_tagged(&self, browser: &Browser, profile: &Profile) -> bool {
-        let Some((key, space)) = Tag::of(browser).window else {
+        let Some((key, place)) = Tag::of(browser).window else {
+            return false;
+        };
+        let Some(space) = place.space() else {
             return false;
         };
         let Some(window) = self.windows.by_key(&key) else {
             return false;
         };
-        let free = window.browser_of(space).is_none() && !window.is_opening(space);
+        let free = window.browser_of(&place).is_none() && !window.is_opening(&place);
         if !free || !self.is_space_of(space, profile) {
             return false;
         }
         placeholder::adopt(browser);
-        self.host(&window, space, browser);
+        self.host(&window, place, browser);
         true
     }
 

@@ -406,7 +406,7 @@ impl App for Wren {
         let Some(window) = self.state.windows.of(&browser) else {
             return;
         };
-        let space = window.remove(&browser);
+        let place = window.remove(&browser);
         if window.is_closing() {
             if !window.has_browsers() {
                 self.state.windows.remove(window.id);
@@ -416,7 +416,7 @@ impl App for Wren {
             }
             return;
         }
-        if space.is_some() && space == window.space() {
+        if place.is_some() && place == window.place() {
             ipc::send_no_browser(&window);
         }
     }
