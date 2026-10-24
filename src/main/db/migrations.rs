@@ -46,4 +46,9 @@ pub const MIGRATIONS: &[&str] = &[
       PRIMARY KEY (window_id, space_id)
     );
     ",
+    // A window that shows a profile with no space, rather than spaces: its
+    // profile, and no current space.
+    "
+    ALTER TABLE windows ADD COLUMN profile_id TEXT REFERENCES profiles(id) ON DELETE CASCADE;
+    ",
 ];

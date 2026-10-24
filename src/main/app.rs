@@ -86,6 +86,8 @@ impl State {
                 if state.db.sync_profiles(&mt.profile_list(), true) {
                     ipc::broadcast_spaces(&state);
                 }
+                // A kept window on a profile deleted since goes.
+                state.leave_gone_profiles(mt);
                 state.update_menu(mt);
                 state.restore_sessions(mt, profile)
             }
