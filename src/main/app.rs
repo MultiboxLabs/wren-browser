@@ -401,8 +401,9 @@ impl App for Wren {
     // Chromium closes a Browser whose last tab closes. Its window stays, with
     // the space empty, unless the user is closing the window: that goes with
     // its last Browser, and the app with the last window where it quits so.
-    // A window on a profile goes with its one Browser: its profile was
-    // deleted, or a page closed the last tab itself (`window.close()`).
+    // A window on a profile stays too: at quit, each Browser closes before
+    // the app hears of the quit, and the window must be kept. One whose
+    // profile was deleted goes with it (`State::leave_gone_profiles`).
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {
@@ -420,10 +421,6 @@ impl App for Wren {
                 }
             }
             return;
-        }
-        // A window on a profile goes with its Browser.
-        if window.is_profile_window() {
-            return self.state.close_window(mt, window.id);
         }
         if place.is_some() && place == window.place() {
             ipc::send_no_browser(&window);
