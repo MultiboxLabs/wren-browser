@@ -10,9 +10,9 @@ import { BackIcon } from "../icons";
 import { cn } from "../../utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
 import { useProfiles, useSpaces } from "../../state/library";
+import { useSpace } from "../../state/space";
 import { type Section, SectionList } from "./sections";
 import { CreateDialog } from "./profile-dialogs";
-import { SpaceDialog } from "./space-dialogs";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
   { id: "spaces", name: "Spaces", icon: Orbit, item: "Space" },
@@ -36,13 +36,13 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   const [query, setQuery] = useState("");
   // The row chosen in the list, which the "+" of the spaces starts from.
   const [selected, setSelected] = useState<string | null>(null);
-  // The dialogs of a new space and a new profile, which stay set as they
-  // close, for their exit; `serial` makes each opening a dialog of its own.
-  const [newSpace, setNewSpace] = useState<{ open: boolean; serial: number; profile: string | null } | null>(null);
+  // The dialog of a new profile, which stays set as it closes, for its exit;
+  // `serial` makes each opening a dialog of its own.
   const [newProfile, setNewProfile] = useState<{ open: boolean; serial: number } | null>(null);
   const serial = useRef(0);
   const { profiles, failed, reload, create, rename, remove, openWindow } = useProfiles(open);
   const spaces = useSpaces(open);
+  const { startNewSpace } = useSpace();
   const shown = sections.find(({ id }) => id === section)!;
   const railX = useTransform(() => railShift(steps));
   const listX = useTransform(() => listShift(steps));
@@ -153,27 +153,17 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
             // made in a profile, so it needs both.
             disabled={(section === "profiles" && !profiles) || (section === "spaces" && !(profiles && spaces.spaces))}
             onClick={() => {
+              // In the sidebar, in the profile of the space that is chosen, if one is.
               if (section === "spaces") {
-                // In the profile of the space that is chosen, if one is.
                 const chosen = spaces.spaces?.find(({ id }) => String(id) === selected);
-                setNewSpace({ open: true, serial: ++serial.current, profile: chosen?.profile ?? null });
+                onClose();
+                startNewSpace(chosen?.profile);
               }
               if (section === "profiles") setNewProfile({ open: true, serial: ++serial.current });
               // Boosts are not made yet.
             }}
           />
         </div>
-        {newSpace && profiles && (
-          <SpaceDialog
-            key={newSpace.serial}
-            open={newSpace.open}
-            onOpenChange={(open) => setNewSpace({ ...newSpace, open })}
-            profiles={profiles}
-            profile={newSpace.profile}
-            onCreate={spaces.create}
-            onCreateWithProfile={create}
-          />
-        )}
         {newProfile && (
           <CreateDialog
             key={newProfile.serial}

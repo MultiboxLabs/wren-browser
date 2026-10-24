@@ -27,9 +27,8 @@ export function useProfiles(open: boolean) {
   }, [open]);
   // A profile comes or goes with its spaces, in this window or another.
   useEffect(() => (hasApp ? spaces.onChanged(() => void refresh()) : undefined), []);
-  // `space` is the profile's first space; without, it has none.
-  const create = async (name: string, space?: NewSpace) => {
-    const entry = await profiles.create(name, space);
+  const create = async (name: string) => {
+    const entry = await profiles.create(name);
     setList((list) => {
       const known = list ?? [];
       return known.some(({ id }) => id === entry.id) ? known : [...known, entry];
@@ -53,8 +52,8 @@ export function useProfiles(open: boolean) {
  * The user's spaces, as the app lists them, read again each time the Library
  * opens and whenever they change, here or in another window. Shaped as
  * `useProfiles` is: `spaces` is null until the first reading, `failed` if it
- * could not be made, and each of `create`, `update` and `remove` rejects if
- * the app can't.
+ * could not be made, and each of `update` and `remove` rejects if the app
+ * can't. A space is made in the sidebar (new-space.ts).
  */
 export function useSpaces(open: boolean) {
   const [list, setList] = useState<SpaceEntry[] | null>(hasApp ? null : []);
@@ -68,16 +67,13 @@ export function useSpaces(open: boolean) {
   }, [open]);
   useEffect(() => (hasApp ? spaces.onChanged(() => void refresh()) : undefined), []);
   // The app tells every window of a change, this one too, which reads it again.
-  const create = async (profile: string, space: NewSpace) => {
-    await spaces.create(profile, space);
-  };
   const update = async (id: number, change: Partial<NewSpace>) => {
     await spaces.update(id, change);
   };
   const remove = async (id: number) => {
     await spaces.delete(id);
   };
-  return { spaces: list, failed, reload: refresh, create, update, remove };
+  return { spaces: list, failed, reload: refresh, update, remove };
 }
 
 /** A site's own styles and scripts, made by the user. */

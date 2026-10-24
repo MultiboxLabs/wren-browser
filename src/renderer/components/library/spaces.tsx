@@ -9,7 +9,7 @@ import type { NewSpace, ProfileEntry, SpaceEntry } from "../../ipc";
 import { SpaceIcon } from "../space-icon";
 import { ThemeSwatch } from "../theme-swatch";
 import { Empty, type ListProps, Loading, LoadFailed, matches, Row, RowActions } from "./rows";
-import { CannotDeleteSpaceAlert, DeleteSpaceDialog, SpaceDialog } from "./space-dialogs";
+import { CannotDeleteSpaceAlert, DeleteSpaceDialog, EditSpaceDialog } from "./space-dialogs";
 
 export type SpacesProps = {
   /** Null until the app has listed them. */
@@ -104,7 +104,7 @@ export function Spaces({
         </section>
       ))}
       {asked?.kind === "edit" && (
-        <SpaceDialog key={asked.serial} space={asked.space} onSave={onUpdateSpace} {...dialog(asked.open)} />
+        <EditSpaceDialog key={asked.serial} space={asked.space} onSave={onUpdateSpace} {...dialog(asked.open)} />
       )}
       {asked?.kind === "delete" && (
         <DeleteSpaceDialog key={asked.serial} space={asked.space} onDelete={onDeleteSpace} {...dialog(asked.open)} />

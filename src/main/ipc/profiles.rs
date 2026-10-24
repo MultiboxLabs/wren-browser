@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use wren::{MainThread, WebView};
 
 use super::{self as ipc, WindowRef, failed};
-use crate::db::{NewSpace, avatar};
+use crate::db::avatar;
 
 /// A profile as the Library lists it.
 #[derive(Serialize)]
@@ -14,17 +14,6 @@ struct Entry {
     name: String,
     /// Its avatar's colour: #rrggbb.
     color: &'static str,
-}
-
-/// What `profiles.create` takes: a name, or a name and the profile's first space.
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum Create {
-    Name(String),
-    Named {
-        name: String,
-        space: Option<NewSpace>,
-    },
 }
 
 /// What `profiles.rename` takes.
@@ -38,8 +27,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The profiles Chromium lists, in its order.
     let _ = web_view.handle("profiles.list", move |()| Ok::<_, String>(list(mt)));
 
-    // Makes a profile named as asked, with `space` as its first space if one
-    // is given, or else none, and answers with it once both are made.
+    // Makes a profile named as asked, with no space, and answers with it once
+    // it is made.
     let weak = window.clone();
     let _ = web_view.handle_call("profiles.create", move |call| {
         let state = match weak.state() {
@@ -49,9 +38,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 return;
             }
         };
-        let (name, space) = match call.value::<Create>().map_err(|error| error.to_string()) {
-            Ok(Create::Name(name)) => (name, None),
-            Ok(Create::Named { name, space }) => (name, space),
+        let name = match call.value::<String>().map_err(|error| error.to_string()) {
+            Ok(name) => name,
             Err(error) => {
                 let _ = call.fail(&error);
                 return;
@@ -62,21 +50,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             let _ = call.fail("A profile needs a name.");
             return;
         }
-        // A space that can't be kept is refused before the profile is made.
-        let space = match space.map(NewSpace::checked).transpose() {
-            Ok(space) => space,
-            Err(error) => {
-                let _ = call.fail(&error);
-                return;
-            }
-        };
         mt.create_profile(Some(&name), move |result| {
             let made = result.map(|profile| profile.id());
-            if let (Ok(id), Some(space)) = (&made, space)
-                && let Err(error) = state.db.create_space(id, space)
-            {
-                eprintln!("Wren could not give a profile its space: {error}");
-            }
             state.db.sync_profiles(&mt.profile_list());
             ipc::broadcast_spaces(&state);
             // A page that went before its answer is no error.

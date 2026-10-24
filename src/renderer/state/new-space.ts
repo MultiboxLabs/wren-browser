@@ -54,10 +54,8 @@ export function useNewSpace(making: boolean, listed: ProfileEntry[] | null) {
   // A page loaded while the window was on no space has started none.
   const draft = started ?? fresh();
   const change = (change: Partial<SpaceDraft>) => setDraft((draft) => ({ ...(draft ?? fresh()), ...change }));
-  const color =
-    draft.profile === NEW_PROFILE
-      ? NEW_PROFILE_COLOR
-      : (listed?.find(({ id }) => id === draft.profile)?.color ?? NEW_PROFILE_COLOR);
+  // A new profile, which no listed one is, has no colour yet.
+  const color = listed?.find(({ id }) => id === draft.profile)?.color ?? NEW_PROFILE_COLOR;
   const theme = draft.theme ?? defaultTheme(color);
   const ready = draft.name.trim() !== "" && (draft.profile !== NEW_PROFILE || draft.profileName.trim() !== "");
 
