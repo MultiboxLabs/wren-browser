@@ -405,7 +405,8 @@ impl App for Wren {
     // Chromium closes a Browser whose last tab closes. Its window stays, with
     // the space empty, unless the user is closing the window: that goes with
     // its last Browser, and the app with the last window where it quits so.
-    // A window on a profile goes with its one Browser.
+    // A window on a profile goes with its one Browser: its profile was
+    // deleted, or a page closed the last tab itself (`window.close()`).
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {

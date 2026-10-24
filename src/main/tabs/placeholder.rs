@@ -1,5 +1,5 @@
 // The hidden New Tab page a Browser has while it has no tabs. Chromium
-// closes a Browser with its last tab, but a space keeps its Browser: where a
+// closes a Browser with its last tab, but a window keeps its Browser: where a
 // Browser would have none, a New Tab page stands in. The page neither lists
 // nor shows it. It closes once a tab opens beside it, and is a tab like any
 // other once it leaves the New Tab page. Chromium keeps it in the session as
@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use wren::{Browser, BrowserTab, Error, Profile};
 
 use super::is_new_tab;
-use crate::window::{Place, Tag};
+use crate::window::Tag;
 
 thread_local! {
     // Each placeholder, with the tabs it stands in for, which are closing as
@@ -31,11 +31,9 @@ pub fn has_tabs(browser: &Browser) -> bool {
 }
 
 /// Before `closing` close: if they are all the Browser has, a placeholder
-/// opens to stand in for them, so the Browser stays. A window on a profile
-/// goes with its Browser instead, so its Browser has none.
+/// opens to stand in for them, so the Browser stays.
 pub fn stand_in(browser: &Browser, closing: &[BrowserTab]) -> Result<(), Error> {
-    let of_profile = matches!(Tag::of(browser).window, Some((_, Place::Profile { .. })));
-    if !of_profile && browser.tabs().iter().all(|tab| closing.contains(tab)) {
+    if browser.tabs().iter().all(|tab| closing.contains(tab)) {
         hold(browser.add_tab("", None, true)?, closing);
     }
     Ok(())

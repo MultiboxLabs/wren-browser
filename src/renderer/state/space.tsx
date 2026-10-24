@@ -102,8 +102,8 @@ const shown = (entry: SpaceEntry): Space => ({
   pinned: []
 });
 
-/** A profile's off-the-record side is drawn dark grey, whatever the profile's colour. */
-const OFF_THE_RECORD_THEME: SpaceTheme = { ...defaultTheme("#3a3a3c"), appearance: "dark" };
+/** A profile's off-the-record side is drawn all but black, whatever the profile's colour. */
+const OFF_THE_RECORD_THEME: SpaceTheme = { ...defaultTheme("#0c0c0d"), appearance: "dark", intensity: 1 };
 
 /** The space made up for a window on a profile, named for it, in its colour. */
 const ofProfile = ({ id, offTheRecord }: WindowProfile, entry: ProfileEntry | undefined): Space => {
