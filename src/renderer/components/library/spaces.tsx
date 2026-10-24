@@ -1,5 +1,6 @@
 // The Library's spaces, under the profile each belongs to, each drawn with its
-// theme, and what can be done to one: editing it, deleting it.
+// theme, and what can be done to one: editing it, deleting it. A profile with
+// no space says so.
 
 import { Pencil, Trash2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
@@ -59,18 +60,20 @@ export function Spaces({
       return {
         profile,
         all,
-        spaces: all.filter((space) => matches(query, space.name) || matches(query, profile.name))
+        shown: all.filter((space) => matches(query, space.name) || matches(query, profile.name))
       };
     })
-    .filter((group) => group.spaces.length > 0);
+    // A profile with no space at all is listed while nothing is searched.
+    .filter((group) => group.shown.length > 0 || (!query && group.all.length === 0));
   if (groups.length === 0) return <Empty>No Spaces Found</Empty>;
   const dialog = (open: boolean) => ({ open, onOpenChange: (next: boolean) => setAsked({ ...asked!, open: next }) });
   return (
     <div className="flex flex-col gap-2">
-      {groups.map(({ profile, all, spaces }) => (
+      {groups.map(({ profile, all, shown }) => (
         <section key={profile.id} className="flex flex-col gap-0.5">
           <h3 className="flex h-6 items-center pl-2.5 text-caption font-semibold text-fg-3">{profile.name}</h3>
-          {spaces.map((space) => (
+          {all.length === 0 && <p className="flex h-9 items-center pl-2.5 text-fg-3">No Spaces</p>}
+          {shown.map((space) => (
             <div key={space.id} className="flex flex-col gap-0.5">
               <Row
                 selected={String(space.id) === selected}
@@ -93,8 +96,8 @@ export function Spaces({
                         label: "Delete",
                         icon: Trash2,
                         danger: true,
-                        // A profile's last space stays: say so, rather than ask.
-                        onPress: () => ask(all.length <= 1 ? "last" : "delete", space)
+                        // The app's last space stays: say so, rather than ask.
+                        onPress: () => ask(spaces.length <= 1 ? "last" : "delete", space)
                       }
                     ]}
                   />
