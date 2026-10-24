@@ -17,6 +17,7 @@ mod sidebar;
 mod site;
 mod spaces;
 mod splits;
+mod tab_switcher;
 mod toast;
 mod window;
 
@@ -41,6 +42,7 @@ pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
 pub use side_panel::send_side_panel;
 pub use site::send_site;
 pub use spaces::broadcast_spaces;
+pub use tab_switcher::watch_tab_switcher_keys;
 pub use toast::{OwnToast, send_toast, show_toast};
 use window::send_space;
 pub use window::{send_active, send_choose_space, send_full_screen};
@@ -84,6 +86,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     perf::handle(web_view, window, mt);
     profiles::handle(web_view, window, mt);
     spaces::handle(web_view, window, mt);
+    tab_switcher::handle(web_view, window);
 }
 
 /// Tells the page all it shows of `browser`, as it comes in front, and then

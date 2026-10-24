@@ -47,6 +47,11 @@ body,
   --radius-omnibox: 12px;
   --radius-omnibox-row: 8px;
   --radius-omnibox-icon: 5px;
+  /* The tab switcher over the window, its tabs, and what each shows of its
+     page, whose corners nest in its tab's at the tab's padding. */
+  --radius-tab-switcher: 18px;
+  --radius-tab-switcher-card: 10px;
+  --radius-tab-switcher-preview: 6px;
 
   --text-ui: 13.5px;
   /* Not --text-menu: text-menu would also take --color-menu, the menu's
@@ -101,6 +106,7 @@ body,
   --color-omnibox-text-selection: var(--omnibox-text-selection);
   --color-omnibox-selected: var(--omnibox-selected);
   --shadow-omnibox-chip: 0 0 10px var(--omnibox-glow);
+  --color-tab-switcher-selected: var(--tab-switcher-selected);
   --color-inverse: var(--inverse);
   --color-on-inverse: var(--on-inverse);
 }
@@ -443,11 +449,26 @@ body,
     0 4px 14px rgb(0 0 0 / 0.22);
 }
 
+/* The tab switcher (components/tab-switcher/), a row of the space's tabs:
+   the omnibox's panel and palette, its selected tab the space's colour, as
+   the omnibox's selected row is. */
+:root[data-scheme] .tab-switcher {
+  --tab-switcher-selected: oklch(from var(--space) min(l, 0.5) min(c, 0.25) h);
+  border-radius: var(--radius-tab-switcher);
+  background: var(--omnibox-bg);
+  backdrop-filter: blur(10px) saturate(1.6);
+  box-shadow:
+    inset 0 0 0 1px var(--omnibox-edge),
+    0 0 0 0.5px var(--omnibox-outline),
+    0 20px 56px rgb(0 0 0 / 0.4);
+}
+
 /* Its palette: rows' text (fg), the field's text and its icon (typed), the
    list's glyphs, what is dim (an address, "Switch to Tab"), and the faint
    tiles behind a glyph or the Tab key. */
 :root[data-system-scheme="dark"] .omnibox,
-:root[data-system-scheme="dark"] .find-bar {
+:root[data-system-scheme="dark"] .find-bar,
+:root[data-system-scheme="dark"] .tab-switcher {
   --omnibox-bg: rgb(26 26 28 / 0.88);
   --omnibox-edge: rgb(255 255 255 / 0.22);
   --omnibox-outline: rgb(0 0 0 / 0.9);
@@ -463,7 +484,8 @@ body,
   --omnibox-text-selection: rgb(255 255 255 / 0.35);
 }
 :root[data-system-scheme="light"] .omnibox,
-:root[data-system-scheme="light"] .find-bar {
+:root[data-system-scheme="light"] .find-bar,
+:root[data-system-scheme="light"] .tab-switcher {
   --omnibox-bg: rgb(250 250 250 / 0.86);
   --omnibox-edge: rgb(255 255 255 / 0.7);
   --omnibox-outline: rgb(0 0 0 / 0.18);
@@ -482,11 +504,13 @@ body,
 /* Unfocused, the blur behind them is not live, so what showed
    through would be flat and muddy: they are solid. */
 :root[data-system-scheme="dark"][data-active="false"] .omnibox,
-:root[data-system-scheme="dark"][data-active="false"] .find-bar {
+:root[data-system-scheme="dark"][data-active="false"] .find-bar,
+:root[data-system-scheme="dark"][data-active="false"] .tab-switcher {
   --omnibox-bg: rgb(40 40 43);
 }
 :root[data-system-scheme="light"][data-active="false"] .omnibox,
-:root[data-system-scheme="light"][data-active="false"] .find-bar {
+:root[data-system-scheme="light"][data-active="false"] .find-bar,
+:root[data-system-scheme="light"][data-active="false"] .tab-switcher {
   --omnibox-bg: rgb(238 238 238);
 }
 

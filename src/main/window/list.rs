@@ -84,14 +84,22 @@ impl Windows {
         self.last_active.set(Some(id));
     }
 
+    /// The window in use, if one is: the app is in front, and the window is
+    /// key.
+    pub fn active(&self) -> Option<Rc<BrowserWindow>> {
+        let open = self.open.borrow();
+        open.iter().find(|w| w.page.is_active()).cloned()
+    }
+
     /// The window the user is in: the one in use, or else the last that was,
     /// or else the oldest.
     pub fn front(&self) -> Option<Rc<BrowserWindow>> {
-        let open = self.open.borrow();
-        open.iter()
-            .find(|w| w.page.is_active())
-            .or_else(|| open.iter().find(|w| Some(w.id) == self.last_active.get()))
-            .or_else(|| open.first())
-            .cloned()
+        self.active().or_else(|| {
+            let open = self.open.borrow();
+            open.iter()
+                .find(|w| Some(w.id) == self.last_active.get())
+                .or_else(|| open.first())
+                .cloned()
+        })
     }
 }

@@ -24,7 +24,7 @@ import { updateCommitted, updateReceived, updateRendering } from "../perf/measur
 import { settle } from "../utils/settle";
 
 /** A tab of the Browser, with its favicon once the app has given it. */
-type BrowserTabWithFavicon = BrowserTab & { favicon?: string | null };
+export type BrowserTabWithFavicon = BrowserTab & { favicon?: string | null };
 
 /**
  * The window's Browser, as the app last said: what more than one part of

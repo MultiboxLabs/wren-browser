@@ -3,6 +3,7 @@ mod changes;
 mod channel;
 mod db;
 mod ipc;
+mod keyboard;
 mod menus;
 mod pages;
 mod perf;

@@ -13,6 +13,7 @@ use wren::{
 use crate::changes;
 use crate::db::Db;
 use crate::ipc::{self, OmniboxTarget};
+use crate::keyboard::KeyWatch;
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
@@ -40,6 +41,11 @@ pub struct State {
     pub perf: Option<Perf>,
     /// The warning before quitting a window's page shows (ipc/quit.rs).
     pub quit_prompt: RefCell<Option<ipc::OpenQuitPrompt>>,
+    /// The window whose tab switcher is open, while ⌃ is held
+    /// (ipc/tab_switcher.rs).
+    pub tab_switcher: Cell<Option<WindowId>>,
+    // Hears the tab switcher's keys while it is kept.
+    tab_switcher_keys: RefCell<Option<KeyWatch>>,
 }
 
 impl State {
@@ -54,6 +60,8 @@ impl State {
             restoring: Cell::new(0),
             perf,
             quit_prompt: RefCell::default(),
+            tab_switcher: Cell::default(),
+            tab_switcher_keys: RefCell::default(),
         }
     }
 
@@ -141,6 +149,7 @@ pub struct Wren {
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
         self.state.update_menu(mt);
+        *self.state.tab_switcher_keys.borrow_mut() = ipc::watch_tab_switcher_keys(&self.state);
         let source = self.source.clone();
         let _ = mt.set_scheme_handler(
             SCHEME,
