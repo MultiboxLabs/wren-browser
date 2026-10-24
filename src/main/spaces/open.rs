@@ -131,17 +131,13 @@ impl State {
         self.open_keyed_window(mt, key, Some(place), None)
     }
 
-    /// New Window, from `window` if one is in front: on its space; or for
-    /// its profile, as `open_window_for_profile`, or another window on its
-    /// off-the-record side. With none, on the space used last.
+    /// New Window: a window of spaces, on the space of `window` if one is
+    /// in front and shows spaces, else on the space used last. A window on
+    /// a profile, or its off-the-record side, is opened otherwise (the
+    /// Library, New Incognito Window).
     pub fn new_window(self: &Rc<Self>, mt: MainThread, window: Option<&BrowserWindow>) {
-        match window.and_then(BrowserWindow::place) {
-            Some(Place::Space(space)) => self.open_window_on(mt, space),
-            Some(Place::Profile {
-                id,
-                off_the_record: false,
-            }) => self.open_window_for_profile(mt, id),
-            Some(place) => self.open_profile_window(mt, place),
+        match window.and_then(BrowserWindow::space) {
+            Some(space) => self.open_window_on(mt, space),
             None => self.open_recent_window(mt),
         }
     }
