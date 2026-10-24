@@ -37,6 +37,15 @@ fn default_space(profile: &ProfileListEntry) -> NewSpace {
 }
 
 impl Db {
+    /// Adds a profile the database has not met, with no space. Whether it
+    /// added it.
+    pub fn add_profile(&self, id: &str) -> Result<bool, String> {
+        self.conn
+            .execute("INSERT OR IGNORE INTO profiles (id) VALUES (?1)", [id])
+            .map(|added| added > 0)
+            .map_err(sql)
+    }
+
     /// Deletes the profile, and with it its spaces.
     pub fn forget_profile(&self, id: &str) -> Result<(), String> {
         self.conn
@@ -76,18 +85,29 @@ impl Db {
                 Err(error) => eprintln!("Wren could not keep a profile: {error}"),
             }
         }
-        let Some(first) = listed.first() else {
-            return changed;
+        changed | self.keep_a_space(listed.first())
+    }
+
+    // Gives `first`, the first profile listed, a space if the app has none
+    // left. Whether it gave one.
+    fn keep_a_space(&self, first: Option<&ProfileListEntry>) -> bool {
+        let Some(first) = first else {
+            return false;
         };
         match self.has_spaces() {
-            Ok(true) => {}
+            Ok(true) => false,
             Ok(false) => match self.create_space(&first.id, default_space(first)) {
-                Ok(_) => changed = true,
-                Err(error) => eprintln!("Wren could not give a profile a space: {error}"),
+                Ok(_) => true,
+                Err(error) => {
+                    eprintln!("Wren could not give a profile a space: {error}");
+                    false
+                }
             },
-            Err(error) => eprintln!("Wren could not read the spaces: {error}"),
+            Err(error) => {
+                eprintln!("Wren could not read the spaces: {error}");
+                false
+            }
         }
-        changed
     }
 }
 
@@ -120,10 +140,8 @@ mod tests {
         assert!(!db.sync_profiles(&both));
         let spaces = db.list_spaces().unwrap();
         assert_eq!(spaces.len(), 1);
-        assert_eq!(
-            (spaces[0].profile.as_str(), spaces[0].name.as_str()),
-            ("a", "Alpha")
-        );
+        assert_eq!(spaces[0].profile, "a");
+        assert_eq!(spaces[0].name, "Alpha");
 
         // A new profile has none, and "a" is forgotten, with the app's
         // last space: "c", first now, is given one.

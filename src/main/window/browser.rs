@@ -267,11 +267,8 @@ impl BrowserWindow {
     /// Brings `space` forward: the Browser in front goes to the background
     /// first, so two are never in front, then the space's comes forward if
     /// the window has one. Answers the Browser in front now. A window on a
-    /// profile never switches (`show_space` refuses it first).
+    /// profile never switches: `show_space` refuses it.
     pub fn switch_to(&self, space: SpaceId) -> Option<Browser> {
-        if self.is_profile_window() {
-            return self.browser();
-        }
         if let Some(old) = self.browser() {
             let _ = old.set_backgrounded(true);
         }

@@ -66,8 +66,8 @@ pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], switching: bo
         MenuItem::submenu(
             "File",
             vec![
-                // A Browser of the key window's Profile, in a window of its own,
-                // on Chromium's New Tab page.
+                // A window of spaces, on the key window's space, or the one
+                // used last (`State::new_window`).
                 keyed(NEW_WINDOW, "New Window", "n", MenuModifiers::PRIMARY),
                 // The off-the-record side of the key window's profile, in a
                 // window of its own that shows only it: ⇧⌘N.

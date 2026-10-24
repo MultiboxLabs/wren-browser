@@ -45,6 +45,14 @@ impl Place {
             Place::Profile { .. } => None,
         }
     }
+
+    /// The ID of the profile it is, or whose off-the-record side it is.
+    pub fn profile(&self) -> Option<&str> {
+        match self {
+            Place::Space(_) => None,
+            Place::Profile { id, .. } => Some(id),
+        }
+    }
 }
 
 // As a Browser's session tag keeps it (tag.rs): a space by its ID, as it

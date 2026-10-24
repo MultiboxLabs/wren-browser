@@ -44,6 +44,7 @@ export function useProfiles(open: boolean) {
     await profiles.delete(id);
     await refresh();
   };
+  // One deleted in the meantime fails it: the list is read again, without it.
   const openWindow = (id: string) => void profiles.openWindow(id).catch(refresh);
   return { profiles: list, failed, reload: refresh, create, rename, remove, openWindow };
 }

@@ -33,21 +33,19 @@ impl State {
     // A window on a profile opens on it. One whose space was deleted opens
     // on another it had, or the one used last.
     fn open_saved_window(self: &Rc<Self>, mt: MainThread, saved: &SavedWindow) {
-        let space = || {
-            saved
+        let place = match &saved.profile {
+            Some(id) => Some(Place::Profile {
+                id: id.clone(),
+                off_the_record: false,
+            }),
+            None => saved
                 .space
                 .or_else(|| saved.spaces.first().copied())
                 .or_else(|| {
                     let recent = self.db.most_recent_space();
                     recent.ok().flatten().map(|space| space.id)
                 })
-        };
-        let place = match &saved.profile {
-            Some(id) => Some(Place::Profile {
-                id: id.clone(),
-                off_the_record: false,
-            }),
-            None => space().map(Place::Space),
+                .map(Place::Space),
         };
         let frame = saved.frame.map(|frame| RequestedBounds {
             origin: Some((frame.x, frame.y)),
@@ -62,8 +60,8 @@ impl State {
 
     /// Restores the last session of `startup`, the profile Chromium starts
     /// with, and of every profile the kept windows have a space's Browser
-    /// of or show, each once: a second restore of a profile would bring its windows
-    /// twice.
+    /// of or show, each once: a second restore of a profile would bring its
+    /// windows twice.
     pub fn restore_sessions(self: &Rc<Self>, mt: MainThread, startup: Profile) {
         let profiles = self.db.saved_window_profiles().unwrap_or_else(|error| {
             eprintln!("Wren could not read its windows: {error}");
@@ -163,18 +161,13 @@ impl State {
     /// app hears of the quit, and the window must keep it. The next save
     /// drops it.
     pub fn save_window(&self, window: &BrowserWindow) {
-        let profile = match window.place() {
-            Some(Place::Profile {
-                id,
-                off_the_record: false,
-            }) => Some(id),
-            _ => None,
-        };
+        // An off-the-record window is never kept.
+        let place = window.place().filter(|place| !place.is_off_the_record());
         let saved = self.db.save_window(
             &window.key,
             window.space(),
             &window.open_spaces(),
-            profile.as_deref(),
+            place.as_ref().and_then(Place::profile),
         );
         if let Err(error) = saved {
             eprintln!("Wren could not keep a window: {error}");

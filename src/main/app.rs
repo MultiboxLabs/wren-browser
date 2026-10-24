@@ -68,9 +68,9 @@ impl State {
     // the user's own Profile, the one Chromium starts with, and each profile
     // they wait for, with the tabs they had (spaces/session.rs).
     fn start(self: &Rc<Self>, mt: MainThread) {
-        // Each profile has a space before anything shows them. The list may
-        // be read again once the first profile is open, in case it was not
-        // filled yet.
+        // The database has each profile, and the app a space, before anything
+        // shows them. The list is read again once the first profile is open,
+        // in case it was not filled yet.
         self.db.sync_profiles(&mt.profile_list());
         if !self.open_saved_windows(mt) {
             self.open_window(mt, None);
@@ -266,13 +266,10 @@ impl App for Wren {
         let Some(window) = window else {
             return;
         };
-        // The page switches, so the sidebar slides as a press makes it. A
-        // window on a profile never switches.
+        // The page switches, so the sidebar slides as a press makes it. The
+        // items are greyed out while a window on a profile is in front.
         if let Some(space) = id.strip_prefix(menus::SPACE).and_then(|id| id.parse().ok()) {
-            if !window.is_profile_window() {
-                ipc::send_choose_space(&window, space);
-            }
-            return;
+            return ipc::send_choose_space(&window, space);
         }
         if id == menus::CLOSE_WINDOW {
             return self.state.close_window(mt, window.id);
