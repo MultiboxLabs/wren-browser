@@ -110,9 +110,12 @@ impl State {
             return;
         }
         for window in self.windows.all() {
-            if let Some(Place::Profile { id, .. }) = window.place()
-                && !listed.iter().any(|profile| profile.id == id)
-            {
+            let place = window.place();
+            let gone = place
+                .as_ref()
+                .and_then(Place::profile)
+                .is_some_and(|id| !listed.iter().any(|profile| profile.id == id));
+            if gone {
                 self.close_window(mt, window.id);
             }
         }
