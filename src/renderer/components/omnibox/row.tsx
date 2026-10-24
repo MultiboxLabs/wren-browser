@@ -19,7 +19,7 @@ import {
 import { useLayoutEffect, useRef } from "react";
 import { iconUrl, type OmniboxTarget, Suggestion, SuggestionKind } from "../../ipc";
 import { Favicon } from "../favicon";
-import { type OmniboxItem, type OpenHow, openHowOf, switchesToTab } from "./items";
+import { isOpenTab, type OmniboxItem, type OpenHow, openHowOf, switchesToTab } from "./items";
 import { cn } from "../../utils/cn";
 
 export function OmniboxRow({
@@ -128,13 +128,13 @@ function linesOf(item: OmniboxItem): [string, string | null] {
 
 /**
  * A suggestion's lines: a page's title, then its
- * address, unless it is open in a tab; a search's text; an answer rather
- * than its question.
+ * address, unless it switches to the tab that has it; a search's text; an
+ * answer rather than its question.
  */
 function suggestionLines(suggestion: Suggestion): [string, string | null] {
   const { contents, description } = suggestion;
   if (suggestion.swap && description) return [description, null];
-  if (pageKinds.includes(suggestion.kind) && description) return [description, suggestion.hasTab ? null : contents];
+  if (pageKinds.includes(suggestion.kind) && description) return [description, isOpenTab(suggestion) ? null : contents];
   return [contents, null];
 }
 

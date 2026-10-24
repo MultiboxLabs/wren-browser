@@ -83,15 +83,22 @@ export function openHowOf(event: { metaKey: boolean; altKey: boolean; shiftKey: 
 
 /**
  * How a suggestion opens: in a new window or a tab behind the active one if
- * `how` says so; otherwise one whose page is open in a tab switches to it, if it is an open tab or the
- * omnibox is for a new one; otherwise in a new tab or the active one, as
- * `target` (or `how`) says.
+ * `how` says so; otherwise an open tab's switches to it; otherwise in a new
+ * tab or the active one, as `target` (or `how`) says. Any other suggestion
+ * opens its page, though it is open in a tab already, as what was typed asks.
+ *
+ * TODO: decide how switch to tab works once something is typed. A
+ * suggestion whose page is open in a tab (`hasTab`) has no way to switch to
+ * it now; Chrome puts a "Switch to this tab" button on its row.
  */
 function dispositionFor(suggestion: Suggestion, target: OmniboxTarget, how: OpenHow = "default"): OpenDisposition {
   if (how === "new-window" || how === "background-tab") return how;
-  if (suggestion.hasTab && (suggestion.kind === "open-tab" || target === "new-tab")) return "switch";
+  if (isOpenTab(suggestion)) return "switch";
   return target === "new-tab" || how === "new-tab" ? "new-tab" : "current";
 }
+
+/** The suggestion is one of the window's tabs, which choosing it switches to. */
+export const isOpenTab = (suggestion: Suggestion) => suggestion.hasTab && suggestion.kind === "open-tab";
 
 /** Where a bang opens: a new window is a new tab, as a bang has no suggestion to ask Chromium to open. */
 function bangDisposition(target: OmniboxTarget, how: OpenHow): BangDisposition {
