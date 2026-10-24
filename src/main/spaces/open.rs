@@ -11,7 +11,7 @@ use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::tabs::placeholder;
-use crate::window::{BrowserWindow, PageWindow, WindowId};
+use crate::window::{BrowserWindow, PageWindow, Place, WindowId};
 
 impl State {
     /// Opens a window on `space`, with no Browser yet; with no space, the
@@ -23,17 +23,17 @@ impl State {
         space: Option<SpaceId>,
     ) -> Option<WindowId> {
         let key = self.new_window_key();
-        self.open_keyed_window(mt, key, space, None)
+        self.open_keyed_window(mt, key, space.map(Place::Space), None)
     }
 
-    /// Opens window `key`, as `open_window` does: at `frame` if it has one,
-    /// else below and right of the window in use. Its page is the UI's, in a
-    /// Profile of its own.
+    /// Opens window `key` on `place`, as `open_window` does: at `frame` if
+    /// it has one, else below and right of the window in use. Its page is the
+    /// UI's, in a Profile of its own.
     pub(super) fn open_keyed_window(
         self: &Rc<Self>,
         mt: MainThread,
         key: String,
-        space: Option<SpaceId>,
+        place: Option<Place>,
         frame: Option<RequestedBounds>,
     ) -> Option<WindowId> {
         let profile = self.ui_profile.borrow().clone()?;
@@ -97,7 +97,7 @@ impl State {
         }
         let framed = frame.is_some();
         self.windows
-            .add(BrowserWindow::new(id, key, page, space, framed));
+            .add(BrowserWindow::new(id, key, page, place, framed));
         Some(id)
     }
 
@@ -135,17 +135,18 @@ impl State {
         let Some(window) = self.windows.get(id) else {
             return;
         };
-        if !window.set_opening(space) {
+        let place = Place::Space(space);
+        if !window.set_opening(&place) {
             return;
         }
         let profile = match self.db.space(space) {
             Ok(Some(row)) => row.profile,
             Ok(None) => {
-                window.forget(space);
+                window.forget(&place);
                 return eprintln!("Wren opened no Browser: the space is gone.");
             }
             Err(error) => {
-                window.forget(space);
+                window.forget(&place);
                 return eprintln!("Wren opened no Browser: {error}");
             }
         };
@@ -153,30 +154,31 @@ impl State {
         mt.open_profile(Some(&profile), move |result| {
             let profile = match result {
                 Ok(profile) => profile,
-                Err(error) => return state.failed_browser(id, space, &error),
+                Err(error) => return state.failed_browser(id, &place, &error),
             };
             placeholder::create_browser(&profile, move |result| {
                 let browser = match result {
                     Ok(browser) => browser,
-                    Err(error) => return state.failed_browser(id, space, &error),
+                    Err(error) => return state.failed_browser(id, &place, &error),
                 };
                 // A window closed in the meantime takes no Browser, nor one
                 // whose space was deleted.
                 let window = state.windows.get(id);
-                let Some(window) = window.filter(|w| !w.is_closing() && w.is_opening(space)) else {
+                let Some(window) = window.filter(|w| !w.is_closing() && w.is_opening(&place))
+                else {
                     let _ = browser.close();
                     return;
                 };
-                state.host(&window, space, &browser);
+                state.host(&window, place, &browser);
                 then();
             });
         });
     }
 
-    fn failed_browser(&self, id: WindowId, space: SpaceId, error: &wren::Error) {
+    fn failed_browser(&self, id: WindowId, place: &Place, error: &wren::Error) {
         eprintln!("Wren opened no Browser: {error:?}");
         if let Some(window) = self.windows.get(id) {
-            window.forget(space);
+            window.forget(place);
         }
     }
 
@@ -227,14 +229,14 @@ impl State {
             return;
         };
         placeholder::adopt(&browser);
-        self.host(&window, space, &browser);
+        self.host(&window, Place::Space(space), &browser);
         self.touch_space(space);
     }
 
-    /// Shows `browser` as `window`'s for `space`, in front if that is its
-    /// current space, and keeps the window as it is now.
-    pub(super) fn host(&self, window: &BrowserWindow, space: SpaceId, browser: &Browser) {
-        window.add(space, browser.clone());
+    /// Shows `browser` as `window`'s for `place`, in front if that is its
+    /// current place, and keeps the window as it is now.
+    pub(super) fn host(&self, window: &BrowserWindow, place: Place, browser: &Browser) {
+        window.add(place, browser.clone());
         if window.is_front(browser) {
             ipc::send_browser(window, browser);
         }
