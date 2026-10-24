@@ -3,20 +3,25 @@
 // and pinned tabs are real too, those are made up here, and so is the space
 // drawn before the window knows its own, and outside the app. A window on a
 // profile shows a space made up for the profile, and has none to switch to.
+// A window on no space, while the user makes one, shows that one as it is so
+// far (new-space.ts).
 
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   appWindow,
   follow,
   hasApp,
+  type NewSpace,
   type ProfileEntry,
   type SpaceEntry,
   type SpaceTheme,
-  type WindowProfile
+  type WindowProfile,
+  type WindowSpace
 } from "../ipc";
 import { OFF_THE_RECORD_ICON, PROFILE_ICON } from "../components/space-icon";
 import { contentScheme, defaultTheme, primaryHex } from "../utils/theme";
 import { useProfiles, useSpaces } from "./library";
+import { type NewSpaceState, useNewSpace } from "./new-space";
 import { type SpaceSlide, useSpaceSlide } from "./space-slide";
 
 /** A tab of the Browser, by its ID, or a made-up favourite or pinned one, by its address. */
@@ -90,14 +95,14 @@ export const personal: Space = {
   ]
 };
 
-/** A space of the app's, as the window draws it. */
-const shown = (entry: SpaceEntry): Space => ({
-  id: entry.id,
-  name: entry.name,
-  icon: entry.icon,
-  theme: entry.theme,
-  color: primaryHex(entry.theme),
-  scheme: contentScheme(entry.theme),
+/** A space as the window draws it, by its ID, or 0 for a made-up one. */
+const drawn = (id: number, { name, icon, theme }: NewSpace): Space => ({
+  id,
+  name,
+  icon,
+  theme,
+  color: primaryHex(theme),
+  scheme: contentScheme(theme),
   favorites: [],
   pinned: []
 });
@@ -106,19 +111,16 @@ const shown = (entry: SpaceEntry): Space => ({
 const OFF_THE_RECORD_THEME: SpaceTheme = { ...defaultTheme("#0c0c0d"), appearance: "dark", intensity: 1 };
 
 /** The space made up for a window on a profile, named for it, in its colour. */
-const ofProfile = ({ id, offTheRecord }: WindowProfile, entry: ProfileEntry | undefined): Space => {
-  const theme = offTheRecord ? OFF_THE_RECORD_THEME : defaultTheme(entry?.color ?? "#8e8e93");
-  return {
-    id: 0,
+const ofProfile = ({ id, offTheRecord }: WindowProfile, entry: ProfileEntry | undefined): Space =>
+  drawn(0, {
     name: offTheRecord ? "Incognito" : (entry?.name ?? id),
     icon: offTheRecord ? OFF_THE_RECORD_ICON : PROFILE_ICON,
-    theme,
-    color: primaryHex(theme),
-    scheme: contentScheme(theme),
-    favorites: [],
-    pinned: []
-  };
-};
+    theme: offTheRecord ? OFF_THE_RECORD_THEME : defaultTheme(entry?.color ?? "#8e8e93")
+  });
+
+/** The space being made, as it is so far. */
+const ofDraft = ({ draft, theme }: NewSpaceState): Space =>
+  drawn(0, { name: draft.name.trim() || "New Space", icon: draft.icon, theme });
 
 type SpaceState = {
   /** The space shown in the window. */
@@ -127,6 +129,10 @@ type SpaceState = {
   spaces: SpaceEntry[];
   /** The profile the window shows, rather than spaces; null for a window of spaces. */
   profile: WindowProfile | null;
+  /** The space being made, while the window is on none. */
+  newSpace: NewSpaceState | null;
+  /** Puts the window on no space, to make one in `profile`, or else in the current space's profile. */
+  startNewSpace: (profile?: string) => void;
   /** Brings a space forward in the window, the old one's content sliding out first. */
   show: (id: number) => void;
   /** Brings a space forward at once: a swipe, whose fingers slid the old one out. */
@@ -143,8 +149,10 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   const { spaces: entries } = useSpaces(true);
   // For their order, which is Chromium's.
   const { profiles: listed } = useProfiles(true);
-  const [current, setCurrent] = useState<number | null>(null);
-  useEffect(() => (hasApp ? follow(appWindow.space, appWindow.onSpace, setCurrent) : undefined), []);
+  const [onSpace, setOnSpace] = useState<WindowSpace | null>(null);
+  useEffect(() => (hasApp ? follow(appWindow.space, appWindow.onSpace, setOnSpace) : undefined), []);
+  const current = onSpace?.kind === "space" ? onSpace.id : null;
+  const newSpace = useNewSpace(onSpace?.kind === "newSpace", listed);
   const [profile, setProfile] = useState<WindowProfile | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.profile, appWindow.onProfile, setProfile) : undefined), []);
   // The made-up space, whose folders open and close here.
@@ -163,16 +171,19 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   const entry = spaces.find(({ id }) => id === current);
   const profileEntry = profile ? listed?.find(({ id }) => id === profile.id) : undefined;
   // Until the spaces are read, the made-up one stands in, as the window's.
+  // The draft is new with each change, and null while nothing is being made.
   const space = useMemo(
     () =>
       profile
         ? ofProfile(profile, profileEntry)
-        : entry
-          ? shown(entry)
-          : current === null
-            ? madeUp
-            : { ...madeUp, id: current },
-    [profile, profileEntry, entry, madeUp, current]
+        : newSpace.state
+          ? ofDraft(newSpace.state)
+          : entry
+            ? drawn(entry.id, entry)
+            : current === null
+              ? madeUp
+              : { ...madeUp, id: current },
+    [profile, profileEntry, newSpace.state, entry, madeUp, current]
   );
 
   const order = (id: number) => spaces.findIndex((space) => space.id === id);
@@ -196,7 +207,24 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       ...space,
       pinned: space.pinned.map((item) => (item === folder ? { ...folder, open: !folder.open } : item))
     }));
-  return <SpaceContext value={{ space, spaces, profile, show, showNow, slide, toggleFolder }}>{children}</SpaceContext>;
+  const startNewSpace = (profile?: string) => newSpace.start(profile ?? entry?.profile);
+  return (
+    <SpaceContext
+      value={{
+        space,
+        spaces,
+        profile,
+        newSpace: newSpace.state,
+        startNewSpace,
+        show,
+        showNow,
+        slide,
+        toggleFolder
+      }}
+    >
+      {children}
+    </SpaceContext>
+  );
 }
 
 /** The space shown in the window, from the SpaceProvider around it. */

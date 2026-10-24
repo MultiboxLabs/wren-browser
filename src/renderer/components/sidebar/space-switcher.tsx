@@ -1,6 +1,7 @@
 // The sidebar footer's spaces, one button each, in the Library's order: the
 // one the window shows is pressed, in the accent. A press brings one forward.
-// Too many for the room scroll sideways. A window on a profile has none.
+// Too many for the room scroll sideways. While the window makes a space, none
+// is current. A window on a profile has none.
 
 import { useLayoutEffect, useRef } from "react";
 import { Button } from "../ui/button";
@@ -9,7 +10,7 @@ import { useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 
 export function SpaceSwitcher() {
-  const { space, spaces, profile, show } = useSpace();
+  const { space, spaces, profile, newSpace, show } = useSpace();
   const row = useRef<HTMLDivElement>(null);
   // The current one stays in view as it changes.
   useLayoutEffect(() => {
@@ -18,7 +19,7 @@ export function SpaceSwitcher() {
 
   if (profile) return null;
   // Before the app has said, the space shown alone.
-  if (!spaces.some(({ id }) => id === space.id)) {
+  if (!newSpace && !spaces.some(({ id }) => id === space.id)) {
     return (
       <Button
         icon={<SpaceIcon icon={space.icon} size={15} />}

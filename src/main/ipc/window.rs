@@ -26,6 +26,25 @@ pub(super) fn page_space(place: Option<Place>) -> Option<SpaceId> {
     }
 }
 
+/// The space a window is on, or none while the user makes one. In one
+/// message, so the page never draws a window between the two.
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+enum ShownSpace {
+    Space { id: SpaceId },
+    NewSpace,
+}
+
+/// What the page is told of the window's space: null while it waits for its
+/// first Browser, or shows a profile.
+fn shown_space(window: &BrowserWindow) -> Option<ShownSpace> {
+    match (window.space(), window.left_space()) {
+        (Some(id), _) => Some(ShownSpace::Space { id }),
+        (None, Some(_)) => Some(ShownSpace::NewSpace),
+        (None, None) => None,
+    }
+}
+
 fn shown_profile(window: &BrowserWindow) -> Option<ShownProfile> {
     match window.place()? {
         Place::Profile { id, off_the_record } => Some(ShownProfile { id, off_the_record }),
@@ -49,11 +68,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         with_window(&weak, |window| Ok(window.page.is_active()))
     });
 
-    // The space the window shows, or null while it waits for its first
-    // Browser or is on no space; "window.space" says when it changes.
+    // The space the window shows, or that it is on none while the user
+    // makes one; null while it waits for its first Browser, or shows a
+    // profile. "window.space" says when it changes.
     let weak = window.clone();
     let _ = web_view.handle("window.space", move |()| {
-        with_window(&weak, |window| Ok(window.space()))
+        with_window(&weak, |window| Ok(shown_space(window)))
     });
 
     // The profile the window shows, or null for one that shows spaces;
@@ -69,14 +89,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         weak.state()?.show_space(weak.id, space)
     });
 
-    // Whether the window is on no space, while the user makes one;
-    // "window.newSpace" says when it changes.
-    let weak = window.clone();
-    let _ = web_view.handle("window.newSpace", move |()| {
-        with_window(&weak, |window| Ok(window.left_space().is_some()))
-    });
-
-    // Puts the window on no space, for the user to make one.
+    // Puts the window on no space, for the user to make one; "window.space"
+    // follows.
     let weak = window.clone();
     let _ = web_view.handle("window.startNewSpace", move |()| {
         weak.state()?.new_space(weak.id)
@@ -121,14 +135,10 @@ pub fn send_active(window: &PageWindow, active: bool) {
 
 /// Tells the page which space the window shows.
 pub fn send_space(window: &BrowserWindow) {
-    let _ = window.page.web_view.send("window.space", &window.space());
-}
-
-/// Tells the page whether the window is on no space, while the user makes
-/// one.
-pub fn send_new_space(window: &BrowserWindow) {
-    let making = window.left_space().is_some();
-    let _ = window.page.web_view.send("window.newSpace", &making);
+    let _ = window
+        .page
+        .web_view
+        .send("window.space", &shown_space(window));
 }
 
 /// Tells the page which profile the window shows, if it shows one.

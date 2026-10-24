@@ -1,5 +1,6 @@
 // The sidebar: the toolbar beside the window's buttons, the address, the
-// favourites, and the space's tabs (tab-list.tsx).
+// favourites, and the space's tabs (tab-list.tsx); or, while the window is
+// on no space, the form for a new one (new-space.tsx).
 
 import { Archive, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion, useTransform } from "motion/react";
@@ -12,6 +13,7 @@ import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../ico
 import type { OmniboxState } from "../omnibox/shown";
 import { scaleTo } from "../../utils/motion";
 import type { SidebarHold } from "./presentation";
+import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
 import { selectTab, TabList } from "./tab-list";
@@ -68,8 +70,9 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
 }
 
 export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary }: SidebarProps) {
-  const { space, spaces, showNow, slide } = useSpace();
-  // A swipe across the sidebar goes to the next space or the previous one.
+  const { space, spaces, profile, newSpace, startNewSpace, showNow, slide } = useSpace();
+  // A swipe across the sidebar goes to the next space or the previous one;
+  // from a space being made, which is none of them, it goes nowhere.
   const area = useRef<HTMLDivElement>(null);
   const at = spaces.findIndex(({ id }) => id === space.id);
   const neighbour = (by: 1 | -1) => (at < 0 ? undefined : spaces[at + by]);
@@ -126,10 +129,14 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
           clipped at the sidebar's sides, with room for the rows' outlines. */}
       <div className="-mx-2 flex min-h-0 flex-1 flex-col overflow-x-clip px-2">
         <motion.div style={{ x: swipe, opacity: fade }} className="flex min-h-0 flex-1 flex-col">
-          {/* Each space's own, so one's tabs never leave or arrive in another's. */}
-          <BrowserOfSpace key={space.id} space={space.id}>
-            <SpaceContent omnibox={omnibox} hold={hold} address={address} />
-          </BrowserOfSpace>
+          {newSpace ? (
+            <NewSpaceForm state={newSpace} />
+          ) : (
+            // Each space's own, so one's tabs never leave or arrive in another's.
+            <BrowserOfSpace key={space.id} space={space.id}>
+              <SpaceContent omnibox={omnibox} hold={hold} address={address} />
+            </BrowserOfSpace>
+          )}
         </motion.div>
       </div>
 
@@ -138,7 +145,15 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
         <div className="flex min-w-0 flex-1 justify-center px-1">
           <SpaceSwitcher />
         </div>
-        <Button icon={Plus} label="New Space" />
+        {/* A window on a profile never switches, so makes no space. */}
+        {!profile && (
+          <Button
+            icon={Plus}
+            label="New Space"
+            pressed={newSpace !== null}
+            onClick={() => (newSpace ? newSpace.cancel() : startNewSpace())}
+          />
+        )}
       </div>
     </div>
   );
