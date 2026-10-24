@@ -1,5 +1,5 @@
 // The database's side of the profiles Chromium keeps: their avatar colours,
-// and a space for each of them.
+// and a first space for each of them, which the user can delete.
 
 use wren::ProfileListEntry;
 
@@ -44,22 +44,17 @@ impl Db {
         Ok(())
     }
 
-    /// Brings the database in step with the profiles Chromium lists: with
-    /// `fill`, each gets a default space if it has none; one that was listed
-    /// the last time and is not now is forgotten. Whether anything changed.
+    /// Brings the database in step with the profiles Chromium lists: one
+    /// that was listed the last time and is not now is forgotten; with
+    /// `fill`, one it has not met gets a default space, and with no space
+    /// left in the app, the first listed gets one, so a window always has a
+    /// space to show. A profile whose spaces the user deleted stays without
+    /// one. Whether anything changed.
     ///
     /// A profile that was never listed is never forgotten, so a list that is
     /// empty because it is not loaded yet deletes nothing.
     pub fn sync_profiles(&self, listed: &[ProfileListEntry], fill: bool) -> bool {
         let mut changed = false;
-        if fill {
-            for profile in listed {
-                match self.ensure_space(&profile.id, default_space(profile)) {
-                    Ok(added) => changed |= added,
-                    Err(error) => eprintln!("Wren could not give a profile a space: {error}"),
-                }
-            }
-        }
         let gone: Vec<String> = self
             .listed
             .borrow()
@@ -74,13 +69,41 @@ impl Db {
             }
         }
         *self.listed.borrow_mut() = listed.iter().map(|profile| profile.id.clone()).collect();
+        if fill {
+            changed |= self.fill(listed);
+        }
         changed
+    }
+
+    // Gives each profile not met yet its first space, and the first profile
+    // one if the app has none. Whether it gave any.
+    fn fill(&self, listed: &[ProfileListEntry]) -> bool {
+        let mut given = false;
+        for profile in listed {
+            match self.add_profile(&profile.id, default_space(profile)) {
+                Ok(added) => given |= added,
+                Err(error) => eprintln!("Wren could not give a profile a space: {error}"),
+            }
+        }
+        let Some(first) = listed.first() else {
+            return given;
+        };
+        match self.has_spaces() {
+            Ok(true) => {}
+            Ok(false) => match self.create_space(&first.id, default_space(first)) {
+                Ok(_) => given = true,
+                Err(error) => eprintln!("Wren could not give a profile a space: {error}"),
+            },
+            Err(error) => eprintln!("Wren could not read the spaces: {error}"),
+        }
+        given
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::SpaceId;
     use crate::db::test_db as db;
 
     fn entry(id: &str, name: &str) -> ProfileListEntry {
@@ -116,27 +139,43 @@ mod tests {
     #[test]
     fn an_empty_list_forgets_only_what_was_listed() {
         let db = db();
-        db.ensure_space("x", default_space(&entry("x", "Unlisted")))
+        db.add_profile("x", default_space(&entry("x", "Unlisted")))
             .unwrap();
         assert!(!db.sync_profiles(&[], true));
         assert_eq!(db.list_spaces().unwrap().len(), 1);
     }
 
     #[test]
-    fn the_last_space_stays() {
+    fn a_profile_can_go_without_a_space_but_the_app_cannot() {
         let db = db();
-        db.sync_profiles(&[entry("a", "Alpha")], true);
-        let first = db.list_spaces().unwrap()[0].id;
-        assert!(db.delete_space(first).is_err());
+        let both = [entry("a", "Alpha"), entry("b", "Beta")];
+        db.sync_profiles(&both, true);
+        let spaces = db.list_spaces().unwrap();
         let space = NewSpace {
             name: " Work ".into(),
             icon: "🛠".into(),
             theme: SpaceTheme::default_for("#0a84ff"),
         };
-        let second = db.create_space("a", space).unwrap();
-        assert_eq!(second.name, "Work");
-        db.delete_space(first).unwrap();
-        assert!(db.delete_space(second.id).is_err());
+        assert_eq!(db.create_space("a", space).unwrap().name, "Work");
+        // "b"'s only space goes, and a sync does not give it another.
+        db.delete_space(spaces[1].id).unwrap();
+        assert!(!db.sync_profiles(&both, true));
+        assert!(db.recent_space("b").unwrap().is_none());
+        // The app's last space stays.
+        let left: Vec<SpaceId> = db.list_spaces().unwrap().iter().map(|s| s.id).collect();
+        db.delete_space(left[0]).unwrap();
+        assert!(db.delete_space(left[1]).is_err());
+    }
+
+    #[test]
+    fn with_no_space_left_the_first_profile_gets_one() {
+        let db = db();
+        db.sync_profiles(&[entry("a", "Alpha"), entry("b", "Beta")], true);
+        let b = db.recent_space("b").unwrap().unwrap().id;
+        db.delete_space(b).unwrap();
+        // "a" goes, with the app's last space.
+        assert!(db.sync_profiles(&[entry("b", "Beta")], true));
+        assert_eq!(db.recent_space("b").unwrap().unwrap().name, "Beta");
     }
 
     #[test]

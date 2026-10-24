@@ -89,7 +89,7 @@ impl State {
     // `place_opened`. A kept window on the profile that got no Browser back
     // is given one with no tab yet. With nothing restored, and if `fills`,
     // the window that waits for a Browser opens on the profile's most recent
-    // space, with no tab yet.
+    // space, or on the profile if it has none, with no tab yet.
     fn restore(self: &Rc<Self>, mt: MainThread, profile: Profile, fills: bool) {
         let state = self.clone();
         self.restore_started();
@@ -107,8 +107,9 @@ impl State {
             let Some(window) = state.windows.waiting().filter(|_| fills) else {
                 return;
             };
+            // A profile with no space: the window is on the profile.
             let Some(space) = state.recent_space(mt, &profile) else {
-                return eprintln!("Wren found no space to open.");
+                return state.open_browser(mt, window.id, place, || {});
             };
             if let Err(error) = state.show_space(window.id, space) {
                 return eprintln!("Wren could not open a space: {error}");
@@ -163,7 +164,10 @@ impl State {
     /// drops it.
     pub fn save_window(&self, window: &BrowserWindow) {
         let profile = match window.place() {
-            Some(Place::Profile { id, .. }) => Some(id),
+            Some(Place::Profile {
+                id,
+                off_the_record: false,
+            }) => Some(id),
             _ => None,
         };
         let saved = self.db.save_window(

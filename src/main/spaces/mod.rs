@@ -22,7 +22,8 @@ use crate::menus;
 
 impl State {
     /// The profile's most recently used space. A profile Chromium has just
-    /// made may have none yet: it is given its first.
+    /// made may have none yet: it is given its first. One whose spaces the
+    /// user deleted has none.
     pub(super) fn recent_space(&self, mt: MainThread, profile: &Profile) -> Option<SpaceId> {
         let id = profile.id();
         let recent = || match self.db.recent_space(&id) {

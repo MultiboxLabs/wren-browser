@@ -52,8 +52,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         Ok::<SpaceRow, String>(space)
     });
 
-    // Fails for a profile's last space. The windows on it move to another of
-    // the profile's, and its Browsers close with their tabs.
+    // Fails for the app's last space. The windows on it move to another of
+    // the profile's, or with none left, to the space used last, and its
+    // Browsers close with their tabs.
     let weak = window.clone();
     let _ = web_view.handle("spaces.delete", move |id: SpaceId| {
         let state = weak.state()?;
