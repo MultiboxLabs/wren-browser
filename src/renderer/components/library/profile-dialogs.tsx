@@ -1,5 +1,5 @@
-// The dialogs of a profile's actions in the Library: renaming it, and
-// deleting it. Each asks, and the profile is changed once the app says it is
+// The dialogs of the Library's profiles: making one, renaming one, and
+// deleting one. Each asks, and the profile is changed once the app says it is
 // done; if the app can't, the dialog stays up, and says so in place of its
 // description.
 
@@ -13,6 +13,49 @@ type ProfileDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
+
+export function CreateDialog({
+  open,
+  onOpenChange,
+  onCreate
+}: Omit<ProfileDialogProps, "profile"> & {
+  /** Makes the profile; rejects if it can't be made. */
+  onCreate: (name: string) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [failed, setFailed] = useState(false);
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="New Profile"
+      description={
+        failed
+          ? "Could not create the profile."
+          : "Use profiles to keep parts of your life apart, like work and personal. Each has its own sign-ins, cookies and browsing history."
+      }
+      action={{
+        label: "Create",
+        disabled: !name.trim(),
+        onPress: () =>
+          onCreate(name.trim()).catch((error) => {
+            setFailed(true);
+            throw error;
+          })
+      }}
+    >
+      <TextField
+        value={name}
+        onChange={(event) => {
+          setName(event.target.value);
+          setFailed(false);
+        }}
+        placeholder="Profile Name"
+        aria-label="Profile Name"
+      />
+    </Dialog>
+  );
+}
 
 export function RenameDialog({
   profile,

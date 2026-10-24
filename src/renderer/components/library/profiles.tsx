@@ -1,8 +1,7 @@
 // The Library's profiles: the list, with how many spaces each has, and what
-// can be done to one (opening a window for it, renaming it, deleting it) or
-// to the list (making one).
+// can be done to one (opening a window for it, renaming it, deleting it).
 
-import { AppWindow, Pencil, Plus, Trash2 } from "lucide-react";
+import { AppWindow, Pencil, Trash2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState } from "react";
 import type { ProfileEntry, SpaceEntry } from "../../ipc";
@@ -19,12 +18,6 @@ export type ProfilesProps = {
   spaces: SpaceEntry[] | null;
   /** Asks it to list them again. */
   onReload: () => void;
-  /** A new profile is being named, in a row at the top of the profiles. */
-  naming: boolean;
-  /** Makes the profile; rejects if it can't be made. */
-  onCreate: (name: string) => Promise<void>;
-  /** The profile is named no more: made, or given up. */
-  onNamed: () => void;
   /** Opens a window for the profile: on its most recent space, or with none, on the profile. */
   onOpenWindow: (id: string) => void;
   /** Renames the profile; rejects if it can't be renamed. */
@@ -39,9 +32,6 @@ export function Profiles({
   failed,
   onReload,
   spaces,
-  naming,
-  onCreate,
-  onNamed,
   onOpenWindow,
   onRename,
   onDelete,
@@ -62,10 +52,9 @@ export function Profiles({
     setAsked({ kind, profile, open: true, serial: ++serial.current });
   if (!profiles) return failed ? <LoadFailed what="Profiles" onRetry={onReload} /> : <Loading />;
   const shown = profiles.filter((profile) => matches(query, profile.name));
-  if (shown.length === 0 && !naming) return <Empty>No Profiles Found</Empty>;
+  if (shown.length === 0) return <Empty>No Profiles Found</Empty>;
   return (
     <div className="flex flex-col gap-0.5">
-      {naming && <NewProfile onCreate={onCreate} onNamed={onNamed} />}
       {shown.map((profile) => (
         <div key={profile.id} className="flex flex-col gap-0.5">
           <Row
@@ -129,53 +118,5 @@ function ProfileTile({ name, color }: { name: string; color: string }) {
     >
       {name.trim()[0]?.toUpperCase()}
     </span>
-  );
-}
-
-// The row a new profile is named in: Return makes it, Escape gives it up, as
-// does leaving the field. Its error shows in place of its prompt, and the
-// name stays to be fixed.
-function NewProfile({ onCreate, onNamed }: Pick<ProfilesProps, "onCreate" | "onNamed">) {
-  const [name, setName] = useState("");
-  const [failed, setFailed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const submit = () => {
-    if (!name.trim() || busy) return;
-    setBusy(true);
-    onCreate(name).then(onNamed, () => {
-      setFailed(true);
-      setBusy(false);
-    });
-  };
-  return (
-    <div className="no-drag flex h-12.5 shrink-0 items-center gap-3 rounded-row bg-selected pr-1.5 pl-1.5">
-      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-fill text-fg-2">
-        {name.trim() ? <ProfileTile name={name} color="#8e8e93" /> : <Plus size={18} strokeWidth={2} />}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <input
-          autoFocus
-          value={name}
-          disabled={busy}
-          onChange={(event) => {
-            setName(event.target.value);
-            setFailed(false);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") submit();
-            // Only this closes the row, not the Library behind it.
-            if (event.key === "Escape") {
-              event.preventDefault();
-              onNamed();
-            }
-          }}
-          onBlur={() => !busy && onNamed()}
-          placeholder="Profile Name"
-          spellCheck={false}
-          className="min-w-0 bg-transparent text-fg outline-none placeholder:text-fg-3"
-        />
-        {failed && <span className="truncate text-subtitle text-fg-2">Could not make the profile</span>}
-      </span>
-    </div>
   );
 }

@@ -11,6 +11,7 @@ import { cn } from "../../utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
 import { useProfiles, useSpaces } from "../../state/library";
 import { type Section, SectionList } from "./sections";
+import { CreateDialog } from "./profile-dialogs";
 import { SpaceDialog } from "./space-dialogs";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
@@ -33,12 +34,12 @@ export type LibraryProps = {
 export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   const [section, setSection] = useState<Section>(DEFAULT_SECTION);
   const [query, setQuery] = useState("");
-  const [naming, setNaming] = useState(false);
   // The row chosen in the list, which the "+" of the spaces starts from.
   const [selected, setSelected] = useState<string | null>(null);
-  // The dialog of a new space, which stays set as it closes, for its exit;
-  // `serial` makes each opening a dialog of its own.
+  // The dialogs of a new space and a new profile, which stay set as they
+  // close, for their exit; `serial` makes each opening a dialog of its own.
   const [newSpace, setNewSpace] = useState<{ open: boolean; serial: number; profile: string | null } | null>(null);
+  const [newProfile, setNewProfile] = useState<{ open: boolean; serial: number } | null>(null);
   const serial = useRef(0);
   const { profiles, failed, reload, create, rename, remove, openWindow } = useProfiles(open);
   const spaces = useSpaces(open);
@@ -59,7 +60,6 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   const choose = (id: Section) => {
     setSection(id);
     setQuery("");
-    setNaming(false);
     setSelected(null);
   };
 
@@ -140,12 +140,9 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
           onReloadSpaces={spaces.reload}
           onUpdateSpace={spaces.update}
           onDeleteSpace={spaces.remove}
-          naming={naming}
-          onCreate={create}
           onOpenWindow={openWindow}
           onRename={rename}
           onDelete={remove}
-          onNamed={() => setNaming(false)}
         />
 
         <div className="flex h-12.5 shrink-0 items-center justify-end">
@@ -161,11 +158,8 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
                 const chosen = spaces.spaces?.find(({ id }) => String(id) === selected);
                 setNewSpace({ open: true, serial: ++serial.current, profile: chosen?.profile ?? null });
               }
+              if (section === "profiles") setNewProfile({ open: true, serial: ++serial.current });
               // Boosts are not made yet.
-              if (section !== "profiles") return;
-              // Its row is at the top of a list that is not searched.
-              setQuery("");
-              setNaming(true);
             }}
           />
         </div>
@@ -178,6 +172,14 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
             profile={newSpace.profile}
             onCreate={spaces.create}
             onCreateWithProfile={create}
+          />
+        )}
+        {newProfile && (
+          <CreateDialog
+            key={newProfile.serial}
+            open={newProfile.open}
+            onOpenChange={(open) => setNewProfile({ ...newProfile, open })}
+            onCreate={create}
           />
         )}
       </motion.div>
