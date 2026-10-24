@@ -3,9 +3,10 @@
 //
 // A knob is at a point in pad units, -1…1 from the centre with y pointing
 // down. Its angle is the colour's hue (red at 3 o'clock, turning clockwise)
-// and its distance from the centre its brightness, across a range that
-// depends on the appearance. Saturation is not on the pad: it is the one the
-// colour had when the picker opened or a preset was chosen.
+// and its distance from the centre its brightness, across a range around the
+// colour it opened on. Saturation is not on the pad: it is the one the colour
+// had when the picker opened or a preset was chosen. The appearance does not
+// change the colour: it is how the window draws it (utils/theme.ts).
 
 import type { Hsb, SpaceTheme } from "../ipc";
 import { hueOffsets, rotate } from "./theme";
@@ -25,22 +26,17 @@ type Appearance = SpaceTheme["appearance"];
 // How far from the centre the edge of the range is, so a knob at full
 // brightness is not on the pad's very border.
 const EDGE = 0.99;
-const LIGHT = [0.575, 0.97] as const;
-const DARK = [0.01, 0.425] as const;
 
 const clamp = (value: number, low = 0, high = 1) => Math.min(high, Math.max(low, value));
 
-/** The brightnesses the pad spans, for a colour of brightness `b`. */
-function rangeFor(appearance: Appearance, b: number): Pick<Editor, "lo" | "hi"> {
-  if (appearance === "auto") return { lo: Math.max(b - 0.25, 0.01), hi: Math.min(b + 0.25, 0.97) };
-  const [lo, hi] = appearance === "light" ? LIGHT : DARK;
-  // Wide enough for the colour it holds, which a preset may put outside.
-  return { lo: Math.min(lo, b), hi: Math.max(hi, b) };
-}
-
-/** The editor state for a theme as the picker opens on it. */
-export function editorFor({ primary, appearance }: SpaceTheme): Editor {
-  return { saturation: Math.max(primary.saturation, 0.01), ...rangeFor(appearance, primary.brightness) };
+/** The editor state for a theme as the picker opens on it: the pad spans its brightness, and a little either side. */
+export function editorFor({ primary }: SpaceTheme): Editor {
+  const { saturation, brightness } = primary;
+  return {
+    saturation: Math.max(saturation, 0.01),
+    lo: Math.max(brightness - 0.25, 0.01),
+    hi: Math.min(brightness + 0.25, 0.97)
+  };
 }
 
 /** Where a colour's knob is. */
@@ -78,22 +74,9 @@ export function nudgeKnob(doc: Doc, index: number, degrees: number, distance: nu
   return dragKnob(doc, index, { x: radius * Math.cos(angle), y: radius * Math.sin(angle) });
 }
 
-/**
- * The doc in another appearance. Light and dark take the colour to the same
- * place on their own range; automatic keeps the colour, and ranges around it.
- */
+/** The doc in another appearance: the colours stay as they are, and only how the window draws them changes. */
 export function withAppearance({ theme, editor }: Doc, appearance: Appearance): Doc {
-  let { brightness } = theme.primary;
-  if (appearance !== "auto") {
-    const t = editor.hi === editor.lo ? 0 : clamp((brightness - editor.lo) / (editor.hi - editor.lo));
-    const [lo, hi] = appearance === "light" ? LIGHT : DARK;
-    brightness = lo + (hi - lo) * t;
-  }
-  const primary = { ...theme.primary, brightness };
-  return {
-    theme: { ...theme, appearance, primary },
-    editor: { saturation: editor.saturation, ...rangeFor(appearance, brightness) }
-  };
+  return { theme: { ...theme, appearance }, editor };
 }
 
 /** The doc with `color`, a preset, as its primary. */
