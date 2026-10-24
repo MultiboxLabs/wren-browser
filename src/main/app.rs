@@ -19,7 +19,9 @@ use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
-use crate::window::{BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId, Windows};
+use crate::window::{
+    BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId, Windows, close_other_key_window,
+};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -254,6 +256,13 @@ impl App for Wren {
             if let Err(error) = mt.set_quit_warning(!mt.quit_warning().on) {
                 eprintln!("Wren could not change Warn Before Quitting: {error:?}");
             }
+            return;
+        }
+        // A window of the system's or a plain one, such as the About
+        // panel, closes as it would in any app.
+        if (id == menus::CLOSE_TAB || id == menus::CLOSE_WINDOW)
+            && close_other_key_window(windows.all().iter().map(|window| &window.page))
+        {
             return;
         }
         // From the window in front, if one is.

@@ -430,6 +430,28 @@ fn show(window: &NSWindow) {
     NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).activate();
 }
 
+/// Closes the key window, as its close button does, if it is a window of
+/// its own that shows none of `pages`: the About panel, or a DevTools
+/// window, which ⌘W closes in place of a tab. A sheet or a bubble over a
+/// page's window stays. Whether it closed one.
+pub fn close_other_key_window<'a>(pages: impl IntoIterator<Item = &'a PageWindow>) -> bool {
+    let app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
+    let Some(key) = app.keyWindow() else {
+        return false;
+    };
+    if key.sheetParent().is_some()
+        || key.parentWindow().is_some()
+        || !key.styleMask().contains(NSWindowStyleMask::Closable)
+        || pages
+            .into_iter()
+            .any(|page| Retained::as_ptr(&page.window) == Retained::as_ptr(&key))
+    {
+        return false;
+    }
+    key.performClose(None);
+    true
+}
+
 fn is_full_screen(window: &NSWindow) -> bool {
     window.styleMask().contains(NSWindowStyleMask::FullScreen)
 }
