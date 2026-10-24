@@ -1,10 +1,10 @@
 // The close, minimise and zoom buttons, which the page places in its own
-// title bar.
+// title bar, light or dark as the page is.
 
 use std::cell::Cell;
 
 use objc2::rc::Retained;
-use objc2_app_kit::{NSButton, NSWindow, NSWindowButton};
+use objc2_app_kit::{NSAppearanceCustomization, NSButton, NSWindow, NSWindowButton};
 use objc2_foundation::NSPoint;
 
 // The window's buttons as the page wants them, and whether the window is
@@ -14,15 +14,22 @@ pub(super) struct TitleBar {
     pub(super) full_screen: Cell<bool>,
     pub(super) buttons_at: Cell<Option<(f64, f64)>>,
     pub(super) buttons_hidden: Cell<bool>,
+    // Whether the page around them is dark.
+    pub(super) dark: Cell<bool>,
 }
 
 impl TitleBar {
-    // Puts the buttons where the page wants them; full screen, leaves them
-    // to AppKit, shown.
+    // Puts the buttons where the page wants them, drawn as the page is;
+    // full screen, leaves them to AppKit, shown, in its title bar, which is
+    // as the system is.
     pub(super) fn apply(&self, window: &NSWindow) {
         let full_screen = self.full_screen.get();
+        let appearance = (!full_screen)
+            .then(|| super::appearance(self.dark.get()))
+            .flatten();
         for button in buttons(window).into_iter().flatten() {
             button.setHidden(!full_screen && self.buttons_hidden.get());
+            button.setAppearance(appearance.as_deref());
         }
         if let (false, Some(at)) = (full_screen, self.buttons_at.get()) {
             place_buttons(window, at);

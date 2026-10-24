@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { appWindow, follow, hasApp } from "../ipc";
-import { cssColor, schemeFor } from "../utils/color";
+import { cssColor } from "../utils/color";
 import type { Space } from "./space";
 
 /**
@@ -55,12 +55,12 @@ export function useFullScreen() {
  * Puts the window's look on <html>, so the colours made from it reach menus
  * and tooltips too: the space's colour and the scheme it takes, whether the
  * window is in use, and whether it is full screen. The app is told the
- * scheme and the space's backdrop, for the window around the page.
+ * scheme, for the window around the page: its blur and its buttons.
  */
 export function useWindowTheme(space: Space) {
   const active = useWindowActive();
   const fullScreen = useFullScreen();
-  const scheme = schemeFor(space.color);
+  const { scheme } = space;
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.style.setProperty("--space", cssColor(space.color));
@@ -71,7 +71,4 @@ export function useWindowTheme(space: Space) {
   useEffect(() => {
     if (hasApp) appWindow.setDark(scheme === "dark");
   }, [scheme]);
-  useEffect(() => {
-    if (hasApp) appWindow.setBackdropDark(space.backdrop === "dark");
-  }, [space.backdrop]);
 }

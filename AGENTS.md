@@ -37,6 +37,12 @@ Wren Browser is a modern, privacy-focused browser with a minimalistic design.
   rests in (`restingBox` in `ui/press.ts`) when Radix marks it as a trigger
   (`aria-haspopup`), so use `Button` for one. A trigger that is anything else
   must do the same, or not animate its size.
+- A space's light or dark is the window's alone: the sidebar, the cards and
+  what else is drawn on the window. Anything over the window (a menu, a
+  tooltip, a popover, a dialog, the omnibox, the find bar) is light or dark
+  as the system is, as the platform's own are. Give such a surface
+  `data-scheme="system"` (see `index.css`), or use a wrapper in
+  `components/ui` that does; its colours then follow the system's.
 - The page's calls into the main process live in `src/main/ipc/<part>.rs`, with
   their renderer side in `src/renderer/ipc/<part>.ts`. Change both together.
 - Commit directly to `main`; do not create branches unless asked.

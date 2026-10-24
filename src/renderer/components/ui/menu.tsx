@@ -1,5 +1,5 @@
-// A pull-down menu, as a native one: it opens on press, and an item may be
-// checked.
+// A pull-down menu, as a native one: it opens on press, an item may be
+// checked, and it is light or dark as the system is, not the space.
 
 import { DropdownMenu } from "radix-ui";
 import type { ReactNode } from "react";
@@ -27,6 +27,7 @@ export function Menu<Id extends string>({
           align="start"
           sideOffset={4}
           collisionPadding={6}
+          data-scheme="system"
           className="z-50 min-w-45 rounded-menu border border-menu-border bg-menu p-1.25 text-menu-item text-menu-fg shadow-menu backdrop-blur-xl"
         >
           {items.map(({ id, label, icon: Icon }) => (

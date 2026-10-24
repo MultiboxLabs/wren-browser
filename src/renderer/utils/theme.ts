@@ -211,7 +211,13 @@ export const TEXTURES: SpaceTheme["texture"][] = ["grain"];
 const NOISE_FACTOR = { grain: 0.3, sand: 0.15, denim: 0.25, tweed: 0.2 };
 const TEXTURE_IMAGES: Partial<Record<SpaceTheme["texture"], string>> = { grain };
 
+// About the flat colour of the window's blur, light or dark as the theme is,
+// which the theme is made to be over.
+const BLUR = { light: "rgb(236 236 236)", dark: "rgb(30 30 30)" };
+
 export type ThemeStyle = {
+  /** Under everything, over something other than the window's blur: a stand-in for it. */
+  material: CSSProperties | null;
   /** Under the colours: white for a light theme, black for a dark one. */
   underlay: CSSProperties;
   /** The colours, each as clear as intensity makes it. */
@@ -267,6 +273,12 @@ export type ThemeLayout = {
    * it is flat then), and the noise is a quarter as strong.
    */
   active?: boolean;
+  /**
+   * How much a stand-in for the window's blur shows under the theme, 0–1,
+   * for a box over something else (the page, a popover), which would show
+   * through the theme: none for the window itself, which is over the blur.
+   */
+  material?: number;
 };
 
 /**
@@ -275,12 +287,14 @@ export type ThemeLayout = {
  */
 export function themeStyle(
   theme: SpaceTheme,
-  { aspect, window: windowAspect = aspect, active = true }: ThemeLayout
+  { aspect, window: windowAspect = aspect, active = true, material: blur = 0 }: ThemeLayout
 ): ThemeStyle {
+  const scheme = contentScheme(theme);
+  const material: CSSProperties | null = blur > 0 ? { backgroundColor: BLUR[scheme], opacity: blur } : null;
   const alpha = colorAlpha(theme);
   const under = Math.min(alpha, 0.5);
   const underlay: CSSProperties = {
-    backgroundColor: contentScheme(theme) === "light" ? `rgb(255 255 255 / ${under})` : `rgb(0 0 0 / ${0.35 * under})`
+    backgroundColor: scheme === "light" ? `rgb(255 255 255 / ${under})` : `rgb(0 0 0 / ${0.35 * under})`
   };
 
   // Each colour is as clear as intensity makes it, rather than the layer as a
@@ -313,22 +327,23 @@ export function themeStyle(
         }
       : null;
 
-  return { underlay, colors, noise };
+  return { material, underlay, colors, noise };
 }
 
 /**
  * The layers that fill a popover's arrow so that it is of a picker's colour
  * where it meets the picker, a swatch of a window of `windowAspect` (its width
- * over its height): the underlay, then the colour the gradient has at the middle of
- * the edge the arrow is on (`side` is the popover's side of its trigger: its
- * arrow is on the opposite edge of it).
+ * over its height): the stand-in for the blur and the underlay, then the
+ * colour the gradient has at the middle of the edge the arrow is on (`side`
+ * is the popover's side of its trigger: its arrow is on the opposite edge of
+ * it).
  */
 export function arrowFill(
   theme: SpaceTheme,
   windowAspect: number,
   side: "top" | "right" | "bottom" | "left"
 ): { color: string; opacity: number }[] {
-  const { underlay } = themeStyle(theme, { aspect: windowAspect });
+  const { material, underlay } = themeStyle(theme, { aspect: windowAspect, material: 1 });
   const [first, second] = derivedColors(theme).map((color) => colorCss(color));
   let color = first;
   if (second) {
@@ -337,6 +352,7 @@ export function arrowFill(
     color = `color-mix(in oklab, ${first}, ${second} ${(clamp(share(windowAspect, u, v)) * 100).toFixed(1)}%)`;
   }
   return [
+    { color: String(material?.backgroundColor), opacity: 1 },
     { color: String(underlay.backgroundColor), opacity: 1 },
     { color, opacity: colorAlpha(theme) }
   ];

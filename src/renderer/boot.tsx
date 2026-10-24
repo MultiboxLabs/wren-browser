@@ -15,6 +15,15 @@ document.documentElement.dataset.platform = agent.includes("Mac")
     ? "windows"
     : "linux";
 
+// The system's appearance, light or dark, which what is over the window
+// takes, where the window takes its space's (index.css).
+const systemDark = matchMedia("(prefers-color-scheme: dark)");
+const showSystemScheme = () => {
+  document.documentElement.dataset.systemScheme = systemDark.matches ? "dark" : "light";
+};
+showSystemScheme();
+systemDark.addEventListener("change", showSystemScheme);
+
 // A window's page keeps it hidden until it shows it (useShowWindow). One that
 // fails to render shows it anyway, as it is. A page that is not a window's
 // has nothing to show, and the call fails.

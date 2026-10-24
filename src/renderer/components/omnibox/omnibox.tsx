@@ -99,6 +99,8 @@ export function Omnibox({
         ref={panel}
         role="dialog"
         aria-label={target === "new-tab" ? "New Tab" : "Open Location"}
+        // Over the window: light or dark as the system is, not the space.
+        data-scheme="system"
         initial={{ opacity: 0, ...scaleTo(still, 0.98) }}
         animate={{ opacity: 1, ...scaleTo(still, 1) }}
         exit={{ opacity: 0, ...scaleTo(still, 0.98), transition: { duration: 0.08, ease: "easeIn" } }}

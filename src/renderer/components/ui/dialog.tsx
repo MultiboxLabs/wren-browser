@@ -3,7 +3,9 @@
 // it is up. It asks something and waits for the answer: Return presses its
 // default button, even from a field; Escape (and ⌘. on a Mac) its Cancel
 // button (or, with no Cancel button, its default one, which is all it
-// answers with); and a click on the window behind it does nothing.
+// answers with); and a click on the window behind it does nothing. It is
+// light or dark as the system is, not the space; what dims the window is as
+// the window is.
 
 import { CornerDownLeft, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -181,6 +183,7 @@ function Card({
             initial={{ opacity: 0, ...grown(0.96) }}
             animate={{ opacity: 1, ...grown(1), transition: IN }}
             exit={{ opacity: 0, ...grown(0.97), transition: OUT }}
+            data-scheme="system"
             className={cn(
               "dialog no-drag pointer-events-auto flex w-96 max-w-full flex-col gap-6 px-7 pt-7 pb-6 outline-none",
               className

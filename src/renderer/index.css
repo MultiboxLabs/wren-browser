@@ -9,8 +9,13 @@ body,
 }
 
 /* The browser's own UI (wren://ui). Its colours come from the space: the
-   page sets --space, and data-scheme (light or dark, from that colour) and
-   data-active (whether the window is in use) on <html>. */
+   page sets --space, and data-scheme (light or dark, the space's
+   appearance) and data-active (whether the window is in use) on <html>.
+   The space's scheme is the window's alone: what is over the window (menus,
+   tooltips, popovers, dialogs, the omnibox, the find bar) takes the
+   system's, as the platform's own do. Such a surface says so with
+   data-scheme="system", and boot.tsx puts the system's on <html> as
+   data-system-scheme; the palettes below are its, from that element down. */
 
 /* Sizes. Spacing is Tailwind's scale, a step of 4px (h-9 is 36px, gap-1.25
    is 5px); the root's font size is never changed, so it stays 4px. Corners,
@@ -135,14 +140,15 @@ body,
   --window-buttons: 0px;
 }
 
-/* Text and fills (the named colours, and each space's title
-   colour). Tab titles are the space's title colour: solid, and tinted
-   toward the space rather than pure white or black. The rest is white (or
-   black) at fixed opacities: icons and the address (fg-2), headings and
-   placeholders (fg-3), and what is disabled (fg-4). They are the same
-   focused or not; the window pales by itself when unfocused (see
-   --space-shown). */
-:root[data-scheme="light"] {
+/* Text and fills (the named colours, and each space's title colour), in
+   the window's scheme or, over it, the system's. Tab titles are the
+   space's title colour: solid, and tinted toward the space rather than pure
+   white or black. The rest is white (or black) at fixed opacities: icons
+   and the address (fg-2), headings and placeholders (fg-3), and what is
+   disabled (fg-4). They are the same focused or not; the window pales by
+   itself when unfocused (see --space-shown). */
+:root[data-scheme="light"],
+:root[data-system-scheme="light"] [data-scheme="system"] {
   color-scheme: light;
   --ink: oklch(from var(--space) 0.22 calc(c * 0.8) h);
   --fg: var(--ink);
@@ -183,9 +189,11 @@ body,
   --field-edge: inset 0 0 0 0.5px rgb(0 0 0 / 0.2), inset 0 1px 1.5px rgb(0 0 0 / 0.06);
 }
 
-:root[data-scheme="dark"] {
+:root[data-scheme="dark"],
+:root[data-system-scheme="dark"] [data-scheme="system"] {
   color-scheme: dark;
-  --fg: color-mix(in srgb, var(--space) 15%, white);
+  --ink: color-mix(in srgb, var(--space) 15%, white);
+  --fg: var(--ink);
   --glyph: rgb(255 255 255);
   --glyph-2: 0.6;
   --glyph-3: 0.45;
@@ -196,7 +204,7 @@ body,
   --selected: rgb(255 255 255 / 0.2);
   --separator: rgb(255 255 255 / 0.15);
   --card: color-mix(in oklab, var(--space) 6%, rgb(22 22 24));
-  --accent: var(--fg);
+  --accent: var(--ink);
   --danger: oklch(0.78 0.15 27);
   --card-edge: rgb(0 0 0 / 0.25);
   --menu: rgb(40 40 42 / 0.92);
@@ -215,13 +223,21 @@ body,
   --field-edge: inset 0 0 0 0.5px rgb(255 255 255 / 0.12), inset 0 1px 2px rgb(0 0 0 / 0.3);
 }
 
-:root[data-scheme] {
+:root[data-scheme],
+:root[data-system-scheme] [data-scheme="system"] {
   /* A default button (Button's prominent): the space's colour, deep enough
      for white text on it. */
   --prominent: oklch(from var(--space) 0.55 c h);
   --fg-2: rgb(from var(--glyph) r g b / var(--glyph-2));
   --fg-3: rgb(from var(--glyph) r g b / var(--glyph-3));
   --fg-4: rgb(from var(--glyph) r g b / var(--glyph-4));
+}
+
+/* Over the window, text is neutral, as the system's, not the space's title
+   colour: that is for text on the window itself. */
+:root[data-system-scheme] [data-scheme="system"] {
+  --fg: var(--menu-fg);
+  color: var(--fg);
 }
 
 /* Icons in the fg-2, fg-3 and fg-4 tones: solid, then faded whole. Drawn in
@@ -323,15 +339,12 @@ body,
 }
 
 /* A popover (components/ui/popover.tsx): the system's neutral colours, as
-   menus' and tooltips' are, not the space's; light or dark with the scheme,
+   menus' and tooltips' are, not the space's; light or dark with the system,
    and solid: backdrop-filter blurs nothing in the window's page, so a
-   see-through one only shows what is under it, sharp. Its text is neutral
-   too, not the space's title colour. A light inner edge
+   see-through one only shows what is under it, sharp. A light inner edge
    and a dark outer one, as a native popover's. It grows in from where it
    hangs, and fades as it goes. */
 .popover {
-  --fg: var(--menu-fg);
-  color: var(--fg);
   background: var(--popover);
   border-radius: var(--radius-popover);
   box-shadow:
@@ -383,8 +396,6 @@ body,
    page), with the same light inner edge and dark outer one, and a deeper
    shadow: it stands further off the window. */
 .dialog {
-  --fg: var(--menu-fg);
-  color: var(--fg);
   background: var(--popover);
   border-radius: var(--radius-dialog);
   box-shadow:
@@ -393,7 +404,8 @@ body,
     0 18px 48px rgb(0 0 0 / 0.3);
 }
 
-/* What dims the window, and takes its clicks, while a dialog is up. */
+/* What dims the window, and takes its clicks, while a dialog is up: as
+   the window is, light or dark. */
 :root[data-scheme="light"] .dialog-scrim {
   background: rgb(0 0 0 / 0.12);
 }
@@ -405,7 +417,7 @@ body,
    the space's, but for its selected row, which is the space's colour. A
    little of what is under it shows through, blurred, while the window is
    active; in the background it is solid (see the palette below). A
-   light inner edge and a dark outer one. */
+   light inner edge and a dark outer one. Light or dark with the system. */
 :root[data-scheme] .omnibox {
   /* Calmed: a vivid space's colour would glare as a row. */
   --omnibox-selected: oklch(from var(--space) min(l, 0.5) min(c, 0.25) h);
@@ -434,8 +446,8 @@ body,
 /* Its palette: rows' text (fg), the field's text and its icon (typed), the
    list's glyphs, what is dim (an address, "Switch to Tab"), and the faint
    tiles behind a glyph or the Tab key. */
-:root[data-scheme="dark"] .omnibox,
-:root[data-scheme="dark"] .find-bar {
+:root[data-system-scheme="dark"] .omnibox,
+:root[data-system-scheme="dark"] .find-bar {
   --omnibox-bg: rgb(26 26 28 / 0.88);
   --omnibox-edge: rgb(255 255 255 / 0.22);
   --omnibox-outline: rgb(0 0 0 / 0.9);
@@ -450,8 +462,8 @@ body,
   --omnibox-arrow: rgb(255 255 255 / 0.7);
   --omnibox-text-selection: rgb(255 255 255 / 0.35);
 }
-:root[data-scheme="light"] .omnibox,
-:root[data-scheme="light"] .find-bar {
+:root[data-system-scheme="light"] .omnibox,
+:root[data-system-scheme="light"] .find-bar {
   --omnibox-bg: rgb(250 250 250 / 0.86);
   --omnibox-edge: rgb(255 255 255 / 0.7);
   --omnibox-outline: rgb(0 0 0 / 0.18);
@@ -469,12 +481,12 @@ body,
 
 /* Unfocused, the blur behind them is not live, so what showed
    through would be flat and muddy: they are solid. */
-:root[data-scheme="dark"][data-active="false"] .omnibox,
-:root[data-scheme="dark"][data-active="false"] .find-bar {
+:root[data-system-scheme="dark"][data-active="false"] .omnibox,
+:root[data-system-scheme="dark"][data-active="false"] .find-bar {
   --omnibox-bg: rgb(40 40 43);
 }
-:root[data-scheme="light"][data-active="false"] .omnibox,
-:root[data-scheme="light"][data-active="false"] .find-bar {
+:root[data-system-scheme="light"][data-active="false"] .omnibox,
+:root[data-system-scheme="light"][data-active="false"] .find-bar {
   --omnibox-bg: rgb(238 238 238);
 }
 

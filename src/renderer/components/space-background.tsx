@@ -17,12 +17,11 @@ import type { SpaceTheme } from "../ipc";
 import { useWindowActive } from "../state/window";
 import { useAspect } from "../utils/aspect";
 import { cn } from "../utils/cn";
-import { contentScheme } from "../utils/theme";
 import { ThemeLayers } from "./theme-swatch";
 
-// The stand-in for the window's blur: about its flat colour, light or dark,
-// clear enough that what is behind still shows a little through it.
-const MATERIAL = { light: "rgb(236 236 236 / 0.6)", dark: "rgb(30 30 30 / 0.6)" };
+// How much the stand-in for the window's blur shows: clear enough that what
+// is behind still shows a little through it.
+const MATERIAL = 0.6;
 
 export function SpaceBackground({
   theme,
@@ -51,14 +50,7 @@ export function SpaceBackground({
           // As the space's colour tweens, in index.css.
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
-          {material && (
-            <span
-              aria-hidden
-              className="absolute inset-0"
-              style={{ backgroundColor: MATERIAL[contentScheme(theme)] }}
-            />
-          )}
-          <ThemeLayers theme={theme} layout={{ aspect, active }} />
+          <ThemeLayers theme={theme} layout={{ aspect, active, material: material ? MATERIAL : 0 }} />
         </motion.div>
       </AnimatePresence>
     </div>

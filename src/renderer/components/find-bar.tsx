@@ -51,6 +51,8 @@ function FindField({ find: { bar, request, claim } }: { find: FindState }) {
   return (
     <motion.div
       role="search"
+      // Over the page: light or dark as the system is, not the space.
+      data-scheme="system"
       initial={{ opacity: 0, ...scaleTo(still, 0.94) }}
       animate={{ opacity: 1, ...scaleTo(still, 1) }}
       exit={{ opacity: 0, ...scaleTo(still, 0.96), transition: { duration: 0.1, ease: "easeIn" } }}

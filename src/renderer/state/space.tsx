@@ -34,8 +34,12 @@ export type Space = {
    * #rrggbb, in Display P3, as macOS's colour picker gives it.
    */
   color: string;
-  /** The blur behind the colour; a light one keeps a saturated colour bright. */
-  backdrop: "light" | "dark";
+  /**
+   * The window's scheme while the space is shown, as its theme's appearance
+   * makes it: its blur, its buttons, and the text and fills on it. What is
+   * over the window (menus, popovers, the omnibox) takes the system's.
+   */
+  scheme: "light" | "dark";
   favorites: Tab[];
   pinned: (Tab | Folder)[];
 };
@@ -50,7 +54,7 @@ export const personal: Space = {
   icon: "lucide:orbit",
   theme: defaultTheme("#6f00ff"),
   color: "#6f00ff",
-  backdrop: "dark",
+  scheme: "dark",
   favorites: [
     // tab("Mail", "https://mail.example.com/"),
     // tab("Chat", "https://chat.example.com/"),
@@ -83,7 +87,7 @@ const shown = (entry: SpaceEntry): Space => ({
   icon: entry.icon,
   theme: entry.theme,
   color: primaryHex(entry.theme),
-  backdrop: contentScheme(entry.theme),
+  scheme: contentScheme(entry.theme),
   favorites: [],
   pinned: []
 });

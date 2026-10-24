@@ -1,5 +1,6 @@
 // A popover, as a native one: it hangs below what opens it by an arrow, over
 // whatever is there (the page too), and goes on Escape or a click elsewhere.
+// It is light or dark as the system is, not the space.
 
 import { Popover as Radix } from "radix-ui";
 import type { ReactNode } from "react";
@@ -40,6 +41,7 @@ export function Popover({
           collisionPadding={8}
           // Opened by a click, it takes no focus ring to its first control.
           onOpenAutoFocus={(event) => event.preventDefault()}
+          data-scheme="system"
           // Over the window's title bar too: a press in it is the
           // popover's, not a drag of the window.
           className="popover no-drag z-50 outline-none"

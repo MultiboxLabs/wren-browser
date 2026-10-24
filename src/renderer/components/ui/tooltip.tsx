@@ -1,5 +1,6 @@
 // Hover labels, as a native tooltip: they appear after a pause, in the
-// system's neutral colours, below what they label.
+// system's neutral colours, light or dark as the system is (not the space),
+// below what they label.
 
 import { Tooltip as Radix } from "radix-ui";
 import type { ReactNode } from "react";
@@ -24,6 +25,7 @@ export function Tooltip({ label, children }: { label?: string; children: ReactNo
           side="bottom"
           sideOffset={6}
           collisionPadding={6}
+          data-scheme="system"
           className="z-50 rounded-tooltip border border-menu-border bg-menu px-1.75 py-0.75 text-caption text-menu-fg shadow-tooltip backdrop-blur-xl"
         >
           {label}

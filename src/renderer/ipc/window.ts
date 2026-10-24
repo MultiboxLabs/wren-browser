@@ -17,10 +17,12 @@ export const appWindow = {
   /** Whether the window is full screen, or going to be. */
   fullScreen: () => wren.invoke<boolean>("window.fullScreen"),
   onFullScreen: (listener: (fullScreen: boolean) => void) => wren.on<boolean>("window.fullScreen", listener),
-  /** Draws the window's buttons dark or light, as the page's colours are. */
+  /**
+   * Draws the window itself dark or light, as the page's colours are: the
+   * blur behind the page, and the window's buttons. What AppKit draws over
+   * the window (menus, sheets) stays as the system is.
+   */
   setDark: (dark: boolean) => wren.invoke<null>("window.setDark", dark),
-  /** Draws the blur behind the page dark or light. */
-  setBackdropDark: (dark: boolean) => wren.invoke<null>("window.setBackdropDark", dark),
   /**
    * Puts the close, minimise and zoom buttons with the close button's top
    * left at (x, y), in points, or hides them for null.

@@ -48,14 +48,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         })
     });
 
-    let weak = window.clone();
-    let _ = web_view.handle("window.setBackdropDark", move |dark: bool| {
-        with_window(&weak, |window| {
-            window.page.set_backdrop_dark(dark);
-            Ok(())
-        })
-    });
-
     // Where the window's buttons are, or null while they are hidden.
     let weak = window.clone();
     let _ = web_view.handle("window.setButtons", move |at: Option<(f64, f64)>| {

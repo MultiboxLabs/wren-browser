@@ -362,16 +362,14 @@ impl PageWindow {
         });
     }
 
-    /// Dark or light, as the page's colours are: the window's buttons
-    /// follow it.
+    /// Dark or light, as the page's colours are: the blur behind the page
+    /// and the window's buttons follow it. The window keeps the system's
+    /// appearance, so what is drawn over it (menus, sheets, Chromium's
+    /// bubbles) is light or dark as the system is.
     pub fn set_dark(&self, dark: bool) {
-        self.window.setAppearance(appearance(dark).as_deref());
-    }
-
-    /// Dark or light for the blur behind the page, which may differ from the
-    /// page's: a saturated colour over a light blur stays bright.
-    pub fn set_backdrop_dark(&self, dark: bool) {
         self.backdrop.setAppearance(appearance(dark).as_deref());
+        self.title_bar.dark.set(dark);
+        self.title_bar.apply(&self.window);
     }
 
     /// Puts the close, minimise and zoom buttons with the close button's top

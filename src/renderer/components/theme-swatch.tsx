@@ -1,6 +1,7 @@
 // A box drawn with a space's theme, as the window is drawn with it, in small:
 // the window's gradient, stretched to fit the box, so a bar, a tile and the
-// picker all show the colours as the window does, whatever their shape. What
+// picker all show the colours as the window does, whatever their shape, and
+// whatever they are on: a stand-in for the window's blur is under them. What
 // is given as children (an icon) sits on top, in the colour the theme reads
 // as.
 
@@ -22,13 +23,15 @@ export type ThemeSwatchProps = {
 };
 
 /**
- * A theme's layers (its underlay, colours and noise), each filling the
- * positioned box they are put in, laid out as `layout` says.
+ * A theme's layers (the stand-in for the blur, if asked for, its underlay,
+ * colours and noise), each filling the positioned box they are put in, laid
+ * out as `layout` says.
  */
 export function ThemeLayers({ theme, layout }: { theme: SpaceTheme; layout: ThemeLayout }) {
-  const { underlay, colors, noise } = themeStyle(theme, layout);
+  const { material, underlay, colors, noise } = themeStyle(theme, layout);
   return (
     <>
+      {material && <span aria-hidden className="absolute inset-0" style={material} />}
       <span aria-hidden className="absolute inset-0" style={underlay} />
       <span aria-hidden className="absolute inset-0" style={colors} />
       {noise && <span aria-hidden className="absolute inset-0" style={noise} />}
@@ -42,7 +45,7 @@ export function ThemeSwatch({ theme, className, contentClassName, as: Tag = "spa
   const windowAspect = useWindowAspect();
   return (
     <Tag ref={box} className={cn("relative grid place-items-center overflow-hidden", className)}>
-      <ThemeLayers theme={theme} layout={{ aspect, window: windowAspect }} />
+      <ThemeLayers theme={theme} layout={{ aspect, window: windowAspect, material: 1 }} />
       {children && (
         <Tag
           className={cn(
