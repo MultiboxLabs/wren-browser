@@ -102,8 +102,8 @@ impl State {
     }
 
     /// Profiles were deleted: each window on one goes. Chromium closes their
-    /// Browsers itself; this closes the windows that had none. A list that
-    /// is empty is not loaded yet, as Chromium always has a profile.
+    /// Browsers itself, which leaves the windows. A list that is empty is
+    /// not loaded yet, as Chromium always has a profile.
     pub fn leave_gone_profiles(self: &Rc<Self>, mt: MainThread) {
         let listed = mt.profile_list();
         if listed.is_empty() {
