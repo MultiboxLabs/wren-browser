@@ -156,6 +156,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                             eprintln!("Wren could not forget a profile: {error}");
                         }
                         state.leave_gone_spaces(None);
+                        state.leave_gone_profiles(mt);
                         ipc::broadcast_spaces(&state);
                         call.answer_json(None)
                     }

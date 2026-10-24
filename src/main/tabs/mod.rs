@@ -19,7 +19,8 @@ pub fn is_new_tab(url: &str) -> bool {
 }
 
 /// Closes `tabs`. When they are all the Browser has, a placeholder stands
-/// in for them, and the Browser stays (`placeholder`).
+/// in for them, and the Browser stays (`placeholder`), unless its window is
+/// on a profile.
 pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
     placeholder::stand_in(browser, tabs)?;
     for tab in tabs {

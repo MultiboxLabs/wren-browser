@@ -1,7 +1,10 @@
 // Switching a window between its spaces: as the user asks, as Chromium asks
-// for a Browser in the background, and as a space it is on is deleted.
+// for a Browser in the background, and as a space it is on is deleted; and
+// a window on a profile going with the profile.
 
-use wren::Browser;
+use std::rc::Rc;
+
+use wren::{Browser, MainThread};
 
 use crate::app::State;
 use crate::db::SpaceId;
@@ -45,13 +48,14 @@ impl State {
 
     /// Chromium asked for `browser`, in the background, to come forward (a
     /// notification clicked, an extension): its window switches to its
-    /// space, and comes to the front. While a page has the window in full
-    /// screen, it waits until the page is done (`wanting_foreground`).
+    /// space, if it is a space's, and comes to the front. While a page has
+    /// the window in full screen, it waits until the page is done
+    /// (`wanting_foreground`).
     pub fn bring_forward(&self, browser: &Browser) {
         let Some(window) = self.windows.of(browser) else {
             return;
         };
-        let Some(space) = window.space_of(browser) else {
+        let Some(place) = window.place_of(browser) else {
             return;
         };
         let in_full_screen = window
@@ -60,7 +64,10 @@ impl State {
         if in_full_screen {
             return;
         }
-        if let Err(error) = self.show_space(window.id, space) {
+        // A window on a profile has only the one Browser, in front already.
+        if let Some(space) = place.space()
+            && let Err(error) = self.show_space(window.id, space)
+        {
             eprintln!("Wren could not switch spaces: {error}");
         }
         window.page.bring_forward();
@@ -91,6 +98,19 @@ impl State {
                 }
             }
             self.save_window(&window);
+        }
+    }
+
+    /// Profiles were deleted: each window on one goes. Chromium closes their
+    /// Browsers itself; this closes the windows that had none.
+    pub fn leave_gone_profiles(self: &Rc<Self>, mt: MainThread) {
+        let listed = mt.profile_list();
+        for window in self.windows.all() {
+            if let Some(Place::Profile { id, .. }) = window.place()
+                && !listed.iter().any(|profile| profile.id == id)
+            {
+                self.close_window(mt, window.id);
+            }
         }
     }
 
