@@ -80,14 +80,16 @@ impl State {
     }
 
     /// Names `window` for its active tab, or with none, for the space it
-    /// shows, or the profile, as the page names it.
+    /// shows, or the profile, as the page names it; or for the space the
+    /// user makes.
     pub fn update_title(&self, window: &BrowserWindow) {
         let tab = window
             .browser_with_tabs()
             .and_then(|browser| browser.active_tab())
             .map(|tab| tab.title())
             .filter(|title| !title.is_empty());
-        let title = tab.or_else(|| match window.place()? {
+        let making = window.left_space().map(|_| "New Space".to_owned());
+        let title = tab.or(making).or_else(|| match window.place()? {
             Place::Space(space) => Some(self.db.space(space).ok()??.name),
             Place::Profile {
                 off_the_record: true,

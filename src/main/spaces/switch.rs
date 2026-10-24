@@ -1,6 +1,7 @@
 // Switching a window between its spaces: as the user asks, as Chromium asks
 // for a Browser in the background, and as a space it is on is deleted; and
-// a window on a profile going with the profile.
+// a window on a profile going with the profile. A window of spaces can also
+// leave its space for none, while the user makes one, and come back.
 
 use std::rc::Rc;
 
@@ -9,7 +10,7 @@ use wren::{Browser, MainThread};
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
-use crate::window::{Place, WindowId};
+use crate::window::{BrowserWindow, Place, WindowId};
 
 impl State {
     /// Brings `space` forward in window `id`: its Browser if the window has
@@ -25,12 +26,7 @@ impl State {
         if window.space() == Some(space) {
             return Ok(());
         }
-        // Full screen for a page is the old Browser's, as is the omnibox's
-        // query: the page closes its omnibox as it switches.
-        if window.wants_full_screen_for_page(false) {
-            window.page.set_full_screen(false);
-        }
-        ipc::stop_omnibox(&window);
+        leave_front(&window);
         let front = window.switch_to(space);
         self.save_window(&window);
         self.touch_space(space);
@@ -45,6 +41,35 @@ impl State {
         }
         self.update_title(&window);
         Ok(())
+    }
+
+    /// Puts window `id` on no space, for the user to make one; the space it
+    /// was on waits, with its Browser, until the window comes back.
+    pub fn new_space(&self, id: WindowId) -> Result<(), String> {
+        let window = self.windows.get(id).ok_or("The window is closing.")?;
+        if window.space().is_none() {
+            return Err("Only a window on a space can make one.".into());
+        }
+        leave_front(&window);
+        window.leave_for_new_space();
+        self.save_window(&window);
+        ipc::send_no_browser(&window);
+        self.update_title(&window);
+        Ok(())
+    }
+
+    /// Brings window `id` back from no space to the space it left, or if
+    /// that is gone, to the space used last. A window on a space stays.
+    pub fn cancel_new_space(&self, id: WindowId) -> Result<(), String> {
+        let window = self.windows.get(id).ok_or("The window is closing.")?;
+        let Some(left) = window.left_space() else {
+            return Ok(());
+        };
+        let space = match self.db.space(left)? {
+            Some(_) => left,
+            None => self.space_left(None)?,
+        };
+        self.show_space(id, space)
     }
 
     /// Chromium asked for `browser`, in the background, to come forward (a
@@ -136,4 +161,14 @@ impl State {
         next.map(|space| space.id)
             .ok_or_else(|| "No space is left.".into())
     }
+}
+
+// The Browser in front is about to leave it: full screen for a page is that
+// Browser's, as is the omnibox's query, and the page closes its omnibox as
+// the window switches.
+fn leave_front(window: &BrowserWindow) {
+    if window.wants_full_screen_for_page(false) {
+        window.page.set_full_screen(false);
+    }
+    ipc::stop_omnibox(window);
 }

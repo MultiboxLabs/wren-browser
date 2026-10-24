@@ -138,7 +138,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let without = with_window(&weak, |window| match (window.browser(), window.place()) {
             (Some(_), _) => Ok(None),
             (None, Some(place)) => Ok(Some(place)),
-            (None, None) => Err("The window has no space yet.".to_owned()),
+            (None, None) => Err("The window is on no space.".to_owned()),
         });
         match (without, weak.state()) {
             (Ok(None), _) => {

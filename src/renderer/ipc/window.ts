@@ -10,7 +10,7 @@ export const appWindow = {
   /** Whether the window is in use: main, or under a sheet or bubble of its own. */
   active: () => wren.invoke<boolean>("window.active"),
   onActive: (listener: (active: boolean) => void) => wren.on<boolean>("window.active", listener),
-  /** The space the window shows; null while it waits for its first Browser. */
+  /** The space the window shows; null while it waits for its first Browser, or is on no space. */
   space: () => wren.invoke<number | null>("window.space"),
   onSpace: (listener: (space: number | null) => void) => wren.on<number | null>("window.space", listener),
   /** The profile the window shows, which it never switches from; null for a window of spaces. */
@@ -19,6 +19,13 @@ export const appWindow = {
     wren.on<WindowProfile | null>("window.profile", listener),
   /** Brings a space forward: its tabs, or the space empty until one is opened. Fails if the space is gone. */
   showSpace: (space: number) => wren.invoke<null>("window.showSpace", space),
+  /** Whether the window is on no space, while the user makes one. */
+  newSpace: () => wren.invoke<boolean>("window.newSpace"),
+  onNewSpace: (listener: (making: boolean) => void) => wren.on<boolean>("window.newSpace", listener),
+  /** Puts the window on no space, for the user to make one. Fails for a window not on a space. */
+  startNewSpace: () => wren.invoke<null>("window.startNewSpace"),
+  /** Brings the window back to the space it left to make one, or the one used last if that is gone. */
+  cancelNewSpace: () => wren.invoke<null>("window.cancelNewSpace"),
   /** The user chose a space from the main menu, for the page to bring forward as a press would. */
   onChooseSpace: (listener: (space: number) => void) => wren.on<number>("window.chooseSpace", listener),
   /** Whether the window is full screen, or going to be. */

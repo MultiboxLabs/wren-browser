@@ -156,7 +156,8 @@ impl State {
     }
 
     /// Keeps `window`'s current space and the spaces it has a Browser for,
-    /// or the profile it shows.
+    /// or the profile it shows. A window making a space keeps the one it
+    /// left, to come back on.
     /// A Browser that closes is not noted: at quit, each closes before the
     /// app hears of the quit, and the window must keep it. The next save
     /// drops it.
@@ -165,7 +166,7 @@ impl State {
         let place = window.place().filter(|place| !place.is_off_the_record());
         let saved = self.db.save_window(
             &window.key,
-            window.space(),
+            window.space().or(window.left_space()),
             &window.open_spaces(),
             place.as_ref().and_then(Place::profile),
         );

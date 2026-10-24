@@ -45,7 +45,7 @@ pub use spaces::broadcast_spaces;
 pub use tab_switcher::watch_tab_switcher_keys;
 pub use toast::{OwnToast, send_toast, show_toast};
 pub use window::{send_active, send_choose_space, send_full_screen};
-use window::{send_profile, send_space};
+use window::{send_new_space, send_profile, send_space};
 
 /// The window a page is in, as its handlers find it again: not the window
 /// itself, which owns the page and its handlers.
@@ -102,10 +102,11 @@ pub fn send_browser(window: &BrowserWindow, browser: &Browser) {
     send_find(window, browser);
     send_profile(window);
     send_space(window);
+    send_new_space(window);
 }
 
-/// Tells the page its space has no Browser: no tabs, and nothing of one;
-/// then the space, as `send_browser` does.
+/// Tells the page its space has no Browser, or it is on none: no tabs, and
+/// nothing of one; then the space, as `send_browser` does.
 pub fn send_no_browser(window: &BrowserWindow) {
     browser::send_no_tabs(window);
     side_panel::send_no_side_panel(window);
@@ -116,6 +117,7 @@ pub fn send_no_browser(window: &BrowserWindow) {
     find::send_no_find(window);
     send_profile(window);
     send_space(window);
+    send_new_space(window);
 }
 
 /// Where a context menu goes: what it is for (a tab's or a group's ID),

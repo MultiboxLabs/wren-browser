@@ -70,13 +70,9 @@ impl Windows {
     }
 
     /// The window the app opens at startup, while it waits for its first
-    /// Browser: the one window with no place yet.
+    /// Browser.
     pub fn waiting(&self) -> Option<Rc<BrowserWindow>> {
-        self.open
-            .borrow()
-            .iter()
-            .find(|w| w.place().is_none())
-            .cloned()
+        self.open.borrow().iter().find(|w| w.is_waiting()).cloned()
     }
 
     /// Notes that `id` is the window in use.

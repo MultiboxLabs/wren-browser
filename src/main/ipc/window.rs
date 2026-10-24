@@ -50,7 +50,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     });
 
     // The space the window shows, or null while it waits for its first
-    // Browser; "window.space" says when it changes.
+    // Browser or is on no space; "window.space" says when it changes.
     let weak = window.clone();
     let _ = web_view.handle("window.space", move |()| {
         with_window(&weak, |window| Ok(window.space()))
@@ -67,6 +67,25 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
     let _ = web_view.handle("window.showSpace", move |space: SpaceId| {
         weak.state()?.show_space(weak.id, space)
+    });
+
+    // Whether the window is on no space, while the user makes one;
+    // "window.newSpace" says when it changes.
+    let weak = window.clone();
+    let _ = web_view.handle("window.newSpace", move |()| {
+        with_window(&weak, |window| Ok(window.left_space().is_some()))
+    });
+
+    // Puts the window on no space, for the user to make one.
+    let weak = window.clone();
+    let _ = web_view.handle("window.startNewSpace", move |()| {
+        weak.state()?.new_space(weak.id)
+    });
+
+    // Brings the window back to the space it left to make one.
+    let weak = window.clone();
+    let _ = web_view.handle("window.cancelNewSpace", move |()| {
+        weak.state()?.cancel_new_space(weak.id)
     });
 
     // Whether the window is full screen; "window.fullScreen" says when it
@@ -103,6 +122,13 @@ pub fn send_active(window: &PageWindow, active: bool) {
 /// Tells the page which space the window shows.
 pub fn send_space(window: &BrowserWindow) {
     let _ = window.page.web_view.send("window.space", &window.space());
+}
+
+/// Tells the page whether the window is on no space, while the user makes
+/// one.
+pub fn send_new_space(window: &BrowserWindow) {
+    let making = window.left_space().is_some();
+    let _ = window.page.web_view.send("window.newSpace", &making);
 }
 
 /// Tells the page which profile the window shows, if it shows one.

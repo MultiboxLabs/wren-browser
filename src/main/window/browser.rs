@@ -2,9 +2,10 @@
 // place it has been on (place.rs): each space, or the one profile it shows.
 // All are attached to the page's view; the current place's is in front, and
 // the rest wait in the background. A place can be without one: its last tab
-// closed, or the window has not opened a tab in it. Each Browser carries the
-// window's key and its place in its session tag, so a restore puts it back
-// (tag.rs).
+// closed, or the window has not opened a tab in it. A window of spaces can
+// also be on no space, while the user makes one, with every Browser in the
+// background. Each Browser carries the window's key and its place in its
+// session tag, so a restore puts it back (tag.rs).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -32,6 +33,17 @@ enum Slot {
     Open(Browser),
 }
 
+/// What a window has in front.
+enum Front {
+    /// Nothing yet: the window the app opens at startup, until its first
+    /// Browser gives it a place.
+    Waiting,
+    /// A space, or the one profile the window shows.
+    Place(Place),
+    /// No space, while the user makes one; `left` is the space it was on.
+    NewSpace { left: SpaceId },
+}
+
 pub struct BrowserWindow {
     pub id: WindowId,
     /// Its row in the database, which lasts across launches as its ID does
@@ -39,9 +51,8 @@ pub struct BrowserWindow {
     pub key: String,
     pub page: PageWindow,
     places: RefCell<HashMap<Place, Slot>>,
-    // The place in front; none only for the window the app opens at startup,
-    // until its first Browser. A window on a profile has only that place.
-    current: RefCell<Option<Place>>,
+    // A window on a profile has only that place in front, ever.
+    front: RefCell<Front>,
     // Whether a Browser has come to the window, and given it its frame.
     framed: Cell<bool>,
     // The user closed the window: it goes once its Browsers have.
@@ -57,6 +68,7 @@ pub struct BrowserWindow {
 }
 
 impl BrowserWindow {
+    /// `place`: none for the window that waits for its first Browser.
     /// `framed`: the window has its frame already, from the database, and a
     /// Browser's does not move it.
     pub fn new(
@@ -71,7 +83,7 @@ impl BrowserWindow {
             key,
             page,
             places: RefCell::default(),
-            current: RefCell::new(place),
+            front: RefCell::new(place.map_or(Front::Waiting, Front::Place)),
             framed: Cell::new(framed),
             closing: Cell::default(),
             new_tab_omnibox: Cell::default(),
@@ -80,24 +92,40 @@ impl BrowserWindow {
         }
     }
 
-    /// The place in front.
+    /// The place in front, if the window is on one.
     pub fn place(&self) -> Option<Place> {
-        self.current.borrow().clone()
+        match &*self.front.borrow() {
+            Front::Place(place) => Some(place.clone()),
+            Front::Waiting | Front::NewSpace { .. } => None,
+        }
     }
 
-    /// The space in front, if the window shows spaces.
+    /// The space in front, if the window is on one.
     pub fn space(&self) -> Option<SpaceId> {
-        self.current.borrow().as_ref()?.space()
+        self.place()?.space()
+    }
+
+    /// Whether the window waits for its first Browser to give it a place.
+    pub fn is_waiting(&self) -> bool {
+        matches!(*self.front.borrow(), Front::Waiting)
     }
 
     /// Whether the window shows one profile, and never switches.
     pub fn is_profile_window(&self) -> bool {
-        matches!(*self.current.borrow(), Some(Place::Profile { .. }))
+        matches!(*self.front.borrow(), Front::Place(Place::Profile { .. }))
+    }
+
+    /// The space the window left to make one, while it is on no space.
+    pub fn left_space(&self) -> Option<SpaceId> {
+        match *self.front.borrow() {
+            Front::NewSpace { left } => Some(left),
+            Front::Waiting | Front::Place(_) => None,
+        }
     }
 
     /// The Browser in front, the current place's, whose tabs the page shows.
     pub fn browser(&self) -> Option<Browser> {
-        self.browser_of(self.current.borrow().as_ref()?)
+        self.browser_of(&self.place()?)
     }
 
     /// The Browser in front, if the current place has tabs of its own in it.
@@ -235,7 +263,7 @@ impl BrowserWindow {
     }
 
     /// Shows `browser` as the window's for `place`: in front if that is the
-    /// current place, or the window has none yet, otherwise in the
+    /// current place, or the window waits for one, otherwise in the
     /// background.
     pub fn add(&self, place: Place, browser: Browser) {
         Tag::update(&browser, |tag| {
@@ -247,14 +275,12 @@ impl BrowserWindow {
         if self.page.is_full_screen() {
             let _ = browser.set_fullscreen(true);
         }
-        let mut current = self.current.borrow_mut();
-        if current.is_none() {
-            *current = Some(place.clone());
+        if self.is_waiting() {
+            *self.front.borrow_mut() = Front::Place(place.clone());
         }
-        if current.as_ref() != Some(&place) {
+        if self.place().as_ref() != Some(&place) {
             let _ = browser.set_backgrounded(true);
         }
-        drop(current);
         // A restored window comes back where and as large as it was.
         if !self.framed.replace(true)
             && let Some(bounds) = browser.requested_bounds()
@@ -264,18 +290,35 @@ impl BrowserWindow {
         self.places.borrow_mut().insert(place, Slot::Open(browser));
     }
 
-    /// Brings `space` forward: the Browser in front goes to the background
-    /// first, so two are never in front, then the space's comes forward if
-    /// the window has one. Answers the Browser in front now. A window on a
-    /// profile never switches: `show_space` refuses it.
+    /// Brings `space` forward, from a space or from none: the Browser in
+    /// front goes to the background first, so two are never in front, then
+    /// the space's comes forward if the window has one. Answers the Browser
+    /// in front now. A window on a profile never switches: `show_space`
+    /// refuses it.
     pub fn switch_to(&self, space: SpaceId) -> Option<Browser> {
-        if let Some(old) = self.browser() {
-            let _ = old.set_backgrounded(true);
-        }
-        *self.current.borrow_mut() = Some(Place::Space(space));
+        self.background_front();
+        *self.front.borrow_mut() = Front::Place(Place::Space(space));
         let new = self.browser()?;
         let _ = new.set_backgrounded(false);
         Some(new)
+    }
+
+    /// Leaves the space in front for none, for the user to make one: its
+    /// Browser goes to the background. A window not on a space stays as it
+    /// is.
+    pub fn leave_for_new_space(&self) {
+        let Some(left) = self.space() else {
+            return;
+        };
+        self.background_front();
+        *self.front.borrow_mut() = Front::NewSpace { left };
+    }
+
+    // The Browser in front goes to the background.
+    fn background_front(&self) {
+        if let Some(old) = self.browser() {
+            let _ = old.set_backgrounded(true);
+        }
     }
 
     /// Forgets a Browser that has closed, and answers the place it was for.

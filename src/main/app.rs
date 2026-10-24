@@ -125,12 +125,19 @@ impl State {
         });
     }
 
-    // ⌘W: the omnibox for a new tab, as if it were that tab; else the active
-    // tab; or, with none of its own, the window, as Chrome's goes with its
-    // last tab.
+    // ⌘W: the omnibox for a new tab, as if it were that tab; else the space
+    // the user makes, which the window comes back from; else the active tab;
+    // or, with none of its own, the window, as Chrome's goes with its last
+    // tab.
     fn close_tab(self: &Rc<Self>, mt: MainThread, window: &BrowserWindow) {
         if window.has_new_tab_omnibox() {
             return ipc::send_close_omnibox(window);
+        }
+        if window.left_space().is_some() {
+            if let Err(error) = self.cancel_new_space(window.id) {
+                eprintln!("Wren could not leave the new space: {error}");
+            }
+            return;
         }
         let active = window
             .browser_with_tabs()
