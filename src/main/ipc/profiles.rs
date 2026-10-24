@@ -81,11 +81,11 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 .set(state.creating_profiles.get() - 1);
             let made = result.map(|profile| profile.id());
             if let (Ok(id), Some(space)) = (&made, space)
-                && let Err(error) = state.db.ensure_space(id, space)
+                && let Err(error) = state.db.add_profile(id, space)
             {
                 eprintln!("Wren could not give a profile its space: {error}");
             }
-            // Whatever it has no space of is given the default one.
+            // Given none, it gets the default one.
             state.db.sync_profiles(&mt.profile_list(), true);
             ipc::broadcast_spaces(&state);
             // A page that went before its answer is no error.

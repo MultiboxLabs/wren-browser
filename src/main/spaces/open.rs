@@ -258,10 +258,11 @@ impl State {
     /// (`place_tagged`), and any other (a link opened in a new window) in a
     /// window of its own, on the space it came from: its opener's, or else
     /// that of the window in front, as New Window's, if either is of its
-    /// profile; otherwise its profile's most recently used space. At
-    /// startup, it goes in the window that waits for its first. Chromium
-    /// names no opener for a link opened in a new window. An off-the-record
-    /// one gets an off-the-record window of its own.
+    /// profile; otherwise its profile's most recently used space. A profile
+    /// with no space gets a window on the profile. At startup, it goes in
+    /// the window that waits for its first. Chromium names no opener for a
+    /// link opened in a new window. An off-the-record one gets an
+    /// off-the-record window of its own.
     pub fn place_opened(
         self: &Rc<Self>,
         mt: MainThread,
@@ -273,16 +274,7 @@ impl State {
             return;
         };
         if profile.kind() == ProfileKind::OffTheRecord {
-            let place = Place::of_profile(&profile);
-            match self.open_place_window(mt, place.clone()) {
-                Some(id) if let Some(window) = self.windows.get(id) => {
-                    self.host(&window, place, &browser)
-                }
-                _ => {
-                    let _ = browser.close();
-                }
-            }
-            return;
+            return self.host_on_profile(mt, &browser, None);
         }
         if self.place_tagged(&browser, &profile) {
             return;
@@ -298,9 +290,8 @@ impl State {
             .or_else(|| self.windows.front()?.space().filter(of_profile))
             .or_else(|| self.recent_space(mt, &profile));
         let Some(space) = space else {
-            eprintln!("Wren found no space for a Browser.");
-            let _ = browser.close();
-            return;
+            placeholder::adopt(&browser);
+            return self.host_on_profile(mt, &browser, self.windows.waiting());
         };
         let window = self.windows.waiting().or_else(|| {
             let id = self.open_window(mt, Some(space))?;
@@ -313,6 +304,31 @@ impl State {
         placeholder::adopt(&browser);
         self.host(&window, Place::Space(space), &browser);
         self.touch_space(space);
+    }
+
+    // Shows `browser` in `window`, or else a window of its own, on its
+    // profile, or its off-the-record side.
+    fn host_on_profile(
+        self: &Rc<Self>,
+        mt: MainThread,
+        browser: &Browser,
+        window: Option<Rc<BrowserWindow>>,
+    ) {
+        let Some(profile) = browser.profile() else {
+            let _ = browser.close();
+            return;
+        };
+        let place = Place::of_profile(&profile);
+        let window = window.or_else(|| {
+            let id = self.open_place_window(mt, place.clone())?;
+            self.windows.get(id)
+        });
+        match window {
+            Some(window) => self.host(&window, place, browser),
+            None => {
+                let _ = browser.close();
+            }
+        }
     }
 
     /// Shows `browser` as `window`'s for `place`, in front if that is its

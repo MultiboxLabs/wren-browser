@@ -154,27 +154,22 @@ impl Db {
             .map_err(sql)
     }
 
-    /// Deletes a space, unless it is its profile's last.
+    /// Deletes a space, unless it is the app's last: a profile can be
+    /// without one, but a window of spaces needs one to show.
     pub fn delete_space(&self, id: SpaceId) -> Result<(), String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
-        let profile: Option<String> = transaction
-            .query_row("SELECT profile_id FROM spaces WHERE id = ?1", [id], |row| {
-                row.get(0)
-            })
+        let exists: Option<i64> = transaction
+            .query_row("SELECT 1 FROM spaces WHERE id = ?1", [id], |row| row.get(0))
             .optional()
             .map_err(sql)?;
-        let Some(profile) = profile else {
+        if exists.is_none() {
             return Err("That space is gone.".into());
-        };
+        }
         let count: i64 = transaction
-            .query_row(
-                "SELECT count(*) FROM spaces WHERE profile_id = ?1",
-                [&profile],
-                |row| row.get(0),
-            )
+            .query_row("SELECT count(*) FROM spaces", [], |row| row.get(0))
             .map_err(sql)?;
         if count <= 1 {
-            return Err("A profile needs at least one space.".into());
+            return Err("Wren needs at least one space.".into());
         }
         transaction
             .execute("DELETE FROM spaces WHERE id = ?1", [id])
@@ -182,28 +177,28 @@ impl Db {
         transaction.commit().map_err(sql)
     }
 
-    /// Makes sure the database has the profile, and gives it `default` as its
-    /// space if it has none. Whether it added anything.
-    pub fn ensure_space(&self, profile: &str, default: NewSpace) -> Result<bool, String> {
-        let default = default.checked()?;
+    /// Adds a profile the database has not met, with `first` as its space.
+    /// One it has met keeps the spaces it has, none if the user deleted
+    /// them. Whether it added it.
+    pub fn add_profile(&self, profile: &str, first: NewSpace) -> Result<bool, String> {
+        let first = first.checked()?;
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
-        let mut added = transaction
+        let added = transaction
             .execute("INSERT OR IGNORE INTO profiles (id) VALUES (?1)", [profile])
             .map_err(sql)?
             > 0;
-        let spaces: i64 = transaction
-            .query_row(
-                "SELECT count(*) FROM spaces WHERE profile_id = ?1",
-                [profile],
-                |row| row.get(0),
-            )
-            .map_err(sql)?;
-        if spaces == 0 {
-            insert(&transaction, profile, &default)?;
-            added = true;
+        if added {
+            insert(&transaction, profile, &first)?;
         }
         transaction.commit().map_err(sql)?;
         Ok(added)
+    }
+
+    /// Whether the app has a space, of any profile.
+    pub fn has_spaces(&self) -> Result<bool, String> {
+        self.conn
+            .query_row("SELECT EXISTS (SELECT 1 FROM spaces)", [], |row| row.get(0))
+            .map_err(sql)
     }
 }
 
