@@ -81,7 +81,26 @@ impl State {
     /// Sets the main menu again, for its Spaces menu to list the spaces as
     /// they are now.
     pub fn update_menu(&self, mt: MainThread) {
-        menus::set_main_menu(mt, &self.ordered_spaces(mt));
+        let switching = self.front_switches();
+        self.spaces_menu_on.set(switching);
+        menus::set_main_menu(mt, &self.ordered_spaces(mt), switching);
+    }
+
+    /// Greys out the Spaces menu while a window on a profile is in front,
+    /// which never switches, and brings it back once one of spaces is.
+    pub fn update_spaces_menu(&self, mt: MainThread) {
+        let switching = self.front_switches();
+        if self.spaces_menu_on.replace(switching) != switching {
+            menus::enable_spaces(mt, &self.ordered_spaces(mt), switching);
+        }
+    }
+
+    // Whether the window in front switches spaces: any but one on a profile.
+    fn front_switches(&self) -> bool {
+        !self
+            .windows
+            .front()
+            .is_some_and(|window| window.is_profile_window())
     }
 
     /// Whether `space` is one of `profile`'s, and still there.

@@ -33,9 +33,10 @@ pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
 pub const SPACE: &str = "space:";
 
 /// Sets the main menu, whose Spaces menu lists `spaces`, each by its ID and
-/// name, in the Library's order. Set again as the spaces change, and as Warn
+/// name, in the Library's order, greyed out unless `switching` (a window on
+/// a profile never switches). Set again as the spaces change, and as Warn
 /// Before Quitting does.
-pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)]) {
+pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], switching: bool) {
     let warning = mt.quit_warning();
     let mut menu = vec![
         MenuItem::submenu(
@@ -143,7 +144,7 @@ pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)]) {
                 MenuItem::role(MenuRole::ToggleFullScreen),
             ],
         ),
-        spaces_menu(spaces),
+        spaces_menu(spaces, switching),
         MenuItem::submenu(
             "History",
             vec![
@@ -213,21 +214,35 @@ pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)]) {
     }
 }
 
-// The spaces, which bring one forward in the window in front; the first
-// nine with ⌃1 to ⌃9, as Arc's.
-fn spaces_menu(spaces: &[(SpaceId, String)]) -> MenuItem {
-    let items = spaces
+/// Greys out the Spaces menu's items, or brings them back, in place, as the
+/// window in front changes: a window on a profile never switches.
+pub fn enable_spaces(mt: MainThread, spaces: &[(SpaceId, String)], switching: bool) {
+    for item in space_items(spaces, switching) {
+        if let Err(error) = mt.update_main_menu_item(&item) {
+            eprintln!("Wren could not change a space's menu item: {error:?}");
+        }
+    }
+}
+
+// The spaces, which bring one forward in the window in front.
+fn spaces_menu(spaces: &[(SpaceId, String)], switching: bool) -> MenuItem {
+    MenuItem::submenu("Spaces", space_items(spaces, switching))
+}
+
+// A space's item each, the first nine with ⌃1 to ⌃9.
+fn space_items(spaces: &[(SpaceId, String)], switching: bool) -> Vec<MenuItem> {
+    spaces
         .iter()
         .enumerate()
         .map(|(index, (id, name))| {
             let id = format!("{SPACE}{id}");
-            match index {
+            let item = match index {
                 0..9 => keyed(&id, name, &(index + 1).to_string(), MenuModifiers::CONTROL),
                 _ => MenuItem::item(id, name.clone()),
-            }
+            };
+            enabled(item, switching)
         })
-        .collect();
-    MenuItem::submenu("Spaces", items)
+        .collect()
 }
 
 // For working on the app, in a development build only.

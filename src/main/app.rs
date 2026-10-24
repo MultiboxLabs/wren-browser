@@ -40,6 +40,9 @@ pub struct State {
     /// The window whose tab switcher is open, while ⌃ is held
     /// (ipc/tab_switcher.rs).
     pub tab_switcher: Cell<Option<WindowId>>,
+    /// Whether the main menu's Spaces menu is enabled, as it is not while a
+    /// window on a profile is in front (spaces/mod.rs).
+    pub(crate) spaces_menu_on: Cell<bool>,
     // Hears the tab switcher's keys while it is kept.
     tab_switcher_keys: RefCell<Option<KeyWatch>>,
 }
@@ -56,6 +59,7 @@ impl State {
             perf,
             quit_prompt: RefCell::default(),
             tab_switcher: Cell::default(),
+            spaces_menu_on: Cell::new(true),
             tab_switcher_keys: RefCell::default(),
         }
     }
