@@ -125,6 +125,8 @@ type SpaceState = {
   space: Space;
   /** Every space, in the Library's order: by profile, then by position; none in a window on a profile. */
   spaces: SpaceEntry[];
+  /** The profile the window shows, rather than spaces; null for a window of spaces. */
+  profile: WindowProfile | null;
   /** Brings a space forward in the window, the old one's content sliding out first. */
   show: (id: number) => void;
   /** Brings a space forward at once: a swipe, whose fingers slid the old one out. */
@@ -194,7 +196,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       ...space,
       pinned: space.pinned.map((item) => (item === folder ? { ...folder, open: !folder.open } : item))
     }));
-  return <SpaceContext value={{ space, spaces, show, showNow, slide, toggleFolder }}>{children}</SpaceContext>;
+  return <SpaceContext value={{ space, spaces, profile, show, showNow, slide, toggleFolder }}>{children}</SpaceContext>;
 }
 
 /** The space shown in the window, from the SpaceProvider around it. */
