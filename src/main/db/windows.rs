@@ -1,6 +1,6 @@
 // The window queries: the windows open at quit, each with its key, its place
-// on screen, its current space, and the spaces it has a Browser for, so it
-// comes back as it was (session.rs).
+// on screen, its current space, and the spaces it has a Browser for, or the
+// profile it shows, so it comes back as it was (session.rs).
 
 use rusqlite::{Row, params};
 
@@ -23,6 +23,8 @@ pub struct SavedWindow {
     pub space: Option<SpaceId>,
     /// The spaces it had a Browser for.
     pub spaces: Vec<SpaceId>,
+    /// The profile it shows, if it shows one rather than spaces.
+    pub profile: Option<String>,
     pub frame: Option<WindowFrame>,
 }
 
@@ -59,19 +61,22 @@ impl Db {
     }
 
     /// Keeps window `key`'s current space and the spaces it has a Browser
-    /// for. A space that is gone is left out.
+    /// for, or the profile it shows. A space or a profile that is gone is
+    /// left out.
     pub fn save_window(
         &self,
         key: &str,
         space: Option<SpaceId>,
         spaces: &[SpaceId],
+        profile: Option<&str>,
     ) -> Result<(), String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
         transaction
             .execute(
-                "UPDATE windows SET current_space = (SELECT id FROM spaces WHERE id = ?2)
+                "UPDATE windows SET current_space = (SELECT id FROM spaces WHERE id = ?2),
+                   profile_id = (SELECT id FROM profiles WHERE id = ?3)
                  WHERE id = ?1",
-                params![key, space],
+                params![key, space, profile],
             )
             .map_err(sql)?;
         transaction
@@ -115,7 +120,7 @@ impl Db {
         let mut windows = self
             .conn
             .prepare(
-                "SELECT id, current_space, frame_x, frame_y, frame_width, frame_height
+                "SELECT id, current_space, profile_id, frame_x, frame_y, frame_width, frame_height
                  FROM windows ORDER BY position",
             )
             .map_err(sql)?
@@ -124,7 +129,8 @@ impl Db {
                     key: row.get(0)?,
                     space: row.get(1)?,
                     spaces: Vec::new(),
-                    frame: frame(row, 2)?,
+                    profile: row.get(2)?,
+                    frame: frame(row, 3)?,
                 })
             })
             .map_err(sql)?
@@ -145,13 +151,14 @@ impl Db {
     }
 
     /// The profiles whose Browsers the kept windows wait for: those of the
-    /// spaces they have a Browser for.
+    /// spaces they have a Browser for, and those they show.
     pub fn saved_window_profiles(&self) -> Result<Vec<String>, String> {
         self.conn
             .prepare(
-                "SELECT DISTINCT spaces.profile_id FROM window_spaces
+                "SELECT spaces.profile_id FROM window_spaces
                  JOIN spaces ON spaces.id = window_spaces.space_id
-                 ORDER BY spaces.profile_id",
+                 UNION SELECT profile_id FROM windows WHERE profile_id IS NOT NULL
+                 ORDER BY 1",
             )
             .map_err(sql)?
             .query_map([], |row| row.get(0))
@@ -185,7 +192,7 @@ mod tests {
         let first = db.add_window().unwrap();
         let second = db.add_window().unwrap();
         assert_ne!(first, second);
-        db.save_window(&second, Some(b), &[a, b]).unwrap();
+        db.save_window(&second, Some(b), &[a, b], None).unwrap();
         let frame = WindowFrame {
             x: 10.0,
             y: 20.0,
@@ -210,16 +217,37 @@ mod tests {
         let a = add_space(&db, "a");
         let b = add_space(&db, "a");
         let key = db.add_window().unwrap();
-        db.save_window(&key, Some(a), &[a, b]).unwrap();
+        db.save_window(&key, Some(a), &[a, b], None).unwrap();
         db.delete_space(a).unwrap();
         let saved = db.saved_windows().unwrap();
         assert_eq!(saved[0].space, None);
         assert_eq!(saved[0].spaces, vec![b]);
         // A space that is gone is left out.
-        db.save_window(&key, Some(a), &[a]).unwrap();
+        db.save_window(&key, Some(a), &[a], None).unwrap();
         assert_eq!(db.saved_windows().unwrap()[0].spaces, Vec::<SpaceId>::new());
         db.forget_window(&key).unwrap();
         assert!(db.saved_windows().unwrap().is_empty());
         assert!(db.saved_window_profiles().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_window_on_a_profile_comes_back_on_it_and_goes_with_it() {
+        let db = db();
+        let a = add_space(&db, "a");
+        add_space(&db, "b");
+        let key = db.add_window().unwrap();
+        db.save_window(&key, None, &[], Some("b")).unwrap();
+        let saved = db.saved_windows().unwrap();
+        assert_eq!(saved[0].profile.as_deref(), Some("b"));
+        assert_eq!(saved[0].space, None);
+        assert_eq!(db.saved_window_profiles().unwrap(), vec!["b"]);
+        // A profile the database has not met is left out.
+        db.save_window(&key, None, &[], Some("c")).unwrap();
+        assert_eq!(db.saved_windows().unwrap()[0].profile, None);
+        db.save_window(&key, Some(a), &[a], None).unwrap();
+        db.save_window(&key, None, &[], Some("b")).unwrap();
+        assert_eq!(db.saved_window_profiles().unwrap(), vec!["b"]);
+        db.forget_profile("b").unwrap();
+        assert!(db.saved_windows().unwrap().is_empty());
     }
 }
