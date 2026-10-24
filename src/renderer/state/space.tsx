@@ -1,10 +1,20 @@
 // The space the window shows: the app's, with its name, icon and colour, and
 // the spaces it can switch to. Its tabs are the Browser's; until favourites
 // and pinned tabs are real too, those are made up here, and so is the space
-// drawn before the window knows its own, and outside the app.
+// drawn before the window knows its own, and outside the app. A window on a
+// profile shows a space made up for the profile, and has none to switch to.
 
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { appWindow, follow, hasApp, type SpaceEntry, type SpaceTheme } from "../ipc";
+import {
+  appWindow,
+  follow,
+  hasApp,
+  type ProfileEntry,
+  type SpaceEntry,
+  type SpaceTheme,
+  type WindowProfile
+} from "../ipc";
+import { OFF_THE_RECORD_ICON, PROFILE_ICON } from "../components/space-icon";
 import { contentScheme, defaultTheme, primaryHex } from "../utils/theme";
 import { useProfiles, useSpaces } from "./library";
 import { type SpaceSlide, useSpaceSlide } from "./space-slide";
@@ -22,7 +32,7 @@ export type Tab = {
 };
 export type Folder = { id: string; title: string; open: boolean; tabs: Tab[] };
 export type Space = {
-  /** Its ID in the app's database; 0 for the made-up one. */
+  /** Its ID in the app's database; 0 for a made-up one. */
   id: number;
   name: string;
   /** `lucide:` and an icon's name, or an emoji. */
@@ -92,10 +102,28 @@ const shown = (entry: SpaceEntry): Space => ({
   pinned: []
 });
 
+/** A profile's off-the-record side is drawn dark grey, whatever the profile's colour. */
+const OFF_THE_RECORD_THEME: SpaceTheme = { ...defaultTheme("#3a3a3c"), appearance: "dark" };
+
+/** The space made up for a window on a profile, named for it, in its colour. */
+const ofProfile = ({ id, offTheRecord }: WindowProfile, entry: ProfileEntry | undefined): Space => {
+  const theme = offTheRecord ? OFF_THE_RECORD_THEME : defaultTheme(entry?.color ?? "#8e8e93");
+  return {
+    id: 0,
+    name: offTheRecord ? "Incognito" : (entry?.name ?? id),
+    icon: offTheRecord ? OFF_THE_RECORD_ICON : PROFILE_ICON,
+    theme,
+    color: primaryHex(theme),
+    scheme: contentScheme(theme),
+    favorites: [],
+    pinned: []
+  };
+};
+
 type SpaceState = {
   /** The space shown in the window. */
   space: Space;
-  /** Every space, in the Library's order: by profile, then by position. */
+  /** Every space, in the Library's order: by profile, then by position; none in a window on a profile. */
   spaces: SpaceEntry[];
   /** Brings a space forward in the window, the old one's content sliding out first. */
   show: (id: number) => void;
@@ -115,10 +143,13 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   const { profiles: listed } = useProfiles(true);
   const [current, setCurrent] = useState<number | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.space, appWindow.onSpace, setCurrent) : undefined), []);
+  const [profile, setProfile] = useState<WindowProfile | null>(null);
+  useEffect(() => (hasApp ? follow(appWindow.profile, appWindow.onProfile, setProfile) : undefined), []);
   // The made-up space, whose folders open and close here.
   const [madeUp, setMadeUp] = useState<Space>(personal);
 
   const spaces = useMemo(() => {
+    if (profile) return [];
     const profiles = listed ?? [];
     const all = entries ?? [];
     const known = new Set(profiles.map(({ id }) => id));
@@ -126,12 +157,20 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       ...profiles.flatMap((profile) => all.filter((space) => space.profile === profile.id)),
       ...all.filter((space) => !known.has(space.profile))
     ];
-  }, [entries, listed]);
+  }, [entries, listed, profile]);
   const entry = spaces.find(({ id }) => id === current);
+  const profileEntry = profile ? listed?.find(({ id }) => id === profile.id) : undefined;
   // Until the spaces are read, the made-up one stands in, as the window's.
   const space = useMemo(
-    () => (entry ? shown(entry) : current === null ? madeUp : { ...madeUp, id: current }),
-    [entry, madeUp, current]
+    () =>
+      profile
+        ? ofProfile(profile, profileEntry)
+        : entry
+          ? shown(entry)
+          : current === null
+            ? madeUp
+            : { ...madeUp, id: current },
+    [profile, profileEntry, entry, madeUp, current]
   );
 
   const order = (id: number) => spaces.findIndex((space) => space.id === id);

@@ -1,10 +1,11 @@
 // A space's icon: a Lucide icon from the curated set, named `lucide:<name>`,
-// or an emoji.
+// or an emoji. A window on a profile draws one of its own.
 
 import {
   Book,
   Briefcase,
   Camera,
+  CircleUserRound,
   Code,
   Coffee,
   Dumbbell,
@@ -14,6 +15,7 @@ import {
   Gamepad2,
   Globe,
   GraduationCap,
+  HatGlasses,
   Heart,
   House,
   Leaf,
@@ -71,6 +73,16 @@ export const SPACE_ICONS: Record<string, Icon> = {
   zap: Zap
 };
 
+/** The icons of a window on a profile, which a space can't have. */
+const PROFILE_ICONS: Record<string, Icon> = {
+  "circle-user-round": CircleUserRound,
+  "hat-glasses": HatGlasses
+};
+
+/** A profile's icon, and its off-the-record side's. */
+export const PROFILE_ICON = `${PREFIX}circle-user-round`;
+export const OFF_THE_RECORD_ICON = `${PREFIX}hat-glasses`;
+
 /** What a new space has. */
 export const DEFAULT_ICON = `${PREFIX}orbit`;
 
@@ -83,7 +95,8 @@ export function isEmoji(text: string) {
 }
 
 export function SpaceIcon({ icon, size = 18, strokeWidth = 2 }: { icon: string; size?: number; strokeWidth?: number }) {
-  const Named = icon.startsWith(PREFIX) ? SPACE_ICONS[icon.slice(PREFIX.length)] : undefined;
+  const name = icon.startsWith(PREFIX) ? icon.slice(PREFIX.length) : undefined;
+  const Named = name === undefined ? undefined : (SPACE_ICONS[name] ?? PROFILE_ICONS[name]);
   if (Named) return <Named size={size} strokeWidth={strokeWidth} />;
   if (isEmoji(icon)) {
     return (

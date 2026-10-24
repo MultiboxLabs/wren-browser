@@ -44,8 +44,8 @@ pub use site::send_site;
 pub use spaces::broadcast_spaces;
 pub use tab_switcher::watch_tab_switcher_keys;
 pub use toast::{OwnToast, send_toast, show_toast};
-use window::send_space;
 pub use window::{send_active, send_choose_space, send_full_screen};
+use window::{send_profile, send_space};
 
 /// The window a page is in, as its handlers find it again: not the window
 /// itself, which owns the page and its handlers.
@@ -100,6 +100,7 @@ pub fn send_browser(window: &BrowserWindow, browser: &Browser) {
     send_anchors(window, browser);
     send_toast(window, browser);
     send_find(window, browser);
+    send_profile(window);
     send_space(window);
 }
 
@@ -113,6 +114,7 @@ pub fn send_no_browser(window: &BrowserWindow) {
     anchors::send_no_anchors(window);
     toast::send_no_toast(window);
     find::send_no_find(window);
+    send_profile(window);
     send_space(window);
 }
 
