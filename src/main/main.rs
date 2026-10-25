@@ -1,3 +1,4 @@
+mod ad_block;
 mod app;
 mod changes;
 mod channel;
@@ -40,6 +41,10 @@ fn main() {
     )];
     let source = Source::from_env();
     startup.development_switches = source.development_switches();
+    // Not in a performance run, which measures the app alone.
+    if perf.is_none() {
+        ad_block::ship(&mut startup);
+    }
     let state = Rc::new(State::new(data.into(), perf));
     let status = wren::run(
         startup,

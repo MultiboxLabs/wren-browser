@@ -42,6 +42,11 @@ pub struct State {
     /// The window whose tab switcher is open, while ⌃ is held
     /// (ipc/tab_switcher.rs).
     pub tab_switcher: Cell<Option<WindowId>>,
+    /// While the pages' profile is being made: Chromium names it as it does
+    /// the user's (`Profile <n>`), so only this tells it apart as it loads.
+    // TODO: drop this for the kind Wren 0.3.0's `profile_extensions` passes
+    // (its roadmap's item 6): the pages' is the only ephemeral profile.
+    making_ui_profile: Cell<bool>,
     /// Whether the main menu's Spaces menu is enabled, as it is not while a
     /// window on a profile is in front (spaces/mod.rs).
     pub(crate) spaces_menu_on: Cell<bool>,
@@ -61,6 +66,7 @@ impl State {
             perf,
             quit_prompt: RefCell::default(),
             tab_switcher: Cell::default(),
+            making_ui_profile: Cell::new(false),
             spaces_menu_on: Cell::new(true),
             tab_switcher_keys: RefCell::default(),
         }
@@ -168,13 +174,21 @@ impl App for Wren {
         // The pages get a Profile of their own, so their storage is not
         // among the user's sites'.
         let state = self.state.clone();
+        self.state.making_ui_profile.set(true);
         mt.create_ephemeral_profile(move |result| match result {
             Ok(profile) => {
+                state.making_ui_profile.set(false);
                 *state.ui_profile.borrow_mut() = Some(profile);
                 state.start(mt);
             }
             Err(_) => mt.quit(),
         });
+    }
+
+    // The app's extensions (the ad blocker), in every profile but the
+    // pages'.
+    fn profile_extensions(&self, _profile_id: &str, gets: &mut [bool]) {
+        gets.fill(!self.state.making_ui_profile.get());
     }
 
     // Required: Chromium opened a Browser of its own. A normal one, a
