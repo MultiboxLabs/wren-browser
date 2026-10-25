@@ -15,8 +15,7 @@ export type SpaceDraft = {
   /** `lucide:` and an icon's name, or an emoji. */
   icon: string;
   /**
-   * Made from the colour of the profile it started in, until the user
-   * chooses one: choosing another profile leaves it as it is.
+   * Starts on Vivid Indigo; choosing another profile leaves it as it is.
    */
   theme: SpaceTheme;
   /** The profile's ID; null for the first, until the user chooses one. */
@@ -44,10 +43,12 @@ export type NewSpaceState = {
  */
 export function useNewSpace(making: boolean, listed: ProfileEntry[] | null, slide: SpaceSlide) {
   const [started, setDraft] = useState<SpaceDraft | null>(null);
-  const fresh = (profile?: string): SpaceDraft => {
-    const color = listed?.find(({ id }) => id === (profile ?? listed[0]?.id))?.color;
-    return { name: "", icon: DEFAULT_ICON, theme: defaultTheme(color ?? NO_PROFILE_COLOR), profile: profile ?? null };
-  };
+  const fresh = (profile?: string): SpaceDraft => ({
+    name: "",
+    icon: DEFAULT_ICON,
+    theme: defaultTheme(),
+    profile: profile ?? null
+  });
   // A page loaded while the window was on no space has started none. It is
   // the same object until it changes, so the space drawn of it is too.
   const draft = useMemo(() => started ?? fresh(), [started, listed]);

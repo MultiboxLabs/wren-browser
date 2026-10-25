@@ -52,10 +52,13 @@ export function colorCss(color: Hsb, alpha?: number) {
   return `color(display-p3 ${r.toFixed(4)} ${g.toFixed(4)} ${b.toFixed(4)}${clear})`;
 }
 
-/** The theme a new space has, of a colour: one colour, as Arc's default. */
-export function defaultTheme(hex: string): SpaceTheme {
+/** A single-colour theme, starting on Vivid Indigo unless a colour is given. */
+export function defaultTheme(hex?: string): SpaceTheme {
   return {
-    primary: rgbToHsb(hexToRgb(hex)),
+    primary:
+      hex === undefined
+        ? PRESET_PAGES[0].swatches.find(({ label }) => label === "Vivid Indigo")!.color
+        : rgbToHsb(hexToRgb(hex)),
     colors: 1,
     wheel: "complimentary",
     appearance: "auto",
