@@ -28,7 +28,9 @@ export function Menu<Id extends string>({
           sideOffset={4}
           collisionPadding={6}
           data-scheme="system"
-          className="z-50 min-w-45 rounded-menu border border-menu-border bg-menu p-1.25 text-menu-item text-menu-fg shadow-menu backdrop-blur-xl"
+          // Over the window's title bar or sidebar too: a press on an item is
+          // the item's, not a drag of the window.
+          className="no-drag z-50 min-w-45 rounded-menu border border-menu-border bg-menu p-1.25 text-menu-item text-menu-fg shadow-menu backdrop-blur-xl"
         >
           {items.map(({ id, label, icon: Icon }) => (
             <DropdownMenu.Item
