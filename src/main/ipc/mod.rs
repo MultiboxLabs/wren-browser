@@ -2,6 +2,7 @@
 // the messages the app sends it (`wren.on`): one file for each part of the
 // app. src/renderer/ipc/ is the page's side; keep the two together.
 
+mod ad_block;
 mod anchors;
 mod browser;
 mod extensions;
@@ -30,6 +31,7 @@ use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 use crate::app::State;
 use crate::window::{BrowserWindow, WindowId};
 
+pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_status, send_tabs};
 pub use extensions::send_extensions;
@@ -85,6 +87,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     quit::handle(web_view, window, mt);
     perf::handle(web_view, window, mt);
     profiles::handle(web_view, window, mt);
+    ad_block::handle(web_view, window, mt);
     spaces::handle(web_view, window, mt);
     tab_switcher::handle(web_view, window);
 }
