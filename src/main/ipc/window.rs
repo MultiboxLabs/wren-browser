@@ -83,6 +83,13 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         with_window(&weak, |window| Ok(shown_profile(window)))
     });
 
+    // Whether one of Chromium's dialogs over the window blocks its page, as
+    // Chrome's block its window; "window.blocked" says when it changes.
+    let weak = window.clone();
+    let _ = web_view.handle("window.blocked", move |()| {
+        with_window(&weak, |window| Ok(window.is_blocked()))
+    });
+
     // Brings a space forward in the window; "window.space" follows.
     let weak = window.clone();
     let _ = web_view.handle("window.showSpace", move |space: SpaceId| {
@@ -131,6 +138,15 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
 pub fn send_active(window: &PageWindow, active: bool) {
     // Fails only while the page is loading; it asks first once it is there.
     let _ = window.web_view.send("window.active", &active);
+}
+
+/// Tells the page whether one of Chromium's dialogs blocks it, as one opens
+/// or closes, or another Browser comes in front.
+pub fn send_blocked(window: &BrowserWindow) {
+    let _ = window
+        .page
+        .web_view
+        .send("window.blocked", &window.is_blocked());
 }
 
 /// Tells the page which space the window shows.

@@ -6,7 +6,7 @@ import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { BrowserProvider, useBrowser } from "../../state/browser";
 import { SpaceProvider, useSpace } from "../../state/space";
-import { useShowWindow, useWindowTheme } from "../../state/window";
+import { useShowWindow, useWindowBlocked, useWindowTheme } from "../../state/window";
 import { Omnibox } from "../../components/omnibox/omnibox";
 import { useShownOmnibox } from "../../components/omnibox/shown";
 import { SidePanel } from "../../components/side-panel";
@@ -58,13 +58,19 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     if (space.id !== lastSpace.current) omnibox.done();
     lastSpace.current = space.id;
   }, [space.id]);
+  // A dialog over the window blocks the page, and closes the omnibox, as it
+  // would leave Chrome's.
+  const blocked = useWindowBlocked();
+  useEffect(() => {
+    if (blocked) omnibox.done();
+  }, [blocked]);
   const sidebar = useSidebarPresentation(saved, omnibox.shown !== null && omnibox.shown.place !== "center");
 
   return (
     <>
       {/* Before the window's content, which is positioned so that it is over it. */}
       <SpaceBackground space={space} className="fixed inset-0" />
-      <div className="drag relative flex h-full">
+      <div inert={blocked} className="drag relative flex h-full">
         {/* The room left of the page: the docked sidebar is over it. */}
         {!fullScreen && <motion.div style={{ width: sidebar.motion.slot }} className="shrink-0" />}
 

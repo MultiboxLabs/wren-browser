@@ -54,9 +54,9 @@ pub struct State {
     // TODO: drop this with Wren 0.3.0's `ChangeKind::Extensions` (see
     // `ipc::broadcast_ad_block`).
     pub(crate) ad_blocks: RefCell<HashMap<String, Option<AdBlock>>>,
-    /// Whether the main menu's Spaces menu is enabled, as it is not while a
-    /// window on a profile is in front (spaces/mod.rs).
-    pub(crate) spaces_menu_on: Cell<bool>,
+    /// What the main menu has the window in front allow, as it was set last
+    /// (spaces/mod.rs).
+    pub(crate) menu_front: Cell<menus::Front>,
     // Hears the tab switcher's keys while it is kept.
     tab_switcher_keys: RefCell<Option<KeyWatch>>,
 }
@@ -75,7 +75,10 @@ impl State {
             tab_switcher: Cell::default(),
             making_ui_profile: Cell::new(false),
             ad_blocks: RefCell::default(),
-            spaces_menu_on: Cell::new(true),
+            menu_front: Cell::new(menus::Front {
+                switching: true,
+                blocked: false,
+            }),
             tab_switcher_keys: RefCell::default(),
         }
     }
@@ -274,6 +277,14 @@ impl App for Wren {
             if changes::apply(&window, changes) {
                 state.update_title(&window);
             }
+        }
+        // A dialog opened or closed, or another Browser came in front, as
+        // a switch makes one active and another not.
+        if changes
+            .iter()
+            .any(|change| matches!(change.kind, ChangeKind::ModalDialog | ChangeKind::Active))
+        {
+            state.update_front_menu(mt);
         }
     }
 

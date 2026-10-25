@@ -59,6 +59,7 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
                 ipc::send_find(window, &browser);
             }
             ChangeKind::Find => ipc::send_find(window, &browser),
+            ChangeKind::ModalDialog => ipc::send_blocked(window),
             ChangeKind::Tab => {
                 let Some(tab) = change.tab else { continue };
                 tabs_changed |= change.tab_fields.intersects(drawn);

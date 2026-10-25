@@ -251,6 +251,16 @@ impl BrowserWindow {
         self.browser().as_ref() == Some(browser)
     }
 
+    /// Whether one of Chromium's browser-modal dialogs is open over the
+    /// Browser in front, such as an extension's install prompt. As Chrome
+    /// blocks its window, the app blocks its own UI of the window then: its
+    /// page, and the main menu's items for its tabs and spaces. Wren refuses
+    /// clicks below the title bar, and Chromium's commands, itself.
+    pub fn is_blocked(&self) -> bool {
+        self.browser()
+            .is_some_and(|browser| browser.has_modal_dialog())
+    }
+
     /// Notes that a Browser for `place` is on the way; false if the window
     /// has one already, or one on the way, so none is made twice.
     pub fn set_opening(&self, place: &Place) -> bool {

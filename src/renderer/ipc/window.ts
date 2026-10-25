@@ -13,6 +13,12 @@ export const appWindow = {
   /** Whether the window is in use: main, or under a sheet or bubble of its own. */
   active: () => wren.invoke<boolean>("window.active"),
   onActive: (listener: (active: boolean) => void) => wren.on<boolean>("window.active", listener),
+  /**
+   * Whether one of Chromium's dialogs over the window, such as an extension's
+   * install prompt, blocks it as Chrome blocks its window.
+   */
+  blocked: () => wren.invoke<boolean>("window.blocked"),
+  onBlocked: (listener: (blocked: boolean) => void) => wren.on<boolean>("window.blocked", listener),
   /** The space the window shows; null while it waits for its first Browser, or shows a profile. */
   space: () => wren.invoke<WindowSpace | null>("window.space"),
   onSpace: (listener: (space: WindowSpace | null) => void) => wren.on<WindowSpace | null>("window.space", listener),

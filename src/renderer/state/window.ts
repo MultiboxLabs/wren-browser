@@ -30,6 +30,17 @@ export function useWindowActive() {
 }
 
 /**
+ * Whether one of Chromium's dialogs over the window blocks it. The page takes
+ * no clicks, keys or scrolls then, as Chrome's window does not; Wren keeps
+ * them from the window below its title bar, and the page from the rest.
+ */
+export function useWindowBlocked() {
+  const [blocked, setBlocked] = useState(false);
+  useEffect(() => (hasApp ? follow(appWindow.blocked, appWindow.onBlocked, setBlocked) : undefined), []);
+  return blocked;
+}
+
+/**
  * Shows the window once what the page has drawn is on screen: the first
  * frame after this mounts has painted by the second animation frame. Until
  * then the app keeps the window hidden, so it never opens empty.

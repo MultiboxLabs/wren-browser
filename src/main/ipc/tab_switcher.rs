@@ -37,14 +37,15 @@ pub fn watch_tab_switcher_keys(state: &Rc<State>) -> Option<KeyWatch> {
 
 // Whether the switcher takes `key`: ⌃Tab in a browser window with tabs,
 // and Control's release and Escape while the switcher is open. Elsewhere,
-// in DevTools' window, ⌃Tab is Chromium's.
+// in DevTools' window, ⌃Tab is Chromium's. A window a dialog blocks
+// switches no tabs.
 fn take_key(state: &State, key: Key) -> bool {
     match key {
         Key::ControlTab { back } => {
             let window = (state.tab_switcher.get())
                 .and_then(|id| state.windows.get(id))
                 .or_else(|| state.windows.active())
-                .filter(|window| window.browser_with_tabs().is_some());
+                .filter(|window| window.browser_with_tabs().is_some() && !window.is_blocked());
             let Some(window) = window else {
                 return false;
             };

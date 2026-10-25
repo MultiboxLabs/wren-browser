@@ -32,11 +32,49 @@ pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
 /// A space's item is this and the space's ID.
 pub const SPACE: &str = "space:";
 
+/// What the window in front allows of the items that act on it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct Front {
+    /// It switches spaces: any window but one on a profile.
+    pub switching: bool,
+    /// One of Chromium's dialogs blocks it (`BrowserWindow::is_blocked`).
+    pub blocked: bool,
+}
+
+// The app's items a dialog over the window in front greys out, as Chrome
+// blocks its window: what changes its tabs, its spaces or the window. New
+// Window and Quit stay, and Wren greys out Chromium's commands itself.
+const BLOCKED: [&str; 6] = [
+    NEW_TAB,
+    OPEN_LOCATION,
+    CLOSE_TAB,
+    CLOSE_WINDOW,
+    MOVE_TAB_UP,
+    MOVE_TAB_DOWN,
+];
+
 /// Sets the main menu, whose Spaces menu lists `spaces`, each by its ID and
-/// name, in the Library's order, greyed out unless `switching` (a window on
-/// a profile never switches). Set again as the spaces change, and as Warn
-/// Before Quitting does.
-pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], switching: bool) {
+/// name, in the Library's order, with what `front` allows. Set again as the
+/// spaces change, and as Warn Before Quitting does.
+pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) {
+    if let Err(error) = mt.set_main_menu(&main_menu(mt, spaces, front)) {
+        eprintln!("Wren took no main menu: {error:?}");
+    }
+}
+
+/// Greys out the items the window in front does not allow, or brings them
+/// back, in place, as it changes.
+pub fn enable_front(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) {
+    let mut items = Vec::new();
+    take_front_items(main_menu(mt, spaces, front), &mut items);
+    for item in items {
+        if let Err(error) = mt.update_main_menu_item(&item) {
+            eprintln!("Wren could not change a menu item: {error:?}");
+        }
+    }
+}
+
+fn main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) -> Vec<MenuItem> {
     let warning = mt.quit_warning();
     let mut menu = vec![
         MenuItem::submenu(
@@ -144,7 +182,7 @@ pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], switching: bo
                 MenuItem::role(MenuRole::ToggleFullScreen),
             ],
         ),
-        spaces_menu(spaces, switching),
+        MenuItem::submenu("Spaces", space_items(spaces)),
         MenuItem::submenu(
             "History",
             vec![
@@ -209,38 +247,58 @@ pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], switching: bo
     if cfg!(debug_assertions) {
         menu.push(development_menu());
     }
-    if let Err(error) = mt.set_main_menu(&menu) {
-        eprintln!("Wren took no main menu: {error:?}");
-    }
+    allow(&mut menu, front);
+    menu
 }
 
-/// Greys out the Spaces menu's items, or brings them back, in place, as the
-/// window in front changes: a window on a profile never switches.
-pub fn enable_spaces(mt: MainThread, spaces: &[(SpaceId, String)], switching: bool) {
-    for item in space_items(spaces, switching) {
-        if let Err(error) = mt.update_main_menu_item(&item) {
-            eprintln!("Wren could not change a space's menu item: {error:?}");
+// Greys out the items `front` does not allow.
+fn allow(items: &mut [MenuItem], front: Front) {
+    for item in items {
+        match item {
+            MenuItem::Submenu { items, .. } => allow(items, front),
+            MenuItem::Item { id, enabled, .. } if acts_on_front(id) => {
+                *enabled = allowed(id, front);
+            }
+            _ => {}
         }
     }
 }
 
-// The spaces, which bring one forward in the window in front.
-fn spaces_menu(spaces: &[(SpaceId, String)], switching: bool) -> MenuItem {
-    MenuItem::submenu("Spaces", space_items(spaces, switching))
+// Moves the items that act on the window in front out of `items`, into
+// `taken`.
+fn take_front_items(items: Vec<MenuItem>, taken: &mut Vec<MenuItem>) {
+    for item in items {
+        match item {
+            MenuItem::Submenu { items, .. } => take_front_items(items, taken),
+            MenuItem::Item { ref id, .. } if acts_on_front(id) => taken.push(item),
+            _ => {}
+        }
+    }
 }
 
-// A space's item each, the first nine with ⌃1 to ⌃9.
-fn space_items(spaces: &[(SpaceId, String)], switching: bool) -> Vec<MenuItem> {
+// Whether item `id` acts on the window in front, which allows it or not.
+fn acts_on_front(id: &str) -> bool {
+    id.starts_with(SPACE) || BLOCKED.contains(&id)
+}
+
+// Whether `front` allows item `id`, one that acts on it. A window on a
+// profile never switches spaces.
+fn allowed(id: &str, front: Front) -> bool {
+    !front.blocked && (front.switching || !id.starts_with(SPACE))
+}
+
+// A space's item each, which brings it forward in the window in front, the
+// first nine with ⌃1 to ⌃9.
+fn space_items(spaces: &[(SpaceId, String)]) -> Vec<MenuItem> {
     spaces
         .iter()
         .enumerate()
         .map(|(index, (id, name))| {
             let id = format!("{SPACE}{id}");
-            let item = match index {
+            match index {
                 0..9 => keyed(&id, name, &(index + 1).to_string(), MenuModifiers::CONTROL),
                 _ => MenuItem::item(id, name.clone()),
-            };
-            enabled(item, switching)
+            }
         })
         .collect()
 }

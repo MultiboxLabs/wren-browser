@@ -97,26 +97,31 @@ impl State {
     /// Sets the main menu again, for its Spaces menu to list the spaces as
     /// they are now.
     pub fn update_menu(&self, mt: MainThread) {
-        let switching = self.front_switches();
-        self.spaces_menu_on.set(switching);
-        menus::set_main_menu(mt, &self.ordered_spaces(mt), switching);
+        let front = self.front_menu();
+        self.menu_front.set(front);
+        menus::set_main_menu(mt, &self.ordered_spaces(mt), front);
     }
 
-    /// Greys out the Spaces menu while a window on a profile is in front,
-    /// which never switches, and brings it back once one of spaces is.
-    pub fn update_spaces_menu(&self, mt: MainThread) {
-        let switching = self.front_switches();
-        if self.spaces_menu_on.replace(switching) != switching {
-            menus::enable_spaces(mt, &self.ordered_spaces(mt), switching);
+    /// Greys out the main menu's items the window in front does not allow,
+    /// and brings them back once one that does is in front, or it does
+    /// again: switching spaces, which a window on a profile never does, and
+    /// the items for its tabs and spaces, which a dialog over it blocks.
+    pub fn update_front_menu(&self, mt: MainThread) {
+        let front = self.front_menu();
+        if self.menu_front.replace(front) != front {
+            menus::enable_front(mt, &self.ordered_spaces(mt), front);
         }
     }
 
-    // Whether the window in front switches spaces: any but one on a profile.
-    fn front_switches(&self) -> bool {
-        !self
-            .windows
-            .front()
-            .is_some_and(|window| window.is_profile_window())
+    // What the window in front allows of the main menu.
+    fn front_menu(&self) -> menus::Front {
+        let window = self.windows.front();
+        menus::Front {
+            switching: !window
+                .as_ref()
+                .is_some_and(|window| window.is_profile_window()),
+            blocked: window.is_some_and(|window| window.is_blocked()),
+        }
     }
 
     /// Whether `space` is one of `profile`'s, and still there.

@@ -57,7 +57,7 @@ impl State {
             };
             if active {
                 state.windows.set_active(id);
-                state.update_spaces_menu(mt);
+                state.update_front_menu(mt);
                 // The space the user is in is the one used last.
                 if let Some(space) = window.space() {
                     state.touch_space(space);
