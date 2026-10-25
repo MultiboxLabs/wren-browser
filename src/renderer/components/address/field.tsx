@@ -3,10 +3,11 @@
 // popped out for its popup), and the page info button, which opens the page
 // info popover. Each button carries the mark Chromium hangs its bubbles off
 // (BrowserWindow::name_anchors): a shown extension's popup opens below its own
-// button, and the site's bubbles and the rest below page info's.
+// button, and the site's bubbles and the rest below page info's. One thing
+// hangs off the page info button at a time: Chromium's bubble or the popover.
 
 import { Search } from "lucide-react";
-import { type Ref, useState } from "react";
+import { type Ref, useRef, useState } from "react";
 import { type ExtensionAction, extensions } from "../../ipc";
 import { Anchor } from "../ui/anchor";
 import { Button } from "../ui/button";
@@ -37,6 +38,13 @@ export function AddressField({
   // of Chromium's bubbles hanging off its mark.
   const { showing } = useBrowser();
   const [open, setOpen] = useState(false);
+  // A bubble of Chromium's that opens below the button closes the popover.
+  const anchored = showing.includes("page-info");
+  if (anchored && open) setOpen(false);
+  // A press on the button while Chromium's bubble is open closes the bubble
+  // (Wren does), and must not open the popover in its place, though the
+  // bubble is gone by the time of the click.
+  const pressedAnchored = useRef(false);
   return (
     // Lit while its address is hovered, as a favourite is; its own buttons
     // light themselves.
@@ -68,10 +76,17 @@ export function AddressField({
       <Anchor name="page-info">
         <Popover
           open={open}
-          onOpenChange={setOpen}
+          onOpenChange={(next) => setOpen(next && !pressedAnchored.current)}
           label="Page Info"
           trigger={
-            <Button icon={PageInfoIcon} iconSize={18} label="Page Info" pressed={showing.includes("page-info")} />
+            <Button
+              icon={PageInfoIcon}
+              iconSize={18}
+              label="Page Info"
+              pressed={anchored}
+              onPointerDown={() => (pressedAnchored.current = anchored)}
+              onKeyDown={() => (pressedAnchored.current = anchored)}
+            />
           }
         >
           <PageInfo tab={tab} site={site} actions={actions} onClose={() => setOpen(false)} />
