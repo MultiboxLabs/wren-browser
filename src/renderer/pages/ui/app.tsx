@@ -58,7 +58,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     if (space.id !== lastSpace.current) omnibox.done();
     lastSpace.current = space.id;
   }, [space.id]);
-  const sidebar = useSidebarPresentation(saved, omnibox.shown !== null);
+  const sidebar = useSidebarPresentation(saved, omnibox.shown !== null && omnibox.shown.place !== "center");
 
   return (
     <>

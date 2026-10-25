@@ -16,8 +16,12 @@ import { useSaveSidebar } from "./state";
 /** The docked sidebar's width, its left padding in it. */
 export const SIDEBAR_WIDTH = { min: 240, max: 480, initial: 320 };
 
-/** `omniboxShown`: the omnibox is open, which holds the floating sidebar out too. */
-export function useSidebarPresentation(saved: SidebarState | null, omniboxShown: boolean) {
+/**
+ * `omniboxOnAddress`: the omnibox is open over the address field, which
+ * holds the floating sidebar out too. One in the middle of the window does
+ * not: it opens there while the sidebar is away, and leaves it away.
+ */
+export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddress: boolean) {
   // Docked beside the page, or floating over it: the user's choice, kept
   // between runs. Only floating is it ever away.
   const [docked, setDocked] = useState(saved?.open !== false);
@@ -42,7 +46,7 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxShown:
   const [opened, hold] = useHolds();
   const bubbleOpen = useBrowser().showing.length > 0;
   const making = useSpace().newSpace !== null;
-  const held = opened || bubbleOpen || omniboxShown || making;
+  const held = opened || bubbleOpen || omniboxOnAddress || making;
   // Floating, it is out while either keeps it out, and goes once neither does.
   const presentation: Presentation = docked ? "anchored" : pointerOver || held ? "floating" : "hidden";
 
