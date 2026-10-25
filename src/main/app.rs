@@ -405,6 +405,28 @@ impl App for Wren {
         PopoverAnswer::App
     }
 
+    // Chromium wants the address field, as a New Tab page given the
+    // keyboard does: the omnibox opens for it, as ⌘L opens it. Not for the
+    // placeholder, which the page does not show, nor over the omnibox for a
+    // new tab.
+    fn focus_location_bar(&self, _: MainThread, browser: Browser) {
+        let Some(window) = self
+            .state
+            .windows
+            .of(&browser)
+            .filter(|window| window.is_front(&browser))
+        else {
+            return;
+        };
+        let Some(tab) = browser.active_tab() else {
+            return;
+        };
+        if placeholder::is_placeholder(tab) || window.has_new_tab_omnibox() {
+            return;
+        }
+        ipc::send_show_omnibox(&window, OmniboxTarget::Current, false);
+    }
+
     // A page wants the whole window, or is done with it. The window goes full
     // screen for it once Chromium's call is over, and Chromium hears when it
     // has (BrowserWindow::full_screen_finished). A page in the background, or

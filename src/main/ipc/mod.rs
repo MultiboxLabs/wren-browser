@@ -29,6 +29,7 @@ use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
+use crate::tabs;
 use crate::window::{BrowserWindow, WindowId};
 
 pub use ad_block::broadcast_ad_block;
@@ -171,9 +172,13 @@ fn menu_call<Id: DeserializeOwned>(
 }
 
 // The active tab's page has the keyboard back, as the omnibox or the find
-// bar closes.
+// bar closes. Not a New Tab page's: Chromium would ask for the address field
+// for it (App::focus_location_bar), and the omnibox that closed would open
+// again.
 fn give_back_keyboard(browser: &Browser) {
-    if let Some(tab) = browser.active_tab() {
+    if let Some(tab) = browser.active_tab()
+        && !tabs::is_new_tab(&tab.url())
+    {
         let _ = tab.focus();
     }
 }
