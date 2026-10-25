@@ -2,8 +2,17 @@
 // profiles and the spaces are the app's; the boosts are not real yet, and are
 // made up here, as the space's favourites are.
 
-import { useEffect, useState } from "react";
-import { hasApp, type NewSpace, type ProfileEntry, profiles, type SpaceEntry, spaces } from "../ipc";
+import { useEffect, useRef, useState } from "react";
+import {
+  type AdBlock,
+  adBlock,
+  hasApp,
+  type NewSpace,
+  type ProfileEntry,
+  profiles,
+  type SpaceEntry,
+  spaces
+} from "../ipc";
 
 /**
  * The user's profiles, as the app lists them, read again each time the
@@ -78,6 +87,53 @@ export function useSpaces(open: boolean) {
     await spaces.delete(id);
   };
   return { spaces: list, failed, reload: refresh, update, move, remove };
+}
+
+/**
+ * The selected profile's ad blocker, read as it is selected and followed as it
+ * changes, here, in another window or on Chromium's extensions page.
+ * `adBlock` is null while there is nothing to turn on or off: until it is
+ * read, while the profile has none (it installs as the profile first loads),
+ * or once the app could not read it. `toggle` turns it on or off at once; if
+ * the app can't, it is read again.
+ */
+export function useAdBlock(profileId: string | null) {
+  // Whose it is, so a profile selected next never shows the last one's.
+  const [read, setRead] = useState<{ profileId: string; adBlock: AdBlock | null } | null>(null);
+  // Bumped with each profile selected and each state shown: a call's answer
+  // is out of date once it was bumped since the call.
+  const generation = useRef(0);
+  const show = (profileId: string, state: AdBlock | null) => {
+    generation.current++;
+    setRead({ profileId, adBlock: state });
+  };
+  const showAnswer = (profileId: string, call: Promise<AdBlock | null>) => {
+    const asked = generation.current;
+    void call
+      .catch(() => null)
+      .then((state) => {
+        if (generation.current === asked) show(profileId, state);
+      });
+  };
+  useEffect(() => {
+    generation.current++;
+    if (!profileId || !hasApp) return;
+    showAnswer(profileId, adBlock.get(profileId));
+    return adBlock.onChanged((change) => {
+      if (change.profileId === profileId) show(profileId, change.adBlock);
+    });
+  }, [profileId]);
+  const shown = read?.profileId === profileId ? read.adBlock : null;
+  const toggle = () => {
+    if (!profileId || !shown?.canChange) return;
+    const enabled = !shown.enabled;
+    show(profileId, { ...shown, enabled });
+    showAnswer(
+      profileId,
+      adBlock.set(profileId, enabled).catch(() => adBlock.get(profileId))
+    );
+  };
+  return { adBlock: shown, toggle };
 }
 
 /** A site's own styles and scripts, made by the user. */

@@ -90,34 +90,40 @@ export function Empty({ children }: { children: ReactNode }) {
   return <p className="pt-10 text-center text-fg-3">{children}</p>;
 }
 
-// A row of the actions: its icon is under the profile's tile, its text under
-// the profile's name.
-function ActionRow({
-  icon: Icon,
-  danger,
-  onPress,
-  children
-}: {
+/** Text at a row's end, as a profile's count of spaces. */
+export function Trailing({ children }: { children: ReactNode }) {
+  return <span className="shrink-0 pr-1.5 text-subtitle text-fg-2 tabular-nums">{children}</span>;
+}
+
+export type RowAction = {
+  label: string;
   icon: IconType;
   danger?: boolean;
+  /** Shown, but it can't be pressed. */
+  disabled?: boolean;
+  /** At the row's end: its state, for one that is on or off. */
+  trailing?: ReactNode;
   onPress: () => void;
-  children: ReactNode;
-}) {
+};
+
+// A row of the actions: its icon is under the profile's tile, its label under
+// the profile's name, and what it trails with under the profile's.
+function ActionRow({ label, icon: Icon, danger, disabled, trailing, onPress }: RowAction) {
   return (
     <Button
       shape="none"
       onClick={onPress}
-      className={cn("flex h-9 items-center gap-3 rounded-row pl-1.5 text-left", danger && "text-danger")}
+      disabled={disabled}
+      className={cn("flex h-9 items-center gap-3 rounded-row pr-1.5 pl-1.5 text-left", danger && "text-danger")}
     >
       <span className={cn("grid size-9 place-items-center", !danger && "glyph-2")}>
         <Icon size={16} strokeWidth={1.75} />
       </span>
-      {children}
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {trailing && <Trailing>{trailing}</Trailing>}
     </Button>
   );
 }
-
-export type RowAction = { label: string; icon: IconType; danger?: boolean; onPress: () => void };
 
 // What can be done to the selected row: rows that slide down from its own,
 // pushing the rows under it down. With Reduced Motion they fade. Wrap it in
@@ -134,10 +140,8 @@ export function RowActions({ actions }: { actions: RowAction[] }) {
       className="overflow-hidden"
     >
       <div className="flex flex-col gap-0.5">
-        {actions.map(({ label, icon, danger, onPress }) => (
-          <ActionRow key={label} icon={icon} danger={danger} onPress={onPress}>
-            {label}
-          </ActionRow>
+        {actions.map((action) => (
+          <ActionRow key={action.label} {...action} />
         ))}
       </div>
     </motion.div>
