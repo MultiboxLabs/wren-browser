@@ -6,12 +6,12 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, memo, type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
 import { Button } from "../ui/button";
+import { useHoldUntil } from "../ui/hold";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
 import { Favicon } from "../favicon";
 import { SpaceIcon } from "../space-icon";
 import type { OmniboxState } from "../omnibox/shown";
-import type { SidebarHold } from "./presentation";
 import { useBrowser } from "../../state/browser";
 import { type Folder, isFolder, type Tab, useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
@@ -58,7 +58,9 @@ type ListActions = {
   onRename: (group: TabGroup, title: string | null) => void;
 };
 
-export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOpen: SidebarHold["whileOpen"] }) {
+export function TabList({ omnibox }: { omnibox: OmniboxState }) {
+  // A tab's or a group's menu holds the floating sidebar out until it closes.
+  const holdUntil = useHoldUntil();
   const { space, toggleFolder } = useSpace();
   const { tabs, groups: tabGroups, splits, current } = useBrowser();
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -79,12 +81,12 @@ export function TabList({ omnibox, whileOpen }: { omnibox: OmniboxState; whileOp
     },
     onTabMenu: (tab, x, y) => {
       const id = real(tab);
-      if (id !== undefined) whileOpen(browser.menu(id, x, y));
+      if (id !== undefined) holdUntil(browser.menu(id, x, y));
     },
     onToggleFolder: toggleFolder,
     onToggleGroup: (group) => groups.toggle(group.id),
     onGroupMenu: (group, x, y) =>
-      whileOpen(groups.menu(group.id, x, y)).then(
+      holdUntil(groups.menu(group.id, x, y)).then(
         (chosen) => chosen === "rename" && setRenaming(group.id),
         () => {}
       ),

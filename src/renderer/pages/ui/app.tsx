@@ -1,6 +1,7 @@
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { useEffect, useRef } from "react";
 import type { SidebarState } from "../../ipc";
+import { HoldContext } from "../../components/ui/hold";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { BrowserProvider, useBrowser } from "../../state/browser";
@@ -96,24 +97,26 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel">
             <SpaceBackground space={space} material className="absolute inset-0 rounded-[inherit]" />
           </motion.div>
-          <div className="relative h-full">
-            <MakesWay open={sidebar.library.open} motion={sidebar.library.motion}>
-              <Sidebar
-                open={sidebar.open}
-                onToggle={sidebar.toggle}
-                hold={sidebar.hold}
-                omnibox={omnibox}
-                address={address}
-                onOpenLibrary={() => sidebar.library.setOpen(true)}
+          {/* What the sidebar opens holds it out while it floats. */}
+          <HoldContext value={sidebar.hold}>
+            <div className="relative h-full">
+              <MakesWay open={sidebar.library.open} motion={sidebar.library.motion}>
+                <Sidebar
+                  open={sidebar.open}
+                  onToggle={sidebar.toggle}
+                  omnibox={omnibox}
+                  address={address}
+                  onOpenLibrary={() => sidebar.library.setOpen(true)}
+                />
+              </MakesWay>
+              <Library
+                open={sidebar.library.open}
+                onClose={() => sidebar.library.setOpen(false)}
+                width={sidebar.width}
+                motion={sidebar.library.motion}
               />
-            </MakesWay>
-            <Library
-              open={sidebar.library.open}
-              onClose={() => sidebar.library.setOpen(false)}
-              width={sidebar.width}
-              motion={sidebar.library.motion}
-            />
-          </div>
+            </div>
+          </HoldContext>
         </motion.aside>
         {sidebar.open && !sidebar.library.open && !fullScreen && (
           // The gap to the page. After the sidebar, whose tabs scroll right up

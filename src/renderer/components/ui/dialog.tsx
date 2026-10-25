@@ -12,6 +12,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Dialog as Radix } from "radix-ui";
 import { type KeyboardEvent, type ReactNode, useRef, useState } from "react";
 import { Button } from "./button";
+import { useHoldWhile } from "./hold";
 import { cn } from "../../utils/cn";
 
 /** The dialog's default button. */
@@ -56,6 +57,7 @@ export type DialogProps = {
 };
 
 export function Dialog(props: DialogProps) {
+  useHoldWhile(props.open);
   return (
     <Radix.Root open={props.open} onOpenChange={props.onOpenChange}>
       {/* The card is made afresh each time it opens, so nothing of the last

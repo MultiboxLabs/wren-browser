@@ -6,7 +6,7 @@
 // button, and the site's bubbles and the rest below page info's.
 
 import { Search } from "lucide-react";
-import { type Ref, useEffect, useState } from "react";
+import { type Ref, useState } from "react";
 import { type ExtensionAction, extensions } from "../../ipc";
 import { Anchor } from "../ui/anchor";
 import { Button } from "../ui/button";
@@ -22,13 +22,10 @@ export const SEARCH_PLACEHOLDER = "Search or Enter URL…";
 
 export function AddressField({
   tab,
-  onPopoverOpenChange,
   ref,
   onOpenLocation
 }: {
   tab?: Tab;
-  /** Whether the page info popover is open, which keeps the floating sidebar out. */
-  onPopoverOpenChange: (open: boolean) => void;
   /** Its box, which the omnibox opens over. */
   ref: Ref<HTMLDivElement>;
   /** A click on the address: the omnibox, on it. */
@@ -40,7 +37,6 @@ export function AddressField({
   // of Chromium's bubbles hanging off its mark.
   const { showing } = useBrowser();
   const [open, setOpen] = useState(false);
-  useEffect(() => onPopoverOpenChange(open), [open]);
   return (
     // Lit while its address is hovered, as a favourite is; its own buttons
     // light themselves.

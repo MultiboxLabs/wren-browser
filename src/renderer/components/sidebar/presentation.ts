@@ -7,20 +7,14 @@
 import { useEffect, useState } from "react";
 import { hasApp, menu, type SidebarState } from "../../ipc";
 import { useBrowser } from "../../state/browser";
+import { useSpace } from "../../state/space";
+import { useHolds } from "../ui/hold";
 import { useLibraryMotion } from "../library/motion";
 import { type Presentation, useSidebarMotion, useWindowButtons } from "./motion";
 import { useSaveSidebar } from "./state";
 
 /** The docked sidebar's width, its left padding in it. */
 export const SIDEBAR_WIDTH = { min: 240, max: 480, initial: 320 };
-
-/** What the sidebar opens tells it, to keep it out while it floats. */
-export type SidebarHold = {
-  /** A menu of its own, open until `shown` settles. */
-  whileOpen: <T>(shown: Promise<T>) => Promise<T>;
-  /** The page info popover opened or closed. */
-  setPopoverOpen: (open: boolean) => void;
-};
 
 /** `omniboxShown`: the omnibox is open, which holds the floating sidebar out too. */
 export function useSidebarPresentation(saved: SidebarState | null, omniboxShown: boolean) {
@@ -39,21 +33,16 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxShown:
   // Whether the pointer is over it, or at the window's left edge, which
   // brings it out.
   const [pointerOver, setPointerOver] = useState(false);
-  // Something of the sidebar's that is open keeps it out too, though the
-  // pointer goes over to it: the page info popover, one of Chromium's
-  // bubbles hanging off its buttons (which brings it out, for the bubble to
-  // hang off: a permission prompt, an extension's popup from its shortcut),
-  // a tab's or a group's menu, the omnibox over its address field.
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [menusOpen, setMenusOpen] = useState(0);
+  // What is open of the sidebar's keeps it out too, though the pointer goes
+  // over to it: a popover, a menu or a dialog it opened (by `HoldContext`),
+  // one of Chromium's bubbles hanging off its buttons, the omnibox over its
+  // address field, or the form of a space being made. A bubble or a space
+  // made while it is away brings it out, for the bubble to hang off (a
+  // permission prompt, an extension's popup from its shortcut) or the form.
+  const [opened, hold] = useHolds();
   const bubbleOpen = useBrowser().showing.length > 0;
-  const held = popoverOpen || bubbleOpen || menusOpen > 0 || omniboxShown;
-  const whileOpen = <T>(shown: Promise<T>) => {
-    setMenusOpen((open) => open + 1);
-    const closed = () => setMenusOpen((open) => open - 1);
-    shown.then(closed, closed);
-    return shown;
-  };
+  const making = useSpace().newSpace !== null;
+  const held = opened || bubbleOpen || omniboxShown || making;
   // Floating, it is out while either keeps it out, and goes once neither does.
   const presentation: Presentation = docked ? "anchored" : pointerOver || held ? "floating" : "hidden";
 
@@ -78,6 +67,7 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxShown:
     enter: () => setPointerOver(true),
     /** The pointer left it. */
     leave: () => setPointerOver(false),
-    hold: { whileOpen, setPopoverOpen } satisfies SidebarHold
+    /** For `HoldContext`, around what the sidebar opens. */
+    hold
   };
 }

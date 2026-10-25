@@ -13,7 +13,6 @@ import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../ico
 import type { OmniboxState } from "../omnibox/shown";
 import { cn } from "../../utils/cn";
 import { scaleTo } from "../../utils/motion";
-import type { SidebarHold } from "./presentation";
 import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
@@ -26,8 +25,6 @@ export type SidebarProps = {
   /** Docked beside the page: its button hides it, rather than keeps it. */
   open: boolean;
   onToggle: () => void;
-  /** What keeps it out while what it opened is open. */
-  hold: SidebarHold;
   /** The omnibox, which the address and the New Tab row open. */
   omnibox: OmniboxState;
   /** For the address field, whose box the omnibox for the active tab opens over. */
@@ -70,7 +67,7 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
   );
 }
 
-export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary }: SidebarProps) {
+export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary }: SidebarProps) {
   const { space, spaces, profile, newSpace, startNewSpace, showNow, slide } = useSpace();
   // A swipe across the sidebar goes to the next space or the previous one;
   // the space being made is after the last.
@@ -137,7 +134,7 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
           ) : (
             // Each space's own, so one's tabs never leave or arrive in another's.
             <BrowserOfSpace key={space.id} space={space.id}>
-              <SpaceContent omnibox={omnibox} hold={hold} address={address} />
+              <SpaceContent omnibox={omnibox} address={address} />
             </BrowserOfSpace>
           )}
         </motion.div>
@@ -158,7 +155,7 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
 }
 
 /** What the sidebar shows of the space, below its toolbar: the address, the favourites and the tabs. */
-function SpaceContent({ omnibox, hold, address }: Pick<SidebarProps, "omnibox" | "hold" | "address">) {
+function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "address">) {
   const { space } = useSpace();
   const { tabs, current: active } = useBrowser();
   const selected = active?.id;
@@ -169,12 +166,7 @@ function SpaceContent({ omnibox, hold, address }: Pick<SidebarProps, "omnibox" |
   ].find((tab) => tab.id === selected);
   return (
     <>
-      <AddressField
-        tab={current}
-        onPopoverOpenChange={hold.setPopoverOpen}
-        ref={address}
-        onOpenLocation={() => omnibox.toggle("current")}
-      />
+      <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
 
       <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
         {space.favorites.map((tab) => (
@@ -192,7 +184,7 @@ function SpaceContent({ omnibox, hold, address }: Pick<SidebarProps, "omnibox" |
         ))}
       </div>
 
-      <TabList omnibox={omnibox} whileOpen={hold.whileOpen} />
+      <TabList omnibox={omnibox} />
     </>
   );
 }

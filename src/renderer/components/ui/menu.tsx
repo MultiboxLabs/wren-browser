@@ -3,8 +3,9 @@
 // or dark as the system is, not the space.
 
 import { DropdownMenu } from "radix-ui";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import type { Icon } from "./button";
+import { useHoldWhile } from "./hold";
 
 export type MenuItem<Id extends string> = { id: Id; label: string; icon?: Icon };
 
@@ -25,8 +26,10 @@ export function Menu<Id extends string>({
   onSelect: (id: Id) => void;
   commands?: MenuCommand[];
 }) {
+  const [open, setOpen] = useState(false);
+  useHoldWhile(open);
   return (
-    <DropdownMenu.Root modal={false}>
+    <DropdownMenu.Root modal={false} onOpenChange={setOpen}>
       <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content

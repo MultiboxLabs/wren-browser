@@ -4,6 +4,7 @@
 
 import { Popover as Radix } from "radix-ui";
 import type { ReactNode } from "react";
+import { useHoldWhile } from "./hold";
 
 export function Popover({
   open,
@@ -30,6 +31,7 @@ export function Popover({
   side?: "top" | "right" | "bottom" | "left";
   children: ReactNode;
 }) {
+  useHoldWhile(open);
   return (
     <Radix.Root open={open} onOpenChange={onOpenChange}>
       <Radix.Trigger asChild>{trigger}</Radix.Trigger>
