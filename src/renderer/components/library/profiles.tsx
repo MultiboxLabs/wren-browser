@@ -1,13 +1,15 @@
 // The Library's profiles: the list, with how many spaces each has, and what
-// can be done to one (opening a window for it, renaming it, deleting it).
+// can be done to one (opening a window for it, renaming it, turning its ad
+// blocker on or off, deleting it).
 
-import { AppWindow, Pencil, Trash2 } from "lucide-react";
+import { AppWindow, Pencil, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState } from "react";
-import type { ProfileEntry, SpaceEntry } from "../../ipc";
+import type { AdBlock, ProfileEntry, SpaceEntry } from "../../ipc";
+import { useAdBlock } from "../../state/library";
 import { cssColor } from "../../utils/color";
 import { DeleteDialog, RenameDialog } from "./profile-dialogs";
-import { Empty, type ListProps, Loading, LoadFailed, matches, Row, RowActions } from "./rows";
+import { Empty, type ListProps, Loading, LoadFailed, matches, Row, type RowAction, RowActions, Trailing } from "./rows";
 
 export type ProfilesProps = {
   /** Null until the app has listed them. */
@@ -48,6 +50,8 @@ export function Profiles({
     serial: number;
   } | null>(null);
   const serial = useRef(0);
+  // The selected profile's, which is the only one with its actions out.
+  const { adBlock, toggle: toggleAdBlock } = useAdBlock(selected);
   const ask = (kind: "rename" | "delete", profile: ProfileEntry) =>
     setAsked({ kind, profile, open: true, serial: ++serial.current });
   if (!profiles) return failed ? <LoadFailed what="Profiles" onRetry={onReload} /> : <Loading />;
@@ -72,6 +76,8 @@ export function Profiles({
                 actions={[
                   { label: "Open in New Window", icon: AppWindow, onPress: () => onOpenWindow(profile.id) },
                   { label: "Rename", icon: Pencil, onPress: () => ask("rename", profile) },
+                  // Left out until the profile has it.
+                  ...(adBlock ? [adBlockAction(adBlock, toggleAdBlock)] : []),
                   { label: "Delete", icon: Trash2, danger: true, onPress: () => ask("delete", profile) }
                 ]}
               />
@@ -101,13 +107,21 @@ export function Profiles({
   );
 }
 
+// Turns the profile's ad blocker on or off at once, saying which it is at its
+// end.
+function adBlockAction({ enabled, canChange }: AdBlock, onPress: () => void): RowAction {
+  return {
+    label: "Ad Blocker",
+    icon: enabled ? ShieldCheck : ShieldOff,
+    trailing: enabled ? "On" : "Off",
+    disabled: !canChange,
+    onPress
+  };
+}
+
 // How many spaces the profile has, at the row's end.
 function SpaceCount({ count }: { count: number }) {
-  return (
-    <span className="shrink-0 pr-1.5 text-subtitle text-fg-2 tabular-nums">
-      {count === 0 ? "No Spaces" : count === 1 ? "1 Space" : `${count} Spaces`}
-    </span>
-  );
+  return <Trailing>{count === 0 ? "No Spaces" : count === 1 ? "1 Space" : `${count} Spaces`}</Trailing>;
 }
 
 function ProfileTile({ name, color }: { name: string; color: string }) {
