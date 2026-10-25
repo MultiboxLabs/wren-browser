@@ -3,7 +3,7 @@
 // Rerun after changing src/main: Wren.app is bundled again only when its
 // inputs have changed.
 import { $ } from "bun";
-import { realpath } from "node:fs/promises";
+import { realpath, stat } from "node:fs/promises";
 import { app, executable, manifestOf } from "./channel";
 
 const manifest = manifestOf("dev");
@@ -18,18 +18,29 @@ async function statOf(path: string) {
   return `${path}:${size}:${mtimeMs}`;
 }
 
+/** `statOf` each file at `path`: the file itself, or each one in a folder. */
+async function statsOf(path: string) {
+  if (!(await stat(path)).isDirectory()) return [await statOf(path)];
+  const files = await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: path, onlyFiles: true }));
+  return Promise.all(files.sort().map((file) => statOf(`${path}/${file}`)));
+}
+
 /**
  * What the bundle was made from: when this is the same as the last bundle's,
  * and Wren.app has not been replaced since (by `bun run build`, which makes
- * the same app), bundling again would only make the same app.
+ * the same app), bundling again would only make the same app. The manifest
+ * names the icon and the resources it copies in.
  */
 async function bundleInputs() {
-  const icon = JSON.parse(await Bun.file(manifest).text()).icon as string;
-  const branding = await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: icon, onlyFiles: true }));
+  const { icon, resources = [] } = JSON.parse(await Bun.file(manifest).text()) as {
+    icon: string;
+    resources?: string[];
+  };
   return JSON.stringify({
     executable: await statOf(executablePath),
     manifest: await Bun.file(manifest).text(),
-    branding: await Promise.all(branding.sort().map((file) => statOf(`${icon}/${file}`))),
+    branding: await statsOf(icon),
+    resources: await Promise.all(resources.map(statsOf)),
     runtime: await realpath(".wren/runtime").catch(() => null),
     wren: (await $`wren --version`.text()).trim(),
     app: await statOf(`${app}/Contents/Info.plist`).catch(() => null)
@@ -51,7 +62,7 @@ try {
   await $`WREN_CHANNEL=dev cargo build`;
   // Rebuilding the bundle takes seconds, and nothing in it changes with the
   // pages, which are fetched from the server: only with the executable,
-  // the manifest, the icon or the runtime.
+  // the manifest, the icon, the resources or the runtime.
   if (!(await bundleIsCurrent())) {
     await Bun.file(stampPath)
       .delete()
