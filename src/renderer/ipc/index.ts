@@ -1,6 +1,7 @@
 // The renderer's side of the calls the main process answers: one file for each
 // part of the app, gathered here so pages import from "ipc" alone.
 
+export * from "./ad-block";
 export * from "./anchors";
 export * from "./app";
 export * from "./browser";

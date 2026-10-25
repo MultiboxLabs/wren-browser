@@ -10,6 +10,7 @@ use wren::{
     PopoverRequest, PopoverTrigger, Profile, QuitPrompt,
 };
 
+use crate::ad_block::AdBlock;
 use crate::changes;
 use crate::db::Db;
 use crate::ipc::{self, OmniboxTarget};
@@ -47,6 +48,12 @@ pub struct State {
     // TODO: drop this for the kind Wren 0.3.0's `profile_extensions` passes
     // (its roadmap's item 6): the pages' is the only ephemeral profile.
     making_ui_profile: Cell<bool>,
+    /// Each profile's ad blocker, as every window's page was told it last
+    /// (ipc/ad_block.rs). A deleted profile's stays: Chromium never gives
+    /// its ID to another.
+    // TODO: drop this with Wren 0.3.0's `ChangeKind::Extensions` (see
+    // `ipc::broadcast_ad_block`).
+    pub(crate) ad_blocks: RefCell<HashMap<String, Option<AdBlock>>>,
     /// Whether the main menu's Spaces menu is enabled, as it is not while a
     /// window on a profile is in front (spaces/mod.rs).
     pub(crate) spaces_menu_on: Cell<bool>,
@@ -67,6 +74,7 @@ impl State {
             quit_prompt: RefCell::default(),
             tab_switcher: Cell::default(),
             making_ui_profile: Cell::new(false),
+            ad_blocks: RefCell::default(),
             spaces_menu_on: Cell::new(true),
             tab_switcher_keys: RefCell::default(),
         }
@@ -249,6 +257,8 @@ impl App for Wren {
                 ChangeKind::ForegroundRequest if !state.is_restoring() => {
                     state.bring_forward(browser)
                 }
+                // Its profile's ad blocker may have been turned on or off.
+                ChangeKind::ExtensionActions => ipc::broadcast_ad_block(state, browser),
                 // A placeholder goes, or stays, as the tabs change; undocked
                 // DevTools shows its active tab.
                 ChangeKind::Tabs | ChangeKind::Tab => {
