@@ -9,6 +9,7 @@
     "perf": "bun run scripts/perf.ts",
     "check": "bun run scripts/cn-tables.ts && cargo check && cargo clippy --all-targets && tsc",
     "sync-bangs": "bun run scripts/sync-bangs.ts",
+    "sync-ublock": "bun run scripts/sync-ublock.ts",
     "format": "prettier --write ."
   },
   "devDependencies": {
