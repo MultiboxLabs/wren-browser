@@ -64,6 +64,13 @@ export const isFolder = (item: Tab | Folder): item is Folder => "tabs" in item;
 /** The ID the space being made is drawn with, and has its place by, after the last space. */
 export const NEW_SPACE = -1;
 
+/**
+ * What the window's colours fade with as it changes: its theme, as another
+ * space's is shown or the shown one's is changed. The space being made keeps
+ * one, as its colours are drawn at once as the user picks them.
+ */
+export const themeKey = ({ id, theme }: Space) => (id === NEW_SPACE ? "new-space" : JSON.stringify(theme));
+
 const tab = (title: string, url: string): Tab => ({ id: url, title, url });
 
 export const personal: Space = {

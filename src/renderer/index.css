@@ -120,8 +120,9 @@ body,
   --color-on-inverse: var(--on-inverse);
 }
 
-/* The space's colour is a colour, not text, so a space switched to tweens
-   from the last one's, and every colour made from it does with it. */
+/* The space's colour is a colour, not text, so it tweens from the last one,
+   and every colour made from it does with it; but not as the user picks it,
+   which is drawn at once (state/window.ts marks it). */
 @property --space {
   syntax: "<color>";
   inherits: true;
@@ -137,6 +138,10 @@ body,
   --space-shown: oklch(from var(--space) l calc(c * 0.92) h);
   /* Room the window's own buttons take at the top left. */
   --window-buttons: 0px;
+}
+
+:root[data-space-picked] {
+  transition: none;
 }
 
 /* Unfocused, the space's colour is paler: lighter, and less of it, as a

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { appWindow, follow, hasApp } from "../ipc";
 import { cssColor } from "../utils/color";
-import type { Space } from "./space";
+import { type Space, themeKey } from "./space";
 
 /**
  * Whether the window is in use, as the app says: it counts the window's
@@ -55,24 +55,29 @@ export function useFullScreen() {
  * Puts the window's look on <html>, so the colours made from it reach menus
  * and tooltips too: the space's colour and the scheme it takes, whether the
  * window is in use, and whether it is full screen. The app is told the
- * scheme, for the window around the page: its blur and its buttons. Another
- * space's colour tweens in (index.css); a change to the shown one's own is
- * at once, as the background's is.
+ * scheme, for the window around the page: its blur and its buttons. Its
+ * colour tweens as the background fades, by the same key (`themeKey`).
  */
 export function useWindowTheme(space: Space) {
   const active = useWindowActive();
   const fullScreen = useFullScreen();
   const { scheme } = space;
-  const shown = useRef(space.id);
+  // The colour tweens (index.css), unless the user picks it: then its key
+  // stays as it changes. Apart from the rest, which leave a tween as it is.
+  const key = themeKey(space);
+  const drawn = useRef(key);
   useLayoutEffect(() => {
     const root = document.documentElement;
-    root.style.transition = shown.current === space.id ? "none" : "";
-    shown.current = space.id;
+    root.toggleAttribute("data-space-picked", drawn.current === key);
+    drawn.current = key;
     root.style.setProperty("--space", cssColor(space.color));
+  }, [key, space.color]);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
     root.dataset.scheme = scheme;
     root.dataset.active = String(active);
     root.toggleAttribute("data-full-screen", fullScreen);
-  }, [space.id, space.color, scheme, active, fullScreen]);
+  }, [scheme, active, fullScreen]);
   useEffect(() => {
     if (hasApp) appWindow.setDark(scheme === "dark");
   }, [scheme]);

@@ -1,9 +1,10 @@
 // What the window is drawn with under its content: the space's theme, its
 // gradient laid across the box it fills, over the blur behind the window. As
-// another space is shown, its theme fades in as the old one fades out: added
-// together (plus-lighter), the two fades are an even mix of them, with no dip
-// or bump in how clear the window is halfway. A change to the shown space's
-// own theme is drawn at once, as the user makes it.
+// the theme changes (another space is shown, or this one's is changed), the
+// new one fades in as the old fades out: added together (plus-lighter), the
+// two fades are an even mix of them, with no dip or bump in how clear the
+// window is halfway. The space being made is drawn at once, as the user picks
+// its theme (`themeKey`).
 //
 // The theme is see-through, made to be over the window's blur, which macOS
 // tints light or dark as the theme is. A box over something else (the
@@ -13,7 +14,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useRef } from "react";
-import type { SpaceTheme } from "../ipc";
+import { type Space, themeKey } from "../state/space";
 import { useWindowActive } from "../state/window";
 import { useAspect } from "../utils/aspect";
 import { cn } from "../utils/cn";
@@ -25,13 +26,10 @@ const MATERIAL = 0.6;
 
 export function SpaceBackground({
   space,
-  theme,
   material = false,
   className
 }: {
-  /** The space the theme is of, by its ID: another's fades in. */
-  space: number;
-  theme: SpaceTheme;
+  space: Space;
   /** Over something other than the window's blur: a stand-in for it is under the theme. */
   material?: boolean;
   className?: string;
@@ -45,7 +43,7 @@ export function SpaceBackground({
     <div ref={box} aria-hidden className={cn("pointer-events-none isolate overflow-hidden", className)}>
       <AnimatePresence initial={false}>
         <motion.div
-          key={space}
+          key={themeKey(space)}
           className="absolute inset-0 mix-blend-plus-lighter"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -53,7 +51,7 @@ export function SpaceBackground({
           // As the space's colour tweens, in index.css.
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
-          <ThemeLayers theme={theme} layout={{ aspect, active, material: material ? MATERIAL : 0 }} />
+          <ThemeLayers theme={space.theme} layout={{ aspect, active, material: material ? MATERIAL : 0 }} />
         </motion.div>
       </AnimatePresence>
     </div>
