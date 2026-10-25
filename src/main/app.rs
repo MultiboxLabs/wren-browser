@@ -13,7 +13,7 @@ use wren::{
 use crate::ad_block::AdBlock;
 use crate::changes;
 use crate::db::Db;
-use crate::ipc::{self, OmniboxTarget};
+use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::keyboard::KeyWatch;
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
@@ -380,7 +380,19 @@ impl App for Wren {
     // right, Chromium's and the app's own alike, and the bar at the active
     // tab's. The page hears of one once Chromium's call is over, when the
     // request is open. The rest of Chromium's popovers are its own still.
+    // The zoom is a toast of the app's instead ("110%"), one for each change,
+    // through the Browser's toast queue as the rest; Chromium's bubble
+    // does not show.
     fn popover(&self, mt: MainThread, request: &PopoverRequest) -> PopoverAnswer {
+        if request.kind == PopoverKind::Zoom {
+            let browser = request.browser.clone();
+            mt.later(move |_| {
+                if let Ok(zoom) = browser.zoom_state() {
+                    let _ = ipc::show_toast(&browser, OwnToast::Zoom(zoom.percent));
+                }
+            });
+            return PopoverAnswer::None;
+        }
         if !matches!(request.kind, PopoverKind::Toast | PopoverKind::Find) {
             return PopoverAnswer::Chromium;
         }

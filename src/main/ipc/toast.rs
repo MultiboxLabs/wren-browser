@@ -1,7 +1,7 @@
 // The toast showing: Chromium's ("Link copied") or the app's own (Copy
-// URL's), which come through the Browser's toast queue alike. The app
-// answers their requests with its own (`App::popover`), which the page draws
-// (pages/ui/toast.tsx); Chromium still decides when each goes.
+// URL's, the zoom level's), which come through the Browser's toast queue
+// alike. The app answers their requests with its own (`App::popover`), which
+// the page draws (pages/ui/toast.tsx); Chromium still decides when each goes.
 
 use serde::{Deserialize, Serialize};
 use wren::unstable_ui::UIText;
@@ -18,15 +18,29 @@ const EMBEDDER: &str = "Embedder";
 #[derive(Clone, Copy)]
 pub enum OwnToast {
     UrlCopied,
+    /// The active tab's zoom level, as Chrome shows it ("110%"): one for
+    /// each change, in place of Chromium's zoom bubble.
+    Zoom(i32),
 }
 
 impl OwnToast {
-    const ALL: [OwnToast; 1] = [OwnToast::UrlCopied];
-
-    fn text(self) -> &'static str {
+    fn text(self) -> String {
         match self {
-            OwnToast::UrlCopied => "Copied Current URL",
+            OwnToast::UrlCopied => "Copied Current URL".into(),
+            OwnToast::Zoom(percent) => format!("{percent}%"),
         }
+    }
+
+    // Which of the app's a toast named "Embedder" is, by its text.
+    // TODO: remove once Wren_ShowToast takes a name, which Chromium reports
+    // as the toast's in place of "Embedder"; show_toast passes name() then.
+    fn from_text(text: &str) -> Option<OwnToast> {
+        if let Some(percent) = text.strip_suffix('%').and_then(|n| n.parse().ok()) {
+            return Some(OwnToast::Zoom(percent));
+        }
+        [OwnToast::UrlCopied]
+            .into_iter()
+            .find(|own| own.text() == text)
     }
 
     // Its name for the page, which draws its icon by it, as by Chromium's
@@ -34,6 +48,7 @@ impl OwnToast {
     fn name(self) -> &'static str {
         match self {
             OwnToast::UrlCopied => "UrlCopied",
+            OwnToast::Zoom(_) => "Zoom",
         }
     }
 }
@@ -45,7 +60,7 @@ struct Toast {
     /// The request's, which "toast.press" and "toast.close" name.
     id: u64,
     /// Chromium's name for it ("LinkCopied", "AddedToReadingList"), or the
-    /// app's for one of its own ("UrlCopied").
+    /// app's for one of its own ("UrlCopied", "Zoom").
     name: String,
     text: String,
     /// Its button's text, if it has one.
@@ -98,7 +113,7 @@ impl Named {
 
 /// Shows one of the app's toasts, as Chromium shows its own.
 pub fn show_toast(browser: &Browser, toast: OwnToast) -> Result<(), Error> {
-    browser.show_toast(toast.text(), None)
+    browser.show_toast(&toast.text(), None)
 }
 
 /// Tells the page a toast came or went.
@@ -121,7 +136,7 @@ fn toast(browser: &Browser) -> Option<Toast> {
     let text = popover.text(UIText::Title);
     let mut name = popover.toast_name();
     if name == EMBEDDER
-        && let Some(own) = OwnToast::ALL.into_iter().find(|own| own.text() == text)
+        && let Some(own) = OwnToast::from_text(&text)
     {
         name = own.name().into();
     }

@@ -1,6 +1,7 @@
 // The window's toast, at its top right: Chromium's ("Link
 // copied") and the app's own (⇧⌘C's) alike, which the app answers in place
-// of Chromium's. Chromium decides when each goes.
+// of Chromium's. Chromium decides when each goes. The zoom level's ("110%")
+// is bare: text alone.
 
 import { Glasses, Image, Link, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
@@ -38,7 +39,11 @@ export function BrowserToast() {
   );
 }
 
+// The app's toasts that show their text alone.
+const bare = new Set(["Zoom"]);
+
 function toastIcon(toast: Toast): ReactNode {
+  if (bare.has(toast.name)) return null;
   if (toast.busy) return <LoaderCircle size={15} strokeWidth={2} className="animate-spin" />;
   const Own = icons[toast.name];
   if (Own) return <Own size={15} strokeWidth={2} />;
