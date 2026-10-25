@@ -5,15 +5,18 @@
 // button (or, with no Cancel button, its default one, which is all it
 // answers with); and a click on the window behind it does nothing. It is
 // light or dark as the system is, not the space; what dims the window is as
-// the window is. While one of Chromium's dialogs blocks the window, it is
-// hidden, as is what dims the window, and takes nothing; it stays open, as
-// it was, and comes back once Chromium's has gone.
+// the window is. One asked for while another is up waits its turn, as a
+// window's sheets do (dialog-turn.ts). While one of Chromium's dialogs
+// blocks the window, it is hidden, as is what dims the window, and takes
+// nothing; it stays open, as it was, and comes back once Chromium's has
+// gone.
 
 import { CornerDownLeft, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Dialog as Radix } from "radix-ui";
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "./button";
+import { useDialogTurn } from "./dialog-turn";
 import { useHoldWhile } from "./hold";
 import { useWindowBlocked } from "../../state/window";
 import { cn } from "../../utils/cn";
@@ -62,11 +65,19 @@ export type DialogProps = {
 export function Dialog(props: DialogProps) {
   useHoldWhile(props.open);
   const blocked = useWindowBlocked();
+  // Whether its card is on screen, or still going: the next dialog's turn
+  // comes once it has gone, not as it starts to.
+  const [present, setPresent] = useState(false);
+  const shown = useDialogTurn(props.open || present) && props.open;
+  if (shown && !present) setPresent(true);
   return (
-    <Radix.Root open={props.open} onOpenChange={props.onOpenChange}>
+    <Radix.Root open={shown} onOpenChange={props.onOpenChange}>
       {/* The card is made afresh each time it opens, so nothing of the last
-          time (a press still waited on) is left in it. */}
-      <AnimatePresence>{props.open && <Card key="dialog" {...props} hidden={blocked} />}</AnimatePresence>
+          time (a press still waited on) is left in it. One waiting its turn
+          has none, so it takes neither the keyboard nor Escape. */}
+      <AnimatePresence onExitComplete={() => setPresent(false)}>
+        {shown && <Card key="dialog" {...props} hidden={blocked} />}
+      </AnimatePresence>
     </Radix.Root>
   );
 }
