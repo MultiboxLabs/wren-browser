@@ -5,14 +5,17 @@
 // button (or, with no Cancel button, its default one, which is all it
 // answers with); and a click on the window behind it does nothing. It is
 // light or dark as the system is, not the space; what dims the window is as
-// the window is.
+// the window is. While one of Chromium's dialogs blocks the window, it is
+// hidden, as is what dims the window, and takes nothing; it stays open, as
+// it was, and comes back once Chromium's has gone.
 
 import { CornerDownLeft, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Dialog as Radix } from "radix-ui";
-import { type KeyboardEvent, type ReactNode, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Button } from "./button";
 import { useHoldWhile } from "./hold";
+import { useWindowBlocked } from "../../state/window";
 import { cn } from "../../utils/cn";
 
 /** The dialog's default button. */
@@ -58,11 +61,12 @@ export type DialogProps = {
 
 export function Dialog(props: DialogProps) {
   useHoldWhile(props.open);
+  const blocked = useWindowBlocked();
   return (
     <Radix.Root open={props.open} onOpenChange={props.onOpenChange}>
       {/* The card is made afresh each time it opens, so nothing of the last
           time (a press still waited on) is left in it. */}
-      <AnimatePresence>{props.open && <Card key="dialog" {...props} />}</AnimatePresence>
+      <AnimatePresence>{props.open && <Card key="dialog" {...props} hidden={blocked} />}</AnimatePresence>
     </Radix.Root>
   );
 }
@@ -92,8 +96,9 @@ function Card({
   secondary,
   keys: showKeys = false,
   className,
-  children
-}: DialogProps) {
+  children,
+  hidden
+}: DialogProps & { hidden: boolean }) {
   const still = useReducedMotion();
   // Its scale, as a transform: Motion runs that on the compositor, where
   // its `scale` would run on the main thread, which drops frames while a
@@ -106,6 +111,19 @@ function Card({
   // waited long enough to say so.
   const [pending, setPending] = useState(false);
   const [slow, setSlow] = useState(false);
+
+  // A field takes the keyboard, as in a native dialog; with none, the
+  // dialog does, and no button shows a focus ring it was not asked for.
+  const focus = () => {
+    const field = card.current?.querySelector<HTMLElement>("input:not(:disabled), textarea:not(:disabled)");
+    (field ?? card.current)?.focus();
+  };
+  // Hidden, it lost the keyboard; it takes it back as it comes back.
+  const wasHidden = useRef(hidden);
+  useEffect(() => {
+    if (wasHidden.current && !hidden) focus();
+    wasHidden.current = hidden;
+  }, [hidden]);
 
   const close = () => {
     if (!pending) onOpenChange(false);
@@ -149,24 +167,21 @@ function Card({
             title bar while a dialog is up. */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1, transition: IN }}
+          animate={hidden ? { opacity: 0, transition: OUT } : { opacity: 1, transition: IN }}
           exit={{ opacity: 0, transition: OUT }}
           className="dialog-scrim drag fixed inset-0 z-50"
         />
       </Radix.Overlay>
-      <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center p-5">
+      <div inert={hidden} className="pointer-events-none fixed inset-0 z-50 grid place-items-center p-5">
         <Radix.Content
           asChild
           forceMount
           ref={card}
           // Radix ties it to its description; without one, to nothing.
           {...(description === undefined && { "aria-describedby": undefined })}
-          // A field takes the keyboard, as in a native dialog; with none, the
-          // dialog does, and no button shows a focus ring it was not asked for.
           onOpenAutoFocus={(event) => {
             event.preventDefault();
-            const field = card.current?.querySelector<HTMLElement>("input:not(:disabled), textarea:not(:disabled)");
-            (field ?? card.current)?.focus();
+            focus();
           }}
           onEscapeKeyDown={(event) => {
             if (pending) return event.preventDefault();
@@ -183,7 +198,9 @@ function Card({
               middle: it hangs off no control, but the window. */}
           <motion.div
             initial={{ opacity: 0, ...grown(0.96) }}
-            animate={{ opacity: 1, ...grown(1), transition: IN }}
+            animate={
+              hidden ? { opacity: 0, ...grown(0.97), transition: OUT } : { opacity: 1, ...grown(1), transition: IN }
+            }
             exit={{ opacity: 0, ...grown(0.97), transition: OUT }}
             data-scheme="system"
             className={cn(
