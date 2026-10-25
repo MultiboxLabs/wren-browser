@@ -14,8 +14,9 @@ import { appWindow, hasApp } from "../../ipc";
 import { LIBRARY_RAIL, type LibraryMotion, windowButtonsShift } from "../library/motion";
 
 /**
- * How the sidebar is shown: docked beside the page
- * (anchored), over the page from the left edge (floating), or off screen.
+ * How the sidebar is shown: docked beside the page (anchored), or, as it
+ * floats, out over the page from the left edge (floating) or away off
+ * screen (hidden).
  */
 export type Presentation = "anchored" | "floating" | "hidden";
 

@@ -1,9 +1,10 @@
 // How the sidebar is shown, and what changes it: its button and the main
-// menu's Toggle Sidebar, the pointer at the window's left edge, and what it
-// opened holding it out while it floats. And its width, kept between runs,
-// and whether the Library is open in its place.
+// menu's Toggle Sidebar dock it or float it; floating, it is out while the
+// pointer is over it (or at the window's left edge) or something it opened
+// is open, and away otherwise. And its width, kept between runs, and
+// whether the Library is open in its place.
 
-import { type RefObject, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { hasApp, menu, type SidebarState } from "../../ipc";
 import { useBrowser } from "../../state/browser";
 import { useLibraryMotion } from "../library/motion";
@@ -21,45 +22,28 @@ export type SidebarHold = {
   setPopoverOpen: (open: boolean) => void;
 };
 
-/**
- * `omniboxShown`: the omnibox is open, which holds the floating sidebar out
- * too. `box`: the sidebar's box, which the pointer is over or not.
- */
-export function useSidebarPresentation(
-  saved: SidebarState | null,
-  omniboxShown: boolean,
-  box: RefObject<HTMLElement | null>
-) {
-  const [presentation, setPresentation] = useState<Presentation>(saved?.open === false ? "hidden" : "anchored");
-  const open = presentation === "anchored";
+/** `omniboxShown`: the omnibox is open, which holds the floating sidebar out too. */
+export function useSidebarPresentation(saved: SidebarState | null, omniboxShown: boolean) {
+  // Docked beside the page, or floating over it: the user's choice, kept
+  // between runs. Only floating is it ever away.
+  const [docked, setDocked] = useState(saved?.open !== false);
   const [width, setWidth] = useState(() =>
     Math.min(SIDEBAR_WIDTH.max, Math.max(SIDEBAR_WIDTH.min, saved?.width ?? SIDEBAR_WIDTH.initial))
   );
-  // Floating is only for a moment, so it is kept as hidden; the width, once
-  // the drag that sets it is over.
+  // The width, once the drag that sets it is over.
   const save = useSaveSidebar(saved);
-  useEffect(() => save({ open, width }), [open]);
-  // The Library, which takes the sidebar's place while it is open.
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const library = useLibraryMotion(libraryOpen);
-  const motion = useSidebarMotion(presentation, width, library.rail);
-  useWindowButtons(motion.box, library);
-  const hovered = () => box.current?.matches(":hover") ?? false;
-
-  const float = () => setPresentation((shown) => (shown === "hidden" ? "floating" : shown));
-  const away = () => setPresentation((shown) => (shown === "floating" ? "hidden" : shown));
-
-  // Hidden with the pointer over it, the sidebar floats until the pointer
-  // leaves, rather than sliding out from under it.
-  const toggle = () =>
-    setPresentation((shown) => (shown !== "anchored" ? "anchored" : hovered() ? "floating" : "hidden"));
+  useEffect(() => save({ open: docked, width }), [docked]);
+  const toggle = () => setDocked((docked) => !docked);
   useEffect(() => (hasApp ? menu.onToggleSidebar(toggle) : undefined), []);
 
-  // Something of the sidebar's that is open keeps it out while it floats,
-  // though the pointer goes over to it: the page info popover, one of
-  // Chromium's bubbles hanging off its buttons, a tab's or a group's menu,
-  // the omnibox over its address field. Once that closes, the sidebar goes,
-  // unless the pointer is back over it.
+  // Whether the pointer is over it, or at the window's left edge, which
+  // brings it out.
+  const [pointerOver, setPointerOver] = useState(false);
+  // Something of the sidebar's that is open keeps it out too, though the
+  // pointer goes over to it: the page info popover, one of Chromium's
+  // bubbles hanging off its buttons (which brings it out, for the bubble to
+  // hang off: a permission prompt, an extension's popup from its shortcut),
+  // a tab's or a group's menu, the omnibox over its address field.
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [menusOpen, setMenusOpen] = useState(0);
   const bubbleOpen = useBrowser().showing.length > 0;
@@ -70,31 +54,30 @@ export function useSidebarPresentation(
     shown.then(closed, closed);
     return shown;
   };
-  useEffect(() => {
-    if (!held && !hovered()) away();
-  }, [held]);
-  // A bubble that opens off one of its buttons while it is hidden (a
-  // permission prompt, an extension's popup from its shortcut) brings it
-  // out floating, for the bubble to hang off.
-  useEffect(() => {
-    if (bubbleOpen) float();
-  }, [bubbleOpen]);
+  // Floating, it is out while either keeps it out, and goes once neither does.
+  const presentation: Presentation = docked ? "anchored" : pointerOver || held ? "floating" : "hidden";
+
+  // The Library, which takes the sidebar's place while it is open.
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const library = useLibraryMotion(libraryOpen);
+  const motion = useSidebarMotion(presentation, width, library.rail);
+  useWindowButtons(motion.box, library);
 
   return {
     presentation,
     /** Docked beside the page. */
-    open,
+    open: docked,
     width,
     setWidth,
     /** A drag of its edge is over: the width it left is kept. */
-    endResize: () => save({ open, width }),
+    endResize: () => save({ open: docked, width }),
     motion,
     library: { open: libraryOpen, setOpen: setLibraryOpen, motion: library },
     toggle,
-    /** The pointer at the window's left edge brings the hidden sidebar out. */
-    reveal: float,
-    /** The pointer left it: floating, it goes, unless something holds it out. */
-    leave: () => held || away(),
+    /** The pointer came over it, or to the window's left edge. */
+    enter: () => setPointerOver(true),
+    /** The pointer left it. */
+    leave: () => setPointerOver(false),
     hold: { whileOpen, setPopoverOpen } satisfies SidebarHold
   };
 }

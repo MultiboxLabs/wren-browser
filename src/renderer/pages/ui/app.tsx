@@ -57,8 +57,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     if (space.id !== lastSpace.current) omnibox.done();
     lastSpace.current = space.id;
   }, [space.id]);
-  const box = useRef<HTMLElement>(null);
-  const sidebar = useSidebarPresentation(saved, omnibox.shown !== null, box);
+  const sidebar = useSidebarPresentation(saved, omnibox.shown !== null);
 
   return (
     <>
@@ -84,14 +83,14 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
 
         {/* Where the pointer brings the hidden sidebar out. */}
         {!sidebar.open && !fullScreen && (
-          <div className="no-drag fixed inset-y-0 left-0 w-2.5" onPointerEnter={sidebar.reveal} />
+          <div className="no-drag fixed inset-y-0 left-0 w-2.5" onPointerEnter={sidebar.enter} />
         )}
         <motion.aside
-          ref={box}
           // Kept while hidden, so it slides away and back as it was.
           inert={sidebar.presentation === "hidden" || fullScreen !== undefined}
           style={sidebar.motion.box}
           className={cn("fixed pl-2", !sidebar.open && "no-drag", fullScreen && "hidden")}
+          onPointerEnter={sidebar.enter}
           onPointerLeave={sidebar.leave}
         >
           <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel">
