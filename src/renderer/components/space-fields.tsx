@@ -1,14 +1,13 @@
 // What a space's editors share, the Library's dialog and the sidebar's form
 // for a new one: the popovers that choose its icon and its theme, each opened
-// by a control of the editor's own, and the dialog's controls for them.
+// by a control of the editor's own.
 
 import { type ReactNode, useState } from "react";
 import type { SpaceTheme } from "../ipc";
 import { useWindowAspect } from "../utils/aspect";
 import { arrowFill } from "../utils/theme";
-import { isEmoji, SPACE_ICONS, SpaceIcon } from "./space-icon";
+import { isEmoji, SPACE_ICONS } from "./space-icon";
 import { ThemePicker } from "./theme-picker/theme-picker";
-import { ThemeSwatch } from "./theme-swatch";
 import { Button } from "./ui/button";
 import { Popover } from "./ui/popover";
 import { TextField } from "./ui/text-field";
@@ -94,47 +93,5 @@ export function ThemePopover({
         <ThemePicker value={theme} onChange={onChange} className="rounded-none" />
       </div>
     </Popover>
-  );
-}
-
-/** The space's icon on its theme, as a field's square, which opens the icons. */
-export function IconButton({
-  icon,
-  theme,
-  onChange
-}: {
-  icon: string;
-  theme: SpaceTheme;
-  onChange: (icon: string) => void;
-}) {
-  return (
-    <IconPopover
-      icon={icon}
-      onChange={onChange}
-      trigger={
-        <Button shape="none" label="Icon" className="size-9 rounded-[9px]">
-          <ThemeSwatch theme={theme} className="size-9 rounded-[9px]">
-            <SpaceIcon icon={icon} />
-          </ThemeSwatch>
-        </Button>
-      }
-    />
-  );
-}
-
-/** The theme, drawn on a bar that opens the picker. */
-export function ThemeButton({ theme, onChange }: { theme: SpaceTheme; onChange: (theme: SpaceTheme) => void }) {
-  return (
-    <ThemePopover
-      theme={theme}
-      onChange={onChange}
-      trigger={
-        <Button shape="none" className="h-9 w-full rounded-field">
-          <ThemeSwatch theme={theme} className="h-9 w-full rounded-field" contentClassName="font-medium">
-            Theme
-          </ThemeSwatch>
-        </Button>
-      }
-    />
   );
 }

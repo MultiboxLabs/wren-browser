@@ -1,6 +1,6 @@
 // The sidebar of the space the window makes, in place of a space's content
-// while the window is on none. Its icon heads it, large, which opens the
-// icons too; it says what a space is, then asks: its name first, then a
+// while the window is on none. Its icon heads it, large, as a picture of
+// it; it says what a space is, then asks: its name first, then a
 // group of rows, each labelled with what it chooses and showing
 // what is chosen (its icon, its profile, its theme), each opening a popover
 // or a menu; then Create and Cancel at the foot. The window is drawn with
@@ -11,7 +11,7 @@
 import { ChevronRight, ChevronsUpDown } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useRef, useState } from "react";
 import { useProfiles } from "../../state/library";
-import type { NewSpaceState } from "../../state/new-space";
+import type { NewSpaceState, SpaceDraft } from "../../state/new-space";
 import { CreateDialog } from "../library/profile-dialogs";
 import { IconPopover, ThemePopover } from "../space-fields";
 import { SpaceIcon } from "../space-icon";
@@ -19,10 +19,6 @@ import { ThemeSwatch } from "../theme-swatch";
 import { Button } from "../ui/button";
 import { Menu } from "../ui/menu";
 import { TextField } from "../ui/text-field";
-
-// The profile menu's item that opens the New Profile dialog, rather than
-// choosing a profile.
-const NEW_PROFILE = "+new-profile";
 
 export function NewSpaceForm({ state }: { state: NewSpaceState }) {
   const { draft, change, ready } = state;
@@ -35,7 +31,7 @@ export function NewSpaceForm({ state }: { state: NewSpaceState }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   // Anything changed is worth trying again.
-  const edit = (next: Parameters<typeof change>[0]) => {
+  const edit = (next: Partial<SpaceDraft>) => {
     change(next);
     setFailed(false);
   };
@@ -63,20 +59,13 @@ export function NewSpaceForm({ state }: { state: NewSpaceState }) {
         {/* Room above, and half as much again below: it sits a little above the middle. */}
         <div className="flex-2" />
         <div className="flex flex-col items-center gap-1 px-2 pb-5 text-center text-balance">
-          <IconPopover
-            icon={draft.icon}
-            onChange={(icon) => edit({ icon })}
-            trigger={
-              <Button
-                variant="filled"
-                shape="none"
-                label="Choose Icon"
-                className="mb-3 grid size-16 place-items-center rounded-[18px] text-fg shadow-raised"
-              >
-                <SpaceIcon icon={draft.icon} size={30} strokeWidth={1.75} />
-              </Button>
-            }
-          />
+          {/* Only a picture of it: the Icon row below chooses it. */}
+          <span
+            aria-hidden
+            className="mb-3 grid size-16 place-items-center rounded-[18px] bg-fill text-fg shadow-raised"
+          >
+            <SpaceIcon icon={draft.icon} size={30} strokeWidth={1.75} />
+          </span>
           <h2 className="text-dialog-title font-semibold text-fg">New Space</h2>
           <p className="leading-normal text-fg-2">
             {failed
@@ -112,10 +101,11 @@ export function NewSpaceForm({ state }: { state: NewSpaceState }) {
           <Separator />
           <Menu
             checked={state.profile ?? undefined}
-            onSelect={(profile) =>
-              profile === NEW_PROFILE ? setNewProfile({ open: true, serial: ++serial.current }) : edit({ profile })
-            }
-            items={[...listed.map(({ id, name }) => ({ id, label: name })), { id: NEW_PROFILE, label: "New Profile…" }]}
+            onSelect={(profile) => edit({ profile })}
+            items={listed.map(({ id, name }) => ({ id, label: name }))}
+            commands={[
+              { label: "New Profile…", onSelect: () => setNewProfile({ open: true, serial: ++serial.current }) }
+            ]}
             trigger={
               <Button {...ROW}>
                 <span className="flex-1">Profile</span>

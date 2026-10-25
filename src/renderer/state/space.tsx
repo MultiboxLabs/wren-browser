@@ -21,7 +21,7 @@ import {
 import { OFF_THE_RECORD_ICON, PROFILE_ICON } from "../components/space-icon";
 import { contentScheme, defaultTheme, primaryHex } from "../utils/theme";
 import { useProfiles, useSpaces } from "./library";
-import { type NewSpaceState, useNewSpace } from "./new-space";
+import { NO_PROFILE_COLOR, type NewSpaceState, type SpaceDraft, useNewSpace } from "./new-space";
 import { type SpaceSlide, useSpaceSlide } from "./space-slide";
 
 /** A tab of the Browser, by its ID, or a made-up favourite or pinned one, by its address. */
@@ -118,11 +118,11 @@ const ofProfile = ({ id, offTheRecord }: WindowProfile, entry: ProfileEntry | un
   drawn(0, {
     name: offTheRecord ? "Incognito" : (entry?.name ?? id),
     icon: offTheRecord ? OFF_THE_RECORD_ICON : PROFILE_ICON,
-    theme: offTheRecord ? OFF_THE_RECORD_THEME : defaultTheme(entry?.color ?? "#8e8e93")
+    theme: offTheRecord ? OFF_THE_RECORD_THEME : defaultTheme(entry?.color ?? NO_PROFILE_COLOR)
   });
 
 /** The space being made, as it is so far. */
-const ofDraft = ({ draft }: NewSpaceState): Space =>
+const ofDraft = (draft: SpaceDraft): Space =>
   drawn(NEW_SPACE, { name: draft.name.trim() || "New Space", icon: draft.icon, theme: draft.theme });
 
 type SpaceState = {
@@ -176,22 +176,22 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   const order = (id: number) => (id === NEW_SPACE ? spaces.length : spaces.findIndex((space) => space.id === id));
   const slide = useSpaceSlide(at, order);
   const newSpace = useNewSpace(making, listed, slide);
+  const draft = newSpace.state?.draft;
   const entry = spaces.find(({ id }) => id === current);
   const profileEntry = profile ? listed?.find(({ id }) => id === profile.id) : undefined;
   // Until the spaces are read, the made-up one stands in, as the window's.
-  // The draft is new with each change, and null while nothing is being made.
   const space = useMemo(
     () =>
       profile
         ? ofProfile(profile, profileEntry)
-        : newSpace.state
-          ? ofDraft(newSpace.state)
+        : draft
+          ? ofDraft(draft)
           : entry
             ? drawn(entry.id, entry)
             : current === null
               ? madeUp
               : { ...madeUp, id: current },
-    [profile, profileEntry, newSpace.state, entry, madeUp, current]
+    [profile, profileEntry, draft, entry, madeUp, current]
   );
 
   // The content slides out toward `to`'s place, then `then` runs; at once

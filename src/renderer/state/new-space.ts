@@ -1,15 +1,14 @@
 // The space a window makes while it is on none: what the user has chosen so
 // far, which the window is drawn with, and making it.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { appWindow, type ProfileEntry, type SpaceTheme, spaces } from "../ipc";
 import { DEFAULT_ICON } from "../components/space-icon";
 import { defaultTheme } from "../utils/theme";
 import type { SpaceSlide } from "./space-slide";
 
-// What a new space is coloured by when its profile's colour is not known:
-// the profiles are not read yet.
-const NO_PROFILE_COLOR = "#8e8e93";
+/** What is coloured by a profile while its colour is not known: the profiles are not read yet. */
+export const NO_PROFILE_COLOR = "#8e8e93";
 
 export type SpaceDraft = {
   name: string;
@@ -49,8 +48,9 @@ export function useNewSpace(making: boolean, listed: ProfileEntry[] | null, slid
     const color = listed?.find(({ id }) => id === (profile ?? listed[0]?.id))?.color;
     return { name: "", icon: DEFAULT_ICON, theme: defaultTheme(color ?? NO_PROFILE_COLOR), profile: profile ?? null };
   };
-  // A page loaded while the window was on no space has started none.
-  const draft = started ?? fresh();
+  // A page loaded while the window was on no space has started none. It is
+  // the same object until it changes, so the space drawn of it is too.
+  const draft = useMemo(() => started ?? fresh(), [started, listed]);
   const change = (change: Partial<SpaceDraft>) => setDraft((draft) => ({ ...(draft ?? fresh()), ...change }));
   const profile = draft.profile ?? listed?.[0]?.id ?? null;
   const ready = draft.name.trim() !== "" && profile !== null;

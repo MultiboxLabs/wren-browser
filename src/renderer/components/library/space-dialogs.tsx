@@ -6,7 +6,10 @@
 
 import { useState } from "react";
 import type { NewSpace, SpaceEntry, SpaceTheme } from "../../ipc";
-import { IconButton, ThemeButton } from "../space-fields";
+import { IconPopover, ThemePopover } from "../space-fields";
+import { SpaceIcon } from "../space-icon";
+import { ThemeSwatch } from "../theme-swatch";
+import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { TextField } from "../ui/text-field";
 
@@ -121,6 +124,40 @@ export function CannotDeleteSpaceAlert({
       description="Wren needs at least one space, and this is its only one."
       cancel={null}
       action={{ label: "OK", onPress: () => {} }}
+    />
+  );
+}
+
+/** The space's icon on its theme, as a field's square, which opens the icons. */
+function IconButton({ icon, theme, onChange }: { icon: string; theme: SpaceTheme; onChange: (icon: string) => void }) {
+  return (
+    <IconPopover
+      icon={icon}
+      onChange={onChange}
+      trigger={
+        <Button shape="none" label="Icon" className="size-9 rounded-[9px]">
+          <ThemeSwatch theme={theme} className="size-9 rounded-[9px]">
+            <SpaceIcon icon={icon} />
+          </ThemeSwatch>
+        </Button>
+      }
+    />
+  );
+}
+
+/** The theme, drawn on a bar that opens the picker. */
+function ThemeButton({ theme, onChange }: { theme: SpaceTheme; onChange: (theme: SpaceTheme) => void }) {
+  return (
+    <ThemePopover
+      theme={theme}
+      onChange={onChange}
+      trigger={
+        <Button shape="none" className="h-9 w-full rounded-field">
+          <ThemeSwatch theme={theme} className="h-9 w-full rounded-field" contentClassName="font-medium">
+            Theme
+          </ThemeSwatch>
+        </Button>
+      }
     />
   );
 }
