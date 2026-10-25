@@ -23,6 +23,8 @@ function FindField({ find: { bar, request, claim } }: { find: FindState }) {
   const still = useReducedMotion();
   // What the field holds: what the user types, ahead of Chromium's word on
   // it, and what a find opening has, which may be a selection in the page.
+  // The field takes the keyboard only when the opening asks it to: a find
+  // that opens by itself, as a tab with one comes back, leaves it where it is.
   const [text, setText] = useState(bar.query);
   useEffect(() => {
     if (!request || !claim()) return;
@@ -62,7 +64,6 @@ function FindField({ find: { bar, request, claim } }: { find: FindState }) {
     >
       <input
         ref={input}
-        autoFocus
         value={text}
         onChange={(event) => {
           setText(event.target.value);
