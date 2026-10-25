@@ -43,7 +43,8 @@ const transition = { duration: 0.15, ease: [0.25, 1, 0.5, 1] } as const;
  * keeps the shape it had, and takes the shape it is coming back as while it
  * is off screen. Between docked and floating, it eases onto or off its
  * panel where it is, and the page takes its new width at once rather than
- * tweening behind it.
+ * tweening behind it. Floating, the panel is filled from the start, as the
+ * page is under it at once; only its shadow and edge ease in.
  *
  * `width` is the docked sidebar's, its left padding in it. With the Library
  * open, it is wider by the Library's rail, as far as `rail` is in, and the
@@ -53,6 +54,10 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
   const docked = useMotionValue(presentation === "anchored" ? 1 : 0);
   const shown = useMotionValue(presentation === "hidden" ? 0 : 1);
   const floating = useMotionValue(presentation === "floating" ? 1 : 0);
+  // How much of its panel's fill shows: all of it at once as it floats, as
+  // the page is under it from the first frame; fading as it docks, over
+  // the window's own background.
+  const fill = useMotionValue(presentation === "floating" ? 1 : 0);
   const sidebarWidth = useMotionValue(width);
   // With reduced motion, it is where it goes at once.
   const reduceMotion = useReducedMotion();
@@ -63,6 +68,8 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
       instantly ? value.jump(target) : animate(value, target, transition);
     const staying = presentation !== "hidden" && shown.get() === 1;
     if (presentation !== "hidden") to(floating, presentation === "floating" ? 1 : 0, reduceMotion || shown.get() === 0);
+    if (presentation === "floating") fill.jump(1);
+    if (presentation === "anchored") to(fill, 0, reduceMotion || shown.get() === 0);
     to(docked, presentation === "anchored" ? 1 : 0, reduceMotion || staying);
     to(shown, presentation === "hidden" ? 0 : 1);
   }, [presentation]);
@@ -70,8 +77,9 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
   // As wide as it is shown: the docked width, and the Library's rail.
   const shownWidth = useTransform(() => sidebarWidth.get() + LIBRARY_RAIL * rail.get());
   const inset = useTransform(() => PEEK_INSET * floating.get());
-  // Floating, it is as wide again as its left padding, to pad its right.
-  const padding = useTransform(() => 8 * floating.get());
+  // Floating, it is as wide again as its left padding, to pad its right:
+  // as its fill is, at once, over the gap the page takes as it floats.
+  const padding = useTransform(() => 8 * fill.get());
   const hiddenLeft = useTransform(() => -(shownWidth.get() + 8 + PEEK_INSET + SHADOW_REACH));
   return {
     /** The room left of the page: the docked sidebar and the gap after it, or the page's inset. */
@@ -89,9 +97,11 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
       paddingRight: padding
     },
     panel: {
-      opacity: floating,
+      opacity: fill,
       // Off, it is hidden rather than transparent: its blur costs either way.
-      visibility: useTransform(() => (floating.get() === 0 ? "hidden" : "visible"))
+      visibility: useTransform(() => (fill.get() === 0 ? "hidden" : "visible")),
+      // Its shadow and edge (`.peek`) ease in as it eases onto it.
+      "--peek": floating
     }
   };
 }
