@@ -19,6 +19,13 @@ export type ThemeSwatchProps = {
   contentClassName?: string;
   /** A `div`, for children that are blocks. */
   as?: "span" | "div";
+  /**
+   * Lifted off what it is on by a soft shadow, as an app's icon is: for one
+   * drawn on the window, whose own theme it may be (a space's, on its own
+   * window), and which it would not show on otherwise. Every such swatch has
+   * it, so each looks as the others do.
+   */
+  lifted?: boolean;
   children?: ReactNode;
 };
 
@@ -39,12 +46,22 @@ export function ThemeLayers({ theme, layout }: { theme: SpaceTheme; layout: Them
   );
 }
 
-export function ThemeSwatch({ theme, className, contentClassName, as: Tag = "span", children }: ThemeSwatchProps) {
+export function ThemeSwatch({
+  theme,
+  className,
+  contentClassName,
+  as: Tag = "span",
+  lifted = false,
+  children
+}: ThemeSwatchProps) {
   const box = useRef<HTMLDivElement & HTMLSpanElement>(null);
   const aspect = useAspect(box);
   const windowAspect = useWindowAspect();
   return (
-    <Tag ref={box} className={cn("relative grid place-items-center overflow-hidden", className)}>
+    <Tag
+      ref={box}
+      className={cn("relative grid place-items-center overflow-hidden", lifted && "shadow-lifted", className)}
+    >
       <ThemeLayers theme={theme} layout={{ aspect, window: windowAspect, material: 1 }} />
       {children && (
         <Tag

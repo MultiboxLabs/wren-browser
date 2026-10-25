@@ -94,6 +94,15 @@ body,
   --shadow-raised: var(--raised-edge);
   --color-field: var(--field);
   --shadow-field: var(--field-edge);
+  /* What is lifted off the window, as an app's icon is: a theme's swatch
+     (components/theme-swatch.tsx), which may be of the window's own colour.
+     Layers each wider and fainter than the last, for a soft falloff, in a
+     deep shade of the window's colour, as a shadow on it would be. */
+  --lifted-shade: oklch(from var(--space) 0.18 calc(c * 0.6) h);
+  --shadow-lifted:
+    0 0.5px 1px rgb(from var(--lifted-shade) r g b / 0.12), 0 1px 2px rgb(from var(--lifted-shade) r g b / 0.1),
+    0 2px 4px rgb(from var(--lifted-shade) r g b / 0.08), 0 4px 8px rgb(from var(--lifted-shade) r g b / 0.07),
+    0 8px 16px -2px rgb(from var(--lifted-shade) r g b / 0.06);
   --color-omnibox-fg: var(--omnibox-fg);
   --color-omnibox-typed: var(--omnibox-typed);
   --color-omnibox-glyph: var(--omnibox-glyph);

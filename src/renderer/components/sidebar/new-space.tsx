@@ -133,8 +133,7 @@ export function NewSpaceForm({ state }: { state: NewSpaceState }) {
             trigger={
               <Button {...ROW}>
                 <span className="flex-1">Theme</span>
-                {/* Ringed, as it may be all but the colour of the sidebar it is on. */}
-                <ThemeSwatch theme={draft.theme} className="size-4 shrink-0 rounded-full ring-1 ring-fg/25" />
+                <ThemeSwatch theme={draft.theme} lifted className="size-4 shrink-0 rounded-full" />
                 <ChevronRight size={13} strokeWidth={2} className="shrink-0 glyph-3" />
               </Button>
             }

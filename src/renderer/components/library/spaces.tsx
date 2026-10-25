@@ -76,7 +76,7 @@ export function Spaces({
                 // Pressed again, it is let go, and its actions with it.
                 onPress={() => onSelect(String(space.id) === selected ? null : String(space.id))}
                 tile={
-                  <ThemeSwatch theme={space.theme} className="size-9 rounded-[9px]">
+                  <ThemeSwatch theme={space.theme} lifted className="size-9 rounded-[9px]">
                     <SpaceIcon icon={space.icon} />
                   </ThemeSwatch>
                 }
