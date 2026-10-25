@@ -11,6 +11,7 @@ import { AddressField } from "../address/field";
 import { Favicon } from "../favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../icons";
 import type { OmniboxState } from "../omnibox/shown";
+import { cn } from "../../utils/cn";
 import { scaleTo } from "../../utils/motion";
 import type { SidebarHold } from "./presentation";
 import { NewSpaceForm } from "./new-space";
@@ -126,8 +127,10 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
       </div>
 
       {/* What slides with a swipe: the space's, below the toolbar. It is
-          clipped at the sidebar's sides, with room for the rows' outlines. */}
-      <div className="-mx-2 flex min-h-0 flex-1 flex-col overflow-x-clip px-2">
+          clipped at the sidebar's sides, with room for the rows' outlines.
+          While a space is made, below the toolbar is the form's, not a
+          handle for the window: a press that misses a field is no drag. */}
+      <div className={cn("-mx-2 flex min-h-0 flex-1 flex-col overflow-x-clip px-2", newSpace && "no-drag")}>
         <motion.div style={{ x: swipe, opacity: fade }} className="flex min-h-0 flex-1 flex-col">
           {newSpace ? (
             <NewSpaceForm state={newSpace} />
@@ -142,7 +145,7 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
 
       {/* While a space is made, only the switcher: the form is left by its own
           buttons, or by another space. */}
-      <div className="flex h-12.5 shrink-0 items-center">
+      <div className={cn("flex h-12.5 shrink-0 items-center", newSpace && "no-drag")}>
         {!newSpace && <Button icon={Archive} label="Library" onClick={onOpenLibrary} />}
         <div className="flex min-w-0 flex-1 justify-center px-1">
           <SpaceSwitcher />
