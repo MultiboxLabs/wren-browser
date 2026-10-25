@@ -51,4 +51,16 @@ pub const MIGRATIONS: &[&str] = &[
     "
     ALTER TABLE windows ADD COLUMN profile_id TEXT REFERENCES profiles(id) ON DELETE CASCADE;
     ",
+    // A space's position is among every space, of any profile, rather than
+    // among its profile's: they are numbered in the order they had, by
+    // profile and then by position.
+    "
+    UPDATE spaces SET position = ranked.place
+    FROM (
+      SELECT id, row_number() OVER (ORDER BY profile_id, position, id) - 1 AS place
+      FROM spaces
+    ) AS ranked
+    WHERE ranked.id = spaces.id;
+    CREATE INDEX spaces_by_position ON spaces(position);
+    ",
 ];

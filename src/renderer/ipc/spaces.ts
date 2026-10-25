@@ -22,12 +22,14 @@ export type NewSpace = { name: string; icon: string; theme: SpaceTheme };
 export type SpaceEntry = NewSpace & { id: number; profile: string };
 
 export const spaces = {
-  /** Every space, by profile and then by position. */
+  /** Every space, of any profile, in the user's order. */
   list: () => wren.invoke<SpaceEntry[]>("spaces.list"),
-  /** Adds one to the end of the profile's, and answers with it. */
+  /** Adds one after every other, and answers with it. */
   create: (profile: string, space: NewSpace) => wren.invoke<SpaceEntry>("spaces.create", { profile, ...space }),
   /** Changes what is given, and answers with the space as it is now. */
   update: (id: number, change: Partial<NewSpace>) => wren.invoke<SpaceEntry>("spaces.update", { id, ...change }),
+  /** Moves one to `index` among every space; past the last puts it last. */
+  move: (id: number, index: number) => wren.invoke<null>("spaces.move", { id, index }),
   /** Fails for the app's last space; a profile can be left with none. */
   delete: (id: number) => wren.invoke<null>("spaces.delete", id),
   /** The spaces changed, here or in another window: read them again. */

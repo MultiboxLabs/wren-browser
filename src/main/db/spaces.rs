@@ -95,13 +95,11 @@ fn now() -> i64 {
 }
 
 impl Db {
-    /// Every space, by profile and then by position.
+    /// Every space, of any profile, by position.
     pub fn list_spaces(&self) -> Result<Vec<SpaceRow>, String> {
         let mut query = self
             .conn
-            .prepare(&format!(
-                "SELECT {COLUMNS} FROM spaces ORDER BY profile_id, position"
-            ))
+            .prepare(&format!("SELECT {COLUMNS} FROM spaces ORDER BY position"))
             .map_err(sql)?;
         query
             .query_map([], row)
@@ -109,8 +107,8 @@ impl Db {
             .map_err(sql)
     }
 
-    /// Adds a space to the end of the profile's, and the profile too if the
-    /// database has not met it.
+    /// Adds a space after every other, and its profile too if the database
+    /// has not met it.
     pub fn create_space(&self, profile: &str, space: NewSpace) -> Result<SpaceRow, String> {
         let space = space.checked()?;
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
@@ -152,6 +150,31 @@ impl Db {
                 row,
             )
             .map_err(sql)
+    }
+
+    /// Moves a space to `index` among every space, the rest keeping their
+    /// order; an index past the last puts it last.
+    pub fn move_space(&self, id: SpaceId, index: usize) -> Result<(), String> {
+        let transaction = self.conn.unchecked_transaction().map_err(sql)?;
+        let mut ids: Vec<SpaceId> = transaction
+            .prepare("SELECT id FROM spaces ORDER BY position")
+            .and_then(|mut query| query.query_map([], |row| row.get(0))?.collect())
+            .map_err(sql)?;
+        let from = ids
+            .iter()
+            .position(|&each| each == id)
+            .ok_or("That space is gone.")?;
+        ids.remove(from);
+        ids.insert(index.min(ids.len()), id);
+        {
+            let mut update = transaction
+                .prepare("UPDATE spaces SET position = ?2 WHERE id = ?1")
+                .map_err(sql)?;
+            for (position, id) in ids.iter().enumerate() {
+                update.execute(params![id, position as i64]).map_err(sql)?;
+            }
+        }
+        transaction.commit().map_err(sql)
     }
 
     /// Deletes a space, unless it is the app's last: a profile can be
@@ -262,8 +285,14 @@ fn insert(
         .execute(
             "INSERT INTO spaces (profile_id, name, icon, theme, position, created_at)
              VALUES (?1, ?2, ?3, ?4,
-                     (SELECT coalesce(max(position) + 1, 0) FROM spaces WHERE profile_id = ?1), ?5)",
-            params![profile, space.name, space.icon, theme_json(&space.theme)?, now()],
+                     (SELECT coalesce(max(position) + 1, 0) FROM spaces), ?5)",
+            params![
+                profile,
+                space.name,
+                space.icon,
+                theme_json(&space.theme)?,
+                now()
+            ],
         )
         .map_err(sql)?;
     Ok(transaction.last_insert_rowid())
@@ -320,6 +349,30 @@ mod tests {
         add(&db, "a", "First");
         assert_eq!(recent(&db, "b"), None);
         db.touch_space(12345).unwrap();
+    }
+
+    fn order(db: &Db) -> Vec<SpaceId> {
+        db.list_spaces()
+            .unwrap()
+            .into_iter()
+            .map(|space| space.id)
+            .collect()
+    }
+
+    #[test]
+    fn a_space_moves_past_another_profiles() {
+        let db = db();
+        let first = add(&db, "a", "First");
+        let second = add(&db, "a", "Second");
+        let other = add(&db, "b", "Other");
+        assert_eq!(order(&db), vec![first, second, other]);
+        db.move_space(other, 0).unwrap();
+        assert_eq!(order(&db), vec![other, first, second]);
+        db.move_space(first, 99).unwrap();
+        assert_eq!(order(&db), vec![other, second, first]);
+        db.move_space(first, 1).unwrap();
+        assert_eq!(order(&db), vec![other, first, second]);
+        assert!(db.move_space(other + 1, 0).is_err());
     }
 
     #[test]

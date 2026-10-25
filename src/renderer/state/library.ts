@@ -53,8 +53,8 @@ export function useProfiles(open: boolean) {
  * The user's spaces, as the app lists them, read again each time the Library
  * opens and whenever they change, here or in another window. Shaped as
  * `useProfiles` is: `spaces` is null until the first reading, `failed` if it
- * could not be made, and each of `update` and `remove` rejects if the app
- * can't. A space is made in the sidebar (new-space.ts).
+ * could not be made, and each of `update`, `move` and `remove` rejects if the
+ * app can't. A space is made in the sidebar (new-space.ts).
  */
 export function useSpaces(open: boolean) {
   const [list, setList] = useState<SpaceEntry[] | null>(hasApp ? null : []);
@@ -71,10 +71,13 @@ export function useSpaces(open: boolean) {
   const update = async (id: number, change: Partial<NewSpace>) => {
     await spaces.update(id, change);
   };
+  const move = async (id: number, index: number) => {
+    await spaces.move(id, index);
+  };
   const remove = async (id: number) => {
     await spaces.delete(id);
   };
-  return { spaces: list, failed, reload: refresh, update, remove };
+  return { spaces: list, failed, reload: refresh, update, move, remove };
 }
 
 /** A site's own styles and scripts, made by the user. */

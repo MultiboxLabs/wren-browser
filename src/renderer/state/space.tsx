@@ -135,7 +135,7 @@ const ofDraft = (draft: SpaceDraft): Space =>
 type SpaceState = {
   /** The space shown in the window. */
   space: Space;
-  /** Every space, in the Library's order: by profile, then by position; none in a window on a profile. */
+  /** Every space, of any profile, in the user's order; none in a window on a profile. */
   spaces: SpaceEntry[];
   /** The profile the window shows, rather than spaces; null for a window of spaces. */
   profile: WindowProfile | null;
@@ -143,6 +143,8 @@ type SpaceState = {
   newSpace: NewSpaceState | null;
   /** Puts the window on no space, to make one in `profile`, or else in the current space's profile. */
   startNewSpace: (profile?: string) => void;
+  /** Moves a space to `index` among every space; rejects if the app can't. */
+  moveSpace: (id: number, index: number) => Promise<void>;
   /** Brings a space forward in the window, the old one's content sliding out first. */
   show: (id: number) => void;
   /** Brings a space forward at once: a swipe, whose fingers slid the old one out. */
@@ -156,8 +158,7 @@ type SpaceState = {
 const SpaceContext = createContext<SpaceState | null>(null);
 
 export function SpaceProvider({ children }: { children: ReactNode }) {
-  const { spaces: entries } = useSpaces(true);
-  // For their order, which is Chromium's.
+  const { spaces: entries, move: moveSpace } = useSpaces(true);
   const { profiles: listed } = useProfiles(true);
   const [onSpace, setOnSpace] = useState<WindowSpace | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.space, appWindow.onSpace, setOnSpace) : undefined), []);
@@ -168,16 +169,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   // The made-up space, whose folders open and close here.
   const [madeUp, setMadeUp] = useState<Space>(personal);
 
-  const spaces = useMemo(() => {
-    if (profile) return [];
-    const profiles = listed ?? [];
-    const all = entries ?? [];
-    const known = new Set(profiles.map(({ id }) => id));
-    return [
-      ...profiles.flatMap((profile) => all.filter((space) => space.profile === profile.id)),
-      ...all.filter((space) => !known.has(space.profile))
-    ];
-  }, [entries, listed, profile]);
+  const spaces = useMemo(() => (profile ? [] : (entries ?? [])), [entries, profile]);
   // Where the window is among the spaces: the one being made is after the last.
   const at = making ? NEW_SPACE : current;
   const order = (id: number) => (id === NEW_SPACE ? spaces.length : spaces.findIndex((space) => space.id === id));
@@ -236,6 +228,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
         profile,
         newSpace: newSpace.state,
         startNewSpace,
+        moveSpace,
         show,
         showNow,
         slide,

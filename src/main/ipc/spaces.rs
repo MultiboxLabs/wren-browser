@@ -1,5 +1,6 @@
-// The user's spaces: listing, making, changing and deleting them. The Library
-// shows them. A space belongs to a profile, and goes when it does (see `db`).
+// The user's spaces: listing, making, changing, ordering and deleting them.
+// The Library shows them. A space belongs to a profile, and goes when it does
+// (see `db`).
 
 use serde::Deserialize;
 use wren::{MainThread, WebView};
@@ -14,6 +15,12 @@ struct Create {
     profile: String,
     #[serde(flatten)]
     space: NewSpace,
+}
+
+#[derive(Deserialize)]
+struct Move {
+    id: SpaceId,
+    index: usize,
 }
 
 #[derive(Deserialize)]
@@ -50,6 +57,15 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let space = state.db.update_space(update.id, update.change)?;
         broadcast_spaces(&state);
         Ok::<SpaceRow, String>(space)
+    });
+
+    // Moves a space to its place among every space, of any profile.
+    let weak = window.clone();
+    let _ = web_view.handle("spaces.move", move |moved: Move| {
+        let state = weak.state()?;
+        state.db.move_space(moved.id, moved.index)?;
+        broadcast_spaces(&state);
+        Ok::<_, String>(())
     });
 
     // Fails for the app's last space. The windows on it move to another of

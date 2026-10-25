@@ -42,27 +42,17 @@ impl State {
         })
     }
 
-    /// Every space, in the Library's order: by profile in Chromium's list,
-    /// then by position. Each is named, with its profile's name when there
-    /// is more than one.
+    /// Every space, in the user's order, of any profile. Each is named, with
+    /// its profile's name when there is more than one.
     pub fn ordered_spaces(&self, mt: MainThread) -> Vec<(SpaceId, String)> {
         let profiles = mt.profile_list();
-        let mut spaces = match self.db.list_spaces() {
+        let spaces = match self.db.list_spaces() {
             Ok(spaces) => spaces,
             Err(error) => {
                 eprintln!("Wren could not read the spaces: {error}");
                 Vec::new()
             }
         };
-        // The list is by profile, then position; the sort keeps that within
-        // each, and puts a profile Chromium does not list last.
-        let place = |profile: &str| {
-            profiles
-                .iter()
-                .position(|entry| entry.id == profile)
-                .unwrap_or(usize::MAX)
-        };
-        spaces.sort_by_key(|space| place(&space.profile));
         let many = spaces
             .windows(2)
             .any(|pair| pair[0].profile != pair[1].profile);
