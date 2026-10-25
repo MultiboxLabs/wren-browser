@@ -426,12 +426,14 @@ body,
 }
 
 /* What dims the window, and takes its clicks, while a dialog is up: as
-   the window is, light or dark. */
+   the window is, light or dark, and as much as AppKit dims a window under
+   its sheet (measured on macOS 27: white to 204 in light; in dark, white to
+   113 and the title bar's 44 to 30). */
 :root[data-scheme="light"] .dialog-scrim {
-  background: rgb(0 0 0 / 0.12);
+  background: rgb(0 0 0 / 0.2);
 }
 :root[data-scheme="dark"] .dialog-scrim {
-  background: rgb(0 0 0 / 0.3);
+  background: rgb(22 22 22 / 0.61);
 }
 
 /* The omnibox (components/omnibox/omnibox.tsx), a command bar: neutral, not
