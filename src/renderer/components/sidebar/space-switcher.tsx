@@ -1,7 +1,7 @@
 // The sidebar footer's spaces, one button each, in the Library's order: the
 // one the window shows is pressed, in the accent. A press brings one forward.
-// Too many for the room scroll sideways. While the window makes a space, none
-// is current. A window on a profile has none.
+// Too many for the room scroll sideways. The space the window makes is a dot
+// after the last, current until it is made. A window on a profile has none.
 
 import { useLayoutEffect, useRef } from "react";
 import { Button } from "../ui/button";
@@ -45,6 +45,15 @@ export function SpaceSwitcher() {
           />
         );
       })}
+      {newSpace && (
+        <Button
+          icon={<span className="size-1.75 rounded-full bg-current" />}
+          iconTone="inherit"
+          label="New Space"
+          data-current
+          className="text-accent"
+        />
+      )}
     </div>
   );
 }

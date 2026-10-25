@@ -10,9 +10,9 @@ import { hasApp, type NewSpace, type ProfileEntry, profiles, type SpaceEntry, sp
  * Library opens: another window may have made one since. `profiles` is null
  * until the first reading, and `failed` if that one could not be made (a
  * later one that fails leaves the last list, which is still the best there
- * is); `reload` tries again. `create` makes a profile, `rename` and `remove`
- * change one, and each rejects if the app can't; `openWindow` opens a window
- * for one.
+ * is); `reload` tries again. `create` makes a profile and answers with it,
+ * `rename` and `remove` change one, and each rejects if the app can't;
+ * `openWindow` opens a window for one.
  */
 export function useProfiles(open: boolean) {
   // Outside the app (Vite in a browser) there is nothing to wait for.
@@ -33,6 +33,7 @@ export function useProfiles(open: boolean) {
       const known = list ?? [];
       return known.some(({ id }) => id === entry.id) ? known : [...known, entry];
     });
+    return entry;
   };
   // The app's list says what changed, as it may have changed nothing.
   const rename = async (id: string, name: string) => {

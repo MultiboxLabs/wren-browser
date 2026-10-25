@@ -1,7 +1,7 @@
-// The dialogs of the Library's profiles: making one, renaming one, and
-// deleting one. Each asks, and the profile is changed once the app says it is
-// done; if the app can't, the dialog stays up, and says so in place of its
-// description.
+// The dialogs of the Library's profiles: making one (which the sidebar's new
+// space form opens too), renaming one, and deleting one. Each asks, and the
+// profile is changed once the app says it is done; if the app can't, the
+// dialog stays up, and says so in place of its description.
 
 import { useState } from "react";
 import { Dialog } from "../ui/dialog";
@@ -20,7 +20,7 @@ export function CreateDialog({
   onCreate
 }: Omit<ProfileDialogProps, "profile"> & {
   /** Makes the profile; rejects if it can't be made. */
-  onCreate: (name: string) => Promise<void>;
+  onCreate: (name: string) => Promise<unknown>;
 }) {
   const [name, setName] = useState("");
   const [failed, setFailed] = useState(false);

@@ -1,81 +1,80 @@
 // The space a window makes while it is on none: what the user has chosen so
-// far, which the window is drawn with, and making it. A profile can be made
-// with it, as its first space.
+// far, which the window is drawn with, and making it.
 
 import { useState } from "react";
-import { appWindow, type ProfileEntry, profiles, type SpaceTheme, spaces } from "../ipc";
+import { appWindow, type ProfileEntry, type SpaceTheme, spaces } from "../ipc";
 import { DEFAULT_ICON } from "../components/space-icon";
 import { defaultTheme } from "../utils/theme";
+import type { SpaceSlide } from "./space-slide";
 
-/** The choice of a profile that is not one yet, made with the space. */
-export const NEW_PROFILE = "+new-profile";
-// What a new profile's space is coloured by, until the user chooses a theme.
-const NEW_PROFILE_COLOR = "#8e8e93";
+// What a new space is coloured by when its profile's colour is not known:
+// the profiles are not read yet.
+const NO_PROFILE_COLOR = "#8e8e93";
 
 export type SpaceDraft = {
   name: string;
   /** `lucide:` and an icon's name, or an emoji. */
   icon: string;
-  /** The user's, once they choose one; until then, the profile's colour makes it. */
-  theme: SpaceTheme | null;
-  /** A profile's ID, or `NEW_PROFILE`. */
-  profile: string;
-  /** The name of the profile made with the space. */
-  profileName: string;
+  /**
+   * Made from the colour of the profile it started in, until the user
+   * chooses one: choosing another profile leaves it as it is.
+   */
+  theme: SpaceTheme;
+  /** The profile's ID; null for the first, until the user chooses one. */
+  profile: string | null;
 };
 
 export type NewSpaceState = {
   draft: SpaceDraft;
-  /** What the space is drawn with: the user's theme, or the profile's colour's. */
-  theme: SpaceTheme;
+  /** The profile it is made in, by its ID; null until the profiles are read. */
+  profile: string | null;
   change: (change: Partial<SpaceDraft>) => void;
-  /** Whether it can be made as it is: it has a name, and so has a new profile. */
+  /** Whether it can be made as it is: it has a name and a profile. */
   ready: boolean;
-  /** Makes the space, and its profile for a new one, and brings it forward; rejects if the app can't. */
+  /** Makes the space, and brings it forward in its place; rejects if the app can't. */
   create: () => Promise<void>;
-  /** Goes back to the space the window left. */
+  /** Goes back to the space the window left, which is before it. */
   cancel: () => void;
 };
 
 /**
  * The space being made while `making`; `listed` are the profiles to make it
- * in. `start` puts the window on no space with a new draft, in `profile` if
+ * in, and `slide` the sidebar's, which its content slides by as it goes.
+ * `start` puts the window on no space with a new draft, in `profile` if
  * given, else in the first profile.
  */
-export function useNewSpace(making: boolean, listed: ProfileEntry[] | null) {
+export function useNewSpace(making: boolean, listed: ProfileEntry[] | null, slide: SpaceSlide) {
   const [started, setDraft] = useState<SpaceDraft | null>(null);
-  const fresh = (profile?: string): SpaceDraft => ({
-    name: "",
-    icon: DEFAULT_ICON,
-    theme: null,
-    profile: profile ?? listed?.[0]?.id ?? NEW_PROFILE,
-    profileName: ""
-  });
+  const fresh = (profile?: string): SpaceDraft => {
+    const color = listed?.find(({ id }) => id === (profile ?? listed[0]?.id))?.color;
+    return { name: "", icon: DEFAULT_ICON, theme: defaultTheme(color ?? NO_PROFILE_COLOR), profile: profile ?? null };
+  };
   // A page loaded while the window was on no space has started none.
   const draft = started ?? fresh();
   const change = (change: Partial<SpaceDraft>) => setDraft((draft) => ({ ...(draft ?? fresh()), ...change }));
-  // A new profile, which no listed one is, has no colour yet.
-  const color = listed?.find(({ id }) => id === draft.profile)?.color ?? NEW_PROFILE_COLOR;
-  const theme = draft.theme ?? defaultTheme(color);
-  const ready = draft.name.trim() !== "" && (draft.profile !== NEW_PROFILE || draft.profileName.trim() !== "");
+  const profile = draft.profile ?? listed?.[0]?.id ?? null;
+  const ready = draft.name.trim() !== "" && profile !== null;
 
-  const create = async () => {
-    let profile = draft.profile;
-    if (profile === NEW_PROFILE) {
-      profile = (await profiles.create(draft.profileName.trim())).id;
-      // Made now: should the space fail, trying again makes no second one.
-      change({ profile });
-    }
-    const space = await spaces.create(profile, { name: draft.name.trim(), icon: draft.icon, theme });
+  const make = async () => {
+    if (profile === null) throw new Error("The profiles are not read yet.");
+    const space = await spaces.create(profile, { name: draft.name.trim(), icon: draft.icon, theme: draft.theme });
     await appWindow.showSpace(space.id);
   };
+  // The space comes where the form was, as the window has not moved.
+  const create = () => {
+    slide.stay();
+    return make().catch((error) => {
+      slide.settle();
+      throw error;
+    });
+  };
+  const cancel = () => slide.leave(-1, () => void appWindow.cancelNewSpace().catch(slide.settle));
 
-  const state: NewSpaceState | null = making
-    ? { draft, theme, change, ready, create, cancel: () => void appWindow.cancelNewSpace().catch(() => {}) }
-    : null;
+  const state: NewSpaceState | null = making ? { draft, profile, change, ready, create, cancel } : null;
   const start = (profile?: string) => {
     setDraft(fresh(profile));
-    appWindow.startNewSpace().catch(() => {});
+    // Refused, the content that slid out for it comes back.
+    appWindow.startNewSpace().catch(slide.settle);
   };
   return { state, start };
 }

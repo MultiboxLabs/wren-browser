@@ -1,9 +1,9 @@
 // What the window is drawn with under its content: the space's theme, its
 // gradient laid across the box it fills, over the blur behind the window. As
-// the theme changes (another space is shown, or this one's is changed), the
-// new one fades in as the old fades out: added together (plus-lighter), the
-// two fades are an even mix of them, with no dip or bump in how clear the
-// window is halfway.
+// another space is shown, its theme fades in as the old one fades out: added
+// together (plus-lighter), the two fades are an even mix of them, with no dip
+// or bump in how clear the window is halfway. A change to the shown space's
+// own theme is drawn at once, as the user makes it.
 //
 // The theme is see-through, made to be over the window's blur, which macOS
 // tints light or dark as the theme is. A box over something else (the
@@ -24,10 +24,13 @@ import { ThemeLayers } from "./theme-swatch";
 const MATERIAL = 0.6;
 
 export function SpaceBackground({
+  space,
   theme,
   material = false,
   className
 }: {
+  /** The space the theme is of, by its ID: another's fades in. */
+  space: number;
   theme: SpaceTheme;
   /** Over something other than the window's blur: a stand-in for it is under the theme. */
   material?: boolean;
@@ -42,7 +45,7 @@ export function SpaceBackground({
     <div ref={box} aria-hidden className={cn("pointer-events-none isolate overflow-hidden", className)}>
       <AnimatePresence initial={false}>
         <motion.div
-          key={JSON.stringify(theme)}
+          key={space}
           className="absolute inset-0 mix-blend-plus-lighter"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

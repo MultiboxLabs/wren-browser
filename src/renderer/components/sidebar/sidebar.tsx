@@ -72,9 +72,9 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
 export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary }: SidebarProps) {
   const { space, spaces, profile, newSpace, startNewSpace, showNow, slide } = useSpace();
   // A swipe across the sidebar goes to the next space or the previous one;
-  // from a space being made, which is none of them, it goes nowhere.
+  // the space being made is after the last.
   const area = useRef<HTMLDivElement>(null);
-  const at = spaces.findIndex(({ id }) => id === space.id);
+  const at = newSpace ? spaces.length : spaces.findIndex(({ id }) => id === space.id);
   const neighbour = (by: 1 | -1) => (at < 0 ? undefined : spaces[at + by]);
   useSpaceSwipe(
     area,
@@ -140,20 +140,15 @@ export function Sidebar({ open, onToggle, hold, omnibox, address, onOpenLibrary 
         </motion.div>
       </div>
 
+      {/* While a space is made, only the switcher: the form is left by its own
+          buttons, or by another space. */}
       <div className="flex h-12.5 shrink-0 items-center">
-        <Button icon={Archive} label="Library" onClick={onOpenLibrary} />
+        {!newSpace && <Button icon={Archive} label="Library" onClick={onOpenLibrary} />}
         <div className="flex min-w-0 flex-1 justify-center px-1">
           <SpaceSwitcher />
         </div>
         {/* A window on a profile never switches, so makes no space. */}
-        {!profile && (
-          <Button
-            icon={Plus}
-            label="New Space"
-            pressed={newSpace !== null}
-            onClick={() => (newSpace ? newSpace.cancel() : startNewSpace())}
-          />
-        )}
+        {!profile && !newSpace && <Button icon={Plus} label="New Space" onClick={() => startNewSpace()} />}
       </div>
     </div>
   );

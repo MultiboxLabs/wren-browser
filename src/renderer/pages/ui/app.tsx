@@ -63,7 +63,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   return (
     <>
       {/* Before the window's content, which is positioned so that it is over it. */}
-      <SpaceBackground theme={space.theme} className="fixed inset-0" />
+      <SpaceBackground space={space.id} theme={space.theme} className="fixed inset-0" />
       <div className="drag relative flex h-full">
         {/* The room left of the page: the docked sidebar is over it. */}
         {!fullScreen && <motion.div style={{ width: sidebar.motion.slot }} className="shrink-0" />}
@@ -95,7 +95,12 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           onPointerLeave={sidebar.leave}
         >
           <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel">
-            <SpaceBackground theme={space.theme} material className="absolute inset-0 rounded-[inherit]" />
+            <SpaceBackground
+              space={space.id}
+              theme={space.theme}
+              material
+              className="absolute inset-0 rounded-[inherit]"
+            />
           </motion.div>
           <div className="relative h-full">
             <MakesWay open={sidebar.library.open} motion={sidebar.library.motion}>

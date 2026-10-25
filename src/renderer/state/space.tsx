@@ -37,7 +37,7 @@ export type Tab = {
 };
 export type Folder = { id: string; title: string; open: boolean; tabs: Tab[] };
 export type Space = {
-  /** Its ID in the app's database; 0 for a made-up one. */
+  /** Its ID in the app's database; 0 for a made-up one, and `NEW_SPACE` for the one being made. */
   id: number;
   name: string;
   /** `lucide:` and an icon's name, or an emoji. */
@@ -60,6 +60,9 @@ export type Space = {
 };
 
 export const isFolder = (item: Tab | Folder): item is Folder => "tabs" in item;
+
+/** The ID the space being made is drawn with, and has its place by, after the last space. */
+export const NEW_SPACE = -1;
 
 const tab = (title: string, url: string): Tab => ({ id: url, title, url });
 
@@ -119,8 +122,8 @@ const ofProfile = ({ id, offTheRecord }: WindowProfile, entry: ProfileEntry | un
   });
 
 /** The space being made, as it is so far. */
-const ofDraft = ({ draft, theme }: NewSpaceState): Space =>
-  drawn(0, { name: draft.name.trim() || "New Space", icon: draft.icon, theme });
+const ofDraft = ({ draft }: NewSpaceState): Space =>
+  drawn(NEW_SPACE, { name: draft.name.trim() || "New Space", icon: draft.icon, theme: draft.theme });
 
 type SpaceState = {
   /** The space shown in the window. */
@@ -152,7 +155,7 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   const [onSpace, setOnSpace] = useState<WindowSpace | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.space, appWindow.onSpace, setOnSpace) : undefined), []);
   const current = onSpace?.kind === "space" ? onSpace.id : null;
-  const newSpace = useNewSpace(onSpace?.kind === "newSpace", listed);
+  const making = onSpace?.kind === "newSpace";
   const [profile, setProfile] = useState<WindowProfile | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.profile, appWindow.onProfile, setProfile) : undefined), []);
   // The made-up space, whose folders open and close here.
@@ -168,6 +171,11 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       ...all.filter((space) => !known.has(space.profile))
     ];
   }, [entries, listed, profile]);
+  // Where the window is among the spaces: the one being made is after the last.
+  const at = making ? NEW_SPACE : current;
+  const order = (id: number) => (id === NEW_SPACE ? spaces.length : spaces.findIndex((space) => space.id === id));
+  const slide = useSpaceSlide(at, order);
+  const newSpace = useNewSpace(making, listed, slide);
   const entry = spaces.find(({ id }) => id === current);
   const profileEntry = profile ? listed?.find(({ id }) => id === profile.id) : undefined;
   // Until the spaces are read, the made-up one stands in, as the window's.
@@ -186,17 +194,19 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
     [profile, profileEntry, newSpace.state, entry, madeUp, current]
   );
 
-  const order = (id: number) => spaces.findIndex((space) => space.id === id);
-  const slide = useSpaceSlide(current, order);
+  // The content slides out toward `to`'s place, then `then` runs; at once
+  // if either has no place.
+  const leaveFor = (to: number, then: () => void) => {
+    const [from, next] = [at === null ? -1 : order(at), order(to)];
+    if (from < 0 || next < 0) return then();
+    slide.leave(next > from ? 1 : -1, then);
+  };
   // A switch that fails leaves the content where it was.
   const showNow = (id: number) => {
     if (hasApp) appWindow.showSpace(id).catch(slide.settle);
   };
   const show = (id: number) => {
-    if (id === current) return;
-    const [from, to] = [order(current ?? -1), order(id)];
-    if (from < 0 || to < 0) return showNow(id);
-    slide.leave(to > from ? 1 : -1, () => showNow(id));
+    if (id !== at) leaveFor(id, () => showNow(id));
   };
   // The main menu's ⌃1 to ⌃9 come here, to slide as a press does.
   const latestShow = useRef(show);
@@ -207,7 +217,10 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
       ...space,
       pinned: space.pinned.map((item) => (item === folder ? { ...folder, open: !folder.open } : item))
     }));
-  const startNewSpace = (profile?: string) => newSpace.start(profile ?? entry?.profile);
+  const startNewSpace = (profile?: string) => {
+    if (!making) leaveFor(NEW_SPACE, () => newSpace.start(profile ?? entry?.profile));
+  };
+
   return (
     <SpaceContext
       value={{

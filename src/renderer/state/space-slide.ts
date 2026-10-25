@@ -23,6 +23,8 @@ export type SpaceSlide = {
   leave: (by: 1 | -1, then: () => void) => void;
   /** Springs the content back to its place: a switch that did not happen. */
   settle: () => void;
+  /** The next space comes in place, without sliding: the one being made, once it is. */
+  stay: () => void;
 };
 
 /**
@@ -32,6 +34,7 @@ export type SpaceSlide = {
 export function useSpaceSlide(current: number | null, order: (id: number) => number): SpaceSlide {
   const x = useMotionValue(0);
   const turn = useRef(0);
+  const staying = useRef(false);
 
   const previous = useRef(current);
   useLayoutEffect(() => {
@@ -40,6 +43,10 @@ export function useSpaceSlide(current: number | null, order: (id: number) => num
     // The first space the window says it has comes as it is.
     if (from === null || current === null || from === current) return;
     turn.current++;
+    if (staying.current) {
+      staying.current = false;
+      return x.jump(0);
+    }
     const [was, now] = [order(from), order(current)];
     if (was < 0 || now < 0 || prefersReducedMotion() || document.hidden) return x.jump(0);
     x.jump(Math.sign(now - was) * SLIDE);
@@ -63,7 +70,11 @@ export function useSpaceSlide(current: number | null, order: (id: number) => num
     },
     settle: () => {
       turn.current++;
+      staying.current = false;
       animate(x, 0, spring);
+    },
+    stay: () => {
+      staying.current = true;
     }
   };
 }
