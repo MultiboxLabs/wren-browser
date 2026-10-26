@@ -1,4 +1,5 @@
-// The Library's list for a section: the profiles', the spaces' and the boosts'.
+// The Library's list for a section: the profiles', the spaces', the boosts'
+// and the downloads'.
 
 import { Power } from "lucide-react";
 import { useState } from "react";
@@ -6,11 +7,12 @@ import { Button } from "../ui/button";
 import { Favicon } from "../favicon";
 import { type Boost, boosts as allBoosts } from "../../state/library";
 import { cn } from "../../utils/cn";
+import { DownloadsSection } from "../downloads/section";
 import { Profiles, type ProfilesProps } from "./profiles";
 import { Empty, type ListProps, matches, Row } from "./rows";
 import { Spaces, type SpacesProps } from "./spaces";
 
-export type Section = "profiles" | "spaces" | "boosts";
+export type Section = "profiles" | "spaces" | "boosts" | "downloads";
 
 export type SectionListProps = ProfilesProps &
   SpacesProps & {
@@ -20,6 +22,10 @@ export type SectionListProps = ProfilesProps &
     /** The row chosen, by its ID; the app's rows are the section's own. */
     selected: string | null;
     onSelect: (id: string | null) => void;
+    /** The download the Library was opened at, if one was. */
+    revealedDownload: string | null;
+    /** The profile the downloads are filtered to, if one is chosen. */
+    downloadsProfile: string | null;
   };
 
 /** The section's list, searched by `query`. */
@@ -33,6 +39,8 @@ export function SectionList({
   onReloadSpaces,
   onUpdateSpace,
   onDeleteSpace,
+  revealedDownload,
+  downloadsProfile,
   ...profileProps
 }: SectionListProps) {
   const list =
@@ -53,6 +61,8 @@ export function SectionList({
         onUpdateSpace={onUpdateSpace}
         onDeleteSpace={onDeleteSpace}
       />
+    ) : section === "downloads" ? (
+      <DownloadsSection query={query} profile={downloadsProfile} revealed={revealedDownload} />
     ) : (
       <Boosts query={query} selected={selected} onSelect={onSelect} />
     );

@@ -1,8 +1,8 @@
 // Downloads, as the page draws them (components/downloads/): the indicator
-// on the Library button while they run, and the shelf of the latest above
-// it. A window shows the downloads downloads/ lists for its Browser in
-// front, and Chromium's download bubble, as all are done, is the shelf
-// instead.
+// on the Library button while they run, the shelf of the latest above it,
+// and the Library's Downloads. A window shows the downloads downloads/ lists
+// for its Browser in front, and Chromium's download bubble is the shelf or
+// the Library instead.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -146,43 +146,55 @@ pub fn send_no_indicator(window: &BrowserWindow) {
         .send("downloads.indicator", &None::<Indicator>);
 }
 
+/// Opens `window`'s Library at the downloads, at `download`'s if it names
+/// one, as Window ▸ Downloads does.
+pub fn send_reveal(window: &BrowserWindow, download: Option<String>) {
+    let _ = window.page.web_view.send("downloads.reveal", &download);
+}
+
 /// Chromium's download bubble, for `App::popover`. Its short list, shown as
 /// all downloads are done, is the shelf of the window in front, for the few
-/// seconds Chrome shows it; Chromium shows the rest itself. A popup's window
-/// has no shelf: the indicator is in the browser window.
+/// seconds Chrome shows it; the full list, or one download's warning, opens
+/// the Library at the downloads, and Chromium shows nothing. A popup's window
+/// has neither: the indicator is in the browser window.
 pub fn show_downloads_bubble(
     state: &Rc<State>,
     mt: MainThread,
     request: &PopoverRequest,
 ) -> PopoverAnswer {
-    let automatic = request.trigger == PopoverTrigger::Automatic && request.download.is_none();
-    if !automatic {
-        return PopoverAnswer::Chromium;
-    }
     let Some(window) = state.windows.of(&request.browser) else {
         return PopoverAnswer::None;
     };
-    if window.is_popup() || !window.is_front(&request.browser) {
+    let automatic = request.trigger == PopoverTrigger::Automatic && request.download.is_none();
+    if window.is_popup() || (automatic && !window.is_front(&request.browser)) {
         return PopoverAnswer::None;
     }
     let id = window.id;
     let popover = request.popover;
+    let download = request.download.map(|download| download.id().to_string());
     let state = Rc::downgrade(state);
-    mt.later(
-        move |_| match state.upgrade().and_then(|state| state.windows.get(id)) {
-            Some(window) => {
+    mt.later(move |_| {
+        let window = state.upgrade().and_then(|state| state.windows.get(id));
+        match window {
+            Some(window) if automatic => {
                 // One shelf at a time: a request it showed for before closes.
                 close_shelf_request();
                 SHELF.set(Some((id, popover)));
                 let _ = window.page.web_view.send("downloads.showShelf", &());
             }
+            Some(window) => send_reveal(&window, download),
             // The window went in the meantime.
-            None => {
+            None if automatic => {
                 let _ = popover.close();
             }
-        },
-    );
-    PopoverAnswer::App
+            None => {}
+        }
+    });
+    if automatic {
+        PopoverAnswer::App
+    } else {
+        PopoverAnswer::None
+    }
 }
 
 // Tells every window's page of its downloads, as some are taken off the list.

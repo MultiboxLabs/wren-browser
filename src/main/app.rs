@@ -18,11 +18,11 @@ use crate::keyboard::KeyWatch;
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
+use crate::sidebar::SidebarStore;
+use crate::tabs::{self, placeholder};
 use crate::shell::{
     BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId, Windows, close_other_key_window,
 };
-use crate::sidebar::SidebarStore;
-use crate::tabs::{self, placeholder};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -203,6 +203,13 @@ impl Wren {
             menus::COPY_URL => {
                 if let Some(browser) = popup.browser() {
                     let _ = tabs::copy_url(&browser);
+                }
+            }
+            // In the browser window: a popup's has no Library.
+            menus::SHOW_DOWNLOADS => {
+                if let Some(front) = front {
+                    front.page.bring_forward();
+                    ipc::send_reveal(&front, None);
                 }
             }
             menus::NEW_WINDOW => state.new_window(mt, front.as_deref()),
@@ -388,6 +395,9 @@ impl App for Wren {
         }
         if id == menus::TOGGLE_SIDEBAR {
             return ipc::send_toggle_sidebar(&window);
+        }
+        if id == menus::SHOW_DOWNLOADS {
+            return ipc::send_reveal(&window, None);
         }
         if id == menus::NEW_TAB {
             return ipc::send_show_omnibox(&window, OmniboxTarget::NewTab, true);

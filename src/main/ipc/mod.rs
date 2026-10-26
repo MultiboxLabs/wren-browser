@@ -30,13 +30,15 @@ use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
-use crate::shell::{BrowserWindow, WindowId};
 use crate::tabs;
+use crate::shell::{BrowserWindow, WindowId};
 
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_status, send_tabs};
-pub use downloads::{downloads_changed, send_downloads, send_indicator, show_downloads_bubble};
+pub use downloads::{
+    downloads_changed, send_downloads, send_indicator, send_reveal, show_downloads_bubble,
+};
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
 pub use menu::send_toggle_sidebar;

@@ -29,6 +29,7 @@ pub const COPY_URL: &str = "copy-url";
 pub const MOVE_TAB_UP: &str = "move-tab-up";
 pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
+pub const SHOW_DOWNLOADS: &str = "show-downloads";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
 /// A space's item is this and the space's ID.
@@ -237,7 +238,13 @@ fn main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) -> Vec<
                 MenuItem::role(MenuRole::Minimize),
                 MenuItem::role(MenuRole::Zoom),
                 MenuItem::Separator,
-                MenuItem::chromium(Command::Downloads),
+                // The Library's downloads, not chrome://downloads.
+                keyed(
+                    SHOW_DOWNLOADS,
+                    "Downloads",
+                    "l",
+                    MenuModifiers::PRIMARY | MenuModifiers::ALT,
+                ),
                 MenuItem::chromium(Command::Extensions),
                 MenuItem::chromium(Command::TaskManager),
                 MenuItem::Separator,

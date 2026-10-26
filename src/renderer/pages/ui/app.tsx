@@ -132,6 +132,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
                 onClose={() => sidebar.library.setOpen(false)}
                 width={sidebar.width}
                 motion={sidebar.library.motion}
+                reveal={sidebar.library.reveal}
               />
             </div>
           </HoldContext>

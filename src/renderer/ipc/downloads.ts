@@ -5,6 +5,8 @@ export type Download = {
   /** The ID of the profile it is of; off the record, its original's. */
   profile: string;
   name: string;
+  /** The file's kind, as the platform's file manager says it: "PDF document"; "" when it has none. */
+  kind: string;
   /** Where it came from, after redirects. */
   url: string;
   status: "inProgress" | "done" | "cancelled" | "failed";
@@ -59,5 +61,7 @@ export const downloads = {
   /** All downloads are done, and the shelf shows them for a few seconds, as Chrome's bubble does; answer `shelfDone` as it goes. */
   onShowShelf: (listener: () => void) => wren.on<null>("downloads.showShelf", listener),
   /** The shelf `onShowShelf` showed has gone. */
-  shelfDone: () => wren.invoke<null>("downloads.shelfDone")
+  shelfDone: () => wren.invoke<null>("downloads.shelfDone"),
+  /** Opens the Library at the downloads, at the one with this ID if one is named. */
+  onReveal: (listener: (id: string | null) => void) => wren.on<string | null>("downloads.reveal", listener)
 };

@@ -1,8 +1,9 @@
 // The Library, which takes the sidebar's place while it is open: a rail of
-// what it holds (profiles, spaces, boosts) under the window's buttons, and
-// the list of the one chosen, with a field to search it.
+// what it holds (profiles, spaces, boosts, downloads) under the window's
+// buttons, and the list of the one chosen, with a field to search it (and
+// for the downloads, a filter by profile).
 
-import { CircleUserRound, Orbit, Paintbrush, Plus, Search } from "lucide-react";
+import { ArrowDownToLine, CircleUserRound, Orbit, Paintbrush, Plus, Search } from "lucide-react";
 import { motion, useTransform } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button, type Icon } from "../ui/button";
@@ -13,10 +14,12 @@ import { useProfiles, useSpaces } from "../../state/library";
 import { useSpace } from "../../state/space";
 import { type Section, SectionList } from "./sections";
 import { CreateDialog } from "./profile-dialogs";
+import { FilterBar, FilterButton, useDownloadsFilter } from "../downloads/filter";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
   { id: "spaces", name: "Spaces", icon: Orbit, item: "Space" },
-  { id: "profiles", name: "Profiles", icon: CircleUserRound, item: "Profile" }
+  { id: "profiles", name: "Profiles", icon: CircleUserRound, item: "Profile" },
+  { id: "downloads", name: "Downloads", icon: ArrowDownToLine, item: "Download" }
   // TODO: boosts feature
   // { id: "boosts", name: "Boosts", icon: Paintbrush, item: "Boost" }
 ];
@@ -29,10 +32,17 @@ export type LibraryProps = {
   width: number;
   /** Its steps in and out, which the sidebar and the window's buttons follow too. */
   motion: LibraryMotion;
+  /** The last request to open it at the downloads, at one of them if it names one. */
+  reveal: LibraryReveal | null;
 };
 
-export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
+/** A request to open the Library at the downloads; each `key` is a request of its own. */
+export type LibraryReveal = { download: string | null; key: number };
+
+export function Library({ open, onClose, width, motion: steps, reveal }: LibraryProps) {
   const [section, setSection] = useState<Section>(DEFAULT_SECTION);
+  // The download it was opened at, until another section is chosen.
+  const [revealed, setRevealed] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   // The row chosen in the list, which the "+" of the spaces starts from.
   const [selected, setSelected] = useState<string | null>(null);
@@ -42,6 +52,7 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
   const serial = useRef(0);
   const { profiles, failed, reload, create, rename, remove, openWindow } = useProfiles(open);
   const spaces = useSpaces(open);
+  const filter = useDownloadsFilter(profiles);
   const { startNewSpace } = useSpace();
   const shown = sections.find(({ id }) => id === section)!;
   const railX = useTransform(() => railShift(steps));
@@ -61,7 +72,14 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
     setSection(id);
     setQuery("");
     setSelected(null);
+    setRevealed(null);
+    filter.reset();
   };
+  useEffect(() => {
+    if (!reveal) return;
+    choose("downloads");
+    setRevealed(reveal.download);
+  }, [reveal?.key]);
 
   return (
     // Closed, it is not laid out at all: its box, over the sidebar's and
@@ -106,7 +124,7 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
       >
         {/* As tall as the address field, and as far down as the window's
             buttons beside it (BUTTONS_ON_RAIL in motion.ts). */}
-        <div className="flex shrink-0 pt-2">
+        <div className="flex shrink-0 gap-1.5 pt-2">
           <label className="no-drag flex h-9 flex-1 items-center gap-2 rounded-field bg-fill px-3 text-fg-2">
             <Search size={13} strokeWidth={2.25} className="shrink-0 glyph-2" />
             <input
@@ -124,7 +142,9 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
               className="min-w-0 flex-1 bg-transparent text-fg outline-none placeholder:text-fg-3"
             />
           </label>
+          {section === "downloads" && <FilterButton filter={filter} />}
         </div>
+        {section === "downloads" && <FilterBar filter={filter} />}
 
         <SectionList
           key={section}
@@ -143,26 +163,31 @@ export function Library({ open, onClose, width, motion: steps }: LibraryProps) {
           onOpenWindow={openWindow}
           onRename={rename}
           onDelete={remove}
+          revealedDownload={revealed}
+          downloadsProfile={filter.profile?.id ?? null}
         />
 
         <div className="flex h-12.5 shrink-0 items-center justify-end">
-          <Button
-            icon={Plus}
-            label={`New ${shown.item}`}
-            // There is no list to add to until it has been read; a space is
-            // made in a profile, so it needs both.
-            disabled={(section === "profiles" && !profiles) || (section === "spaces" && !(profiles && spaces.spaces))}
-            onClick={() => {
-              // In the sidebar, in the profile of the space that is chosen, if one is.
-              if (section === "spaces") {
-                const chosen = spaces.spaces?.find(({ id }) => String(id) === selected);
-                onClose();
-                startNewSpace(chosen?.profile);
-              }
-              if (section === "profiles") setNewProfile({ open: true, serial: ++serial.current });
-              // Boosts are not made yet.
-            }}
-          />
+          {/* Downloads are not made here. */}
+          {section !== "downloads" && (
+            <Button
+              icon={Plus}
+              label={`New ${shown.item}`}
+              // There is no list to add to until it has been read; a space is
+              // made in a profile, so it needs both.
+              disabled={(section === "profiles" && !profiles) || (section === "spaces" && !(profiles && spaces.spaces))}
+              onClick={() => {
+                // In the sidebar, in the profile of the space that is chosen, if one is.
+                if (section === "spaces") {
+                  const chosen = spaces.spaces?.find(({ id }) => String(id) === selected);
+                  onClose();
+                  startNewSpace(chosen?.profile);
+                }
+                if (section === "profiles") setNewProfile({ open: true, serial: ++serial.current });
+                // Boosts are not made yet.
+              }}
+            />
+          )}
         </div>
         {newProfile && (
           <CreateDialog

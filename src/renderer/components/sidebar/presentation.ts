@@ -4,11 +4,12 @@
 // is open, and away otherwise. And its width, kept between runs, and
 // whether the Library is open in its place.
 
-import { useEffect, useState } from "react";
-import { hasApp, menu, type SidebarState } from "../../ipc";
+import { useEffect, useRef, useState } from "react";
+import { downloads, hasApp, menu, type SidebarState } from "../../ipc";
 import { useBrowser } from "../../state/browser";
 import { useSpace } from "../../state/space";
 import { useHolds } from "../ui/hold";
+import type { LibraryReveal } from "../library/library";
 import { useLibraryMotion } from "../library/motion";
 import { type Presentation, useSidebarMotion, useWindowButtons } from "./motion";
 import { useSaveSidebar } from "./state";
@@ -44,14 +45,32 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
   // made while it is away brings it out, for the bubble to hang off (a
   // permission prompt, an extension's popup from its shortcut) or the form.
   const [opened, hold] = useHolds();
+  // The Library, which takes the sidebar's place while it is open. Opened
+  // at the downloads (Window ▸ Downloads, or Chromium asking for them), it
+  // keeps the sidebar out until it closes.
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [reveal, setReveal] = useState<LibraryReveal | null>(null);
+  const reveals = useRef(0);
+  useEffect(
+    () =>
+      hasApp
+        ? downloads.onReveal((download) => {
+            setReveal({ download, key: ++reveals.current });
+            setLibraryOpen(true);
+          })
+        : undefined,
+    []
+  );
+  const setLibrary = (open: boolean) => {
+    setLibraryOpen(open);
+    if (!open) setReveal(null);
+  };
   const bubbleOpen = useBrowser().showing.length > 0;
   const making = useSpace().newSpace !== null;
-  const held = opened || bubbleOpen || omniboxOnAddress || making;
+  const held = opened || bubbleOpen || omniboxOnAddress || making || reveal !== null;
   // Floating, it is out while either keeps it out, and goes once neither does.
   const presentation: Presentation = docked ? "anchored" : pointerOver || held ? "floating" : "hidden";
 
-  // The Library, which takes the sidebar's place while it is open.
-  const [libraryOpen, setLibraryOpen] = useState(false);
   const library = useLibraryMotion(libraryOpen);
   const motion = useSidebarMotion(presentation, width, library.rail);
   useWindowButtons(motion.box, library);
@@ -65,7 +84,7 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
     /** A drag of its edge is over: the width it left is kept. */
     endResize: () => save({ open: docked, width }),
     motion,
-    library: { open: libraryOpen, setOpen: setLibraryOpen, motion: library },
+    library: { open: libraryOpen, setOpen: setLibrary, motion: library, reveal },
     toggle,
     /** The pointer came over it, or to the window's left edge. */
     enter: () => setPointerOver(true),

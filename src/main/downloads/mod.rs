@@ -10,6 +10,7 @@ pub mod thumbnails;
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
@@ -18,6 +19,8 @@ use wren::{
     Browser, Download, DownloadAction, DownloadFailure, DownloadIcon, DownloadState,
     DownloadStatus, DownloadWarning, MainThread, Profile, ProfileKind,
 };
+
+use crate::platform;
 
 /// A download, as the page draws it.
 #[derive(Serialize, Clone, PartialEq)]
@@ -28,6 +31,9 @@ pub struct Item {
     /// The ID of the profile it is of; off the record, its original's.
     profile: String,
     name: String,
+    /// The file's kind, as the platform's file manager says it: "PDF
+    /// document"; "" when it has none.
+    kind: String,
     /// Where it came from, after redirects.
     url: String,
     status: &'static str,
@@ -94,6 +100,8 @@ thread_local! {
     // Until then, a download taken off the list is only hidden, until the app
     // quits.
     static REMOVED: RefCell<HashSet<u64>> = RefCell::default();
+    // Each kind of file, by its name's extension.
+    static KINDS: RefCell<HashMap<String, String>> = RefCell::default();
 }
 
 /// The downloads `browser`'s window lists, each profile's in Chromium's
@@ -202,10 +210,12 @@ fn downloads(profile: &Profile) -> Vec<(Download, DownloadState)> {
 
 fn item(download: Download, state: &DownloadState, profile: &str) -> Item {
     let times = times(download, state);
+    let name = download.file_name();
     Item {
         id: download.id().to_string(),
         profile: profile.to_owned(),
-        name: download.file_name(),
+        kind: kind(&name),
+        name,
         url: download.url(),
         status: match state.status {
             DownloadStatus::InProgress => "inProgress",
@@ -243,6 +253,20 @@ fn item(download: Download, state: &DownloadState, profile: &str) -> Item {
             .map(|(name, _)| *name)
             .collect(),
     }
+}
+
+// The kind of a file named `name`, by its extension.
+fn kind(name: &str) -> String {
+    let extension = Path::new(name)
+        .extension()
+        .map(|extension| extension.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    KINDS.with_borrow_mut(|kinds| {
+        kinds
+            .entry(extension)
+            .or_insert_with(|| platform::file_kind(name).unwrap_or_default())
+            .clone()
+    })
 }
 
 // When the download started and ended.

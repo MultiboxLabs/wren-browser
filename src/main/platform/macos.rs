@@ -9,6 +9,7 @@ use std::ptr::NonNull;
 use block2::RcBlock;
 use dispatch2::DispatchQueue;
 use objc2::AllocAnyThread;
+use objc2::rc::Retained;
 use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSImage, NSWorkspace};
 use objc2_core_graphics::CGImage;
 use objc2_foundation::{NSDictionary, NSError, NSPoint, NSRect, NSSize, NSString, NSURL};
@@ -67,10 +68,24 @@ pub fn file_thumbnail(path: &str, size: f64, done: impl FnOnce(Option<Vec<u8>>) 
 }
 
 pub fn file_type_icon(name: &str, size: f64) -> Option<Vec<u8>> {
-    let extension = Path::new(name).extension()?.to_str()?;
-    let kind = UTType::typeWithFilenameExtension(&NSString::from_str(extension))?;
+    let kind = type_of(name)?;
     let icon = NSWorkspace::sharedWorkspace().iconForContentType(&kind);
     image_png(&icon, size)
+}
+
+pub fn file_kind(name: &str) -> Option<String> {
+    let kind = type_of(name)?;
+    // One the system does not know is dynamic, and named for no kind.
+    if kind.isDynamic() {
+        return None;
+    }
+    Some(kind.localizedDescription()?.to_string())
+}
+
+// The type of a file named `name`, by its extension, as the Finder has it.
+fn type_of(name: &str) -> Option<Retained<UTType>> {
+    let extension = Path::new(name).extension()?.to_str()?;
+    UTType::typeWithFilenameExtension(&NSString::from_str(extension))
 }
 
 // An image drawn at `size` points, as a PNG.

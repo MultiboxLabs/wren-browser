@@ -1,5 +1,6 @@
 // How a download is put in words: when it ended ("2 hours ago"), how far it
-// has come ("1.50/10.74 GB · 7m 20s"), and what stopped it.
+// has come ("1.50/10.74 GB · 7m 20s"), what stopped it, and what it is and
+// where it came from ("PDF document from example.com").
 
 import type { Download } from "../../ipc";
 import { isRunning, lastChanged } from "../../state/downloads";
@@ -23,6 +24,32 @@ export function ago(time: number, now: number) {
     if (seconds >= length) return relative.format(-Math.floor(seconds / length), unit);
   }
   return relative.format(0, "second");
+}
+
+const counted = new Intl.RelativeTimeFormat(undefined, { numeric: "always" });
+
+// The spans a heading groups by, past yesterday, in days.
+const SPANS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 365],
+  ["month", 30],
+  ["week", 7],
+  ["day", 1]
+];
+
+/**
+ * How long ago the day `time` is in was, as a heading over the downloads of
+ * that span: "Today", "Yesterday", "3 days ago", "2 weeks ago", "1 month ago".
+ */
+export function ageHeading(time: number, now: number) {
+  const day = new Date(time);
+  day.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const days = Math.max(0, Math.round((today.getTime() - day.getTime()) / (24 * 60 * 60 * 1000)));
+  const [unit, length] = SPANS.find(([, length]) => days >= length) ?? ["day", 1];
+  // In days, "today" and "yesterday"; past them, in numbers.
+  const text = (days <= 1 ? relative : counted).format(-Math.floor(days / length), unit);
+  return text.charAt(0).toLocaleUpperCase() + text.slice(1);
 }
 
 // Bytes as a file manager counts them, in thousands.
@@ -91,4 +118,25 @@ export function statusLine(download: Download) {
   if (status === "cancelled") return "Cancelled";
   if (fileRemoved) return "Moved or Deleted";
   return null;
+}
+
+/** What it is, and where it came from: "PDF document from example.com", or either alone. */
+export function origin(download: Download) {
+  const kind = download.kind || "Document";
+  const site = siteOf(download.url);
+  return site ? `${kind} from ${site}` : kind;
+}
+
+/**
+ * The site it came from: its host, without "www."; a blob's, its page's.
+ * "" for one with none, such as a data URL.
+ */
+export function siteOf(url: string) {
+  try {
+    const { protocol, pathname, hostname } = new URL(url);
+    if (protocol === "blob:") return siteOf(pathname);
+    return hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
 }
