@@ -1,6 +1,7 @@
-// The page info popover: what can be done with the page, the
-// extensions, the site's permissions, and how its connection stands. What it
-// shows is Chromium's, for the active tab; every change goes back to it.
+// The page info button, and the popover it opens: what can be done with the
+// page, the extensions, the site's permissions, and how its connection
+// stands. What it shows is Chromium's, for the active tab; every change goes
+// back to it. The button is in the sidebar's address field.
 
 import {
   AppWindow,
@@ -36,7 +37,7 @@ import {
   Volume2
 } from "lucide-react";
 import { motion } from "motion/react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   browser,
   type ExtensionAction,
@@ -47,13 +48,15 @@ import {
   site,
   type SitePermission
 } from "../../ipc";
+import { Anchor } from "../ui/anchor";
 import { Button, type Icon } from "../ui/button";
+import { Popover } from "../ui/popover";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
 import { isNewTab } from "../../utils/url";
-import { InsecureIcon } from "../icons";
+import { InsecureIcon, PageInfoIcon } from "../icons";
 import { type SidePanelId, sidePanels } from "../side-panel";
-import { useBrowser } from "../../state/browser";
+import { useBrowser, useSite } from "../../state/browser";
 import type { Tab } from "../../state/space";
 import { cn } from "../../utils/cn";
 
@@ -63,7 +66,44 @@ const STORE = "https://chromewebstore.google.com";
 /** The side panels the popover's first row opens and closes. */
 const quickPanels: SidePanelId[] = ["ReadingList", "Bookmarks", "ReadAnything"];
 
-export function PageInfo({
+/** The page info button, which the site's bubbles hang off (its mark is "page-info"), and which opens the popover. */
+export function PageInfoButton({ tab, actions }: { tab?: Tab; actions: ExtensionAction[] }) {
+  const site = useSite();
+  // A button is pressed while what it opens is open: the popover, or one
+  // of Chromium's bubbles hanging off its mark.
+  const { showing } = useBrowser();
+  const [open, setOpen] = useState(false);
+  // A bubble of Chromium's that opens below the button closes the popover.
+  const anchored = showing.includes("page-info");
+  if (anchored && open) setOpen(false);
+  // A press on the button while Chromium's bubble is open closes the bubble
+  // (Wren does), and must not open the popover in its place, though the
+  // bubble is gone by the time of the click.
+  const pressedAnchored = useRef(false);
+  return (
+    <Anchor name="page-info">
+      <Popover
+        open={open}
+        onOpenChange={(next) => setOpen(next && !pressedAnchored.current)}
+        label="Page Info"
+        trigger={
+          <Button
+            icon={PageInfoIcon}
+            iconSize={18}
+            label="Page Info"
+            pressed={anchored}
+            onPointerDown={() => (pressedAnchored.current = anchored)}
+            onKeyDown={() => (pressedAnchored.current = anchored)}
+          />
+        }
+      >
+        <PageInfo tab={tab} site={site} actions={actions} onClose={() => setOpen(false)} />
+      </Popover>
+    </Anchor>
+  );
+}
+
+function PageInfo({
   tab,
   site: info,
   actions,

@@ -7,15 +7,13 @@
 // hangs off the page info button at a time: Chromium's bubble or the popover.
 
 import { Search } from "lucide-react";
-import { type Ref, useRef, useState } from "react";
+import type { Ref } from "react";
 import { type ExtensionAction, extensions } from "../../ipc";
 import { Anchor } from "../ui/anchor";
 import { Button } from "../ui/button";
-import { Popover } from "../ui/popover";
 import { address, isNewTab } from "../../utils/url";
-import { useBrowser, useExtensionActions, useSite } from "../../state/browser";
-import { PageInfoIcon } from "../icons";
-import { ExtensionIcon, PageInfo } from "./page-info";
+import { useBrowser, useExtensionActions } from "../../state/browser";
+import { ExtensionIcon, PageInfoButton } from "./page-info";
 import type { Tab } from "../../state/space";
 
 /** What an empty address field says, and the omnibox's. */
@@ -32,19 +30,10 @@ export function AddressField({
   /** A click on the address: the omnibox, on it. */
   onOpenLocation: () => void;
 }) {
-  const site = useSite();
   const actions = useExtensionActions();
-  // A button is pressed while what it opens is open: the popover, or one
-  // of Chromium's bubbles hanging off its mark.
+  // A button is pressed while what it opens is open: one of Chromium's
+  // bubbles hanging off its mark.
   const { showing } = useBrowser();
-  const [open, setOpen] = useState(false);
-  // A bubble of Chromium's that opens below the button closes the popover.
-  const anchored = showing.includes("page-info");
-  if (anchored && open) setOpen(false);
-  // A press on the button while Chromium's bubble is open closes the bubble
-  // (Wren does), and must not open the popover in its place, though the
-  // bubble is gone by the time of the click.
-  const pressedAnchored = useRef(false);
   return (
     // Lit while its address is hovered, as a favourite is; its own buttons
     // light themselves.
@@ -73,25 +62,7 @@ export function AddressField({
         .map((action) => (
           <PinnedAction key={action.id} action={action} showing={showing.includes(`extension:${action.id}`)} />
         ))}
-      <Anchor name="page-info">
-        <Popover
-          open={open}
-          onOpenChange={(next) => setOpen(next && !pressedAnchored.current)}
-          label="Page Info"
-          trigger={
-            <Button
-              icon={PageInfoIcon}
-              iconSize={18}
-              label="Page Info"
-              pressed={anchored}
-              onPointerDown={() => (pressedAnchored.current = anchored)}
-              onKeyDown={() => (pressedAnchored.current = anchored)}
-            />
-          }
-        >
-          <PageInfo tab={tab} site={site} actions={actions} onClose={() => setOpen(false)} />
-        </Popover>
-      </Anchor>
+      <PageInfoButton tab={tab} actions={actions} />
     </div>
   );
 }
