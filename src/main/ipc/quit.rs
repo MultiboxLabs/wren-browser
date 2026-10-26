@@ -2,7 +2,7 @@
 // on), and the app asks in the page of the window in front (components/
 // quit-dialog.tsx) in place of Chromium's "Hold ⌘Q to Quit" (`App::
 // quit_prompt`). The quit waits for the page's answer. ⌘Q again while it
-// asks quits, as Chrome's warning does on a second press.
+// asks quits, as Chrome's warning does on a second press, and hides it.
 
 use std::rc::Rc;
 
@@ -44,6 +44,17 @@ enum Answer {
 /// to ask: it quits.
 pub fn show_quit_prompt(state: &Rc<State>, mt: MainThread, prompt: &QuitPrompt) -> PopoverAnswer {
     if prompt.again {
+        // The quit goes on, and Wren closes the prompt: the page's dialog
+        // goes too, so none is left asking should a page hold the quit back.
+        if let Some(OpenQuitPrompt { window: id, .. }) = state.quit_prompt.take() {
+            let state = Rc::downgrade(state);
+            mt.later(move |_| {
+                let Some(state) = state.upgrade() else { return };
+                if let Some(window) = state.windows.get(id) {
+                    let _ = window.page.web_view.send("quit.hide", &());
+                }
+            });
+        }
         return PopoverAnswer::None;
     }
     let Some(window) = state.windows.in_use().or_else(|| state.windows.front()) else {

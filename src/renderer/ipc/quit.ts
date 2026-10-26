@@ -10,6 +10,8 @@ export type QuitAnswer = "quit" | "always" | "cancel";
 export const quit = {
   /** ⌘Q warns, in this window's page; the quit waits for its answer. ⌘Q again quits without one. */
   onShow: (listener: (shown: QuitShown) => void) => wren.on<QuitShown>("quit.show", listener),
+  /** ⌘Q again quits without the page's answer: the warning goes. */
+  onHide: (listener: () => void) => wren.on<null>("quit.hide", listener),
   /** Answers the warning this window's page shows. */
   answer: (answer: QuitAnswer) => wren.invoke<null>("quit.answer", answer)
 };
