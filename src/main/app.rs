@@ -142,19 +142,16 @@ impl State {
         });
     }
 
-    // Toggle UI DevTools: closes the UI's DevTools if they are open, or
-    // opens them for `window`'s page. They use the UI's separate Profile,
-    // so site DevTools stays open when this item is toggled.
+    // Toggle UI DevTools: closes `window`'s page's DevTools if they are
+    // open, or opens them. Each window's page has its own, and a site's
+    // DevTools stays open.
     fn toggle_ui_devtools(&self, window: &BrowserWindow) {
-        let opened = self
-            .devtools
-            .borrow()
-            .keys()
-            .find(|browser| browser.profile() == *self.ui_profile.borrow())
-            .cloned();
-        let result = match opened {
-            Some(browser) => browser.close(),
-            None => window.page.web_view.open_dev_tools(),
+        let web_view = &window.page.web_view;
+        let open = web_view.state().is_ok_and(|state| state.devtools);
+        let result = if open {
+            web_view.close_dev_tools()
+        } else {
+            web_view.open_dev_tools()
         };
         if let Err(error) = result {
             eprintln!("Wren could not toggle UI DevTools: {error:?}");
