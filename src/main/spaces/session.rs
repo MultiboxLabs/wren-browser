@@ -156,12 +156,15 @@ impl State {
     }
 
     /// Keeps `window`'s current space and the spaces it has a Browser for,
-    /// or the profile it shows. A window making a space keeps the one it
-    /// left, to come back on.
+    /// or the profile it shows; a popup's window is never kept. A window
+    /// making a space keeps the one it left, to come back on.
     /// A Browser that closes is not noted: at quit, each closes before the
     /// app hears of the quit, and the window must keep it. The next save
     /// drops it.
     pub fn save_window(&self, window: &BrowserWindow) {
+        if window.is_popup() {
+            return;
+        }
         // An off-the-record window is never kept.
         let place = window.place().filter(|place| !place.is_off_the_record());
         let saved = self.db.save_window(
@@ -175,8 +178,12 @@ impl State {
         }
     }
 
-    /// Keeps where `window` is on screen; not while it is in full screen.
+    /// Keeps where `window` is on screen; not while it is in full screen,
+    /// nor a popup's.
     pub fn save_frame(&self, window: &BrowserWindow) {
+        if window.is_popup() {
+            return;
+        }
         let Some(frame) = window.page.frame() else {
             return;
         };

@@ -83,6 +83,13 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         with_window(&weak, |window| Ok(shown_profile(window)))
     });
 
+    // What makes the window a popup's, which the page draws without a
+    // sidebar; null for a browser window. It never changes.
+    let weak = window.clone();
+    let _ = web_view.handle("window.popup", move |()| {
+        with_window(&weak, |window| Ok(window.popup()))
+    });
+
     // Whether one of Chromium's dialogs over the window blocks its page, as
     // Chrome's block its window; "window.blocked" says when it changes.
     let weak = window.clone();

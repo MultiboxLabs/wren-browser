@@ -6,7 +6,7 @@ import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { BrowserProvider, useBrowser } from "../../state/browser";
 import { SpaceProvider, useSpace } from "../../state/space";
-import { useShowWindow, useWindowBlocked, useWindowTheme } from "../../state/window";
+import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "../../state/window";
 import { Omnibox } from "../../components/omnibox/omnibox";
 import { useShownOmnibox } from "../../components/omnibox/shown";
 import { SidePanel } from "../../components/side-panel";
@@ -21,10 +21,13 @@ import { BrowserToast } from "../../components/toast";
 import { QuitDialog } from "../../components/quit-dialog";
 import { TabSwitcher } from "../../components/tab-switcher/tab-switcher";
 import { cn } from "../../utils/cn";
+import { PopupWindow } from "./popup";
 
-// Waits for the sidebar's saved state, so it opens as it was left.
+// Waits for the sidebar's saved state, so it opens as it was left, and for
+// whether the window is a popup's, which has none (popup.tsx).
 export function App() {
   const saved = useSavedSidebar();
+  const popup = useWindowPopup();
   return (
     // With Reduced Motion, Motion keeps what fades, and leaves out what moves
     // or scales. What it does not know of (a height, a width, a value of
@@ -32,8 +35,14 @@ export function App() {
     <MotionConfig reducedMotion="user">
       <BrowserProvider>
         <Perf />
-        <SpaceProvider>
-          <TooltipProvider>{saved !== undefined && <BrowserWindow saved={saved} />}</TooltipProvider>
+        <SpaceProvider popup={popup}>
+          <TooltipProvider>
+            {popup ? (
+              <PopupWindow popup={popup} />
+            ) : (
+              popup === null && saved !== undefined && <BrowserWindow saved={saved} />
+            )}
+          </TooltipProvider>
         </SpaceProvider>
       </BrowserProvider>
     </MotionConfig>

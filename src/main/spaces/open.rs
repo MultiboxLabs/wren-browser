@@ -12,7 +12,7 @@ use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::tabs::placeholder;
-use crate::window::{BrowserWindow, PageWindow, Place, WindowId};
+use crate::window::{BrowserWindow, PageWindow, Place, Popup, TitleBarKind, WindowId};
 
 impl State {
     /// Opens a window on `place`, with no Browser yet; with no place, the
@@ -28,8 +28,8 @@ impl State {
     }
 
     /// Opens window `key` on `place`, as `open_window` does: at `frame` if
-    /// it has one, else below and right of the window in use. Its page is the
-    /// UI's, in a Profile of its own.
+    /// it has one, else below and right of the window in use, so a new one
+    /// does not hide it.
     pub(super) fn open_keyed_window(
         self: &Rc<Self>,
         mt: MainThread,
@@ -37,34 +37,70 @@ impl State {
         place: Option<Place>,
         frame: Option<RequestedBounds>,
     ) -> Option<WindowId> {
+        let front = self.windows.front();
+        let window = self.open_page_window(mt, key, place, frame.is_some(), None)?;
+        match (frame, front) {
+            (Some(frame), _) => window.page.restore_frame(frame),
+            (None, Some(front)) => window.page.cascade_from(&front.page),
+            (None, None) => {}
+        }
+        Some(window.id)
+    }
+
+    /// Opens a browser window, `key` on `place`, where AppKit puts it: a
+    /// popup's (popup.rs), drawn under the system's title bar, or else one
+    /// whose page draws its own. Its page is the UI's, in a Profile of its
+    /// own. `framed`: the caller places the window, and its first Browser's
+    /// frame does not move it (`BrowserWindow::add`).
+    pub(super) fn open_page_window(
+        self: &Rc<Self>,
+        mt: MainThread,
+        key: String,
+        place: Option<Place>,
+        framed: bool,
+        popup: Option<Popup>,
+    ) -> Option<Rc<BrowserWindow>> {
         let profile = self.ui_profile.borrow().clone()?;
         let id = self.windows.next_id();
+        let title_bar = match popup {
+            Some(_) => TitleBarKind::System,
+            None => TitleBarKind::Page,
+        };
         let weak = Rc::downgrade(self);
-        let page = PageWindow::open(&profile, &UI, "Wren", (1280.0, 800.0), move || {
+        let should_close = move || {
             if let Some(state) = weak.upgrade() {
                 state.close_window(mt, id);
             }
             // The window goes as its Browsers close (`browser_closed`).
             false
-        })?;
+        };
+        let page = PageWindow::open(
+            &profile,
+            &UI,
+            "Wren",
+            (1280.0, 800.0),
+            title_bar,
+            should_close,
+        )?;
         ipc::handle_ui(&page.web_view, &WindowRef::new(self, id), mt);
         // The page and the backdrop are drawn as in use while the window is.
+        // A popup's is never the window the user browses in.
         let state = Rc::downgrade(self);
         page.watch_active(mt, move |active| {
             let Some(state) = state.upgrade() else { return };
             let Some(window) = state.windows.get(id) else {
                 return;
             };
-            if active {
+            if !active {
+                // Where it is now, should the app not quit as it should.
+                state.save_frame(&window);
+            } else if !window.is_popup() {
                 state.windows.set_active(id);
                 state.update_front_menu(mt);
                 // The space the user is in is the one used last.
                 if let Some(space) = window.space() {
                     state.touch_space(space);
                 }
-            } else {
-                // Where it is now, should the app not quit as it should.
-                state.save_frame(&window);
             }
             window.page.set_active(active);
             ipc::send_active(&window.page, active);
@@ -87,24 +123,12 @@ impl State {
                 }
             }
         });
-        // Where it was kept, or else below and right of the window in use, so
-        // a new one does not hide it.
-        match frame {
-            Some(frame) => page.restore_frame(frame),
-            None => {
-                if let Some(front) = self.windows.front() {
-                    page.cascade_from(&front.page);
-                }
-            }
-        }
-        let framed = frame.is_some();
         self.windows
-            .add(BrowserWindow::new(id, key, page, place, framed));
+            .add(BrowserWindow::new(id, key, page, place, framed, popup));
+        let window = self.windows.get(id)?;
         // Named for its place until a tab is in front, or should none come.
-        if let Some(window) = self.windows.get(id) {
-            self.update_title(&window);
-        }
-        Some(id)
+        self.update_title(&window);
+        Some(window)
     }
 
     /// Opens a window on `place`, with a Browser that has no tab yet.
@@ -277,7 +301,7 @@ impl State {
         }
         let of_profile = |space: &SpaceId| self.is_space_of(*space, &profile);
         let space = opener
-            .and_then(|opener| self.windows.of(&opener)?.space_of(&opener))
+            .and_then(|opener| self.windows.of(&opener)?.space_opened_from(&opener))
             .filter(of_profile)
             .or_else(|| self.windows.front()?.space().filter(of_profile))
             .or_else(|| self.recent_space(mt, &profile));

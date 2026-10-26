@@ -1,7 +1,8 @@
 // The page info button, and the popover it opens: what can be done with the
 // page, the extensions, the site's permissions, and how its connection
 // stands. What it shows is Chromium's, for the active tab; every change goes
-// back to it. The button is in the sidebar's address field.
+// back to it. The button is in the sidebar's address field, and in a popup's
+// address bar (pages/ui/popup.tsx), where the popover has what a popup has.
 
 import {
   AppWindow,
@@ -66,8 +67,22 @@ const STORE = "https://chromewebstore.google.com";
 /** The side panels the popover's first row opens and closes. */
 const quickPanels: SidePanelId[] = ["ReadingList", "Bookmarks", "ReadAnything"];
 
-/** The page info button, which the site's bubbles hang off (its mark is "page-info"), and which opens the popover. */
-export function PageInfoButton({ tab, actions }: { tab?: Tab; actions: ExtensionAction[] }) {
+/**
+ * The page info button, which the site's bubbles hang off (its mark is
+ * "page-info"), and which opens the popover. `popup`: in a popup's address
+ * bar, near the window's side, it is round and faintly filled, as
+ * Chromium's there is, and its popover may come nearer the side, for its
+ * arrow to point at the button from off the popover's rounded corner.
+ */
+export function PageInfoButton({
+  tab,
+  actions = [],
+  popup = false
+}: {
+  tab?: Tab;
+  actions?: ExtensionAction[];
+  popup?: boolean;
+}) {
   const site = useSite();
   // A button is pressed while what it opens is open: the popover, or one
   // of Chromium's bubbles hanging off its mark.
@@ -86,18 +101,21 @@ export function PageInfoButton({ tab, actions }: { tab?: Tab; actions: Extension
         open={open}
         onOpenChange={(next) => setOpen(next && !pressedAnchored.current)}
         label="Page Info"
+        windowMargin={popup ? 2 : undefined}
         trigger={
           <Button
             icon={PageInfoIcon}
             iconSize={18}
             label="Page Info"
+            variant={popup ? "faint" : "plain"}
+            className={cn(popup && "rounded-full")}
             pressed={anchored}
             onPointerDown={() => (pressedAnchored.current = anchored)}
             onKeyDown={() => (pressedAnchored.current = anchored)}
           />
         }
       >
-        <PageInfo tab={tab} site={site} actions={actions} onClose={() => setOpen(false)} />
+        <PageInfo tab={tab} site={site} actions={actions} popup={popup} onClose={() => setOpen(false)} />
       </Popover>
     </Anchor>
   );
@@ -107,11 +125,18 @@ function PageInfo({
   tab,
   site: info,
   actions,
+  popup,
   onClose
 }: {
   tab?: Tab;
   site: Site | null;
   actions: ExtensionAction[];
+  /**
+   * In a popup's window, which has no side panel, and whose Browser has no
+   * extensions' actions (Chromium gives them only to a tabbed window's): it
+   * has neither the side panels' tiles nor the Extensions section.
+   */
+  popup: boolean;
   onClose: () => void;
 }) {
   const openPanel = useBrowser().sidePanel?.id;
@@ -119,56 +144,59 @@ function PageInfo({
     <div className="flex w-66 flex-col p-2.5">
       <div className="grid grid-cols-4 grid-rows-[40px] gap-2">
         <CopyLinkTile disabled={!tab || isNewTab(tab.url)} onCopied={onClose} />
-        {quickPanels.map((id) => {
-          const panel = sidePanels.find((each) => each.id === id)!;
-          const open = openPanel === id;
-          return (
-            <Button
-              key={id}
-              variant="raised"
-              shape="tile"
-              icon={panel.icon}
-              iconSize={17}
-              label={open ? `Close ${panel.label}` : panel.label}
-              pressed={open}
-              aria-pressed={open}
-              onClick={() => {
-                onClose();
-                if (open) sidePanel.close();
-                else sidePanel.show(id);
-              }}
-            />
-          );
-        })}
+        {!popup &&
+          quickPanels.map((id) => {
+            const panel = sidePanels.find((each) => each.id === id)!;
+            const open = openPanel === id;
+            return (
+              <Button
+                key={id}
+                variant="raised"
+                shape="tile"
+                icon={panel.icon}
+                iconSize={17}
+                label={open ? `Close ${panel.label}` : panel.label}
+                pressed={open}
+                aria-pressed={open}
+                onClick={() => {
+                  onClose();
+                  if (open) sidePanel.close();
+                  else sidePanel.show(id);
+                }}
+              />
+            );
+          })}
       </div>
 
-      <Section
-        title="Extensions"
-        action={{
-          label: "Manage",
-          onPress: () => {
-            onClose();
-            browser.open("chrome://extensions");
-          }
-        }}
-      >
-        <div className="grid auto-rows-[36px] grid-cols-4 gap-2">
-          {actions.map((action) => (
-            <ExtensionTile key={action.id} action={action} onRun={onClose} />
-          ))}
-          <Button
-            variant="faint"
-            shape="tile"
-            icon={Plus}
-            iconSize={17}
-            label="Add Extensions"
-            onClick={() => {
+      {!popup && (
+        <Section
+          title="Extensions"
+          action={{
+            label: "Manage",
+            onPress: () => {
               onClose();
-              browser.open(STORE);
-            }}
-          />
-        </div>
-      </Section>
+              browser.open("chrome://extensions");
+            }
+          }}
+        >
+          <div className="grid auto-rows-[36px] grid-cols-4 gap-2">
+            {actions.map((action) => (
+              <ExtensionTile key={action.id} action={action} onRun={onClose} />
+            ))}
+            <Button
+              variant="faint"
+              shape="tile"
+              icon={Plus}
+              iconSize={17}
+              label="Add Extensions"
+              onClick={() => {
+                onClose();
+                browser.open(STORE);
+              }}
+            />
+          </div>
+        </Section>
+      )}
 
       {info && info.permissions.length > 0 && (
         <Section title="Permissions">

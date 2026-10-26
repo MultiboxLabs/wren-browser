@@ -1,6 +1,7 @@
-// The browser windows that are open, found by their ID or by a Browser they
-// show. A window is handed out as an `Rc`, so a caller keeps it past a call
-// that closes it, and the set is never borrowed while one is used.
+// The browser windows that are open, popups' among them, found by their ID
+// or by a Browser they show; the one the user browses in is never a
+// popup's. A window is handed out as an `Rc`, so a caller keeps it past a
+// call that closes it, and the set is never borrowed while one is used.
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -75,26 +76,32 @@ impl Windows {
         self.open.borrow().iter().find(|w| w.is_waiting()).cloned()
     }
 
-    /// Notes that `id` is the window in use.
+    /// Notes that `id` is the window in use; not a popup's.
     pub fn set_active(&self, id: WindowId) {
         self.last_active.set(Some(id));
     }
 
     /// The window in use, if one is: the app is in front, and the window is
-    /// key.
-    pub fn active(&self) -> Option<Rc<BrowserWindow>> {
+    /// key. A popup's too.
+    pub fn in_use(&self) -> Option<Rc<BrowserWindow>> {
         let open = self.open.borrow();
         open.iter().find(|w| w.page.is_active()).cloned()
     }
 
-    /// The window the user is in: the one in use, or else the last that was,
-    /// or else the oldest.
+    /// The window in use, if it is one the user browses in: not a popup's.
+    pub fn active(&self) -> Option<Rc<BrowserWindow>> {
+        self.in_use().filter(|w| !w.is_popup())
+    }
+
+    /// The window the user browses in: the one in use, or else the last
+    /// that was, or else the oldest; never a popup's, as Chrome's New Tab
+    /// and New Window in a popup are its last tabbed window's.
     pub fn front(&self) -> Option<Rc<BrowserWindow>> {
         self.active().or_else(|| {
             let open = self.open.borrow();
             open.iter()
                 .find(|w| Some(w.id) == self.last_active.get())
-                .or_else(|| open.first())
+                .or_else(|| open.iter().find(|w| !w.is_popup()))
                 .cloned()
         })
     }

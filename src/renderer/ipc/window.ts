@@ -1,6 +1,17 @@
 /** The space a window is on, or that it is on none while the user makes one. */
 export type WindowSpace = { kind: "space"; id: number } | { kind: "newSpace" };
 
+/**
+ * What makes a window a popup's (a page's popup, an extension's popup window,
+ * an app's window, Picture-in-Picture), which is drawn without a sidebar.
+ */
+export type WindowPopup = {
+  /** The space it was opened from, whose colours it is drawn in. */
+  space: number | null;
+  /** Whether it shows its page's address, read-only, as a page's popup does; else its title. */
+  address: boolean;
+};
+
 /** The profile a window shows, rather than spaces: its ID, or its off-the-record side. */
 export type WindowProfile = { id: string; offTheRecord: boolean };
 
@@ -10,6 +21,8 @@ export const appWindow = {
    * hidden; later calls do nothing.
    */
   show: () => wren.invoke<null>("window.show"),
+  /** What makes the window a popup's; null for a browser window. It never changes. */
+  popup: () => wren.invoke<WindowPopup | null>("window.popup"),
   /** Whether the window is in use: main, or under a sheet or bubble of its own. */
   active: () => wren.invoke<boolean>("window.active"),
   onActive: (listener: (active: boolean) => void) => wren.on<boolean>("window.active", listener),

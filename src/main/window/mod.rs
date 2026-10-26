@@ -1,5 +1,6 @@
 // A window showing one page in a web view: the browser's own window, whose
-// title bar, sidebar and panels are the page's.
+// title bar, sidebar and panels are the page's, or a popup's, whose page is
+// under the system's title bar.
 
 mod browser;
 mod list;
@@ -20,8 +21,9 @@ use objc2_app_kit::{
     NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
     NSApplication, NSApplicationDidBecomeActiveNotification,
     NSApplicationDidResignActiveNotification, NSAutoresizingMaskOptions, NSBackingStoreType,
-    NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState,
-    NSVisualEffectView, NSWindow, NSWindowDelegate, NSWindowDidBecomeKeyNotification,
+    NSFloatingWindowLevel, NSScreen, NSTitlebarSeparatorStyle, NSToolbar, NSView,
+    NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView,
+    NSWindow, NSWindowDelegate, NSWindowDidBecomeKeyNotification,
     NSWindowDidBecomeMainNotification, NSWindowDidEndLiveResizeNotification,
     NSWindowDidEnterFullScreenNotification, NSWindowDidExitFullScreenNotification,
     NSWindowDidResignKeyNotification, NSWindowDidResignMainNotification,
@@ -30,14 +32,15 @@ use objc2_app_kit::{
     NSWindowWillExitFullScreenNotification,
 };
 use objc2_foundation::{
-    NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString, ns_string,
+    NSIntersectsRect, NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString,
+    ns_string,
 };
 use objc2_quartz_core::CATransaction;
 use wren::{MainThread, Profile, RequestedBounds, TabCrash, WebView, WebViewKind, WebViewOptions};
 
 use crate::pages::Page;
 
-pub use browser::{BrowserWindow, WindowId, marks};
+pub use browser::{BrowserWindow, Popup, WindowId, marks};
 pub use list::Windows;
 pub use place::Place;
 pub use plain::PlainWindow;
@@ -47,6 +50,15 @@ pub use tag::Tag;
 /// with none, as Chrome does, until the user quits it.
 pub const QUITS_WITH_LAST_WINDOW: bool = !cfg!(target_os = "macos");
 use title_bar::TitleBar;
+
+/// Who draws a window's title bar: the page, whose content fills the window
+/// and places the window's buttons (a browser window's sidebar), or the
+/// system, above the page, with the window's title (a popup's).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TitleBarKind {
+    Page,
+    System,
+}
 
 /// A window showing one page. Its web view drops first, which takes the page
 /// out of the window.
@@ -68,6 +80,7 @@ impl PageWindow {
         page: &Page,
         title: &str,
         size: (f64, f64),
+        kind: TitleBarKind,
         should_close: impl Fn() -> bool + 'static,
     ) -> Option<PageWindow> {
         let mtm = MainThreadMarker::new().unwrap();
@@ -84,30 +97,45 @@ impl PageWindow {
         };
         let web_view = Rc::new(WebView::new(profile, &page.url(), &options)?);
 
-        // The title bar is the page's: the content fills the window, under
-        // a title bar that draws nothing.
+        // A title bar that is the page's draws nothing, over the content,
+        // which fills the window.
+        let mut style = NSWindowStyleMask::Titled
+            | NSWindowStyleMask::Closable
+            | NSWindowStyleMask::Resizable
+            | NSWindowStyleMask::Miniaturizable;
+        if kind == TitleBarKind::Page {
+            style |= NSWindowStyleMask::FullSizeContentView;
+        }
         let window = unsafe {
             NSWindow::initWithContentRect_styleMask_backing_defer(
                 NSWindow::alloc(mtm),
                 NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(size.0, size.1)),
-                NSWindowStyleMask::Titled
-                    | NSWindowStyleMask::Closable
-                    | NSWindowStyleMask::Resizable
-                    | NSWindowStyleMask::Miniaturizable
-                    | NSWindowStyleMask::FullSizeContentView,
+                style,
                 NSBackingStoreType::Buffered,
                 false,
             )
         };
         unsafe { window.setReleasedWhenClosed(false) };
         window.setTitle(&NSString::from_str(title));
-        window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
-        window.setTitlebarAppearsTransparent(true);
-        // An empty compact toolbar makes the title bar tall enough for the
-        // buttons wherever the page puts them (set_buttons).
-        let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), ns_string!("main"));
-        window.setToolbar(Some(&toolbar));
-        window.setToolbarStyle(NSWindowToolbarStyle::UnifiedCompact);
+        let toolbar = match kind {
+            // An empty compact toolbar makes the title bar tall enough for
+            // the buttons wherever the page puts them (set_buttons).
+            TitleBarKind::Page => {
+                window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+                window.setTitlebarAppearsTransparent(true);
+                let toolbar =
+                    NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), ns_string!("main"));
+                window.setToolbar(Some(&toolbar));
+                window.setToolbarStyle(NSWindowToolbarStyle::UnifiedCompact);
+                Some(toolbar)
+            }
+            // No line under the system's: the page's top goes on from it, as
+            // a toolbar does.
+            TitleBarKind::System => {
+                window.setTitlebarSeparatorStyle(NSTitlebarSeparatorStyle::None);
+                None
+            }
+        };
         window.center();
         let delegate = WindowDelegate::new(mtm, Box::new(should_close));
         window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
@@ -117,10 +145,15 @@ impl PageWindow {
             | NSAutoresizingMaskOptions::ViewHeightSizable;
 
         // What shows through the page: the desktop, blurred. Its state is
-        // set from the window's, as the page's is (set_active).
+        // set from the window's, as the page's is (set_active). Under the
+        // system's title bar, what the page leaves clear is drawn as the
+        // title bar is, so the two are one.
         let backdrop =
             NSVisualEffectView::initWithFrame(NSVisualEffectView::alloc(mtm), content.bounds());
-        backdrop.setMaterial(NSVisualEffectMaterial::UnderWindowBackground);
+        backdrop.setMaterial(match kind {
+            TitleBarKind::Page => NSVisualEffectMaterial::UnderWindowBackground,
+            TitleBarKind::System => NSVisualEffectMaterial::Titlebar,
+        });
         backdrop.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
         backdrop.setState(NSVisualEffectState::Active);
         backdrop.setAutoresizingMask(fill);
@@ -161,13 +194,18 @@ impl PageWindow {
         // again, so they go where the page wants them after each time.
         // Full screen, the toolbar would get a bar of its own above the
         // page, so the window has none while it is.
-        let title_bar = Rc::new(TitleBar::default());
+        let title_bar = Rc::new(TitleBar {
+            system: kind == TitleBarKind::System,
+            ..TitleBar::default()
+        });
         let lay_out = {
             let (window, toolbar, title_bar) = (window.clone(), toolbar.clone(), title_bar.clone());
             Rc::new(move |full_screen: Option<bool>| {
                 if let Some(full_screen) = full_screen {
                     title_bar.full_screen.set(full_screen);
-                    window.setToolbar((!full_screen).then_some(&*toolbar));
+                    if let Some(toolbar) = &toolbar {
+                        window.setToolbar((!full_screen).then_some(&**toolbar));
+                    }
                 }
                 title_bar.apply(&window);
             })
@@ -217,14 +255,49 @@ impl PageWindow {
     /// AppKit cascades windows; AppKit keeps it on a screen. A window in
     /// full screen has no place to cascade from.
     pub fn cascade_from(&self, other: &PageWindow) {
-        if other.is_full_screen() {
-            return;
+        if let Some(frame) = other.cascaded(other.window.frame().size) {
+            self.window.setFrame_display(frame, false);
         }
+    }
+
+    /// Gives a popup's window a content area of `size`, with its frame at
+    /// `origin` (AppKit's screen coordinates, as a page asks for it) if a
+    /// screen shows it there; or else cascaded from `near`, or else centred.
+    pub fn place_popup(
+        &self,
+        size: (f64, f64),
+        origin: Option<(f64, f64)>,
+        near: Option<&PageWindow>,
+    ) {
+        let window = &self.window;
+        window.setContentSize(NSSize::new(size.0, size.1));
+        let size = window.frame().size;
+        let asked = origin
+            .map(|(x, y)| NSRect::new(NSPoint::new(x, y), size))
+            .filter(|&frame| is_on_screen(frame));
+        match asked.or_else(|| near?.cascaded(size)) {
+            Some(frame) => window.setFrame_display(frame, false),
+            None => window.center(),
+        }
+    }
+
+    /// Keeps the window above the others, as Picture-in-Picture is.
+    pub fn float(&self) {
+        self.window.setLevel(NSFloatingWindowLevel);
+    }
+
+    // The frame of a window of `size` cascaded from this one, as AppKit
+    // cascades windows: its top left just below and right of this one's.
+    // None in full screen, which has no place to cascade from.
+    fn cascaded(&self, size: NSSize) -> Option<NSRect> {
         const STEP: f64 = 26.0;
-        let frame = other.window.frame();
-        let origin = NSPoint::new(frame.origin.x + STEP, frame.origin.y - STEP);
-        self.window
-            .setFrame_display(NSRect::new(origin, frame.size), false);
+        if self.is_full_screen() {
+            return None;
+        }
+        let frame = self.window.frame();
+        let top = frame.origin.y + frame.size.height - STEP;
+        let origin = NSPoint::new(frame.origin.x + STEP, top - size.height);
+        Some(NSRect::new(origin, size))
     }
 
     /// Puts the window where a restored Browser's window was, or where the
@@ -456,6 +529,13 @@ pub fn close_other_key_window<'a>(pages: impl IntoIterator<Item = &'a PageWindow
     }
     key.performClose(None);
     true
+}
+
+// Whether a screen shows some of `frame`.
+fn is_on_screen(frame: NSRect) -> bool {
+    NSScreen::screens(MainThreadMarker::new().unwrap())
+        .iter()
+        .any(|screen| NSIntersectsRect(screen.visibleFrame(), frame))
 }
 
 fn is_full_screen(window: &NSWindow) -> bool {

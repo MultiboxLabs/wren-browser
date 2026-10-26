@@ -1,6 +1,7 @@
 // The page of the active tab, or of both tabs of its split, side by side or
 // one above the other, with a divider between them. A page in full screen
-// has the window to itself, without its card.
+// has the window to itself, without its card. A popup's page has no card
+// either (`bare`): it is edge to edge, under the window's title bar.
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import { FindBar } from "./find-bar";
@@ -20,17 +21,20 @@ export function TabView({
   tab,
   split,
   tabs,
-  fullScreen = false
+  fullScreen = false,
+  bare = false
 }: {
   tab: BrowserTab;
   split?: TabSplit;
   tabs: BrowserTab[];
   fullScreen?: boolean;
+  /** Edge to edge, with no card round it nor loading bar over it: a popup's. */
+  bare?: boolean;
 }) {
   const first = split && tabs.find((each) => each.id === split.first);
   const second = split && tabs.find((each) => each.id === split.second);
-  if (fullScreen || !split || !first || !second)
-    return <TabPane tab={tab} active fullScreen={fullScreen} className="flex-1" />;
+  if (fullScreen || bare || !split || !first || !second)
+    return <TabPane tab={tab} active fullScreen={fullScreen} bare={bare} className="flex-1" />;
   return <SplitPanes split={split} first={first} second={second} active={tab.id} />;
 }
 
@@ -95,6 +99,7 @@ function TabPane({
   tab,
   active,
   fullScreen = false,
+  bare = false,
   className,
   style
 }: {
@@ -102,13 +107,19 @@ function TabPane({
   /** The active tab's, which the find bar is on. */
   active: boolean;
   fullScreen?: boolean;
+  bare?: boolean;
   className?: string;
   style?: CSSProperties;
 }) {
   return (
     <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
-      {!fullScreen && <LoadingBar loading={tab.loading} />}
-      <div className={cn(fullScreen ? "bg-black" : "card", "no-drag relative min-h-0 min-w-0 flex-1 overflow-hidden")}>
+      {!fullScreen && !bare && <LoadingBar loading={tab.loading} />}
+      <div
+        className={cn(
+          fullScreen ? "bg-black" : bare ? "bg-card" : "card",
+          "no-drag relative min-h-0 min-w-0 flex-1 overflow-hidden"
+        )}
+      >
         <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block bg-black" />
         {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={tab.id} />}
       </div>

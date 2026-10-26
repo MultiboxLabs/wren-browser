@@ -4,7 +4,8 @@
 // drawn before the window knows its own, and outside the app. A window on a
 // profile shows a space made up for the profile, and has none to switch to.
 // A window on no space, while the user makes one, shows that one as it is so
-// far (new-space.ts).
+// far (new-space.ts). A popup's window is on its profile, and takes the
+// colour of the space it was opened from, if it was from one.
 
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -15,6 +16,7 @@ import {
   type ProfileEntry,
   type SpaceEntry,
   type SpaceTheme,
+  type WindowPopup,
   type WindowProfile,
   type WindowSpace
 } from "../ipc";
@@ -157,7 +159,7 @@ type SpaceState = {
 
 const SpaceContext = createContext<SpaceState | null>(null);
 
-export function SpaceProvider({ children }: { children: ReactNode }) {
+export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup | null; children: ReactNode }) {
   const { spaces: entries, move: moveSpace } = useSpaces(true);
   const { profiles: listed } = useProfiles(true);
   const [onSpace, setOnSpace] = useState<WindowSpace | null>(null);
@@ -178,19 +180,22 @@ export function SpaceProvider({ children }: { children: ReactNode }) {
   const draft = newSpace.state?.draft;
   const entry = spaces.find(({ id }) => id === current);
   const profileEntry = profile ? listed?.find(({ id }) => id === profile.id) : undefined;
+  const openedFrom = popup?.space != null ? entries?.find(({ id }) => id === popup.space) : undefined;
   // Until the spaces are read, the made-up one stands in, as the window's.
   const space = useMemo(
     () =>
-      profile
-        ? ofProfile(profile, profileEntry)
-        : draft
-          ? ofDraft(draft)
-          : entry
-            ? drawn(entry.id, entry)
-            : current === null
-              ? madeUp
-              : { ...madeUp, id: current },
-    [profile, profileEntry, draft, entry, madeUp, current]
+      openedFrom
+        ? drawn(openedFrom.id, openedFrom)
+        : profile
+          ? ofProfile(profile, profileEntry)
+          : draft
+            ? ofDraft(draft)
+            : entry
+              ? drawn(entry.id, entry)
+              : current === null
+                ? madeUp
+                : { ...madeUp, id: current },
+    [openedFrom, profile, profileEntry, draft, entry, madeUp, current]
   );
 
   // The content slides out toward `to`'s place, then `then` runs; at once

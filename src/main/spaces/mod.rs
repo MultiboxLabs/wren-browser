@@ -5,11 +5,13 @@
 //
 // - open.rs: opening windows, and where each Browser goes;
 // - switch.rs: switching a window between its spaces;
-// - session.rs: keeping the windows, so each comes back as it was.
+// - session.rs: keeping the windows, so each comes back as it was;
+// - popup.rs: the windows of popups, which show no spaces.
 //
 // What a window holds is `BrowserWindow`'s (window/browser.rs).
 
 mod open;
+mod popup;
 mod session;
 mod switch;
 

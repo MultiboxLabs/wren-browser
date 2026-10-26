@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { appWindow, follow, hasApp } from "../ipc";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { appWindow, follow, hasApp, type WindowPopup } from "../ipc";
 import { cssColor } from "../utils/color";
 import { type Space, themeKey } from "./space";
 
@@ -27,6 +27,19 @@ export function useWindowActive() {
   }, []);
 
   return active;
+}
+
+/**
+ * What makes the window a popup's, which it is from the start: null for a
+ * browser window, and undefined until the app has said. Outside the app, a
+ * browser window's.
+ */
+export function useWindowPopup() {
+  const [popup, setPopup] = useState<WindowPopup | null | undefined>(hasApp ? undefined : null);
+  useEffect(() => {
+    if (hasApp) appWindow.popup().then(setPopup, () => setPopup(null));
+  }, []);
+  return popup;
 }
 
 /**
@@ -63,16 +76,36 @@ export function useFullScreen() {
 }
 
 /**
- * Puts the window's look on <html>, so the colours made from it reach menus
- * and tooltips too: the space's colour and the scheme it takes, whether the
- * window is in use, and whether it is full screen. The app is told the
- * scheme, for the window around the page: its blur and its buttons. Its
- * colour tweens as the background fades, by the same key (`themeKey`).
+ * A browser window's look, its space's: on the page (`useRootTheme`), and
+ * on the window around it, whose blur and buttons the app draws in the
+ * space's scheme.
  */
 export function useWindowTheme(space: Space) {
+  const { scheme } = space;
+  useRootTheme(space, scheme);
+  useEffect(() => {
+    if (hasApp) appWindow.setDark(scheme === "dark");
+  }, [scheme]);
+}
+
+/**
+ * A popup's window's look. Its title bar is the system's, so the page is
+ * light or dark as the system is, and the window around it is left as the
+ * system draws it; the space's colour is its accents'.
+ */
+export function usePopupTheme(space: Space) {
+  useRootTheme(space, useSystemScheme());
+}
+
+/**
+ * Puts the window's look on <html>, so the colours made from it reach menus
+ * and tooltips too: the space's colour, the scheme, whether the window is in
+ * use, and whether it is full screen. The colour tweens as the background
+ * fades, by the same key (`themeKey`).
+ */
+function useRootTheme(space: Space, scheme: "light" | "dark") {
   const active = useWindowActive();
   const fullScreen = useFullScreen();
-  const { scheme } = space;
   // The colour tweens (index.css), unless the user picks it: then its key
   // stays as it changes. Apart from the rest, which leave a tween as it is.
   const key = themeKey(space);
@@ -89,7 +122,16 @@ export function useWindowTheme(space: Space) {
     root.dataset.active = String(active);
     root.toggleAttribute("data-full-screen", fullScreen);
   }, [scheme, active, fullScreen]);
+}
+
+// The system's appearance, light or dark, as it changes.
+function useSystemScheme() {
+  const query = useMemo(() => matchMedia("(prefers-color-scheme: dark)"), []);
+  const [dark, setDark] = useState(query.matches);
   useEffect(() => {
-    if (hasApp) appWindow.setDark(scheme === "dark");
-  }, [scheme]);
+    const changed = () => setDark(query.matches);
+    query.addEventListener("change", changed);
+    return () => query.removeEventListener("change", changed);
+  }, [query]);
+  return dark ? "dark" : "light";
 }

@@ -6,10 +6,15 @@
 // also be on no space, while the user makes one, with every Browser in the
 // background. Each Browser carries the window's key and its place in its
 // session tag, so a restore puts it back (tag.rs).
+//
+// A popup window shows one Browser Chromium opened that is not a tabbed
+// window (`Popup`), on its profile's place. It is never kept, and is not the
+// window the user browses in (`Windows::front`).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
+use serde::Serialize;
 use wren::{Browser, BubbleAnchor};
 
 use super::tag::Tag;
@@ -31,6 +36,20 @@ pub struct WindowId(pub u64);
 enum Slot {
     Opening,
     Open(Browser),
+}
+
+/// What makes a window a popup's: a page's popup, an extension's popup
+/// window, an installed app's window or Picture-in-Picture, drawn without a
+/// sidebar (pages/ui/popup.tsx). The page reads it ("window.popup").
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Popup {
+    /// The space it was opened from, whose colour its accents are, and
+    /// where what it opens goes.
+    pub space: Option<SpaceId>,
+    /// Whether it shows its page's address, read-only: Chrome gives a
+    /// page's popup a location bar, and the rest only a title.
+    pub address: bool,
 }
 
 /// What a window has in front.
@@ -65,18 +84,20 @@ pub struct BrowserWindow {
     // Whether the window went full screen for a page, and comes back once
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
+    popup: Option<Popup>,
 }
 
 impl BrowserWindow {
     /// `place`: none for the window that waits for its first Browser.
     /// `framed`: the window has its frame already, from the database, and a
-    /// Browser's does not move it.
+    /// Browser's does not move it. `popup`: it is a popup's window.
     pub fn new(
         id: WindowId,
         key: String,
         page: PageWindow,
         place: Option<Place>,
         framed: bool,
+        popup: Option<Popup>,
     ) -> BrowserWindow {
         BrowserWindow {
             id,
@@ -89,7 +110,17 @@ impl BrowserWindow {
             new_tab_omnibox: Cell::default(),
             omnibox_query: RefCell::default(),
             full_screen_for_page: Cell::default(),
+            popup,
         }
+    }
+
+    /// What makes it a popup's window, if it is one.
+    pub fn popup(&self) -> Option<Popup> {
+        self.popup
+    }
+
+    pub fn is_popup(&self) -> bool {
+        self.popup.is_some()
     }
 
     /// The place in front, if the window is on one.
@@ -158,6 +189,15 @@ impl BrowserWindow {
     /// The space `browser` is the window's Browser for, if it is a space's.
     pub fn space_of(&self, browser: &Browser) -> Option<SpaceId> {
         self.place_of(browser)?.space()
+    }
+
+    /// The space what the window's `browser` opens goes to: the space it
+    /// is the Browser for, or a popup's, the one the popup was opened from.
+    pub fn space_opened_from(&self, browser: &Browser) -> Option<SpaceId> {
+        match self.popup {
+            Some(popup) => popup.space,
+            None => self.space_of(browser),
+        }
     }
 
     /// Whether `browser` is one of the window's.
@@ -276,9 +316,12 @@ impl BrowserWindow {
     /// current place, or the window waits for one, otherwise in the
     /// background.
     pub fn add(&self, place: Place, browser: Browser) {
-        Tag::update(&browser, |tag| {
-            tag.window = Some((self.key.clone(), place.clone()));
-        });
+        // A popup's is never restored into a window.
+        if !self.is_popup() {
+            Tag::update(&browser, |tag| {
+                tag.window = Some((self.key.clone(), place.clone()));
+            });
+        }
         browser.attach_to_view(Some(self.page.web_view.view()));
         self.name_anchors(&browser);
         // Its pages take a window that is full screen already without asking.

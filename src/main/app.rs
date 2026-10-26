@@ -173,6 +173,38 @@ pub struct Wren {
     pub source: Source,
 }
 
+impl Wren {
+    // A main menu command in a popup's window. The popup closes, and copies
+    // its address, as any window does. New Window, New Tab and Open Location
+    // go to the window the user browses in, as Chrome's in a popup go to its
+    // last tabbed window, which comes forward for the omnibox. The rest are
+    // for a window's tabs, sidebar and spaces, which a popup has none of.
+    fn popup_command(&self, mt: MainThread, id: &str, popup: &BrowserWindow) {
+        let state = &self.state;
+        let front = state.windows.front();
+        match id {
+            menus::CLOSE_TAB | menus::CLOSE_WINDOW => state.close_window(mt, popup.id),
+            menus::COPY_URL => {
+                if let Some(browser) = popup.browser() {
+                    let _ = tabs::copy_url(&browser);
+                }
+            }
+            menus::NEW_WINDOW => state.new_window(mt, front.as_deref()),
+            menus::NEW_INCOGNITO_WINDOW => state.new_incognito_window(mt, front.as_deref()),
+            menus::NEW_TAB | menus::OPEN_LOCATION => {
+                let Some(front) = front else { return };
+                front.page.bring_forward();
+                let target = match id {
+                    menus::NEW_TAB => OmniboxTarget::NewTab,
+                    _ => OmniboxTarget::Current,
+                };
+                ipc::send_show_omnibox(&front, target, true);
+            }
+            _ => {}
+        }
+    }
+}
+
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
         self.state.update_menu(mt);
@@ -205,8 +237,9 @@ impl App for Wren {
     // Required: Chromium opened a Browser of its own. A normal one, a
     // restored window or one a link or the omnibox asked for, is shown in a
     // window of its own, on the space it came from, or an incognito one on
-    // its profile's off-the-record side (`place_opened`); other kinds (a
-    // popup) close. DevTools gets a plain window of its own.
+    // its profile's off-the-record side (`place_opened`). DevTools gets a
+    // plain window of its own, and the rest (a popup, an app's window,
+    // Picture-in-Picture) a popup's window (`open_popup`).
     fn browser_opened(
         &self,
         mt: MainThread,
@@ -214,15 +247,13 @@ impl App for Wren {
         kind: BrowserType,
         opener: Option<Browser>,
     ) {
-        if kind == BrowserType::Devtools {
-            let window = PlainWindow::new(opened.clone());
-            self.state.devtools.borrow_mut().insert(opened, window);
-            return;
-        }
-        if kind == BrowserType::Normal {
-            self.state.place_opened(mt, opened, opener);
-        } else {
-            let _ = opened.close();
+        match kind {
+            BrowserType::Normal => self.state.place_opened(mt, opened, opener),
+            BrowserType::Devtools => {
+                let window = PlainWindow::new(opened.clone());
+                self.state.devtools.borrow_mut().insert(opened, window);
+            }
+            _ => self.state.open_popup(mt, opened, opener),
         }
     }
 
@@ -289,12 +320,10 @@ impl App for Wren {
     }
 
     // The window is the one of the Browser in the key window, or else the
-    // one the user was in last.
+    // one the user was in last. A popup's has commands of its own
+    // (`popup_command`).
     fn menu_command(&self, mt: MainThread, id: &str, browser: Option<Browser>) {
         let windows = &self.state.windows;
-        let window = browser
-            .and_then(|browser| windows.of(&browser))
-            .or_else(|| windows.front());
         // Needs no window; the menu follows the change.
         if id == menus::TOGGLE_QUIT_WARNING {
             if let Err(error) = mt.set_quit_warning(!mt.quit_warning().on) {
@@ -309,6 +338,11 @@ impl App for Wren {
         {
             return;
         }
+        let key = browser.and_then(|browser| windows.of(&browser));
+        if let Some(popup) = key.as_ref().filter(|window| window.is_popup()) {
+            return self.popup_command(mt, id, popup);
+        }
+        let window = key.or_else(|| windows.front());
         // From the window in front, if one is.
         if id == menus::NEW_WINDOW {
             return self.state.new_window(mt, window.as_deref());
@@ -420,13 +454,13 @@ impl App for Wren {
     // Chromium wants the address field, as a New Tab page given the
     // keyboard does: the omnibox opens for it, as ⌘L opens it. Not for the
     // placeholder, which the page does not show, nor over the omnibox for a
-    // new tab.
+    // new tab, nor in a popup's window, which has no omnibox.
     fn focus_location_bar(&self, _: MainThread, browser: Browser) {
         let Some(window) = self
             .state
             .windows
             .of(&browser)
-            .filter(|window| window.is_front(&browser))
+            .filter(|window| window.is_front(&browser) && !window.is_popup())
         else {
             return;
         };
@@ -491,7 +525,8 @@ impl App for Wren {
     // its last Browser, and the app with the last window where it quits so.
     // A window on a profile stays too: at quit, each Browser closes before
     // the app hears of the quit, and the window must be kept. One whose
-    // profile was deleted goes with it (`State::leave_gone_profiles`).
+    // profile was deleted goes with it (`State::leave_gone_profiles`). A
+    // popup's window goes with its Browser, always.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {
@@ -501,6 +536,10 @@ impl App for Wren {
             return;
         };
         let place = window.remove(&browser);
+        if window.is_popup() {
+            self.state.windows.remove(window.id);
+            return;
+        }
         if window.is_closing() {
             if !window.has_browsers() {
                 self.state.windows.remove(window.id);
