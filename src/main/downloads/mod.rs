@@ -1,8 +1,11 @@
 // The downloads a window lists (WrenDownloads.h): Chromium downloads and
-// decides; the app reads each download as the page draws it. A window on the
-// record lists those of every profile that is open, as the user's spaces are
-// of any profile; one off the record lists only its own profile's. And the
-// Library button's indicator while they run.
+// decides; the app reads each download as the page draws it, and finds one
+// again by the ID the page has. A window on the record lists those of every
+// profile that is open, as the user's spaces are of any profile; one off the
+// record lists only its own profile's. And the Library button's indicator
+// while they run. Their thumbnails are in thumbnails.rs.
+
+pub mod thumbnails;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -102,6 +105,16 @@ pub fn list(browser: &Browser) -> Vec<Item> {
                 .map(move |(download, state)| item(download, &state, &id))
         })
         .collect()
+}
+
+/// The download with the page's ID, among those `browser`'s window lists.
+pub fn find(browser: &Browser, id: &str) -> Result<Download, String> {
+    let id: u64 = id.parse().map_err(|_| "That is no download's ID.")?;
+    listed(browser)
+        .iter()
+        .flat_map(Profile::downloads)
+        .find(|download| download.id() == id)
+        .ok_or_else(|| "There is no such download.".into())
 }
 
 /// Whether `browser`'s window lists the downloads of the profile with the ID

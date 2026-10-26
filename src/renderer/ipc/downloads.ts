@@ -49,5 +49,7 @@ export const downloads = {
   /** Null while no download runs. */
   indicator: () => wren.invoke<DownloadIndicator | null>("downloads.indicator"),
   onIndicator: (listener: (indicator: DownloadIndicator | null) => void) =>
-    wren.on<DownloadIndicator | null>("downloads.indicator", listener)
+    wren.on<DownloadIndicator | null>("downloads.indicator", listener),
+  /** The ID its thumbnail is served by (`iconUrl`): its file's once done, else its type's icon; null for none. */
+  thumbnail: (id: string) => wren.invoke<string | null>("downloads.thumbnail", id)
 };

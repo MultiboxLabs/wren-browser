@@ -8,6 +8,7 @@ mod ipc;
 mod keyboard;
 mod menus;
 mod pages;
+mod platform;
 mod perf;
 mod shell;
 mod sidebar;
