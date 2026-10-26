@@ -23,6 +23,10 @@ const ADDRESS_BAR: f64 = 40.0;
 /// The size of a popup's page that asked for none.
 const PAGE_SIZE: (f64, f64) = (800.0, 600.0);
 
+/// A popup's window's minimum, its address bar in it, however small its
+/// page asks to be: room for the address bar's text.
+pub(super) const POPUP_MIN_SIZE: (f64, f64) = (240.0, 120.0);
+
 impl State {
     /// Shows `browser`, which `opener` opened if Chromium names it, in a
     /// popup's window: as large as its page asked, where it asked if a

@@ -75,12 +75,14 @@ pub struct PageWindow {
 }
 
 impl PageWindow {
-    /// `should_close` answers the window's close button.
+    /// The window's content is `size`, and the user can make it no smaller
+    /// than `min_size`. `should_close` answers the window's close button.
     pub fn open(
         profile: &Profile,
         page: &Page,
         title: &str,
         size: (f64, f64),
+        min_size: (f64, f64),
         kind: TitleBarKind,
         should_close: impl Fn() -> bool + 'static,
     ) -> Option<PageWindow> {
@@ -117,6 +119,7 @@ impl PageWindow {
             )
         };
         unsafe { window.setReleasedWhenClosed(false) };
+        window.setContentMinSize(NSSize::new(min_size.0, min_size.1));
         window.setTitle(&NSString::from_str(title));
         let toolbar = match kind {
             // An empty compact toolbar makes the title bar tall enough for
@@ -264,6 +267,7 @@ impl PageWindow {
     /// Gives a popup's window a content area of `size`, with its frame at
     /// `origin` (AppKit's screen coordinates, as a page asks for it) if a
     /// screen shows it there; or else cascaded from `near`, or else centred.
+    /// A page that asked for less gets the window's minimum.
     pub fn place_popup(
         &self,
         size: (f64, f64),
@@ -271,7 +275,8 @@ impl PageWindow {
         near: Option<&PageWindow>,
     ) {
         let window = &self.window;
-        window.setContentSize(NSSize::new(size.0, size.1));
+        let size = NSSize::new(size.0, size.1);
+        window.setContentSize(at_least(size, window.contentMinSize()));
         let size = window.frame().size;
         let asked = origin
             .map(|(x, y)| NSRect::new(NSPoint::new(x, y), size))
@@ -298,9 +303,11 @@ impl PageWindow {
 
     /// Puts the window where a restored Browser's window was, or where the
     /// window was when it was kept. AppKit moves it back onto a screen if
-    /// that one has gone; without a position, only the size is its own.
+    /// that one has gone; without a position, only the size is its own. A
+    /// size kept from before the window had a minimum grows to it.
     pub fn restore_frame(&self, bounds: RequestedBounds) {
         let size = NSSize::new(bounds.width, bounds.height);
+        let size = at_least(size, self.window.minSize());
         let origin = match bounds.origin {
             Some((x, y)) => NSPoint::new(x, y),
             None => self.window.frame().origin,
@@ -528,6 +535,12 @@ pub fn close_other_key_window<'a>(pages: impl IntoIterator<Item = &'a PageWindow
 }
 
 // Whether a screen shows some of `frame`.
+// AppKit keeps the user from resizing a window below its minimum, but not
+// the app.
+fn at_least(size: NSSize, min: NSSize) -> NSSize {
+    NSSize::new(size.width.max(min.width), size.height.max(min.height))
+}
+
 fn is_on_screen(frame: NSRect) -> bool {
     NSScreen::screens(MainThreadMarker::new().unwrap())
         .iter()

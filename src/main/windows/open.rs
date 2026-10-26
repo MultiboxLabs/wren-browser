@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use wren::{Browser, MainThread, ProfileKind, RequestedBounds};
 
+use super::popup::POPUP_MIN_SIZE;
 use super::session::unkept_window_key;
 use crate::app::State;
 use crate::db::SpaceId;
@@ -13,6 +14,13 @@ use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::tabs::placeholder;
 use crate::shell::{BrowserWindow, PageWindow, Place, Popup, TitleBarKind, WindowId};
+
+/// A browser window's size when nothing gives it one.
+const WINDOW_SIZE: (f64, f64) = (1280.0, 800.0);
+
+/// A browser window's minimum: the docked sidebar at its widest
+/// (`SIDEBAR_WIDTH` in the renderer) leaves a page as wide as a phone's.
+const WINDOW_MIN_SIZE: (f64, f64) = (800.0, 500.0);
 
 impl State {
     /// Opens a window on `place`, with no Browser yet; with no place, the
@@ -62,9 +70,9 @@ impl State {
     ) -> Option<Rc<BrowserWindow>> {
         let profile = self.ui_profile.borrow().clone()?;
         let id = self.windows.next_id();
-        let title_bar = match popup {
-            Some(_) => TitleBarKind::System,
-            None => TitleBarKind::Page,
+        let (title_bar, min_size) = match popup {
+            Some(_) => (TitleBarKind::System, POPUP_MIN_SIZE),
+            None => (TitleBarKind::Page, WINDOW_MIN_SIZE),
         };
         let weak = Rc::downgrade(self);
         let should_close = move || {
@@ -78,7 +86,8 @@ impl State {
             &profile,
             &UI,
             "Wren",
-            (1280.0, 800.0),
+            WINDOW_SIZE,
+            min_size,
             title_bar,
             should_close,
         )?;
