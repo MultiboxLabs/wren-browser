@@ -142,6 +142,25 @@ impl State {
         });
     }
 
+    // Toggle UI DevTools: closes the UI's DevTools if they are open, or
+    // opens them for `window`'s page. They use the UI's separate Profile,
+    // so site DevTools stays open when this item is toggled.
+    fn toggle_ui_devtools(&self, window: &BrowserWindow) {
+        let opened = self
+            .devtools
+            .borrow()
+            .keys()
+            .find(|browser| browser.profile() == *self.ui_profile.borrow())
+            .cloned();
+        let result = match opened {
+            Some(browser) => browser.close(),
+            None => window.page.web_view.open_dev_tools(),
+        };
+        if let Err(error) = result {
+            eprintln!("Wren could not toggle UI DevTools: {error:?}");
+        }
+    }
+
     // ⌘W: the omnibox for a new tab, as if it were that tab; else the space
     // the user makes, which the window comes back from; else the active tab;
     // or, with none of its own, the window, as Chrome's goes with its last
@@ -319,9 +338,9 @@ impl App for Wren {
         }
     }
 
-    // The window is the one of the Browser in the key window, or else the
-    // one the user was in last. A popup's has commands of its own
-    // (`popup_command`).
+    // The window is the one of the Browser in the key window, or the key
+    // window, or else the one the user was in last. A popup's has commands
+    // of its own (`popup_command`).
     fn menu_command(&self, mt: MainThread, id: &str, browser: Option<Browser>) {
         let windows = &self.state.windows;
         // Needs no window; the menu follows the change.
@@ -338,7 +357,16 @@ impl App for Wren {
         {
             return;
         }
-        let key = browser.and_then(|browser| windows.of(&browser));
+        let key = browser
+            .and_then(|browser| windows.of(&browser))
+            .or_else(|| windows.in_use());
+        // The page of the key window, a popup's too.
+        if id == menus::TOGGLE_UI_DEVTOOLS {
+            if let Some(window) = key.or_else(|| windows.front()) {
+                self.state.toggle_ui_devtools(&window);
+            }
+            return;
+        }
         if let Some(popup) = key.as_ref().filter(|window| window.is_popup()) {
             return self.popup_command(mt, id, popup);
         }
@@ -369,25 +397,6 @@ impl App for Wren {
         }
         if id == menus::OPEN_LOCATION {
             return ipc::send_show_omnibox(&window, OmniboxTarget::Current, true);
-        }
-        if id == menus::TOGGLE_UI_DEVTOOLS {
-            // UI DevTools uses the UI's separate Profile, so site DevTools
-            // stays open when this item is toggled.
-            let opened = self
-                .state
-                .devtools
-                .borrow()
-                .keys()
-                .find(|browser| browser.profile() == *self.state.ui_profile.borrow())
-                .cloned();
-            let result = match opened {
-                Some(browser) => browser.close(),
-                None => window.page.web_view.open_dev_tools(),
-            };
-            if let Err(error) = result {
-                eprintln!("Wren could not toggle UI DevTools: {error:?}");
-            }
-            return;
         }
         if id == menus::CLOSE_TAB {
             return self.state.close_tab(mt, &window);
