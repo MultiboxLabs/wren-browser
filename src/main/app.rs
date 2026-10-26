@@ -311,6 +311,11 @@ impl App for Wren {
                 // A restore asks for the Browser Chromium had active to come
                 // forward, which would take the window off the space it was
                 // kept on.
+                // TODO: forget the restore's request once Wren can
+                // (`Browser::clear_foreground_request`). It stays until the
+                // Browser comes forward: the window switches to it as it
+                // leaves full screen (`BrowserWindow::wanting_foreground`),
+                // and Wren reports none of its later requests.
                 ChangeKind::ForegroundRequest if !state.is_restoring() => {
                     state.bring_forward(browser)
                 }
