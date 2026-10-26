@@ -14,7 +14,7 @@ use wren::{Browser, MainThread, Profile, RequestedBounds};
 use crate::app::State;
 use crate::db::{SavedWindow, WindowFrame};
 use crate::tabs::placeholder;
-use crate::window::{BrowserWindow, Place, Tag};
+use crate::shell::{BrowserWindow, Place, Tag};
 
 impl State {
     /// Opens the windows kept at the last quit, in the order they opened,

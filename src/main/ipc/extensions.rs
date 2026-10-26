@@ -3,7 +3,7 @@ use wren::{Browser, WebView};
 
 use super::{WindowRef, failed, with_browser};
 use crate::pages::icons;
-use crate::window::BrowserWindow;
+use crate::shell::BrowserWindow;
 
 /// An extension's action, as the page info popover lists it and the
 /// address field shows it while it is pinned or popped out.

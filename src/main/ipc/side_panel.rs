@@ -3,7 +3,7 @@ use wren::{Browser, WebView};
 
 use super::{WindowRef, failed, with_browser};
 use crate::pages::icons;
-use crate::window::BrowserWindow;
+use crate::shell::BrowserWindow;
 
 /// The Browser's side panel: which is open, if one is, and how wide.
 #[derive(Serialize)]

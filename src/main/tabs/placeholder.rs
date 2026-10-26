@@ -3,7 +3,7 @@
 // Browser would have none, a New Tab page stands in. The page neither lists
 // nor shows it. It closes once a tab opens beside it, and is a tab like any
 // other once it leaves the New Tab page. Chromium keeps it in the session as
-// any tab; its persistent ID, in the Browser's session tag (window/tag.rs),
+// any tab; its persistent ID, in the Browser's session tag (shell/tag.rs),
 // says which tab it is after a restore (`adopt`).
 
 use std::cell::RefCell;
@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use wren::{Browser, BrowserTab, Error, Profile};
 
 use super::is_new_tab;
-use crate::window::Tag;
+use crate::shell::Tag;
 
 thread_local! {
     // Each placeholder, with the tabs it stands in for, which are closing as

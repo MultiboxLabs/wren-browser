@@ -44,7 +44,7 @@ export function PopupWindow({ popup }: { popup: WindowPopup }) {
 // Below the title bar and of a piece with it (the window's material shows
 // through), as a toolbar is; a press that misses page info moves the
 // window. The app makes the window as much taller than the page asked as
-// this is (ADDRESS_BAR, spaces/popup.rs): keep the two together.
+// this is (ADDRESS_BAR, windows/popup.rs): keep the two together.
 function AddressBar({ tab }: { tab?: BrowserTabWithFavicon }) {
   const url = tab && !isNewTab(tab.url) ? tab.url : "";
   const { host, rest } = addressParts(url);

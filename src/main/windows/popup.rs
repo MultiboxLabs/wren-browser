@@ -12,7 +12,7 @@ use wren::{Browser, BrowserType, MainThread, WindowFeatures};
 
 use super::session::unkept_window_key;
 use crate::app::State;
-use crate::window::{Place, Popup};
+use crate::shell::{Place, Popup};
 
 /// The height of a popup's address bar, in points, which the page draws
 /// above its page (pages/ui/popup.tsx). The size a page asks for is its

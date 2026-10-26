@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use wren::{Browser, BrowserTab, Find, PageToken, Popover, PopoverKind, WebView};
 
 use super::{WindowRef, failed, give_back_keyboard, with_browser};
-use crate::window::BrowserWindow;
+use crate::shell::BrowserWindow;
 
 /// The find open in the active tab, as the page's bar shows it.
 #[derive(Serialize)]

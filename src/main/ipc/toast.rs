@@ -9,7 +9,7 @@ use wren::{Browser, Error, Popover, PopoverKind, WebView};
 
 use super::{WindowRef, failed, with_browser};
 use crate::pages::icons;
-use crate::window::BrowserWindow;
+use crate::shell::BrowserWindow;
 
 // What Chromium names every toast of the app's.
 const EMBEDDER: &str = "Embedder";

@@ -9,7 +9,7 @@ use crate::db::SpaceId;
 use crate::menus;
 use crate::pages::icons;
 use crate::tabs::{self, placeholder};
-use crate::window::BrowserWindow;
+use crate::shell::BrowserWindow;
 
 /// A tab as the sidebar draws it. Its favicon comes apart ("tab.favicon").
 #[derive(Serialize)]

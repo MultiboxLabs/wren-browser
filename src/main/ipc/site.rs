@@ -4,7 +4,7 @@ use wren::{Browser, MainThread, PermissionSetting, SiteAction, SiteSecurity, Web
 
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::menus;
-use crate::window::BrowserWindow;
+use crate::shell::BrowserWindow;
 
 /// The active tab's site, as the page info popover shows it.
 #[derive(Serialize)]

@@ -12,7 +12,7 @@ use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::tabs::placeholder;
-use crate::window::{BrowserWindow, PageWindow, Place, Popup, TitleBarKind, WindowId};
+use crate::shell::{BrowserWindow, PageWindow, Place, Popup, TitleBarKind, WindowId};
 
 impl State {
     /// Opens a window on `place`, with no Browser yet; with no place, the

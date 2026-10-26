@@ -1,6 +1,8 @@
-// A window showing one page in a web view: the browser's own window, whose
-// title bar, sidebar and panels are the page's, or a popup's, whose page is
-// under the system's title bar.
+// The shell round each page: a window showing one page in a web view, the
+// browser's own window, whose title bar, sidebar and panels are the page's,
+// or a popup's, whose page is under the system's title bar; what a browser
+// window holds (browser.rs), and the list of them (list.rs). What the app
+// does with its windows is windows/'s.
 
 mod browser;
 mod list;

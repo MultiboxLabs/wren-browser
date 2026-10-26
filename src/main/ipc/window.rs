@@ -3,7 +3,7 @@ use wren::WebView;
 
 use super::{WindowRef, with_window};
 use crate::db::SpaceId;
-use crate::window::{BrowserWindow, PageWindow, Place};
+use crate::shell::{BrowserWindow, PageWindow, Place};
 
 /// The space the page draws for a window on a profile, made up, as no space
 /// of the database has ID 0. Its tabs are this space's.

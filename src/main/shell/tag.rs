@@ -1,5 +1,5 @@
 // What a Browser carries in Chromium's session, its session tag: the window
-// and place it was in, so a restore puts it back (spaces/session.rs), and its
+// and place it was in, so a restore puts it back (windows/session.rs), and its
 // placeholder's persistent ID, so a restore knows that tab again
 // (tabs/placeholder.rs). Chromium keeps the tag with the Browser's tabs, so
 // the two never disagree. It reads "<window key>/<place>|<placeholder>",

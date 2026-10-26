@@ -30,7 +30,7 @@ use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
 use crate::tabs;
-use crate::window::{BrowserWindow, WindowId};
+use crate::shell::{BrowserWindow, WindowId};
 
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;

@@ -8,10 +8,10 @@ mod keyboard;
 mod menus;
 mod pages;
 mod perf;
+mod shell;
 mod sidebar;
-mod spaces;
 mod tabs;
-mod window;
+mod windows;
 
 use std::rc::Rc;
 

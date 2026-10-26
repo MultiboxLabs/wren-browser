@@ -20,7 +20,7 @@ use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
-use crate::window::{
+use crate::shell::{
     BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId, Windows, close_other_key_window,
 };
 
@@ -34,7 +34,7 @@ pub struct State {
     pub sidebar: SidebarStore,
     /// What the app keeps of its own, spaces for now.
     pub db: Db,
-    /// Profiles whose last session is being restored (spaces/session.rs).
+    /// Profiles whose last session is being restored (windows/session.rs).
     pub(crate) restoring: Cell<u32>,
     /// The sidebar's performance run, if this is one.
     pub perf: Option<Perf>,
@@ -55,7 +55,7 @@ pub struct State {
     // `ipc::broadcast_ad_block`).
     pub(crate) ad_blocks: RefCell<HashMap<String, Option<AdBlock>>>,
     /// What the main menu has the window in front allow, as it was set last
-    /// (spaces/mod.rs).
+    /// (windows/mod.rs).
     pub(crate) menu_front: Cell<menus::Front>,
     // Hears the tab switcher's keys while it is kept.
     tab_switcher_keys: RefCell<Option<KeyWatch>>,
@@ -85,7 +85,7 @@ impl State {
 
     // Opens the windows open at the last quit, or else the first window, then
     // the user's own Profile, the one Chromium starts with, and each profile
-    // they wait for, with the tabs they had (spaces/session.rs).
+    // they wait for, with the tabs they had (windows/session.rs).
     fn start(self: &Rc<Self>, mt: MainThread) {
         // The database has each profile, and the app a space, before anything
         // shows them. The list is read again once the first profile is open,

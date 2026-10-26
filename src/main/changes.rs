@@ -4,7 +4,7 @@
 use wren::{Change, ChangeKind, TabFields};
 
 use crate::ipc;
-use crate::window::BrowserWindow;
+use crate::shell::BrowserWindow;
 
 /// Tells `window`'s page of the changes to its Browser in front, and
 /// answers whether the window's title may have changed with them: the

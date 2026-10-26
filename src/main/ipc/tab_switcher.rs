@@ -13,7 +13,7 @@ use wren::WebView;
 use super::WindowRef;
 use crate::app::State;
 use crate::keyboard::{Key, KeyWatch};
-use crate::window::BrowserWindow;
+use crate::shell::BrowserWindow;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
     // The page closed the switcher itself (a tab chosen with the pointer,

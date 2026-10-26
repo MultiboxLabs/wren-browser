@@ -1,14 +1,16 @@
-// The spaces windows show. A window shows one space at a time, and has at
-// most one Browser for each space it has been on, which stays in the
-// background while another space is in front; a space may have none. The
-// parts:
+// The app's windows: opening them, the Browsers in them, and the spaces they
+// show. A window shows one space at a time, and has at most one Browser for
+// each space it has been on, which stays in the background while another
+// space is in front; a space may have none. A popup's window shows one
+// Browser, and no space. The parts:
 //
 // - open.rs: opening windows, and where each Browser goes;
+// - popup.rs: the windows of popups;
 // - switch.rs: switching a window between its spaces;
-// - session.rs: keeping the windows, so each comes back as it was;
-// - popup.rs: the windows of popups, which show no spaces.
+// - session.rs: keeping the windows, so each comes back as it was.
 //
-// What a window holds is `BrowserWindow`'s (window/browser.rs).
+// What a window is, and holds, is shell/'s: `BrowserWindow`
+// (shell/browser.rs), and the platform's window round its page.
 
 mod open;
 mod popup;
@@ -21,7 +23,7 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
 use crate::menus;
-use crate::window::{BrowserWindow, Place};
+use crate::shell::{BrowserWindow, Place};
 
 impl State {
     /// The profile's most recently used space, if it has one. A profile

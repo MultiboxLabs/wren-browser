@@ -10,7 +10,7 @@ use wren::{Browser, MainThread};
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
-use crate::window::{BrowserWindow, Place, WindowId};
+use crate::shell::{BrowserWindow, Place, WindowId};
 
 impl State {
     /// Brings `space` forward in window `id`: its Browser if the window has
