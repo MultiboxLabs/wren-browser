@@ -5,6 +5,7 @@ import { HoldContext } from "../../components/ui/hold";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { BrowserProvider, useBrowser } from "../../state/browser";
+import { DownloadsProvider } from "../../state/downloads";
 import { SpaceProvider, useSpace } from "../../state/space";
 import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "../../state/window";
 import { Omnibox } from "../../components/omnibox/omnibox";
@@ -76,7 +77,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const sidebar = useSidebarPresentation(saved, omnibox.shown !== null && omnibox.shown.place !== "center");
 
   return (
-    <>
+    // The downloads the window lists, and the Library button's indicator.
+    <DownloadsProvider>
       {/* Before the window's content, which is positioned so that it is over it. */}
       <SpaceBackground space={space} className="fixed inset-0" />
       <div inert={blocked} className="drag relative flex h-full">
@@ -161,6 +163,6 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           )}
         </AnimatePresence>
       </div>
-    </>
+    </DownloadsProvider>
   );
 }

@@ -11,8 +11,8 @@ use wren::{
 
 use super::{WindowRef, failed, give_back_keyboard, with_browser, with_window};
 use crate::pages::icons;
-use crate::tabs;
 use crate::shell::BrowserWindow;
+use crate::tabs;
 
 /// What the page asks suggestions for.
 #[derive(Deserialize)]

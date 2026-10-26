@@ -3,6 +3,7 @@ mod app;
 mod changes;
 mod channel;
 mod db;
+mod downloads;
 mod ipc;
 mod keyboard;
 mod menus;

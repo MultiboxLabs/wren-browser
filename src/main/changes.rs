@@ -27,7 +27,10 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
     let mut site_changed = false;
     let mut extensions_changed = false;
     let mut title_changed = false;
+    let mut downloads_changed = false;
     for change in changes {
+        // Not a Browser's but a profile's.
+        downloads_changed |= ipc::downloads_changed(change, &browser);
         // A new extension's anchor is named, in the background too.
         if change.kind == ChangeKind::ExtensionActions
             && let Some(changed) = &change.browser
@@ -59,6 +62,7 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
                 ipc::send_find(window, &browser);
             }
             ChangeKind::Find => ipc::send_find(window, &browser),
+            ChangeKind::DownloadButton => ipc::send_indicator(window, &browser),
             ChangeKind::ModalDialog => ipc::send_blocked(window),
             ChangeKind::Tab => {
                 let Some(tab) = change.tab else { continue };
@@ -90,6 +94,9 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
     }
     if site_changed {
         ipc::send_site(window, &browser);
+    }
+    if downloads_changed {
+        ipc::send_downloads(window, &browser);
     }
     // A pin or a pop-out shows or hides an extension's button, its mark.
     if extensions_changed {

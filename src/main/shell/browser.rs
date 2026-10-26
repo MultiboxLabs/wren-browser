@@ -20,6 +20,7 @@ use wren::{Browser, BubbleAnchor};
 use super::tag::Tag;
 use super::{PageWindow, Place};
 use crate::db::SpaceId;
+use crate::downloads;
 use crate::tabs::placeholder;
 
 /// The page's mark on its page info button, which the site's bubbles (page
@@ -84,6 +85,9 @@ pub struct BrowserWindow {
     // Whether the window went full screen for a page, and comes back once
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
+    // The downloads the page was told of last (ipc/downloads.rs), so the
+    // same list is not sent again.
+    downloads_sent: RefCell<Vec<downloads::Item>>,
     popup: Option<Popup>,
 }
 
@@ -110,6 +114,7 @@ impl BrowserWindow {
             new_tab_omnibox: Cell::default(),
             omnibox_query: RefCell::default(),
             full_screen_for_page: Cell::default(),
+            downloads_sent: RefCell::default(),
             popup,
         }
     }
@@ -279,6 +284,17 @@ impl BrowserWindow {
     /// Notes that the page's omnibox asks none, and answers the one it did.
     pub fn take_omnibox_query(&self) -> Option<Browser> {
         self.omnibox_query.borrow_mut().take()
+    }
+
+    /// Notes `list` as the downloads the page is told of; false if it was
+    /// told the same last, and need not be again.
+    pub fn note_downloads(&self, list: &[downloads::Item]) -> bool {
+        let mut sent = self.downloads_sent.borrow_mut();
+        if *sent == list {
+            return false;
+        }
+        *sent = list.to_vec();
+        true
     }
 
     /// Whether the page's omnibox asks `browser` for suggestions.

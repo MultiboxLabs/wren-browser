@@ -18,11 +18,11 @@ use crate::keyboard::KeyWatch;
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
-use crate::sidebar::SidebarStore;
-use crate::tabs::{self, placeholder};
 use crate::shell::{
     BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId, Windows, close_other_key_window,
 };
+use crate::sidebar::SidebarStore;
+use crate::tabs::{self, placeholder};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {

@@ -13,11 +13,13 @@ import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../ico
 import type { OmniboxState } from "../omnibox/shown";
 import { cn } from "../../utils/cn";
 import { scaleTo } from "../../utils/motion";
+import { Indicator } from "../downloads/indicator";
 import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
 import { selectTab, TabList } from "./tab-list";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
+import { useDownloadIndicator } from "../../state/downloads";
 import { isFolder, useSpace } from "../../state/space";
 import { SLIDE } from "../../state/space-slide";
 
@@ -87,6 +89,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary }: Sid
   // The content fades as it slides away.
   const fade = useTransform(swipe, (x) => 1 - Math.min(Math.abs(x) / SLIDE, 1) * 0.85);
   const { current: active } = useBrowser();
+  const indicator = useDownloadIndicator();
 
   return (
     <div ref={area} className="flex h-full flex-col">
@@ -143,7 +146,12 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary }: Sid
       {/* While a space is made, only the switcher: the form is left by its own
           buttons, or by another space. */}
       <div className={cn("flex h-12.5 shrink-0 items-center", newSpace && "no-drag")}>
-        {!newSpace && <Button icon={Archive} label="Library" onClick={onOpenLibrary} />}
+        {!newSpace && (
+          <div className="relative shrink-0">
+            <Button icon={Archive} label="Library" onClick={onOpenLibrary} />
+            <Indicator indicator={indicator} />
+          </div>
+        )}
         <div className="flex min-w-0 flex-1 justify-center px-1">
           <SpaceSwitcher />
         </div>

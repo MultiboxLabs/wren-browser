@@ -5,6 +5,7 @@
 mod ad_block;
 mod anchors;
 mod browser;
+mod downloads;
 mod extensions;
 mod find;
 mod groups;
@@ -29,12 +30,13 @@ use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
-use crate::tabs;
 use crate::shell::{BrowserWindow, WindowId};
+use crate::tabs;
 
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_status, send_tabs};
+pub use downloads::{downloads_changed, send_downloads, send_indicator};
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
 pub use menu::send_toggle_sidebar;
@@ -91,6 +93,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     ad_block::handle(web_view, window, mt);
     spaces::handle(web_view, window, mt);
     tab_switcher::handle(web_view, window);
+    downloads::handle(web_view, window);
 }
 
 /// Tells the page all it shows of `browser`, as it comes in front, and then
@@ -104,6 +107,8 @@ pub fn send_browser(window: &BrowserWindow, browser: &Browser) {
     send_anchors(window, browser);
     send_toast(window, browser);
     send_find(window, browser);
+    send_downloads(window, browser);
+    send_indicator(window, browser);
     send_blocked(window);
     send_profile(window);
     send_space(window);
@@ -119,6 +124,7 @@ pub fn send_no_browser(window: &BrowserWindow) {
     anchors::send_no_anchors(window);
     toast::send_no_toast(window);
     find::send_no_find(window);
+    downloads::send_no_indicator(window);
     send_blocked(window);
     send_profile(window);
     send_space(window);
