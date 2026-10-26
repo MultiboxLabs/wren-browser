@@ -51,5 +51,13 @@ export const downloads = {
   onIndicator: (listener: (indicator: DownloadIndicator | null) => void) =>
     wren.on<DownloadIndicator | null>("downloads.indicator", listener),
   /** The ID its thumbnail is served by (`iconUrl`): its file's once done, else its type's icon; null for none. */
-  thumbnail: (id: string) => wren.invoke<string | null>("downloads.thumbnail", id)
+  thumbnail: (id: string) => wren.invoke<string | null>("downloads.thumbnail", id),
+  /** One of the download's `actions`. */
+  perform: (id: string, action: DownloadAction) => wren.invoke<null>("downloads.perform", { id, action }),
+  /** Shows the download's context menu at a point in the page; the app does what is chosen, then answers with its ID. */
+  menu: (id: string, x: number, y: number) => wren.invoke<string | null>("downloads.menu", { id, x, y }),
+  /** All downloads are done, and the shelf shows them for a few seconds, as Chrome's bubble does; answer `shelfDone` as it goes. */
+  onShowShelf: (listener: () => void) => wren.on<null>("downloads.showShelf", listener),
+  /** The shelf `onShowShelf` showed has gone. */
+  shelfDone: () => wren.invoke<null>("downloads.shelfDone")
 };

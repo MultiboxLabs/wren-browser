@@ -124,6 +124,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
                   omnibox={omnibox}
                   address={address}
                   onOpenLibrary={() => sidebar.library.setOpen(true)}
+                  visible={sidebar.presentation !== "hidden" && !sidebar.library.open}
                 />
               </MakesWay>
               <Library

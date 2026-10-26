@@ -1,0 +1,94 @@
+// How a download is put in words: when it ended ("2 hours ago"), how far it
+// has come ("1.50/10.74 GB · 7m 20s"), and what stopped it.
+
+import type { Download } from "../../ipc";
+import { isRunning, lastChanged } from "../../state/downloads";
+
+const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+// The largest unit `relative` says a time in, from seconds up.
+const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 365 * 24 * 60 * 60],
+  ["month", 30 * 24 * 60 * 60],
+  ["week", 7 * 24 * 60 * 60],
+  ["day", 24 * 60 * 60],
+  ["hour", 60 * 60],
+  ["minute", 60]
+];
+
+/** `time`, relative to `now`: "2 hours ago", "yesterday", "now". */
+export function ago(time: number, now: number) {
+  const seconds = Math.max(0, (now - time) / 1000);
+  for (const [unit, length] of UNITS) {
+    if (seconds >= length) return relative.format(-Math.floor(seconds / length), unit);
+  }
+  return relative.format(0, "second");
+}
+
+// Bytes as a file manager counts them, in thousands.
+const BYTE_UNITS = ["bytes", "KB", "MB", "GB", "TB"];
+
+// The unit to say `bytes` in, and how many decimals it takes.
+function unitOf(bytes: number) {
+  const power = bytes < 1000 ? 0 : Math.min(BYTE_UNITS.length - 1, Math.floor(Math.log10(bytes) / 3));
+  return { power, decimals: power >= 3 ? 2 : power === 2 ? 1 : 0 };
+}
+
+function inUnit(bytes: number, { power, decimals }: ReturnType<typeof unitOf>) {
+  return (bytes / 1000 ** power).toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}
+
+// A size: "10.74 GB".
+function size(bytes: number) {
+  const unit = unitOf(bytes);
+  return `${inUnit(bytes, unit)} ${BYTE_UNITS[unit.power]}`;
+}
+
+/** How far it has come: "1.50/10.74 GB", both in the total's unit; or what it has, without a total. */
+export function progress(received: number, total: number) {
+  if (total <= 0) return size(received);
+  const unit = unitOf(total);
+  return `${inUnit(received, unit)}/${inUnit(total, unit)} ${BYTE_UNITS[unit.power]}`;
+}
+
+/** The time left: "7m 20s", "2h 5m", "40s". */
+export function timeLeft(seconds: number) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = Math.floor(seconds % 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${rest}s`;
+  return `${rest}s`;
+}
+
+const FAILURES: Record<Download["failure"], string> = {
+  none: "Failed",
+  file: "Couldn’t Save the File",
+  network: "Network Error",
+  server: "Server Error",
+  blocked: "Blocked",
+  crash: "Interrupted"
+};
+
+/**
+ * What a download's line under its name must say first: Chrome's warning,
+ * how far it has come, or why it stopped. Null for one that is done and
+ * whose file is there, which the line says something else of.
+ */
+export function statusLine(download: Download) {
+  const { status, paused, received, total, secondsLeft, warning, warningText, failure, fileRemoved } = download;
+  if (warning !== "none" && warningText) return warningText;
+  if (isRunning(download)) {
+    const parts = [progress(received, total)];
+    if (paused) parts.unshift("Paused");
+    else if (secondsLeft !== null) parts.push(timeLeft(secondsLeft));
+    return parts.join(" · ");
+  }
+  if (status === "failed") return FAILURES[failure];
+  if (status === "cancelled") return "Cancelled";
+  if (fileRemoved) return "Moved or Deleted";
+  return null;
+}

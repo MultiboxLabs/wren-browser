@@ -1,14 +1,15 @@
 // The downloads a window lists (WrenDownloads.h): Chromium downloads and
-// decides; the app reads each download as the page draws it, and finds one
-// again by the ID the page has. A window on the record lists those of every
-// profile that is open, as the user's spaces are of any profile; one off the
-// record lists only its own profile's. And the Library button's indicator
-// while they run. Their thumbnails are in thumbnails.rs.
+// decides; the app reads each download as the page draws it, finds one again
+// by the ID the page has, and takes downloads off the list. A window on the
+// record lists those of every profile that is open, as the user's spaces are
+// of any profile; one off the record lists only its own profile's. And the
+// Library button's indicator while they run. Their thumbnails are in
+// thumbnails.rs.
 
 pub mod thumbnails;
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
@@ -89,6 +90,10 @@ thread_local! {
     // then, a download started and ended when the app first saw it so: one
     // from a past run, or from before any window read the list, is new.
     static TIMES: RefCell<HashMap<u64, Times>> = RefCell::default();
+    // TODO: drop once Wren has WREN_DOWNLOAD_REMOVE.
+    // Until then, a download taken off the list is only hidden, until the app
+    // quits.
+    static REMOVED: RefCell<HashSet<u64>> = RefCell::default();
 }
 
 /// The downloads `browser`'s window lists, each profile's in Chromium's
@@ -96,15 +101,18 @@ thread_local! {
 // TODO: the whole history, once Wren lists it beside the bubble's (the last
 // 24 hours, at most 30).
 pub fn list(browser: &Browser) -> Vec<Item> {
-    listed(browser)
-        .iter()
-        .flat_map(|profile| {
-            let id = profile.original().id();
-            downloads(profile)
-                .into_iter()
-                .map(move |(download, state)| item(download, &state, &id))
-        })
-        .collect()
+    REMOVED.with_borrow(|removed| {
+        listed(browser)
+            .iter()
+            .flat_map(|profile| {
+                let id = profile.original().id();
+                downloads(profile)
+                    .into_iter()
+                    .filter(|(download, _)| !removed.contains(&download.id()))
+                    .map(move |(download, state)| item(download, &state, &id))
+            })
+            .collect()
+    })
 }
 
 /// The download with the page's ID, among those `browser`'s window lists.
@@ -126,6 +134,20 @@ pub fn lists(browser: &Browser, profile: &str) -> bool {
     })
 }
 
+/// The action with the page's name for it.
+pub fn action(name: &str) -> Option<DownloadAction> {
+    ACTIONS
+        .iter()
+        .find(|(each, _)| *each == name)
+        .map(|(_, action)| *action)
+}
+
+/// Whether the download may be taken off the list: it is over, done,
+/// cancelled or failed, as `chrome://downloads` has it.
+pub fn removable(state: &DownloadState) -> bool {
+    state.status != DownloadStatus::InProgress
+}
+
 /// The indicator for `browser`'s window; None while no download runs.
 pub fn indicator(browser: &Browser) -> Option<Indicator> {
     let state = browser.download_button_state().ok()?;
@@ -136,6 +158,12 @@ pub fn indicator(browser: &Browser) -> Option<Indicator> {
         percent_known: state.percent_known,
         scanning,
     })
+}
+
+/// Takes the download off the list. The file stays.
+// TODO: perform WREN_DOWNLOAD_REMOVE once Wren has it.
+pub fn remove(download: Download) {
+    REMOVED.with_borrow_mut(|removed| removed.insert(download.id()));
 }
 
 // The profiles whose downloads `browser`'s window lists: off the record, its

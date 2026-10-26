@@ -14,6 +14,7 @@ import type { OmniboxState } from "../omnibox/shown";
 import { cn } from "../../utils/cn";
 import { scaleTo } from "../../utils/motion";
 import { Indicator } from "../downloads/indicator";
+import { Shelf, useShelf } from "../downloads/shelf";
 import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
@@ -32,6 +33,8 @@ export type SidebarProps = {
   /** For the address field, whose box the omnibox for the active tab opens over. */
   address: RefObject<HTMLDivElement | null>;
   onOpenLibrary: () => void;
+  /** It is out, and not the Library in its place: the downloads' shelf may show by itself. */
+  visible: boolean;
 };
 
 // Stop's cross grows in where reload's icon was, which goes at once, and
@@ -69,7 +72,7 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
   );
 }
 
-export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary }: SidebarProps) {
+export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visible }: SidebarProps) {
   const { space, spaces, profile, newSpace, startNewSpace, showNow, slide } = useSpace();
   // A swipe across the sidebar goes to the next space or the previous one;
   // the space being made is after the last.
@@ -90,9 +93,11 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary }: Sid
   const fade = useTransform(swipe, (x) => 1 - Math.min(Math.abs(x) / SLIDE, 1) * 0.85);
   const { current: active } = useBrowser();
   const indicator = useDownloadIndicator();
+  // The latest downloads, over the bottom of the content, which fades out under them.
+  const shelf = useShelf(visible && !newSpace);
 
   return (
-    <div ref={area} className="flex h-full flex-col">
+    <div ref={area} className="relative flex h-full flex-col">
       <div className="flex h-10 shrink-0 items-center">
         <div className="w-[calc(var(--window-buttons)-8px)] shrink-0" />
         <Button
@@ -130,7 +135,10 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary }: Sid
           clipped at the sidebar's sides, with room for the rows' outlines.
           While a space is made, below the toolbar is the form's, not a
           handle for the window: a press that misses a field is no drag. */}
-      <div className={cn("-mx-2 flex min-h-0 flex-1 flex-col overflow-x-clip px-2", newSpace && "no-drag")}>
+      <motion.div
+        style={{ maskImage: shelf.mask }}
+        className={cn("-mx-2 flex min-h-0 flex-1 flex-col overflow-x-clip px-2", newSpace && "no-drag")}
+      >
         <motion.div style={{ x: swipe, opacity: fade }} className="flex min-h-0 flex-1 flex-col">
           {newSpace ? (
             <NewSpaceForm state={newSpace} />
@@ -141,14 +149,23 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary }: Sid
             </BrowserOfSpace>
           )}
         </motion.div>
-      </div>
+      </motion.div>
+
+      <Shelf shelf={shelf} />
 
       {/* While a space is made, only the switcher: the form is left by its own
           buttons, or by another space. */}
       <div className={cn("flex h-12.5 shrink-0 items-center", newSpace && "no-drag")}>
         {!newSpace && (
-          <div className="relative shrink-0">
-            <Button icon={Archive} label="Library" onClick={onOpenLibrary} />
+          <div className="relative shrink-0" {...shelf.button}>
+            <Button
+              icon={Archive}
+              label="Library"
+              onClick={() => {
+                shelf.hide();
+                onOpenLibrary();
+              }}
+            />
             <Indicator indicator={indicator} />
           </div>
         )}

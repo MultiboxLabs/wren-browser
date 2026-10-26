@@ -1,14 +1,38 @@
 // Downloads, as the page draws them (components/downloads/): the indicator
-// on the Library button while they run, and each one's thumbnail. A window
-// shows the downloads downloads/ lists for its Browser in front.
+// on the Library button while they run, and the shelf of the latest above
+// it. A window shows the downloads downloads/ lists for its Browser in
+// front, and Chromium's download bubble, as all are done, is the shelf
+// instead.
 
-use wren::{Browser, Change, ChangeKind, WebView};
+use std::cell::Cell;
+use std::rc::Rc;
 
-use super::{WindowRef, with_browser};
+use serde::Deserialize;
+use wren::{
+    Browser, Change, ChangeKind, MainThread, Popover, PopoverAnswer, PopoverRequest,
+    PopoverTrigger, WebView,
+};
+
+use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
+use crate::app::State;
 use crate::downloads::{self, Indicator, thumbnails};
-use crate::shell::BrowserWindow;
+use crate::menus;
+use crate::shell::{BrowserWindow, WindowId};
 
-pub fn handle(web_view: &WebView, window: &WindowRef) {
+/// What `downloads.perform` takes.
+#[derive(Deserialize)]
+struct Perform {
+    id: String,
+    action: String,
+}
+
+thread_local! {
+    // The window whose shelf shows for Chromium's bubble, and the bubble's
+    // request, which closes as the shelf goes.
+    static SHELF: Cell<Option<(WindowId, Popover)>> = const { Cell::new(None) };
+}
+
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The downloads the window lists; "downloads.list" says when they
     // change.
     let weak = window.clone();
@@ -45,6 +69,47 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
             }
         }
     });
+
+    // As Chrome's bubble does it: pause, resume, cancel, open, and so on.
+    let weak = window.clone();
+    let _ = web_view.handle("downloads.perform", move |perform: Perform| {
+        with_browser(&weak, |_, browser| {
+            let action = downloads::action(&perform.action).ok_or("There is no such action.")?;
+            downloads::find(browser, &perform.id)?
+                .perform(action)
+                .map_err(failed)
+        })
+    });
+
+    // The download's menu, at a point in the page; answers with the item
+    // chosen, once it has been done.
+    let weak = window.clone();
+    let _ = web_view.handle_call("downloads.menu", move |call| {
+        menu_call(&weak, call, |view, browser, at: MenuAt<String>, done| {
+            let download = downloads::find(browser, &at.id)?;
+            let state = weak.state()?;
+            let done = move |chosen: Option<String>| {
+                // Taken off the list, which every window on the profile shows.
+                if chosen.as_deref() == Some("remove") {
+                    send_all_downloads(&state);
+                }
+                done(chosen);
+            };
+            menus::show_download_menu(mt, view, download, (at.x, at.y), done).map_err(failed)
+        })
+    });
+
+    // The shelf Chromium's bubble showed has gone, so the bubble's request
+    // closes. Any other shelf going is no request's.
+    let weak = window.clone();
+    let _ = web_view.handle("downloads.shelfDone", move |()| {
+        if let Some((id, _)) = SHELF.get()
+            && id == weak.id
+        {
+            close_shelf_request();
+        }
+        Ok::<_, String>(())
+    });
 }
 
 /// Tells `window`'s page of the downloads it lists, unless they are as it
@@ -79,4 +144,60 @@ pub fn send_no_indicator(window: &BrowserWindow) {
         .page
         .web_view
         .send("downloads.indicator", &None::<Indicator>);
+}
+
+/// Chromium's download bubble, for `App::popover`. Its short list, shown as
+/// all downloads are done, is the shelf of the window in front, for the few
+/// seconds Chrome shows it; Chromium shows the rest itself. A popup's window
+/// has no shelf: the indicator is in the browser window.
+pub fn show_downloads_bubble(
+    state: &Rc<State>,
+    mt: MainThread,
+    request: &PopoverRequest,
+) -> PopoverAnswer {
+    let automatic = request.trigger == PopoverTrigger::Automatic && request.download.is_none();
+    if !automatic {
+        return PopoverAnswer::Chromium;
+    }
+    let Some(window) = state.windows.of(&request.browser) else {
+        return PopoverAnswer::None;
+    };
+    if window.is_popup() || !window.is_front(&request.browser) {
+        return PopoverAnswer::None;
+    }
+    let id = window.id;
+    let popover = request.popover;
+    let state = Rc::downgrade(state);
+    mt.later(
+        move |_| match state.upgrade().and_then(|state| state.windows.get(id)) {
+            Some(window) => {
+                // One shelf at a time: a request it showed for before closes.
+                close_shelf_request();
+                SHELF.set(Some((id, popover)));
+                let _ = window.page.web_view.send("downloads.showShelf", &());
+            }
+            // The window went in the meantime.
+            None => {
+                let _ = popover.close();
+            }
+        },
+    );
+    PopoverAnswer::App
+}
+
+// Tells every window's page of its downloads, as some are taken off the list.
+// TODO: drop once Wren removes them, as its change tells the windows then.
+fn send_all_downloads(state: &State) {
+    for window in state.windows.all() {
+        if let Some(browser) = window.browser() {
+            send_downloads(&window, &browser);
+        }
+    }
+}
+
+// Closes the request of Chromium's bubble a shelf shows for, if one does.
+fn close_shelf_request() {
+    if let Some((_, popover)) = SHELF.take() {
+        let _ = popover.close();
+    }
 }

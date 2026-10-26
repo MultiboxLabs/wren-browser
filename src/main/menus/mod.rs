@@ -1,8 +1,9 @@
 // The main menu: the system's items, Chromium's commands, and the app's own,
 // which reach `App::menu_command` by their IDs here. And the menus the page
 // asks for and the app acts on, one file for each: the sidebar's tabs' and
-// groups', and the page info popover's.
+// groups', the page info popover's, and a download's.
 
+mod download;
 mod group;
 mod site;
 mod tab;
@@ -13,6 +14,7 @@ use wren::{ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifi
 
 use crate::db::SpaceId;
 
+pub use download::show_download_menu;
 pub use group::{color_name, least_used_color, show_group_menu};
 pub use site::{show_permission_menu, show_site_menu};
 pub use tab::show_tab_menu;

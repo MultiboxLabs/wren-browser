@@ -28,6 +28,16 @@ export const useDownloads = () => useContext(DownloadsContext).list;
 /** The Library button's indicator; null while no download runs. */
 export const useDownloadIndicator = () => useContext(DownloadsContext).indicator;
 
+/** Whether it runs still, paused or not. */
+export const isRunning = (download: Download) => download.status === "inProgress";
+
+/** When it last changed: as it ended, or else as it started. */
+export const lastChanged = (download: Download) => download.ended ?? download.started;
+
+/** For `sort`: those that run first, then the rest, newest first. */
+export const newestFirst = (a: Download, b: Download) =>
+  Number(isRunning(b)) - Number(isRunning(a)) || lastChanged(b) - lastChanged(a);
+
 // Each download's thumbnail, by what it was drawn for, kept for every part
 // of the window that shows it. One the app failed to answer is asked again.
 const thumbnails = new Map<string, Promise<string | null>>();

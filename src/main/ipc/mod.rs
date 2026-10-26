@@ -36,7 +36,7 @@ use crate::tabs;
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_status, send_tabs};
-pub use downloads::{downloads_changed, send_downloads, send_indicator};
+pub use downloads::{downloads_changed, send_downloads, send_indicator, show_downloads_bubble};
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
 pub use menu::send_toggle_sidebar;
@@ -93,7 +93,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     ad_block::handle(web_view, window, mt);
     spaces::handle(web_view, window, mt);
     tab_switcher::handle(web_view, window);
-    downloads::handle(web_view, window);
+    downloads::handle(web_view, window, mt);
 }
 
 /// Tells the page all it shows of `browser`, as it comes in front, and then

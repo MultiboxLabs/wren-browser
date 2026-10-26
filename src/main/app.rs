@@ -433,6 +433,9 @@ impl App for Wren {
             });
             return PopoverAnswer::None;
         }
+        if request.kind == PopoverKind::Downloads {
+            return ipc::show_downloads_bubble(&self.state, mt, request);
+        }
         if !matches!(request.kind, PopoverKind::Toast | PopoverKind::Find) {
             return PopoverAnswer::Chromium;
         }
