@@ -1,14 +1,15 @@
 // Popups. A Browser Chromium opens that is not a tabbed window gets a
 // browser window of its own: a page's popup (`window.open` with features,
-// as a sign-in opens), an extension's popup window, an installed app's
-// window, or Picture-in-Picture. Its title bar is the system's, under which
-// the page draws a page's popup's address, and no sidebar
-// (pages/ui/popup.tsx). It is on its profile's place, and never kept: its
-// Browser closing takes it (`App::browser_closed`).
+// as a sign-in opens), an extension's popup window, or an installed app's
+// window. Its title bar is the system's, under which the page draws a page's
+// popup's address, and no sidebar (pages/ui/popup.tsx). It is on its
+// profile's place, and never kept: its Browser closing takes it
+// (`App::browser_closed`). Document Picture-in-Picture is none of these:
+// Chromium shows it in a window of its own, with no Browser.
 
 use std::rc::Rc;
 
-use wren::{Browser, BrowserType, MainThread, WindowFeatures};
+use wren::{Browser, MainThread, WindowFeatures};
 
 use super::session::unkept_window_key;
 use crate::app::State;
@@ -63,9 +64,6 @@ impl State {
             requested.and_then(|bounds| bounds.origin),
             near.as_ref().map(|near| &near.page),
         );
-        if browser.browser_type() == BrowserType::PictureInPicture {
-            window.page.float();
-        }
         self.host(&window, place, &browser);
     }
 }

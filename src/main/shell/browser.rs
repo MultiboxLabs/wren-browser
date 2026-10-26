@@ -39,8 +39,8 @@ enum Slot {
 }
 
 /// What makes a window a popup's: a page's popup, an extension's popup
-/// window, an installed app's window or Picture-in-Picture, drawn without a
-/// sidebar (pages/ui/popup.tsx). The page reads it ("window.popup").
+/// window or an installed app's window, drawn without a sidebar
+/// (pages/ui/popup.tsx). The page reads it ("window.popup").
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Popup {

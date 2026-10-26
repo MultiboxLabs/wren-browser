@@ -23,14 +23,13 @@ use objc2_app_kit::{
     NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
     NSApplication, NSApplicationDidBecomeActiveNotification,
     NSApplicationDidResignActiveNotification, NSAutoresizingMaskOptions, NSBackingStoreType,
-    NSFloatingWindowLevel, NSScreen, NSTitlebarSeparatorStyle, NSToolbar, NSView,
-    NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView,
-    NSWindow, NSWindowDelegate, NSWindowDidBecomeKeyNotification,
-    NSWindowDidBecomeMainNotification, NSWindowDidEndLiveResizeNotification,
-    NSWindowDidEnterFullScreenNotification, NSWindowDidExitFullScreenNotification,
-    NSWindowDidResignKeyNotification, NSWindowDidResignMainNotification,
-    NSWindowDidResizeNotification, NSWindowStyleMask, NSWindowTitleVisibility,
-    NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
+    NSScreen, NSTitlebarSeparatorStyle, NSToolbar, NSView, NSVisualEffectBlendingMode,
+    NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView, NSWindow, NSWindowDelegate,
+    NSWindowDidBecomeKeyNotification, NSWindowDidBecomeMainNotification,
+    NSWindowDidEndLiveResizeNotification, NSWindowDidEnterFullScreenNotification,
+    NSWindowDidExitFullScreenNotification, NSWindowDidResignKeyNotification,
+    NSWindowDidResignMainNotification, NSWindowDidResizeNotification, NSWindowStyleMask,
+    NSWindowTitleVisibility, NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
     NSWindowWillExitFullScreenNotification,
 };
 use objc2_foundation::{
@@ -281,11 +280,6 @@ impl PageWindow {
             Some(frame) => window.setFrame_display(frame, false),
             None => window.center(),
         }
-    }
-
-    /// Keeps the window above the others, as Picture-in-Picture is.
-    pub fn float(&self) {
-        self.window.setLevel(NSFloatingWindowLevel);
     }
 
     // The frame of a window of `size` cascaded from this one, as AppKit

@@ -3,7 +3,7 @@ export type WindowSpace = { kind: "space"; id: number } | { kind: "newSpace" };
 
 /**
  * What makes a window a popup's (a page's popup, an extension's popup window,
- * an app's window, Picture-in-Picture), which is drawn without a sidebar.
+ * an app's window), which is drawn without a sidebar.
  */
 export type WindowPopup = {
   /** The space it was opened from, whose colours it is drawn in. */

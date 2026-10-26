@@ -1,10 +1,10 @@
 // A popup's window: a page's popup (a sign-in, a payment), an extension's
-// popup window, an app's window or Picture-in-Picture. Its title bar is the
-// system's, with the page's title, and it has no sidebar. Under the title
-// bar, a page's popup shows where it is, read-only, as Chrome's does: page
-// info, which the site's bubbles hang off, and the address; no extensions,
-// as Chromium gives a popup none. Then the page, edge to edge. The window is
-// light or dark as the system is, as its title bar is.
+// popup window or an app's window. Its title bar is the system's, with the
+// page's title, and it has no sidebar. Under the title bar, a page's popup
+// shows where it is, read-only, as Chrome's does: page info, which the
+// site's bubbles hang off, and the address; no extensions, as Chromium gives
+// a popup none. Then the page, edge to edge. The window is light or dark as
+// the system is, as its title bar is.
 
 import { LoaderCircle } from "lucide-react";
 import type { WindowPopup } from "../../ipc";

@@ -257,8 +257,8 @@ impl App for Wren {
     // restored window or one a link or the omnibox asked for, is shown in a
     // window of its own, on the space it came from, or an incognito one on
     // its profile's off-the-record side (`place_opened`). DevTools gets a
-    // plain window of its own, and the rest (a popup, an app's window,
-    // Picture-in-Picture) a popup's window (`open_popup`).
+    // plain window of its own, and the rest (a popup, an app's window) a
+    // popup's window (`open_popup`).
     fn browser_opened(
         &self,
         mt: MainThread,
