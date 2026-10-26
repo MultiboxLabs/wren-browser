@@ -39,13 +39,14 @@ enum Answer {
 }
 
 /// Whose warning it is, for `App::quit_prompt`: the page of the window in
-/// front asks, once Chromium's call is over. With no window open there is
-/// nothing to lose, and nowhere to ask: it quits.
+/// use asks, a popup's too, or else of the window in front, once Chromium's
+/// call is over. With no window open there is nothing to lose, and nowhere
+/// to ask: it quits.
 pub fn show_quit_prompt(state: &Rc<State>, mt: MainThread, prompt: &QuitPrompt) -> PopoverAnswer {
     if prompt.again {
         return PopoverAnswer::None;
     }
-    let Some(window) = state.windows.front() else {
+    let Some(window) = state.windows.in_use().or_else(|| state.windows.front()) else {
         return PopoverAnswer::None;
     };
     *state.quit_prompt.borrow_mut() = Some(OpenQuitPrompt {
