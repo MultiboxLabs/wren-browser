@@ -6,15 +6,13 @@ import { type ReactNode, useState } from "react";
 import type { SpaceTheme } from "@/ipc";
 import { useWindowAspect } from "@/utils/aspect";
 import { arrowFill } from "@/utils/theme";
-import { isEmoji, SPACE_ICONS } from "./space-icon";
+import { IconPicker } from "./icon-picker/icon-picker";
 import { ThemePicker } from "./theme-picker/theme-picker";
-import { Button } from "./ui/button";
 import { Popover } from "./ui/popover";
-import { TextField } from "./ui/text-field";
 
 /**
- * The icons to choose from, and a field for an emoji, below `trigger`, a
- * `Button` (ui/button.tsx), which keeps still as it opens them.
+ * The icon picker, below `trigger`, a `Button` (ui/button.tsx), which keeps
+ * still as it opens it. A choice closes it.
  */
 export function IconPopover({
   icon,
@@ -26,40 +24,13 @@ export function IconPopover({
   trigger: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [emoji, setEmoji] = useState(isEmoji(icon) ? icon : "");
   const choose = (next: string) => {
     onChange(next);
     setOpen(false);
   };
   return (
     <Popover open={open} onOpenChange={setOpen} label="Icon" trigger={trigger}>
-      <div className="flex w-64 flex-col gap-2.5 p-3">
-        <div className="grid grid-cols-6 gap-1">
-          {Object.entries(SPACE_ICONS).map(([id, Icon]) => (
-            <Button
-              key={id}
-              icon={Icon}
-              iconTone="full"
-              label={id.replaceAll("-", " ")}
-              pressed={icon === `lucide:${id}`}
-              onClick={() => choose(`lucide:${id}`)}
-              className="size-9"
-            />
-          ))}
-        </div>
-        <TextField
-          value={emoji}
-          onChange={(event) => {
-            const text = event.target.value.trim();
-            setEmoji(text);
-            if (isEmoji(text)) choose(text);
-          }}
-          // Return would press the default button of what the icon is in, which is not what it is for here.
-          onKeyDown={(event) => event.key === "Enter" && event.stopPropagation()}
-          placeholder="Emoji"
-          aria-label="Emoji"
-        />
-      </div>
+      <IconPicker value={icon} onChange={choose} />
     </Popover>
   );
 }
