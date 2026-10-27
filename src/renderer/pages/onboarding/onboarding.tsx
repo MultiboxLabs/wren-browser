@@ -13,7 +13,7 @@ import { hasApp, type ImportSource, onboarding, type SpaceTheme } from "@/ipc";
 import { SpaceBackground } from "@/components/space-background";
 import { DEFAULT_ICON } from "@/components/space-icon";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { personal, type Space } from "@/state/space";
+import { NEW_SPACE, personal, type Space } from "@/state/space";
 import { useShowWindow, useSystemScheme, useWindowTheme } from "@/state/window";
 import { contentScheme, defaultTheme, primaryHex } from "@/utils/theme";
 import type { Choices, Step } from "./step";
@@ -183,9 +183,12 @@ const neutral = (scheme: "light" | "dark"): Space => ({
   scheme
 });
 
-// The window as the first space's will be, in `theme`.
+// The window as the first space's will be, in `theme`: as the space being
+// made, whose colours are drawn at once as the user picks them, not faded to
+// (`themeKey`).
 const themed = (theme: SpaceTheme): Space => ({
   ...personal,
+  id: NEW_SPACE,
   theme,
   color: primaryHex(theme),
   scheme: contentScheme(theme)

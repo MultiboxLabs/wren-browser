@@ -2,9 +2,8 @@
 // its colour pad and presets, light or dark, intensity and noise. The
 // window is drawn in it as it is chosen, as the space's window will be.
 
-import { motion } from "motion/react";
 import { ThemePicker } from "@/components/theme-picker/theme-picker";
-import { rise, Split } from "@/pages/onboarding/split";
+import { Card, Split } from "@/pages/onboarding/split";
 import type { StepProps } from "@/pages/onboarding/step";
 
 export function Colour({ choices: { theme }, choose, next, back, finishing }: StepProps) {
@@ -18,9 +17,9 @@ export function Colour({ choices: { theme }, choose, next, back, finishing }: St
       finishing={finishing}
       panelClassName="items-center"
     >
-      <motion.div {...rise(3)}>
-        <ThemePicker value={theme} onChange={(theme) => choose({ theme })} className="shadow-lifted" />
-      </motion.div>
+      <Card>
+        <ThemePicker value={theme} onChange={(theme) => choose({ theme })} className="rounded-none" />
+      </Card>
     </Split>
   );
 }
