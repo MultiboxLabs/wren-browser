@@ -22,6 +22,7 @@ import { Import } from "./steps/import";
 import { Icon } from "./steps/icon";
 import { Colour } from "./steps/colour";
 import { AdBlock } from "./steps/ad-block";
+import { DefaultBrowser } from "./steps/default-browser";
 
 // The first space's, which a browser whose spaces come over leaves none of.
 const making = ({ importFrom }: Choices) => !importFrom?.spaces;
@@ -29,7 +30,10 @@ const ICON: Step = { Content: Icon, painted: false, shown: making };
 const COLOUR: Step = { Content: Colour, painted: true, shown: making };
 
 // After it, drawn in the space's theme if the user made one.
-const AFTER: Step[] = [{ Content: AdBlock, painted: making }];
+const AFTER: Step[] = [
+  { Content: AdBlock, painted: making },
+  { Content: DefaultBrowser, painted: making }
+];
 
 const STEPS: Step[] = [
   { Content: GetStarted, painted: false },

@@ -1,7 +1,8 @@
 // The icons of onboarding's options that are no app's (Start Fresh, and the
-// ad blocker step's), as tile icons (components/tile-icon.tsx): a glyph of its
+// yes-or-no steps'), as tile icons (components/tile-icon.tsx): a glyph of its
 // own in white on a square of colour, each drawn here in its 100 units.
 
+import { WrenMark } from "@/components/icons";
 import { CUT, TileIcon } from "@/components/tile-icon";
 
 /** Starting fresh: sparkles, a large one and two small. */
@@ -56,6 +57,37 @@ export function AdsIcon({ size = 44 }: { size?: number }) {
           <rect x="58" y="39" width="15" height="31" rx="3" fill="rgb(255 92 120)" />
           <rect x="27" y="58" width="27" height="4" rx="2" fill="rgb(206 206 212)" />
           <rect x="27" y="66" width="19" height="4" rx="2" fill="rgb(206 206 212)" />
+        </>
+      )}
+    </TileIcon>
+  );
+}
+
+/** Making Wren the default: its mark, on its warm colour. */
+export function WrenIcon({ size = 44 }: { size?: number }) {
+  return (
+    <span className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
+      <span className="absolute inset-0">
+        <TileIcon tone="wren" size={size} />
+      </span>
+      <span className="relative translate-x-[1px] text-white">
+        <WrenMark size={size * 0.58} />
+      </span>
+    </span>
+  );
+}
+
+/** Not now: a clock, its hands cut through it. */
+export function LaterIcon({ size = 44 }: { size?: number }) {
+  return (
+    <TileIcon tone="slate" size={size}>
+      {(id) => (
+        <>
+          <mask id={`${id}-cut`}>
+            <rect width="100" height="100" fill="#fff" />
+            <path d="M50 35v16l10 6" strokeWidth="6.5" {...CUT} />
+          </mask>
+          <circle mask={`url(#${id}-cut)`} cx="50" cy="50" r="27" fill="#fff" />
         </>
       )}
     </TileIcon>

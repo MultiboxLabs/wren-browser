@@ -1,10 +1,12 @@
 // The onboarding window's calls (onboarding.rs): those of its window, as any
-// page's, and its own. src/renderer/ipc/onboarding.ts is the page's side.
+// page's, the default browser's, as the Library's, and its own.
+// src/renderer/ipc/onboarding.ts is the page's side.
 
 use std::rc::{Rc, Weak};
 
 use wren::{MainThread, WebView};
 
+use super::default_browser;
 use super::window::{PageRef, handle_page};
 use crate::app::State;
 use crate::import;
@@ -44,6 +46,10 @@ pub fn handle_onboarding(web_view: &WebView, state: &Rc<State>, mt: MainThread) 
     let _ = web_view.handle("onboarding.browsers", move |()| {
         Ok::<_, String>(import::installed())
     });
+
+    // Whether Wren is the default browser, and asking the user to make it
+    // so, as the Library does (default_browser.rs).
+    default_browser::handle(web_view, mt);
 
     // The user is done, with what they chose: the window closes, and the
     // app starts.
