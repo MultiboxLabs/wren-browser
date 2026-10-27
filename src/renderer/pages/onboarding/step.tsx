@@ -1,8 +1,12 @@
 // What every onboarding step is given, and what each does alike.
 
 import { type ComponentType, useEffect } from "react";
+import type { OnboardingChoices } from "@/ipc";
 
 export type StepProps = {
+  /** What the user has chosen so far, which the app takes as they finish. */
+  choices: OnboardingChoices;
+  choose: (change: Partial<OnboardingChoices>) => void;
   /** On to the next step, or, from the last, done. */
   next: () => void;
   /** Back to the step before; none on the first. */
@@ -13,7 +17,14 @@ export type StepProps = {
   finishing: boolean;
 };
 
-export type Step = ComponentType<StepProps>;
+export type Step = {
+  Content: ComponentType<StepProps>;
+  /**
+   * Whether the window is drawn in the chosen theme behind it, as a space's
+   * window is; the steps before the theme is chosen are a clean slate.
+   */
+  painted: boolean;
+};
 
 /** Return presses `press`, as it presses a dialog's default button. */
 export function useReturnKey(press: () => void) {

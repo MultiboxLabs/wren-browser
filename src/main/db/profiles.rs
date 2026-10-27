@@ -37,6 +37,15 @@ fn default_space(profile: &ProfileListEntry) -> NewSpace {
 }
 
 impl Db {
+    // `default_space`, in the theme onboarding chose, if one waits.
+    fn first_space(&self, profile: &ProfileListEntry) -> NewSpace {
+        let space = default_space(profile);
+        match self.take_first_space_theme() {
+            Some(theme) => NewSpace { theme, ..space },
+            None => space,
+        }
+    }
+
     /// Adds a profile the database has not met, with no space. Whether it
     /// added it.
     pub fn add_profile(&self, id: &str) -> Result<bool, String> {
@@ -89,14 +98,15 @@ impl Db {
     }
 
     // Gives `first`, the first profile listed, a space if the app has none
-    // left. Whether it gave one.
+    // left, in the theme chosen in onboarding if it is the first ever.
+    // Whether it gave one.
     fn keep_a_space(&self, first: Option<&ProfileListEntry>) -> bool {
         let Some(first) = first else {
             return false;
         };
         match self.has_spaces() {
             Ok(true) => false,
-            Ok(false) => match self.create_space(&first.id, default_space(first)) {
+            Ok(false) => match self.create_space(&first.id, self.first_space(first)) {
                 Ok(_) => true,
                 Err(error) => {
                     eprintln!("Wren could not give a profile a space: {error}");

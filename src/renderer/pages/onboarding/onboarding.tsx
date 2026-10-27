@@ -1,36 +1,84 @@
 // The onboarding window (src/main/onboarding.rs): what the user goes through
 // before the app is theirs, a step at a time, in the order of `STEPS`. The
-// last step's Continue finishes it: the window closes, and the app starts.
-// The window has no space: it is a clean slate (`Slate`), light or dark as
-// the system is, its buttons too, so each step's content is what stands
-// out.
+// last step's Continue finishes it, with what the user chose: the window
+// closes, and the app starts. The window starts as a clean slate (`Slate`);
+// once the user picks their first space's theme, it is drawn in it, as that
+// space's window will be, its blur and buttons too.
 
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { useMemo, useState } from "react";
-import { hasApp, onboarding } from "@/ipc";
+import { useEffect, useMemo, useState } from "react";
+import { hasApp, onboarding, type OnboardingChoices, type SpaceTheme } from "@/ipc";
+import { SpaceBackground } from "@/components/space-background";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { personal, type Space } from "@/state/space";
 import { useShowWindow, useSystemScheme, useWindowTheme } from "@/state/window";
-import { defaultTheme } from "@/utils/theme";
+import { contentScheme, defaultTheme, primaryHex } from "@/utils/theme";
 import type { Step } from "./step";
 import { GetStarted } from "./steps/get-started";
+import { MakeItYours } from "./steps/make-it-yours";
 
-const STEPS: Step[] = [GetStarted];
+const STEPS: Step[] = [
+  { Content: GetStarted, painted: false },
+  { Content: MakeItYours, painted: true }
+];
 
 // How far a step slides as the next comes in, or the last comes back.
 const SLIDE = 24;
 
-// A grey with no hue, so the text and fills made from it are neutral.
+// A grey with no hue, so the clean slate's text and fills are neutral.
 const NEUTRAL = "#8e8e93";
 
+const FADE = { duration: 0.35, ease: "easeOut" } as const;
+
 export function Onboarding() {
+  const [at, setAt] = useState({ index: 0, direction: 1 });
+  const [choices, setChoices] = useState<OnboardingChoices>({ theme: defaultTheme() });
+  // The first space's theme, if it has one already, is where the choice starts.
+  useEffect(() => {
+    if (!hasApp) return;
+    onboarding.theme().then(
+      (theme) => theme && setChoices((choices) => ({ ...choices, theme })),
+      () => {}
+    );
+  }, []);
+  const { painted } = STEPS[at.index];
   const scheme = useSystemScheme();
-  const space = useMemo<Space>(() => ({ ...personal, theme: defaultTheme(NEUTRAL), color: NEUTRAL, scheme }), [scheme]);
+  const space = useMemo(() => (painted ? themed(choices.theme) : neutral(scheme)), [painted, choices.theme, scheme]);
   useWindowTheme(space);
   return (
     // With Reduced Motion, the steps fade and do not slide.
     <MotionConfig reducedMotion="user">
-      <Slate />
-      <Steps />
+      <TooltipProvider>
+        <AnimatePresence initial={false}>
+          {painted ? (
+            <motion.div
+              key="painted"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={FADE}
+            >
+              <SpaceBackground space={space} className="fixed inset-0" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="slate"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={FADE}
+            >
+              <Slate />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <Steps
+          at={at}
+          setAt={setAt}
+          choices={choices}
+          choose={(change) => setChoices((choices) => ({ ...choices, ...change }))}
+        />
+      </TooltipProvider>
     </MotionConfig>
   );
 }
@@ -47,10 +95,21 @@ function Slate() {
   );
 }
 
+type At = { index: number; direction: number };
+
 // The step the user is on, sliding in from the side they go toward.
-function Steps() {
+function Steps({
+  at,
+  setAt,
+  choices,
+  choose
+}: {
+  at: At;
+  setAt: (at: At) => void;
+  choices: OnboardingChoices;
+  choose: (change: Partial<OnboardingChoices>) => void;
+}) {
   useShowWindow();
-  const [at, setAt] = useState({ index: 0, direction: 1 });
   const [finishing, setFinishing] = useState(false);
   const last = at.index === STEPS.length - 1;
   const next = () => {
@@ -58,10 +117,10 @@ function Steps() {
     if (!last) return setAt({ index: at.index + 1, direction: 1 });
     if (!hasApp) return;
     setFinishing(true);
-    onboarding.finish().catch(() => setFinishing(false));
+    onboarding.finish(choices).catch(() => setFinishing(false));
   };
   const back = at.index > 0 ? () => setAt({ index: at.index - 1, direction: -1 }) : undefined;
-  const Current = STEPS[at.index];
+  const { Content } = STEPS[at.index];
   return (
     <div className="drag relative h-full overflow-hidden">
       <AnimatePresence mode="wait" initial={false} custom={at.direction}>
@@ -79,9 +138,25 @@ function Steps() {
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="absolute inset-0"
         >
-          <Current next={next} back={back} last={last} finishing={finishing} />
+          <Content choices={choices} choose={choose} next={next} back={back} last={last} finishing={finishing} />
         </motion.div>
       </AnimatePresence>
     </div>
   );
 }
+
+// The clean slate: the system's light or dark, with neutral text.
+const neutral = (scheme: "light" | "dark"): Space => ({
+  ...personal,
+  theme: defaultTheme(NEUTRAL),
+  color: NEUTRAL,
+  scheme
+});
+
+// The window as the first space's will be, in `theme`.
+const themed = (theme: SpaceTheme): Space => ({
+  ...personal,
+  theme,
+  color: primaryHex(theme),
+  scheme: contentScheme(theme)
+});

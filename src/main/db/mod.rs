@@ -27,6 +27,7 @@ pub use pins::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow};
 pub use profiles::avatar;
 pub use settings::{Settings, SettingsChange};
 pub use spaces::{NewSpace, SpaceChange, SpaceId, SpaceRow};
+pub use theme::SpaceTheme;
 pub use windows::{SavedWindow, WindowFrame};
 
 use migrations::MIGRATIONS;
