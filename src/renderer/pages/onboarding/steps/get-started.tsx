@@ -17,7 +17,7 @@ const rise = (order: number) => ({
 });
 
 export function GetStarted({ next, finishing }: StepProps) {
-  useReturnKey(next);
+  useReturnKey(() => next());
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-1 flex-col items-center justify-center pt-6 text-center">
@@ -39,7 +39,13 @@ export function GetStarted({ next, finishing }: StepProps) {
       </div>
       {/* At the bottom right, where a setup assistant's Continue is. */}
       <motion.footer {...rise(3)} className="flex justify-end px-8 pb-7">
-        <Button variant="raised" shape="large" className="gap-2.5 font-medium" disabled={finishing} onClick={next}>
+        <Button
+          variant="raised"
+          shape="large"
+          className="gap-2.5 font-medium"
+          disabled={finishing}
+          onClick={() => next()}
+        >
           Get Started
           <CornerDownLeft size={14} strokeWidth={2.25} aria-hidden className="opacity-55" />
         </Button>

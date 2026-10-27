@@ -23,8 +23,9 @@ const SIZE: (f64, f64) = (920.0, 640.0);
 /// What the user chose in onboarding, which the app takes as they finish.
 #[derive(Debug, Deserialize)]
 pub struct Choices {
-    /// Their first space's.
-    pub theme: SpaceTheme,
+    /// Their first space's; none if they did not choose one, as when their
+    /// spaces come over from another browser.
+    pub theme: Option<SpaceTheme>,
 }
 
 impl State {
@@ -73,7 +74,9 @@ impl State {
         if self.onboarding.borrow().is_none() {
             return;
         }
-        if let Err(error) = self.db.set_first_space_theme(choices.theme) {
+        if let Some(theme) = choices.theme
+            && let Err(error) = self.db.set_first_space_theme(theme)
+        {
             eprintln!("Wren could not give the first space its theme: {error}");
         }
         if let Err(error) = self.db.set_onboarded(true) {

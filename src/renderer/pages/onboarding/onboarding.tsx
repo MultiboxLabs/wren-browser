@@ -1,26 +1,31 @@
 // The onboarding window (src/main/onboarding.rs): what the user goes through
-// before the app is theirs, a step at a time, in the order of `STEPS`. The
-// last step's Continue finishes it, with what the user chose: the window
-// closes, and the app starts. The window starts as a clean slate (`Slate`);
-// once the user picks their first space's theme, it is drawn in it, as that
-// space's window will be, its blur and buttons too.
+// before the app is theirs, a step at a time, in the order of `STEPS`, but
+// for those what they chose makes no use of (a browser whose spaces come over
+// leaves none to colour). The last step's Continue finishes it, with what the
+// user chose: the window closes, and the app starts. The window starts as
+// a clean slate (`Slate`); once the user picks their first space's theme,
+// it is drawn in it, as that space's window will be, its blur and buttons
+// too.
 
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { hasApp, onboarding, type OnboardingChoices, type SpaceTheme } from "@/ipc";
+import { hasApp, type ImportSource, onboarding, type SpaceTheme } from "@/ipc";
 import { SpaceBackground } from "@/components/space-background";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { personal, type Space } from "@/state/space";
 import { useShowWindow, useSystemScheme, useWindowTheme } from "@/state/window";
 import { contentScheme, defaultTheme, primaryHex } from "@/utils/theme";
-import type { Step } from "./step";
+import type { Choices, Step } from "./step";
 import { GetStarted } from "./steps/get-started";
+import { Import } from "./steps/import";
 import { MakeItYours } from "./steps/make-it-yours";
 
-const STEPS: Step[] = [
-  { Content: GetStarted, painted: false },
-  { Content: MakeItYours, painted: true }
-];
+const COLOUR: Step = { Content: MakeItYours, painted: true, shown: ({ importFrom }) => !importFrom?.spaces };
+
+const STEPS: Step[] = [{ Content: GetStarted, painted: false }, { Content: Import, painted: false }, COLOUR];
+
+// The steps for the user, with what they have chosen.
+const stepsFor = (choices: Choices) => STEPS.filter(({ shown }) => shown?.(choices) ?? true);
 
 // How far a step slides as the next comes in, or the last comes back.
 const SLIDE = 24;
@@ -32,16 +37,19 @@ const FADE = { duration: 0.35, ease: "easeOut" } as const;
 
 export function Onboarding() {
   const [at, setAt] = useState({ index: 0, direction: 1 });
-  const [choices, setChoices] = useState<OnboardingChoices>({ theme: defaultTheme() });
-  // The first space's theme, if it has one already, is where the choice starts.
+  const [choices, setChoices] = useState<Choices>({ importFrom: null, theme: defaultTheme() });
+  const [browsers, setBrowsers] = useState<ImportSource[] | undefined>(hasApp ? undefined : []);
+  // The first space's theme, if it has one already, is where the choice
+  // starts; and the browsers installed are found before their step.
   useEffect(() => {
     if (!hasApp) return;
     onboarding.theme().then(
       (theme) => theme && setChoices((choices) => ({ ...choices, theme })),
       () => {}
     );
+    onboarding.browsers().then(setBrowsers, () => setBrowsers([]));
   }, []);
-  const { painted } = STEPS[at.index];
+  const { painted } = stepsFor(choices)[at.index];
   const scheme = useSystemScheme();
   const space = useMemo(() => (painted ? themed(choices.theme) : neutral(scheme)), [painted, choices.theme, scheme]);
   useWindowTheme(space);
@@ -72,12 +80,7 @@ export function Onboarding() {
             </motion.div>
           )}
         </AnimatePresence>
-        <Steps
-          at={at}
-          setAt={setAt}
-          choices={choices}
-          choose={(change) => setChoices((choices) => ({ ...choices, ...change }))}
-        />
+        <Steps at={at} setAt={setAt} choices={choices} setChoices={setChoices} browsers={browsers} />
       </TooltipProvider>
     </MotionConfig>
   );
@@ -102,25 +105,33 @@ function Steps({
   at,
   setAt,
   choices,
-  choose
+  setChoices,
+  browsers
 }: {
   at: At;
   setAt: (at: At) => void;
-  choices: OnboardingChoices;
-  choose: (change: Partial<OnboardingChoices>) => void;
+  choices: Choices;
+  setChoices: (choices: Choices) => void;
+  browsers: ImportSource[] | undefined;
 }) {
   useShowWindow();
   const [finishing, setFinishing] = useState(false);
-  const last = at.index === STEPS.length - 1;
-  const next = () => {
+  const choose = (change: Partial<Choices>) => setChoices({ ...choices, ...change });
+  // What the step chose decides the steps after it, so they are found anew.
+  const next = (change: Partial<Choices> = {}) => {
     if (finishing) return;
-    if (!last) return setAt({ index: at.index + 1, direction: 1 });
+    const chosen = { ...choices, ...change };
+    setChoices(chosen);
+    const steps = stepsFor(chosen);
+    if (at.index < steps.length - 1) return setAt({ index: at.index + 1, direction: 1 });
     if (!hasApp) return;
     setFinishing(true);
-    onboarding.finish(choices).catch(() => setFinishing(false));
+    // The theme only if the user chose one. Importing is to come.
+    const theme = steps.includes(COLOUR) ? chosen.theme : null;
+    onboarding.finish({ theme }).catch(() => setFinishing(false));
   };
   const back = at.index > 0 ? () => setAt({ index: at.index - 1, direction: -1 }) : undefined;
-  const { Content } = STEPS[at.index];
+  const { Content } = stepsFor(choices)[at.index];
   return (
     <div className="drag relative h-full overflow-hidden">
       <AnimatePresence mode="wait" initial={false} custom={at.direction}>
@@ -138,7 +149,14 @@ function Steps({
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="absolute inset-0"
         >
-          <Content choices={choices} choose={choose} next={next} back={back} last={last} finishing={finishing} />
+          <Content
+            choices={choices}
+            choose={choose}
+            browsers={browsers}
+            next={next}
+            back={back}
+            finishing={finishing}
+          />
         </motion.div>
       </AnimatePresence>
     </div>

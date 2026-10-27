@@ -1,18 +1,25 @@
 // What every onboarding step is given, and what each does alike.
 
 import { type ComponentType, useEffect } from "react";
-import type { OnboardingChoices } from "@/ipc";
+import type { ImportSource, SpaceTheme } from "@/ipc";
+
+/** What the user has chosen so far. */
+export type Choices = {
+  /** The browser to bring their things over from; null to start fresh. Nothing is imported yet. */
+  importFrom: ImportSource | null;
+  /** Their first space's, as it is so far. */
+  theme: SpaceTheme;
+};
 
 export type StepProps = {
-  /** What the user has chosen so far, which the app takes as they finish. */
-  choices: OnboardingChoices;
-  choose: (change: Partial<OnboardingChoices>) => void;
-  /** On to the next step, or, from the last, done. */
-  next: () => void;
+  choices: Choices;
+  choose: (change: Partial<Choices>) => void;
+  /** The browsers installed; undefined until the app has said. */
+  browsers: ImportSource[] | undefined;
+  /** With what is chosen on it, on to the next step, or, from the last, done. */
+  next: (change?: Partial<Choices>) => void;
   /** Back to the step before; none on the first. */
   back?: () => void;
-  /** Whether this is the last step, whose Continue finishes onboarding. */
-  last: boolean;
   /** Onboarding is finishing: the window is about to close. */
   finishing: boolean;
 };
@@ -24,6 +31,8 @@ export type Step = {
    * window is; the steps before the theme is chosen are a clean slate.
    */
   painted: boolean;
+  /** Whether the step is for the user, with what they have chosen; always if not given. */
+  shown?: (choices: Choices) => boolean;
 };
 
 /** Return presses `press`, as it presses a dialog's default button. */

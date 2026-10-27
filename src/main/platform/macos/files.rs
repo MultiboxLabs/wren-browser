@@ -87,8 +87,8 @@ fn type_of(name: &str) -> Option<Retained<UTType>> {
     UTType::typeWithFilenameExtension(&NSString::from_str(extension))
 }
 
-// An image drawn at `size` points, as a PNG.
-fn image_png(image: &NSImage, size: f64) -> Option<Vec<u8>> {
+// An image drawn at `size` points, as a PNG; apps.rs draws apps' icons so.
+pub(super) fn image_png(image: &NSImage, size: f64) -> Option<Vec<u8>> {
     let mut rect = NSRect::new(NSPoint::ZERO, NSSize::new(size * SCALE, size * SCALE));
     let cg = unsafe { image.CGImageForProposedRect_context_hints(&mut rect, None, None) }?;
     png(&cg)

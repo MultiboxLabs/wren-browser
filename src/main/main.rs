@@ -6,6 +6,7 @@ mod clipboard;
 mod db;
 mod downloads;
 mod extensions;
+mod import;
 mod ipc;
 mod menus;
 mod onboarding;

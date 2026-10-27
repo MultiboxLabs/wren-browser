@@ -7,6 +7,7 @@ use wren::{MainThread, WebView};
 
 use super::window::{PageRef, handle_page};
 use crate::app::State;
+use crate::import;
 use crate::onboarding::Choices;
 use crate::platform::PageWindow;
 
@@ -36,6 +37,12 @@ pub fn handle_onboarding(web_view: &WebView, state: &Rc<State>, mt: MainThread) 
             .ok_or("The app is closing.")?
             .db
             .first_space_theme()
+    });
+
+    // The browsers installed, which the user may bring their things over
+    // from.
+    let _ = web_view.handle("onboarding.browsers", move |()| {
+        Ok::<_, String>(import::installed())
     });
 
     // The user is done, with what they chose: the window closes, and the

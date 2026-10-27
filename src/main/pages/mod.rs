@@ -164,9 +164,9 @@ pub fn serve_page(request: SchemeRequest, source: &Source) {
     } else {
         path
     };
-    // The UI's icons and tabs' previews come from the app, whatever serves
-    // its files.
-    if page.host == UI.host
+    // The icons the app names to a page, and the UI's tabs' previews, come
+    // from the app, whatever serves its files.
+    if page.messages
         && let Some(name) = path.strip_prefix(icons::PATH)
     {
         let _ = request.respond(icons::serve(name));

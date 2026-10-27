@@ -9,6 +9,7 @@ mod macos;
 #[cfg(target_os = "macos")]
 use macos as current;
 
+mod apps;
 mod files;
 mod keyboard;
 mod main_thread;
@@ -17,6 +18,7 @@ mod system;
 mod updater;
 mod window;
 
+pub use apps::installed_app_icon;
 pub use files::{file_kind, file_thumbnail, file_type_icon};
 pub use keyboard::{Key, KeyWatch};
 pub use main_thread::after;

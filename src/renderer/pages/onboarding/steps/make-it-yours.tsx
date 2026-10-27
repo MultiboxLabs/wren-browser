@@ -32,8 +32,8 @@ const rise = (order: number) => ({
   transition: { duration: 0.6, delay: 0.1 + order * 0.07, ease: EASE }
 });
 
-export function MakeItYours({ choices: { theme }, choose, next, back, last, finishing }: StepProps) {
-  useReturnKey(next);
+export function MakeItYours({ choices: { theme }, choose, next, back, finishing }: StepProps) {
+  useReturnKey(() => next());
   const { primary } = theme;
   // A colour that is none of the presets (the space's own, which may come
   // after the step does) stays in the row once it has been the theme's.
@@ -89,8 +89,14 @@ export function MakeItYours({ choices: { theme }, choose, next, back, last, fini
         <Button shape="large" className="font-medium" onClick={back}>
           Back
         </Button>
-        <Button variant="raised" shape="large" className="gap-2.5 font-medium" disabled={finishing} onClick={next}>
-          {last ? "Start Browsing" : "Continue"}
+        <Button
+          variant="raised"
+          shape="large"
+          className="gap-2.5 font-medium"
+          disabled={finishing}
+          onClick={() => next()}
+        >
+          Start Browsing
           <CornerDownLeft size={14} strokeWidth={2.25} aria-hidden className="opacity-55" />
         </Button>
       </motion.footer>
