@@ -1,11 +1,11 @@
 // Which omnibox is open, if one is, and where. For a new tab, in the middle
 // of the window; for the active tab, over the address field while the
-// sidebar is in view, and in the middle while it is away. Each time it
-// opens, it opens afresh. What opens it closes it again (⌘T, the New Tab
-// row, ⌘L); the other kind takes its place, and ⌘W closes the one for a
-// new tab. In a space the window has no Browser for yet, there is no tab to
-// open in: it is the one for a new tab, and the app first makes the space a
-// Browser, with no tab yet, for it to ask.
+// sidebar is in view, and in the middle while it is away or the Library is
+// open. Each opening starts afresh. What opens it closes it again (⌘T, the
+// New Tab row, ⌘L); the other kind takes its place, and ⌘W closes the one
+// for a new tab. In a space the window has no Browser for yet, there is no
+// tab to open in: it is the one for a new tab, and the app first makes the
+// space a Browser, with no tab yet, for it to ask.
 
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { hasApp, omnibox, type OmniboxTarget } from "../../ipc";
@@ -47,7 +47,9 @@ export function useShownOmnibox(address: RefObject<HTMLElement | null>, hasBrows
     const unready = hasApp && !browser.current;
     const target = unready ? "new-tab" : asked;
     if (latest.current?.target === target) return toggles ? hide() : undefined;
-    const box = address.current?.getBoundingClientRect();
+    const field = address.current;
+    // The Library keeps the address mounted, but its sidebar is inert.
+    const box = field && !field.closest("[inert]") ? field.getBoundingClientRect() : undefined;
     // Off the window's left edge, the sidebar is away.
     const place: OmniboxPlace =
       target === "current" && box && box.right > 0 ? { left: box.left, top: box.top } : "center";
