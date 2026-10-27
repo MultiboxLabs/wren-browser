@@ -10,6 +10,8 @@ export type FirstSpace = { icon: string | null; theme: SpaceTheme | null };
 export type OnboardingChoices = {
   /** Their first space's; neither if they chose none, as when their spaces come from another browser. */
   space: FirstSpace;
+  /** Whether ads and trackers are blocked. TODO: the app does nothing with it yet. */
+  adBlock: boolean;
 };
 
 /** An installed browser the user may bring their things over from. */

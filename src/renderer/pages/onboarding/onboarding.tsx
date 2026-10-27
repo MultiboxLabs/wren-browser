@@ -21,13 +21,23 @@ import { GetStarted } from "./steps/get-started";
 import { Import } from "./steps/import";
 import { Icon } from "./steps/icon";
 import { Colour } from "./steps/colour";
+import { AdBlock } from "./steps/ad-block";
 
 // The first space's, which a browser whose spaces come over leaves none of.
 const making = ({ importFrom }: Choices) => !importFrom?.spaces;
 const ICON: Step = { Content: Icon, painted: false, shown: making };
 const COLOUR: Step = { Content: Colour, painted: true, shown: making };
 
-const STEPS: Step[] = [{ Content: GetStarted, painted: false }, { Content: Import, painted: false }, ICON, COLOUR];
+// After it, drawn in the space's theme if the user made one.
+const AFTER: Step[] = [{ Content: AdBlock, painted: making }];
+
+const STEPS: Step[] = [
+  { Content: GetStarted, painted: false },
+  { Content: Import, painted: false },
+  ICON,
+  COLOUR,
+  ...AFTER
+];
 
 // The steps for the user, with what they have chosen.
 const stepsFor = (choices: Choices) => STEPS.filter(({ shown }) => shown?.(choices) ?? true);
@@ -42,7 +52,12 @@ const FADE = { duration: 0.35, ease: "easeOut" } as const;
 
 export function Onboarding() {
   const [at, setAt] = useState({ index: 0, direction: 1 });
-  const [choices, setChoices] = useState<Choices>({ importFrom: null, icon: DEFAULT_ICON, theme: defaultTheme() });
+  const [choices, setChoices] = useState<Choices>({
+    importFrom: null,
+    icon: DEFAULT_ICON,
+    theme: defaultTheme(),
+    adBlock: true
+  });
   const [browsers, setBrowsers] = useState<ImportSource[] | undefined>(hasApp ? undefined : []);
   // Whether the choices start where they should: the steps (and the window,
   // which shows with them) wait for it, so a picker never starts elsewhere.
@@ -60,7 +75,8 @@ export function Onboarding() {
       .finally(() => setReady(true));
     onboarding.browsers().then(setBrowsers, () => setBrowsers([]));
   }, []);
-  const { painted } = stepsFor(choices)[at.index];
+  const step = stepsFor(choices)[at.index];
+  const painted = typeof step.painted === "function" ? step.painted(choices) : step.painted;
   const scheme = useSystemScheme();
   const space = useMemo(() => (painted ? themed(choices.theme) : neutral(scheme)), [painted, choices.theme, scheme]);
   useWindowTheme(space);
@@ -140,10 +156,11 @@ function Steps({
     // The first space's only if the user made it. Importing is to come.
     const making = steps.includes(COLOUR);
     const space = { icon: making ? chosen.icon : null, theme: making ? chosen.theme : null };
-    onboarding.finish({ space }).catch(() => setFinishing(false));
+    onboarding.finish({ space, adBlock: chosen.adBlock }).catch(() => setFinishing(false));
   };
   const back = at.index > 0 ? () => setAt({ index: at.index - 1, direction: -1 }) : undefined;
-  const { Content } = stepsFor(choices)[at.index];
+  const steps = stepsFor(choices);
+  const { Content } = steps[at.index];
   return (
     <div className="drag relative h-full overflow-hidden">
       <AnimatePresence mode="wait" initial={false} custom={at.direction}>
@@ -168,6 +185,7 @@ function Steps({
             next={next}
             back={back}
             finishing={finishing}
+            last={at.index === steps.length - 1}
           />
         </motion.div>
       </AnimatePresence>

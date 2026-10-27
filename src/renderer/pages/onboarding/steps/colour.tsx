@@ -6,14 +6,14 @@ import { ThemePicker } from "@/components/theme-picker/theme-picker";
 import { Card, Split } from "@/pages/onboarding/split";
 import type { StepProps } from "@/pages/onboarding/step";
 
-export function Colour({ choices: { theme }, choose, next, back, finishing }: StepProps) {
+export function Colour({ choices: { theme }, choose, next, back, finishing, last }: StepProps) {
   return (
     <Split
       title="Add some colour"
       body="Pick one for your first space, and its window takes it on. You can change it any time."
       back={back}
       go={() => next()}
-      goLabel="Start Browsing"
+      goLabel={last ? "Start Browsing" : "Continue"}
       finishing={finishing}
       panelClassName="items-center"
     >

@@ -22,10 +22,14 @@ const SIZE: (f64, f64) = (920.0, 640.0);
 
 /// What the user chose in onboarding, which the app takes as they finish.
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Choices {
     /// Their first space's icon and theme; neither if they did not choose
     /// them, as when their spaces come over from another browser.
     pub space: FirstSpace,
+    /// Whether ads and trackers are blocked, as they are unless the user
+    /// says not. Not used yet (`finish_onboarding`).
+    pub ad_block: bool,
 }
 
 impl State {
@@ -77,6 +81,9 @@ impl State {
         if let Err(error) = self.db.set_first_space(choices.space) {
             eprintln!("Wren could not give the first space what was chosen for it: {error}");
         }
+        // TODO: keep it as the setting new profiles take their ad blocker
+        // from, once there is one. Nothing is done with it yet.
+        let _ = choices.ad_block;
         if let Err(error) = self.db.set_onboarded(true) {
             eprintln!("Wren could not note that onboarding is done: {error}");
         }

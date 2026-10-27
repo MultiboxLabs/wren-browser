@@ -10,6 +10,8 @@ export type Choices = {
   /** Their first space's icon and theme, as they are so far. */
   icon: string;
   theme: SpaceTheme;
+  /** Whether ads and trackers are blocked. */
+  adBlock: boolean;
 };
 
 export type StepProps = {
@@ -23,6 +25,8 @@ export type StepProps = {
   back?: () => void;
   /** Onboarding is finishing: the window is about to close. */
   finishing: boolean;
+  /** It is the last step, whose button finishes onboarding. */
+  last: boolean;
 };
 
 export type Step = {
@@ -31,7 +35,7 @@ export type Step = {
    * Whether the window is drawn in the chosen theme behind it, as a space's
    * window is; the steps before the theme is chosen are a clean slate.
    */
-  painted: boolean;
+  painted: boolean | ((choices: Choices) => boolean);
   /** Whether the step is for the user, with what they have chosen; always if not given. */
   shown?: (choices: Choices) => boolean;
 };
