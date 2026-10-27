@@ -13,6 +13,7 @@ import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../ico
 import type { OmniboxState } from "../omnibox/shown";
 import { cn } from "../../utils/cn";
 import { scaleTo } from "../../utils/motion";
+import { DownloadFlights } from "../downloads/flight";
 import { Indicator } from "../downloads/indicator";
 import { Shelf, useShelf } from "../downloads/shelf";
 import { NewSpaceForm } from "./new-space";
@@ -95,6 +96,8 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   const indicator = useDownloadIndicator();
   // The latest downloads, over the bottom of the content, which fades out under them.
   const shelf = useShelf(visible && !newSpace);
+  // Where a download that starts flies to.
+  const library = useRef<HTMLDivElement>(null);
 
   return (
     <div ref={area} className="relative flex h-full flex-col">
@@ -157,7 +160,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
           buttons, or by another space. */}
       <div className={cn("flex h-12.5 shrink-0 items-center", newSpace && "no-drag")}>
         {!newSpace && (
-          <div className="relative shrink-0" {...shelf.button}>
+          <div ref={library} className="relative shrink-0" {...shelf.button}>
             <Button
               icon={Archive}
               label="Library"
@@ -167,6 +170,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
               }}
             />
             <Indicator indicator={indicator} />
+            <DownloadFlights target={library} />
           </div>
         )}
         <div className="flex min-w-0 flex-1 justify-center px-1">

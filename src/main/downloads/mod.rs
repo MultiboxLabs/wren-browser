@@ -168,6 +168,15 @@ pub fn indicator(browser: &Browser) -> Option<Indicator> {
     })
 }
 
+/// The IDs of the downloads in `now` that have started since `before`: in
+/// progress, and not among them.
+pub fn started(before: &[Item], now: &[Item]) -> Vec<String> {
+    now.iter()
+        .filter(|item| item.status == "inProgress" && !before.iter().any(|old| old.id == item.id))
+        .map(|item| item.id.clone())
+        .collect()
+}
+
 /// Takes the download off the list. The file stays.
 // TODO: perform WREN_DOWNLOAD_REMOVE once Wren has it.
 pub fn remove(download: Download) {

@@ -7,7 +7,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use wren::{
     Browser, Change, ChangeKind, MainThread, Popover, PopoverAnswer, PopoverRequest,
     PopoverTrigger, WebView,
@@ -26,6 +26,15 @@ struct Perform {
     action: String,
 }
 
+/// What "downloads.started" says: a download that has started in the window
+/// the user is in, and where the pointer was over the page as it did, in
+/// points from its top left; None if it was outside the window.
+#[derive(Serialize)]
+struct Started {
+    id: String,
+    at: Option<(f64, f64)>,
+}
+
 thread_local! {
     // The window whose shelf shows for Chromium's bubble, and the bubble's
     // request, which closes as the shelf goes.
@@ -38,6 +47,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("downloads.list", move |()| {
         with_browser(&weak, |found, browser| {
+            // Those that started before the page asked are no news to it.
             let list = downloads::list(browser);
             found.note_downloads(&list);
             Ok(list)
@@ -114,10 +124,23 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
 
 /// Tells `window`'s page of the downloads it lists, unless they are as it
 /// was told last: as they change, and as another Browser comes in front.
+/// Each that has started since, the window the user is in hears of too,
+/// after the list that has it: it was started there, by what the pointer
+/// did, most likely.
 pub fn send_downloads(window: &BrowserWindow, browser: &Browser) {
     let list = downloads::list(browser);
-    if window.note_downloads(&list) {
-        let _ = window.page.web_view.send("downloads.list", &list);
+    let Some(started) = window.note_downloads(&list) else {
+        return;
+    };
+    let web_view = &window.page.web_view;
+    let _ = web_view.send("downloads.list", &list);
+    // A popup's window has no Library button for it to go to.
+    if window.is_popup() || !window.page.is_active() {
+        return;
+    }
+    let at = window.page.pointer();
+    for id in started {
+        let _ = web_view.send("downloads.started", &Started { id, at });
     }
 }
 

@@ -86,8 +86,8 @@ pub struct BrowserWindow {
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
     // The downloads the page was told of last (ipc/downloads.rs), so the
-    // same list is not sent again.
-    downloads_sent: RefCell<Vec<downloads::Item>>,
+    // same list is not sent again; None until it has been told any.
+    downloads_sent: RefCell<Option<Vec<downloads::Item>>>,
     popup: Option<Popup>,
 }
 
@@ -289,15 +289,19 @@ impl BrowserWindow {
         self.omnibox_query.borrow_mut().take()
     }
 
-    /// Notes `list` as the downloads the page is told of; false if it was
-    /// told the same last, and need not be again.
-    pub fn note_downloads(&self, list: &[downloads::Item]) -> bool {
+    /// Notes `list` as the downloads the page is told of. None if it was
+    /// told the same last, and need not be again; else the IDs of those that
+    /// have started since it was told last, none the first time.
+    pub fn note_downloads(&self, list: &[downloads::Item]) -> Option<Vec<String>> {
         let mut sent = self.downloads_sent.borrow_mut();
-        if *sent == list {
-            return false;
+        if sent.as_deref() == Some(list) {
+            return None;
         }
-        *sent = list.to_vec();
-        true
+        let started = sent
+            .as_deref()
+            .map_or_else(Vec::new, |before| downloads::started(before, list));
+        *sent = Some(list.to_vec());
+        Some(started)
     }
 
     /// Whether the page's omnibox asks `browser` for suggestions.

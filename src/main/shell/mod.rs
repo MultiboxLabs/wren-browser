@@ -342,6 +342,22 @@ impl PageWindow {
         is_active(&self.window)
     }
 
+    /// Where the pointer is over the page, in points from its top left;
+    /// None while it is outside the window.
+    pub fn pointer(&self) -> Option<(f64, f64)> {
+        let content = self.window.contentView()?;
+        let at =
+            content.convertPoint_fromView(self.window.mouseLocationOutsideOfEventStream(), None);
+        let size = content.bounds().size;
+        let y = if content.isFlipped() {
+            at.y
+        } else {
+            size.height - at.y
+        };
+        ((0.0..=size.width).contains(&at.x) && (0.0..=size.height).contains(&y))
+            .then_some((at.x, y))
+    }
+
     /// Calls `changed` with is_active whenever it changes, once AppKit has
     /// finished moving key and main between windows.
     pub fn watch_active(&self, mt: MainThread, changed: impl Fn(bool) + 'static) {

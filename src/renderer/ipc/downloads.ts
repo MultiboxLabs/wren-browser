@@ -44,6 +44,13 @@ export type DownloadIndicator = {
   scanning: boolean;
 };
 
+/** A download that has started in the window the user is in. */
+export type DownloadStarted = {
+  id: string;
+  /** Where the pointer was over the page as it did, in points from its top left; null if outside the window. */
+  at: [x: number, y: number] | null;
+};
+
 export const downloads = {
   /** The downloads the window lists: on the record every open profile's, off it its own; each profile's in progress first, then paused, then the rest, newest first. */
   list: () => wren.invoke<Download[]>("downloads.list"),
@@ -52,6 +59,8 @@ export const downloads = {
   indicator: () => wren.invoke<DownloadIndicator | null>("downloads.indicator"),
   onIndicator: (listener: (indicator: DownloadIndicator | null) => void) =>
     wren.on<DownloadIndicator | null>("downloads.indicator", listener),
+  /** Each download that starts in the window the user is in, after the list that has it. */
+  onStarted: (listener: (started: DownloadStarted) => void) => wren.on<DownloadStarted>("downloads.started", listener),
   /** The ID its thumbnail is served by (`iconUrl`): its file's once done, else its type's icon; null for none. */
   thumbnail: (id: string) => wren.invoke<string | null>("downloads.thumbnail", id),
   /** One of the download's `actions`. */
