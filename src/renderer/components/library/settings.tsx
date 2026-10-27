@@ -18,8 +18,8 @@ export function Settings({ query, settings }: { query: string; settings: Library
       about: "How long an unpinned tab can stay untouched before it is closed.",
       control: (
         <Menu
-          checked={settings.archiveAfter}
-          onSelect={settings.setArchiveAfter}
+          checked={settings.values.archiveAfter}
+          onSelect={(archiveAfter) => settings.update({ archiveAfter })}
           // The menu says which is the default; the button says only what is chosen.
           items={archiveAfterOptions.map(({ id, label }) => ({
             id,
@@ -27,7 +27,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
           }))}
           trigger={
             <Button variant="filled" className="gap-1 pr-1.5 font-medium">
-              {archiveAfterOptions.find(({ id }) => id === settings.archiveAfter)?.label}
+              {archiveAfterOptions.find(({ id }) => id === settings.values.archiveAfter)?.label}
               <ChevronsUpDown size={13} strokeWidth={2} className="shrink-0 glyph-2" />
             </Button>
           }

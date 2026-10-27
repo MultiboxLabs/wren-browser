@@ -1,16 +1,19 @@
 // What the Library shows: the profiles, their spaces, the boosts and the
-// settings. The profiles and the spaces are the app's; the boosts and the
-// settings are not real yet, and are made up here, as the space's favourites
+// settings. The profiles, the spaces and the settings are the app's; the
+// boosts are not real yet, and are made up here, as the space's favourites
 // are.
 
 import { useEffect, useRef, useState } from "react";
 import {
   type AdBlock,
   adBlock,
+  type ArchiveAfter,
   hasApp,
   type NewSpace,
   type ProfileEntry,
   profiles,
+  type Settings,
+  settings,
   type SpaceEntry,
   spaces
 } from "../ipc";
@@ -155,9 +158,7 @@ export const boosts: Boost[] = [
   { id: "github", name: "Bigger Diffs", host: "github.com", on: false }
 ];
 
-/** How long a tab goes unused before it is archived. */
-export type ArchiveAfter = "12h" | "24h" | "7d" | "30d";
-
+/** The app's own (db/settings.rs). */
 export const DEFAULT_ARCHIVE_AFTER: ArchiveAfter = "12h";
 
 export const archiveAfterOptions: { id: ArchiveAfter; label: string }[] = [
@@ -169,10 +170,22 @@ export const archiveAfterOptions: { id: ArchiveAfter; label: string }[] = [
 
 export type LibrarySettings = ReturnType<typeof useSettings>;
 
-/** The settings, kept only while the Library is mounted: nothing stores them yet. */
-export function useSettings() {
-  // TODO: load the settings from the app, once it stores them.
-  const [archiveAfter, setArchiveAfter] = useState<ArchiveAfter>(DEFAULT_ARCHIVE_AFTER);
-  // TODO: save each change to the app, and follow changes made in another window.
-  return { archiveAfter, setArchiveAfter };
+/**
+ * The user's settings, as the app keeps them, read again each time the
+ * Library opens and followed as they change, here or in another window.
+ * Until they are read, they are the defaults. `update` shows a change at
+ * once; if the app can't keep it, they are read again.
+ */
+export function useSettings(open: boolean) {
+  const [shown, setShown] = useState<Settings>({ archiveAfter: DEFAULT_ARCHIVE_AFTER });
+  const refresh = () => void settings.get().then(setShown, () => {});
+  useEffect(() => {
+    if (open && hasApp) refresh();
+  }, [open]);
+  useEffect(() => (hasApp ? settings.onChanged(setShown) : undefined), []);
+  const update = (change: Partial<Settings>) => {
+    setShown((shown) => ({ ...shown, ...change }));
+    if (hasApp) settings.update(change).then(setShown, refresh);
+  };
+  return { values: shown, update };
 }

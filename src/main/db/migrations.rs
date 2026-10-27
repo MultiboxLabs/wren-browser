@@ -63,4 +63,13 @@ pub const MIGRATIONS: &[&str] = &[
     WHERE ranked.id = spaces.id;
     CREATE INDEX spaces_by_position ON spaces(position);
     ",
+    // The user's settings, each a JSON value under its name. One the app
+    // does not know, or a value it can't read, is passed by, so a setting
+    // can come and go without a step of its own.
+    "
+    CREATE TABLE settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    ",
 ];

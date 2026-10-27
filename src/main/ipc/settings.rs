@@ -1,0 +1,28 @@
+// The user's settings (db/settings.rs), which the Library shows and changes;
+// `settings.changed` tells every window of a change.
+
+use wren::WebView;
+
+use super::WindowRef;
+use crate::app::State;
+use crate::db::{Settings, SettingsChange};
+
+pub fn handle(web_view: &WebView, window: &WindowRef) {
+    let weak = window.clone();
+    let _ = web_view.handle("settings.get", move |()| weak.state()?.db.settings());
+
+    // Sets what it is given, and answers with every setting as it is now.
+    let weak = window.clone();
+    let _ = web_view.handle("settings.update", move |change: SettingsChange| {
+        let state = weak.state()?;
+        let settings = state.db.update_settings(change)?;
+        broadcast_settings(&state, &settings);
+        Ok::<Settings, String>(settings)
+    });
+}
+
+fn broadcast_settings(state: &State, settings: &Settings) {
+    for window in state.windows.all() {
+        let _ = window.page.web_view.send("settings.changed", settings);
+    }
+}

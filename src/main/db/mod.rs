@@ -1,9 +1,11 @@
 // The app's database: what the browser keeps of its own, as opposed to what
-// Chromium keeps for a profile. For now that is spaces, and the windows open at quit. It is used on the main
-// thread only, and its methods take `&self`.
+// Chromium keeps for a profile. For now that is spaces, the windows open at
+// quit, and the user's settings. It is used on the main thread only, and its
+// methods take `&self`.
 
 mod migrations;
 mod profiles;
+mod settings;
 mod spaces;
 mod theme;
 mod windows;
@@ -16,6 +18,7 @@ use std::path::Path;
 use rusqlite::Connection;
 
 pub use profiles::avatar;
+pub use settings::{Settings, SettingsChange};
 pub use spaces::{NewSpace, SpaceChange, SpaceId, SpaceRow};
 pub use windows::{SavedWindow, WindowFrame};
 

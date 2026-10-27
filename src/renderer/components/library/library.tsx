@@ -53,7 +53,7 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
   const serial = useRef(0);
   const { profiles, failed, reload, create, rename, remove, openWindow } = useProfiles(open);
   const spaces = useSpaces(open);
-  const settings = useSettings();
+  const settings = useSettings(open);
   const filter = useDownloadsFilter(profiles);
   const { startNewSpace } = useSpace();
   const shown = sections.find(({ id }) => id === section)!;

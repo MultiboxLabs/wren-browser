@@ -14,6 +14,7 @@ mod omnibox;
 mod perf;
 mod profiles;
 mod quit;
+mod settings;
 mod side_panel;
 mod sidebar;
 mod site;
@@ -79,6 +80,7 @@ impl WindowRef {
 pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     window::handle(web_view, window);
     sidebar::handle(web_view, window);
+    settings::handle(web_view, window);
     browser::handle(web_view, window, mt);
     groups::handle(web_view, window, mt);
     splits::handle(web_view, window, mt);
