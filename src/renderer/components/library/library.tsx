@@ -1,16 +1,16 @@
 // The Library, which takes the sidebar's place while it is open: a rail of
-// what it holds (profiles, spaces, boosts, downloads) under the window's
-// buttons, and the list of the one chosen, with a field to search it (and
-// for the downloads, a filter by profile).
+// what it holds (profiles, spaces, boosts, downloads, settings) under the
+// window's buttons, and the list of the one chosen, with a field to search it
+// (and for the downloads, a filter by profile).
 
-import { ArrowDownToLine, CircleUserRound, Orbit, Paintbrush, Plus, Search } from "lucide-react";
+import { ArrowDownToLine, CircleUserRound, Orbit, Paintbrush, Plus, Search, Settings } from "lucide-react";
 import { motion, useTransform } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button, type Icon } from "../ui/button";
 import { BackIcon } from "../icons";
 import { cn } from "../../utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
-import { useProfiles, useSpaces } from "../../state/library";
+import { useProfiles, useSettings, useSpaces } from "../../state/library";
 import { useSpace } from "../../state/space";
 import { type Section, SectionList } from "./sections";
 import { CreateDialog } from "./profile-dialogs";
@@ -19,9 +19,10 @@ import { FilterBar, FilterButton, useDownloadsFilter } from "../downloads/filter
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
   { id: "spaces", name: "Spaces", icon: Orbit, item: "Space" },
   { id: "profiles", name: "Profiles", icon: CircleUserRound, item: "Profile" },
-  { id: "downloads", name: "Downloads", icon: ArrowDownToLine, item: "Download" }
+  { id: "downloads", name: "Downloads", icon: ArrowDownToLine, item: "Download" },
   // TODO: boosts feature
-  // { id: "boosts", name: "Boosts", icon: Paintbrush, item: "Boost" }
+  // { id: "boosts", name: "Boosts", icon: Paintbrush, item: "Boost" },
+  { id: "settings", name: "Settings", icon: Settings, item: "Setting" }
 ];
 const DEFAULT_SECTION: Section = "spaces";
 
@@ -52,6 +53,7 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
   const serial = useRef(0);
   const { profiles, failed, reload, create, rename, remove, openWindow } = useProfiles(open);
   const spaces = useSpaces(open);
+  const settings = useSettings();
   const filter = useDownloadsFilter(profiles);
   const { startNewSpace } = useSpace();
   const shown = sections.find(({ id }) => id === section)!;
@@ -165,11 +167,12 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
           onDelete={remove}
           revealedDownload={revealed}
           downloadsProfile={filter.profile?.id ?? null}
+          settings={settings}
         />
 
         <div className="flex h-12.5 shrink-0 items-center justify-end">
-          {/* Downloads are not made here. */}
-          {section !== "downloads" && (
+          {/* Downloads and settings are not made here. */}
+          {section !== "downloads" && section !== "settings" && (
             <Button
               icon={Plus}
               label={`New ${shown.item}`}

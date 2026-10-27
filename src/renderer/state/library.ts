@@ -1,6 +1,7 @@
-// What the Library shows: the profiles, their spaces, and the boosts. The
-// profiles and the spaces are the app's; the boosts are not real yet, and are
-// made up here, as the space's favourites are.
+// What the Library shows: the profiles, their spaces, the boosts and the
+// settings. The profiles and the spaces are the app's; the boosts and the
+// settings are not real yet, and are made up here, as the space's favourites
+// are.
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -153,3 +154,25 @@ export const boosts: Boost[] = [
   { id: "roblox", name: "My Roblox Boost", host: "www.roblox.com", on: true },
   { id: "github", name: "Bigger Diffs", host: "github.com", on: false }
 ];
+
+/** How long a tab goes unused before it is archived. */
+export type ArchiveAfter = "12h" | "24h" | "7d" | "30d";
+
+export const DEFAULT_ARCHIVE_AFTER: ArchiveAfter = "12h";
+
+export const archiveAfterOptions: { id: ArchiveAfter; label: string }[] = [
+  { id: "12h", label: "12 hours" },
+  { id: "24h", label: "24 hours" },
+  { id: "7d", label: "7 days" },
+  { id: "30d", label: "30 days" }
+];
+
+export type LibrarySettings = ReturnType<typeof useSettings>;
+
+/** The settings, kept only while the Library is mounted: nothing stores them yet. */
+export function useSettings() {
+  // TODO: load the settings from the app, once it stores them.
+  const [archiveAfter, setArchiveAfter] = useState<ArchiveAfter>(DEFAULT_ARCHIVE_AFTER);
+  // TODO: save each change to the app, and follow changes made in another window.
+  return { archiveAfter, setArchiveAfter };
+}
