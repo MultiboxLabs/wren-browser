@@ -124,8 +124,8 @@ function useRootTheme(space: Space, scheme: "light" | "dark") {
   }, [scheme, active, fullScreen]);
 }
 
-// The system's appearance, light or dark, as it changes.
-function useSystemScheme() {
+/** The system's appearance, light or dark, as it changes. */
+export function useSystemScheme() {
   const query = useMemo(() => matchMedia("(prefers-color-scheme: dark)"), []);
   const [dark, setDark] = useState(query.matches);
   useEffect(() => {

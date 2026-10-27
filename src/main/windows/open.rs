@@ -13,7 +13,7 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
-use crate::platform::{PageWindow, TitleBarKind};
+use crate::platform::{PageWindow, TitleBarKind, WindowSize};
 use crate::shell::{BrowserWindow, Place, Popup, WindowId};
 use crate::tabs::placeholder;
 
@@ -87,8 +87,10 @@ impl State {
         let page = PageWindow::open(
             UI.web_view(&profile)?,
             "Wren",
-            WINDOW_SIZE,
-            min_size,
+            WindowSize::Resizable {
+                size: WINDOW_SIZE,
+                min: min_size,
+            },
             title_bar,
             should_close,
         );

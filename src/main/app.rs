@@ -22,7 +22,9 @@ use crate::pages::{SCHEME, Source, serve_page};
 use crate::password_manager;
 use crate::perf::Perf;
 use crate::pins;
-use crate::platform::{DevToolsWindow, KeyWatch, QUITS_WITH_LAST_WINDOW, close_other_key_window};
+use crate::platform::{
+    DevToolsWindow, KeyWatch, PageWindow, QUITS_WITH_LAST_WINDOW, close_other_key_window,
+};
 use crate::shell::{BrowserWindow, WindowId, Windows};
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
@@ -48,6 +50,9 @@ pub struct State {
     /// The window whose tab switcher is open, while ⌃ is held
     /// (ipc/tab_switcher.rs).
     pub tab_switcher: Cell<Option<WindowId>>,
+    /// The onboarding window, while the user goes through it, before the
+    /// app starts (onboarding.rs).
+    pub(crate) onboarding: RefCell<Option<Rc<PageWindow>>>,
     /// What the main menu has the window in front allow, as it was set last
     /// (windows/mod.rs).
     pub(crate) menu_front: Cell<menus::Front>,
@@ -83,6 +88,7 @@ impl State {
             perf,
             quit_prompt: RefCell::default(),
             tab_switcher: Cell::default(),
+            onboarding: RefCell::default(),
             menu_front: Cell::new(menus::Front {
                 switching: true,
                 blocked: false,
@@ -95,8 +101,17 @@ impl State {
 
     // Opens the windows open at the last quit, or else the first window, then
     // the user's own Profile, the one Chromium starts with, and each profile
-    // they wait for, with the tabs they had (windows/session.rs).
-    fn start(self: &Rc<Self>, mt: MainThread) {
+    // they wait for, with the tabs they had (windows/session.rs). Onboarding
+    // comes first, until the user has been through it; it calls this again
+    // once they have. A performance run has none.
+    pub(crate) fn start(self: &Rc<Self>, mt: MainThread) {
+        if self.perf.is_none() && !self.db.onboarded() {
+            if !self.open_onboarding(mt) {
+                eprintln!("Wren could not open onboarding.");
+                mt.quit();
+            }
+            return;
+        }
         // The database has each profile, and the app a space, before anything
         // shows them. The list is read again once the first profile is open,
         // in case it was not filled yet.
@@ -163,11 +178,11 @@ impl State {
         });
     }
 
-    // Toggle UI DevTools: closes `window`'s page's DevTools if they are
-    // open, or opens them. Each window's page has its own, and a site's
-    // DevTools stays open.
-    fn toggle_ui_devtools(&self, window: &BrowserWindow) {
-        let web_view = &window.page.web_view;
+    // Toggle UI DevTools: closes `page`'s DevTools if they are open, or
+    // opens them. Each window's page has its own, and a site's DevTools
+    // stays open.
+    fn toggle_ui_devtools(page: &PageWindow) {
+        let web_view = &page.web_view;
         let open = web_view.state().is_ok_and(|state| state.devtools);
         let result = if open {
             web_view.close_dev_tools()
@@ -179,9 +194,9 @@ impl State {
         }
     }
 
-    // Reload UI: reloads `window`'s page, not its tabs.
-    fn reload_ui(&self, window: &BrowserWindow) {
-        if let Err(error) = window.page.web_view.reload() {
+    // Reload UI: reloads `page`, not its window's tabs.
+    fn reload_ui(page: &PageWindow) {
+        if let Err(error) = page.web_view.reload() {
             eprintln!("Wren could not reload the UI: {error:?}");
         }
     }
@@ -439,6 +454,19 @@ impl App for Wren {
             }
             return;
         }
+        if id == menus::RESET_ONBOARDING {
+            return self.state.reset_onboarding(mt);
+        }
+        // Onboarding's menu has nothing else of the app's but its page's
+        // DevTools and Reload UI.
+        if let Some(onboarding) = self.state.onboarding() {
+            if id == menus::TOGGLE_UI_DEVTOOLS {
+                State::toggle_ui_devtools(&onboarding);
+            } else if id == menus::RELOAD_UI {
+                State::reload_ui(&onboarding);
+            }
+            return;
+        }
         // The window the user browses in answers, with its update card or a
         // toast: a popup's has neither.
         if id == menus::CHECK_FOR_UPDATES {
@@ -462,9 +490,9 @@ impl App for Wren {
         if id == menus::TOGGLE_UI_DEVTOOLS || id == menus::RELOAD_UI {
             if let Some(window) = key.or_else(|| windows.front()) {
                 if id == menus::RELOAD_UI {
-                    self.state.reload_ui(&window);
+                    State::reload_ui(&window.page);
                 } else {
-                    self.state.toggle_ui_devtools(&window);
+                    State::toggle_ui_devtools(&window.page);
                 }
             }
             return;
@@ -665,8 +693,12 @@ impl App for Wren {
         self.state.analytics.quit();
     }
 
-    // The Dock icon, with no window open: a new one.
+    // The Dock icon, with no window open: a new one; or onboarding, until
+    // the user is through it.
     fn reopen(&self, mt: MainThread, _: bool) {
+        if let Some(onboarding) = self.state.onboarding() {
+            return onboarding.bring_forward();
+        }
         if self.state.windows.len() == 0 {
             self.state.open_recent_window(mt);
         }

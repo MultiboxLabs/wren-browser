@@ -40,6 +40,17 @@ pub const UI: Page = Page {
     wheel_phases: true,
 };
 
+/// The window the user goes through before the app is theirs
+/// (onboarding.rs).
+pub const ONBOARDING: Page = Page {
+    host: "onboarding",
+    messages: true,
+    embeds_views: false,
+    anchors: false,
+    in_tabs: false,
+    wheel_phases: false,
+};
+
 pub const GAME: Page = Page {
     host: "game",
     messages: false,
@@ -49,7 +60,7 @@ pub const GAME: Page = Page {
     wheel_phases: false,
 };
 
-const PAGES: [&Page; 2] = [&UI, &GAME];
+const PAGES: [&Page; 3] = [&UI, &ONBOARDING, &GAME];
 
 impl Page {
     pub fn url(&self) -> String {

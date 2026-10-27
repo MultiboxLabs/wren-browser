@@ -8,6 +8,7 @@ mod downloads;
 mod extensions;
 mod ipc;
 mod menus;
+mod onboarding;
 mod pages;
 mod password_manager;
 mod perf;

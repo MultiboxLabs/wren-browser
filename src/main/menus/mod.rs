@@ -34,6 +34,7 @@ pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 pub const RELOAD_UI: &str = "reload-ui";
 pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
 pub const CHECK_FOR_UPDATES: &str = "check-for-updates";
+pub const RESET_ONBOARDING: &str = "reset-onboarding";
 /// A space's item is this and the space's ID.
 pub const SPACE: &str = "space:";
 /// The items for ⌘1 to ⌘9 are this and the favourite's number, from 1.
@@ -82,6 +83,47 @@ pub fn enable_front(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) 
     }
 }
 
+/// Sets the main menu onboarding has (onboarding.rs): the app's, editing
+/// and the window's, and nothing of the browser's, which is not the user's
+/// until they are through it.
+pub fn set_onboarding_menu(mt: MainThread) {
+    let mut menu = vec![
+        // Check for Updates… and Settings… are greyed out: no window
+        // answers them yet.
+        app_menu(mt, false, false),
+        MenuItem::submenu(
+            "Edit",
+            vec![
+                MenuItem::role(MenuRole::Undo),
+                MenuItem::role(MenuRole::Redo),
+                MenuItem::Separator,
+                MenuItem::role(MenuRole::Cut),
+                MenuItem::role(MenuRole::Copy),
+                MenuItem::role(MenuRole::Paste),
+                MenuItem::role(MenuRole::PasteAndMatchStyle),
+                MenuItem::role(MenuRole::Delete),
+                MenuItem::role(MenuRole::SelectAll),
+            ],
+        ),
+        system(
+            MenuRole::Window,
+            None,
+            vec![
+                MenuItem::role(MenuRole::Minimize),
+                MenuItem::Separator,
+                MenuItem::role(MenuRole::BringAllToFront),
+            ],
+        ),
+        system(MenuRole::Help, Some("Help"), vec![]),
+    ];
+    if cfg!(debug_assertions) {
+        menu.push(development_menu());
+    }
+    if let Err(error) = mt.set_main_menu(&menu) {
+        eprintln!("Wren took no main menu: {error:?}");
+    }
+}
+
 // `updates`: the app has an updater (updates.rs); without one, Check for
 // Updates… is greyed out.
 fn main_menu(
@@ -90,40 +132,8 @@ fn main_menu(
     front: Front,
     updates: bool,
 ) -> Vec<MenuItem> {
-    let warning = mt.quit_warning();
     let mut menu = vec![
-        MenuItem::submenu(
-            "Wren",
-            vec![
-                MenuItem::role(MenuRole::About),
-                // Below About, as the platform's apps have it.
-                enabled(
-                    MenuItem::item(CHECK_FOR_UPDATES, "Check for Updates…"),
-                    updates,
-                ),
-                MenuItem::Separator,
-                // The Library's settings, not chrome://settings.
-                keyed(SHOW_SETTINGS, "Settings…", ",", MenuModifiers::PRIMARY),
-                MenuItem::Separator,
-                system(MenuRole::Services, None, vec![]),
-                MenuItem::Separator,
-                MenuItem::role(MenuRole::Hide),
-                MenuItem::role(MenuRole::HideOthers),
-                MenuItem::role(MenuRole::ShowAll),
-                MenuItem::Separator,
-                // Chrome's, above Quit: whether ⌘Q asks first
-                // (ipc/quit.rs). Policy may set it.
-                MenuItem::Item {
-                    id: TOGGLE_QUIT_WARNING.into(),
-                    label: "Warn Before Quitting (⌘Q)".into(),
-                    enabled: !warning.managed,
-                    checked: warning.on,
-                    hidden: false,
-                    key: None,
-                },
-                MenuItem::role(MenuRole::Quit),
-            ],
-        ),
+        app_menu(mt, updates, true),
         MenuItem::submenu(
             "File",
             vec![
@@ -285,6 +295,47 @@ fn main_menu(
     menu
 }
 
+// The app's own menu, Wren, with Quit; Check for Updates… is greyed out
+// unless `updates`, and Settings… unless `settings`.
+fn app_menu(mt: MainThread, updates: bool, settings: bool) -> MenuItem {
+    let warning = mt.quit_warning();
+    MenuItem::submenu(
+        "Wren",
+        vec![
+            MenuItem::role(MenuRole::About),
+            // Below About, as the platform's apps have it.
+            enabled(
+                MenuItem::item(CHECK_FOR_UPDATES, "Check for Updates…"),
+                updates,
+            ),
+            MenuItem::Separator,
+            // The Library's settings, not chrome://settings.
+            enabled(
+                keyed(SHOW_SETTINGS, "Settings…", ",", MenuModifiers::PRIMARY),
+                settings,
+            ),
+            MenuItem::Separator,
+            system(MenuRole::Services, None, vec![]),
+            MenuItem::Separator,
+            MenuItem::role(MenuRole::Hide),
+            MenuItem::role(MenuRole::HideOthers),
+            MenuItem::role(MenuRole::ShowAll),
+            MenuItem::Separator,
+            // Chrome's, above Quit: whether ⌘Q asks first
+            // (ipc/quit.rs). Policy may set it.
+            MenuItem::Item {
+                id: TOGGLE_QUIT_WARNING.into(),
+                label: "Warn Before Quitting (⌘Q)".into(),
+                enabled: !warning.managed,
+                checked: warning.on,
+                hidden: false,
+                key: None,
+            },
+            MenuItem::role(MenuRole::Quit),
+        ],
+    )
+}
+
 // Greys out the items `front` does not allow.
 fn allow(items: &mut [MenuItem], front: Front) {
     for item in items {
@@ -358,6 +409,9 @@ fn development_menu() -> MenuItem {
         vec![
             development_item(TOGGLE_UI_DEVTOOLS, "Toggle UI Devtools"),
             development_item(RELOAD_UI, "Reload UI"),
+            // Quits, so the next run starts with onboarding
+            // (`State::reset_onboarding`).
+            development_item(RESET_ONBOARDING, "Reset Onboarding"),
         ],
     )
 }

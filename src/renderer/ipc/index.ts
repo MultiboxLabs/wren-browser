@@ -15,6 +15,7 @@ export * from "./groups";
 export * from "./icons";
 export * from "./menu";
 export * from "./omnibox";
+export * from "./onboarding";
 export * from "./perf";
 export * from "./pins";
 export * from "./profiles";

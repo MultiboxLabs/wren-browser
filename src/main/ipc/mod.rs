@@ -1,6 +1,7 @@
 // The calls a browser window's page makes (`wren.invoke`), each by name, and
 // the messages the app sends it (`wren.on`): one file for each part of the
-// app. src/renderer/ipc/ is the page's side; keep the two together.
+// app; and the onboarding window's (onboarding.rs). src/renderer/ipc/ is
+// the page's side; keep the two together.
 
 mod ad_block;
 mod analytics;
@@ -13,6 +14,7 @@ mod find;
 mod groups;
 mod menu;
 mod omnibox;
+mod onboarding;
 mod perf;
 mod pins;
 mod profiles;
@@ -51,6 +53,7 @@ pub use menu::{send_show_settings, send_toggle_sidebar};
 pub use omnibox::{
     OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox, stop_omnibox,
 };
+pub use onboarding::handle_onboarding;
 pub use pins::broadcast_pins;
 pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
 pub use side_panel::send_side_panel;

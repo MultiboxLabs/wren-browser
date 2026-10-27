@@ -19,6 +19,17 @@ pub enum TitleBarKind {
     System,
 }
 
+/// How large a window is, and whether the user can change it.
+#[derive(Clone, Copy, Debug)]
+pub enum WindowSize {
+    /// Its content starts at `size`, and the user can make it no smaller
+    /// than `min`; or larger, and take it full screen.
+    Resizable { size: (f64, f64), min: (f64, f64) },
+    /// Its content is this always, as a setup assistant's is: no resizing,
+    /// no zoom and no full screen.
+    Fixed((f64, f64)),
+}
+
 type CrashWatch = Rc<RefCell<Option<Box<dyn Fn()>>>>;
 
 /// A window showing one page. Its web view drops first, which takes the page
@@ -32,19 +43,16 @@ pub struct PageWindow {
 
 impl PageWindow {
     /// A window of `web_view` (`Page::web_view`), not shown yet. Its content
-    /// is `size`, and the user can make it no smaller than `min_size`.
-    /// `should_close` answers the window's close button.
+    /// is as `size` says. `should_close` answers the window's close button.
     pub fn open(
         web_view: WebView,
         title: &str,
-        size: (f64, f64),
-        min_size: (f64, f64),
+        size: WindowSize,
         kind: TitleBarKind,
         should_close: impl Fn() -> bool + 'static,
     ) -> PageWindow {
         let web_view = Rc::new(web_view);
-        let native =
-            current::window::PageWindow::open(&web_view, title, size, min_size, kind, should_close);
+        let native = current::window::PageWindow::open(&web_view, title, size, kind, should_close);
 
         // The page shows the window once it has drawn what it shows (`show`),
         // so it never opens blank or half drawn. A failed load or a crash

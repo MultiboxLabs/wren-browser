@@ -55,15 +55,7 @@ fn shown_profile(window: &BrowserWindow) -> Option<ShownProfile> {
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
-    // The page has drawn what it shows: the window is shown, the first time.
-    let weak = window.clone();
-    let _ = web_view.handle("window.show", move |()| {
-        with_window(&weak, |window| {
-            window.show();
-            weak.state()?.analytics.window_shown();
-            Ok(())
-        })
-    });
+    handle_page(web_view, window);
 
     // The page takes the keyboard from the tab that has it, for a field of
     // its own the user did not press into (a hover's).
@@ -81,12 +73,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
             }
             Ok(())
         })
-    });
-
-    // Whether the window is in use; "window.active" says when it changes.
-    let weak = window.clone();
-    let _ = web_view.handle("window.active", move |()| {
-        with_window(&weak, |window| Ok(window.page.is_active()))
     });
 
     // The space the window shows, or that it is on none while the user
@@ -139,27 +125,75 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let _ = web_view.handle("window.cancelNewSpace", move |()| {
         weak.state()?.cancel_new_space(weak.id)
     });
+}
+
+/// How a page's handlers find its window again, which they cannot own: a
+/// browser window's, or the onboarding's.
+pub trait PageRef: Clone + 'static {
+    /// Runs `run` with the page's window, or fails once it is gone.
+    fn with_page<A>(&self, run: impl FnOnce(&PageWindow) -> Result<A, String>)
+    -> Result<A, String>;
+
+    /// Shows the window, once its page has drawn what it shows.
+    fn show(&self) -> Result<(), String> {
+        self.with_page(|page| {
+            page.show();
+            Ok(())
+        })
+    }
+}
+
+impl PageRef for WindowRef {
+    fn with_page<A>(
+        &self,
+        run: impl FnOnce(&PageWindow) -> Result<A, String>,
+    ) -> Result<A, String> {
+        with_window(self, |window| run(&window.page))
+    }
+
+    // A browser window minimises, if it was asked to, once shown, and
+    // analytics counts it.
+    fn show(&self) -> Result<(), String> {
+        with_window(self, |window| {
+            window.show();
+            self.state()?.analytics.window_shown();
+            Ok(())
+        })
+    }
+}
+
+/// The calls any page's window answers, of the window alone.
+pub fn handle_page(web_view: &WebView, page: &impl PageRef) {
+    // The page has drawn what it shows: the window is shown, the first time.
+    let weak = page.clone();
+    let _ = web_view.handle("window.show", move |()| weak.show());
+
+    // Whether the window is in use; "window.active" says when it changes.
+    let weak = page.clone();
+    let _ = web_view.handle("window.active", move |()| {
+        weak.with_page(|page| Ok(page.is_active()))
+    });
 
     // Whether the window is full screen; "window.fullScreen" says when it
     // starts to go or to come back.
-    let weak = window.clone();
+    let weak = page.clone();
     let _ = web_view.handle("window.fullScreen", move |()| {
-        with_window(&weak, |window| Ok(window.page.is_full_screen()))
+        weak.with_page(|page| Ok(page.is_full_screen()))
     });
 
-    let weak = window.clone();
+    let weak = page.clone();
     let _ = web_view.handle("window.setDark", move |dark: bool| {
-        with_window(&weak, |window| {
-            window.page.set_dark(dark);
+        weak.with_page(|page| {
+            page.set_dark(dark);
             Ok(())
         })
     });
 
     // Where the window's buttons are, or null while they are hidden.
-    let weak = window.clone();
+    let weak = page.clone();
     let _ = web_view.handle("window.setButtons", move |at: Option<(f64, f64)>| {
-        with_window(&weak, |window| {
-            window.page.set_buttons(at);
+        weak.with_page(|page| {
+            page.set_buttons(at);
             Ok(())
         })
     });

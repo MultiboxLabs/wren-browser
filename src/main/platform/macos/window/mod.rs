@@ -45,7 +45,7 @@ use objc2_foundation::{
 use objc2_quartz_core::CATransaction;
 use wren::{MainThread, WebView};
 
-use crate::platform::TitleBarKind;
+use crate::platform::{TitleBarKind, WindowSize};
 use delegate::WindowDelegate;
 use full_screen::is_full_screen;
 use title_bar::TitleBar;
@@ -70,8 +70,7 @@ impl PageWindow {
     pub fn open(
         web_view: &WebView,
         title: &str,
-        size: (f64, f64),
-        min_size: (f64, f64),
+        size: WindowSize,
         kind: TitleBarKind,
         should_close: impl Fn() -> bool + 'static,
     ) -> PageWindow {
@@ -81,8 +80,14 @@ impl PageWindow {
         // which fills the window.
         let mut style = NSWindowStyleMask::Titled
             | NSWindowStyleMask::Closable
-            | NSWindowStyleMask::Resizable
             | NSWindowStyleMask::Miniaturizable;
+        let (size, min_size) = match size {
+            WindowSize::Resizable { size, min } => {
+                style |= NSWindowStyleMask::Resizable;
+                (size, min)
+            }
+            WindowSize::Fixed(size) => (size, size),
+        };
         if kind == TitleBarKind::Page {
             style |= NSWindowStyleMask::FullSizeContentView;
         }

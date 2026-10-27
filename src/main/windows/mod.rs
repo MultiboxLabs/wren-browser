@@ -105,8 +105,11 @@ impl State {
     }
 
     /// Sets the main menu again, for its Spaces menu to list the spaces as
-    /// they are now.
+    /// they are now; or onboarding's, while it is open.
     pub fn update_menu(&self, mt: MainThread) {
+        if self.onboarding.borrow().is_some() {
+            return menus::set_onboarding_menu(mt);
+        }
         let front = self.front_menu();
         self.menu_front.set(front);
         let updates = self.updates.available();
@@ -118,6 +121,9 @@ impl State {
     /// again: switching spaces, which a window on a profile never does, and
     /// the items for its tabs and spaces, which a dialog over it blocks.
     pub fn update_front_menu(&self, mt: MainThread) {
+        if self.onboarding.borrow().is_some() {
+            return;
+        }
         let front = self.front_menu();
         if self.menu_front.replace(front) != front {
             menus::enable_front(mt, &self.ordered_spaces(mt), front);
