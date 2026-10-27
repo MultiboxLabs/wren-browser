@@ -11,7 +11,7 @@ use serde::Deserialize;
 use wren::MainThread;
 
 use crate::app::State;
-use crate::db::SpaceTheme;
+use crate::db::FirstSpace;
 use crate::ipc;
 use crate::pages::ONBOARDING;
 use crate::platform::{PageWindow, TitleBarKind, WindowSize};
@@ -23,9 +23,9 @@ const SIZE: (f64, f64) = (920.0, 640.0);
 /// What the user chose in onboarding, which the app takes as they finish.
 #[derive(Debug, Deserialize)]
 pub struct Choices {
-    /// Their first space's; none if they did not choose one, as when their
-    /// spaces come over from another browser.
-    pub theme: Option<SpaceTheme>,
+    /// Their first space's icon and theme; neither if they did not choose
+    /// them, as when their spaces come over from another browser.
+    pub space: FirstSpace,
 }
 
 impl State {
@@ -74,10 +74,8 @@ impl State {
         if self.onboarding.borrow().is_none() {
             return;
         }
-        if let Some(theme) = choices.theme
-            && let Err(error) = self.db.set_first_space_theme(theme)
-        {
-            eprintln!("Wren could not give the first space its theme: {error}");
+        if let Err(error) = self.db.set_first_space(choices.space) {
+            eprintln!("Wren could not give the first space what was chosen for it: {error}");
         }
         if let Err(error) = self.db.set_onboarded(true) {
             eprintln!("Wren could not note that onboarding is done: {error}");

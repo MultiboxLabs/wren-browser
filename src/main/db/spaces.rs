@@ -58,7 +58,7 @@ fn checked_name(name: &str) -> Result<String, String> {
 
 // `lucide:` and an icon's name, or an emoji (anything of at most 32 bytes
 // with no ASCII in it).
-fn checked_icon(icon: &str) -> Result<String, String> {
+pub(super) fn checked_icon(icon: &str) -> Result<String, String> {
     let named = icon.strip_prefix("lucide:").is_some_and(|name| {
         !name.is_empty()
             && name

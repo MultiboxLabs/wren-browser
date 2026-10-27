@@ -37,12 +37,14 @@ fn default_space(profile: &ProfileListEntry) -> NewSpace {
 }
 
 impl Db {
-    // `default_space`, in the theme onboarding chose, if one waits.
-    fn first_space(&self, profile: &ProfileListEntry) -> NewSpace {
+    // `default_space`, with what onboarding chose for it, if that waits.
+    fn first_space_for(&self, profile: &ProfileListEntry) -> NewSpace {
         let space = default_space(profile);
-        match self.take_first_space_theme() {
-            Some(theme) => NewSpace { theme, ..space },
-            None => space,
+        let chosen = self.take_first_space();
+        NewSpace {
+            icon: chosen.icon.unwrap_or(space.icon),
+            theme: chosen.theme.unwrap_or(space.theme),
+            ..space
         }
     }
 
@@ -106,7 +108,7 @@ impl Db {
         };
         match self.has_spaces() {
             Ok(true) => false,
-            Ok(false) => match self.create_space(&first.id, self.first_space(first)) {
+            Ok(false) => match self.create_space(&first.id, self.first_space_for(first)) {
                 Ok(_) => true,
                 Err(error) => {
                     eprintln!("Wren could not give a profile a space: {error}");

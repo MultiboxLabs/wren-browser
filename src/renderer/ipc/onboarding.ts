@@ -3,10 +3,13 @@
 
 import type { SpaceTheme } from "./spaces";
 
+/** A first space's icon and theme; null for what is not chosen. */
+export type FirstSpace = { icon: string | null; theme: SpaceTheme | null };
+
 /** What the user chose in onboarding, which the app takes as they finish. */
 export type OnboardingChoices = {
-  /** Their first space's; null if they chose none, as when their spaces come from another browser. */
-  theme: SpaceTheme | null;
+  /** Their first space's; neither if they chose none, as when their spaces come from another browser. */
+  space: FirstSpace;
 };
 
 /** An installed browser the user may bring their things over from. */
@@ -21,10 +24,10 @@ export type ImportSource = {
 
 export const onboarding = {
   /**
-   * The theme of the space the first window opens on, to start the choice
-   * from; null before there is one, on a first run.
+   * The icon and theme of the space the first window opens on, to start the
+   * choice from; null before there is one, on a first run.
    */
-  theme: () => wren.invoke<SpaceTheme | null>("onboarding.theme"),
+  space: () => wren.invoke<{ icon: string; theme: SpaceTheme } | null>("onboarding.space"),
   /** The browsers installed, by name. */
   browsers: () => wren.invoke<ImportSource[]>("onboarding.browsers"),
   /** The user is done, with what they chose: the window closes, and the app starts. */

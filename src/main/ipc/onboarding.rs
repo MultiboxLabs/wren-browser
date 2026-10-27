@@ -29,14 +29,14 @@ impl PageRef for OnboardingRef {
 pub fn handle_onboarding(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     handle_page(web_view, &OnboardingRef(Rc::downgrade(state)));
 
-    // The theme of the space the first window opens on, to start the
-    // choice from; null before there is one, on a first run.
+    // The icon and theme of the space the first window opens on, to start
+    // the choice from; null before there is one, on a first run.
     let weak = Rc::downgrade(state);
-    let _ = web_view.handle("onboarding.theme", move |()| {
+    let _ = web_view.handle("onboarding.space", move |()| {
         weak.upgrade()
             .ok_or("The app is closing.")?
             .db
-            .first_space_theme()
+            .first_space()
     });
 
     // The browsers installed, which the user may bring their things over

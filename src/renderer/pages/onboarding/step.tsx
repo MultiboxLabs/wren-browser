@@ -7,7 +7,8 @@ import type { ImportSource, SpaceTheme } from "@/ipc";
 export type Choices = {
   /** The browser to bring their things over from; null to start fresh. Nothing is imported yet. */
   importFrom: ImportSource | null;
-  /** Their first space's, as it is so far. */
+  /** Their first space's icon and theme, as they are so far. */
+  icon: string;
   theme: SpaceTheme;
 };
 
