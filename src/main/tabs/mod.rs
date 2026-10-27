@@ -1,6 +1,7 @@
 // What the app does to a Browser's tabs, whether the page, the main menu or
 // a context menu asks.
 
+pub mod archive;
 pub mod placeholder;
 
 use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSplit};

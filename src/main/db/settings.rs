@@ -2,6 +2,8 @@
 // its value in JSON; one never set, or whose value can't be read, is its
 // default.
 
+use std::time::Duration;
+
 use rusqlite::{OptionalExtension, params};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -34,6 +36,18 @@ pub enum ArchiveAfter {
     SevenDays,
     #[serde(rename = "30d")]
     ThirtyDays,
+}
+
+impl ArchiveAfter {
+    pub fn duration(self) -> Duration {
+        const HOUR: u64 = 60 * 60;
+        Duration::from_secs(match self {
+            ArchiveAfter::TwelveHours => 12 * HOUR,
+            ArchiveAfter::TwentyFourHours => 24 * HOUR,
+            ArchiveAfter::SevenDays => 7 * 24 * HOUR,
+            ArchiveAfter::ThirtyDays => 30 * 24 * HOUR,
+        })
+    }
 }
 
 impl Db {

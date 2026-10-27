@@ -8,6 +8,13 @@ mod macos;
 #[cfg(target_os = "macos")]
 use macos as current;
 
+use std::time::Duration;
+
+/// Runs `f` on the main thread once `delay` has passed.
+pub fn after(delay: Duration, f: impl FnOnce() + 'static) {
+    current::after(delay, f)
+}
+
 /// A file's thumbnail as the platform's file manager draws it, `size`
 /// points square at twice that in pixels, as a PNG: a picture's, a
 /// document's first page, or else the file's icon. `done` has it later,

@@ -230,20 +230,23 @@ impl BrowserWindow {
             .any(|slot| matches!(slot, Slot::Open(_)))
     }
 
-    /// Closes the window's Browsers. The window goes as the last of them
-    /// closes (`App::browser_closed`).
-    pub fn close_browsers(&self) {
-        self.closing.set(true);
-        let browsers: Vec<Browser> = self
-            .places
+    /// The window's open Browsers, of every place.
+    pub fn browsers(&self) -> Vec<Browser> {
+        self.places
             .borrow()
             .values()
             .filter_map(|slot| match slot {
                 Slot::Open(browser) => Some(browser.clone()),
                 Slot::Opening => None,
             })
-            .collect();
-        for browser in browsers {
+            .collect()
+    }
+
+    /// Closes the window's Browsers. The window goes as the last of them
+    /// closes (`App::browser_closed`).
+    pub fn close_browsers(&self) {
+        self.closing.set(true);
+        for browser in self.browsers() {
             let _ = browser.close();
         }
     }

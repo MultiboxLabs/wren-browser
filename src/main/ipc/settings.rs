@@ -1,11 +1,13 @@
 // The user's settings (db/settings.rs), which the Library shows and changes;
-// `settings.changed` tells every window of a change.
+// `settings.changed` tells every window of a change. A shorter time to
+// archive tabs after archives those it makes due at once.
 
 use wren::WebView;
 
 use super::WindowRef;
 use crate::app::State;
 use crate::db::{Settings, SettingsChange};
+use crate::tabs::archive;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
@@ -17,6 +19,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         let state = weak.state()?;
         let settings = state.db.update_settings(change)?;
         broadcast_settings(&state, &settings);
+        archive::archive_due(&state);
         Ok::<Settings, String>(settings)
     });
 }

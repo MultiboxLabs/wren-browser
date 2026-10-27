@@ -98,6 +98,7 @@ impl State {
             eprintln!("Wren made no web view.");
             return mt.quit();
         }
+        tabs::archive::start(self);
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
             Ok(profile) => {
