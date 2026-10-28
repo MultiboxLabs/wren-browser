@@ -12,6 +12,7 @@ import { cn } from "../../utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
 import { useProfiles, useSettings, useSpaces } from "../../state/library";
 import { useSpace } from "../../state/space";
+import { browser } from "../../ipc/browser";
 import { type Section, SectionList } from "./sections";
 import { CreateDialog } from "./profile-dialogs";
 import { FilterBar, FilterButton, useDownloadsFilter } from "../downloads/filter";
@@ -171,6 +172,19 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
         />
 
         <div className="flex h-12.5 shrink-0 items-center justify-end">
+          {/* Chromium's settings hold the rest of what can be set. */}
+          {section === "settings" && (
+            <Button
+              variant="filled"
+              className="font-medium"
+              onClick={() => {
+                onClose();
+                browser.open("chrome://settings");
+              }}
+            >
+              More Settings…
+            </Button>
+          )}
           {/* Downloads and settings are not made here. */}
           {section !== "downloads" && section !== "settings" && (
             <Button
