@@ -10,7 +10,8 @@ pub fn after(delay: Duration, f: impl FnOnce() + 'static) {
 }
 
 /// Runs `f` on the main thread, from any thread, once the main thread is
-/// free.
+/// free. Only the dev server needs it yet, which release builds leave out.
+#[cfg(debug_assertions)]
 pub fn on_main_thread(f: impl FnOnce() + Send + 'static) {
     current::main_thread::on_main_thread(f)
 }

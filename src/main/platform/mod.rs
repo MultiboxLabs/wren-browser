@@ -19,7 +19,9 @@ mod window;
 pub use clipboard::copy_text;
 pub use files::{file_kind, file_thumbnail, file_type_icon};
 pub use keyboard::{Key, KeyWatch};
-pub use main_thread::{after, on_main_thread};
+pub use main_thread::after;
+#[cfg(debug_assertions)]
+pub use main_thread::on_main_thread;
 pub use paths::{data_dir, resources_dir};
 pub use window::{DevToolsWindow, PageWindow, TitleBarKind, close_other_key_window};
 
