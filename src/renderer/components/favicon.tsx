@@ -1,7 +1,8 @@
 import { iconUrl } from "../ipc";
-import { host } from "../utils/url";
+import { enginePage, host } from "../utils/url";
+import { PAGE_GLYPHS, PageIcon } from "./page-icon";
 
-/** A site's icon: the tab's own, or else its first letter on a colour from its address. */
+/** A site's icon: the tab's own, or else its first letter on a colour from its address. A Chromium page's is a glyph of ours (page-icon.tsx), in place of the stock one Chromium gives it. */
 export function Favicon({
   url,
   title,
@@ -14,6 +15,9 @@ export function Favicon({
   icon?: string | null;
   size?: number;
 }) {
+  const page = enginePage(url);
+  const glyph = page !== null && Object.hasOwn(PAGE_GLYPHS, page) ? PAGE_GLYPHS[page] : undefined;
+  if (glyph) return <PageIcon glyph={glyph} size={size} />;
   if (icon)
     return <img aria-hidden src={iconUrl(icon)} width={size} height={size} className="shrink-0 rounded-favicon" />;
   let hash = 0;

@@ -18,6 +18,11 @@ export function engineUrl(text: string) {
   return OWN_HOSTS.includes(rest.split(/[/?#]/)[0].toLowerCase()) ? text : ENGINE + rest;
 }
 
+/** The name of the Chromium page an address is (settings for chrome://settings/privacy), or null if it is not one. */
+export function enginePage(url: string) {
+  return url.startsWith(ENGINE) ? host(url) : null;
+}
+
 /** An address's host, or the address itself if it has none. */
 export function host(url: string) {
   try {

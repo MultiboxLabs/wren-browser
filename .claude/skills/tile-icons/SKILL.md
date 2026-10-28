@@ -17,7 +17,9 @@ icon is the glyph, by hand, as SVG. To see the ones drawn so far, search
 the renderer for `TileIcon`.
 
 Keep Lucide for toolbar and menu glyphs; use a tile icon where an app's
-icon or a System Settings icon would sit.
+icon or a System Settings icon would sit. A glyph drawn bare by these rules,
+with no tile, in the text's colour, stands in for a site's icon: Chromium's
+own pages' favicons, in `src/renderer/components/page-icon.tsx`.
 
 ## Drawing one
 
