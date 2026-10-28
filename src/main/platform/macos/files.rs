@@ -1,15 +1,13 @@
-// macOS's side of platform/mod.rs: Quick Look draws a file's thumbnail, as
-// the Finder shows it, NSWorkspace a file type's icon, and the main queue
-// runs what waits for a time.
+// macOS's side of platform/files.rs: Quick Look draws a file's thumbnail, as
+// the Finder shows it, and NSWorkspace a file type's icon.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::path::Path;
 use std::ptr::NonNull;
-use std::time::Duration;
 
 use block2::RcBlock;
-use dispatch2::{DispatchQueue, DispatchTime};
+use dispatch2::DispatchQueue;
 use objc2::AllocAnyThread;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSImage, NSWorkspace};
@@ -32,20 +30,6 @@ thread_local! {
     // and only its ID goes to Quick Look's.
     static WAITING: RefCell<HashMap<u64, Done>> = RefCell::default();
     static NEXT_ID: Cell<u64> = const { Cell::new(0) };
-    // What waits for a time, by ID, as the thumbnails do.
-    static TIMERS: RefCell<HashMap<u64, Box<dyn FnOnce()>>> = RefCell::default();
-}
-
-pub fn after(delay: Duration, f: impl FnOnce() + 'static) {
-    let id = NEXT_ID.with(|next| next.replace(next.get() + 1));
-    TIMERS.with_borrow_mut(|timers| timers.insert(id, Box::new(f)));
-    // One too far off to say never comes.
-    let when = DispatchTime::try_from(delay).unwrap_or(DispatchTime::FOREVER);
-    let _ = DispatchQueue::main().after(when, move || {
-        if let Some(f) = TIMERS.with_borrow_mut(|timers| timers.remove(&id)) {
-            f();
-        }
-    });
 }
 
 pub fn file_thumbnail(path: &str, size: f64, done: impl FnOnce(Option<Vec<u8>>) + 'static) {
