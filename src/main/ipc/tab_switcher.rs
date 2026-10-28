@@ -12,7 +12,7 @@ use wren::WebView;
 
 use super::WindowRef;
 use crate::app::State;
-use crate::keyboard::{Key, KeyWatch};
+use crate::platform::{Key, KeyWatch};
 use crate::shell::BrowserWindow;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {

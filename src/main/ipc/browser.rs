@@ -8,6 +8,7 @@ use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::db::SpaceId;
 use crate::menus;
 use crate::pages::icons;
+use crate::platform;
 use crate::tabs::{self, placeholder};
 use crate::shell::BrowserWindow;
 
@@ -132,7 +133,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("tabs.copyLink", move |()| {
         with_browser(&weak, |_, browser| {
             let tab = browser.active_tab().ok_or("There is no tab.")?;
-            menus::copy(&tab.url());
+            platform::copy_text(&tab.url());
             Ok(())
         })
     });

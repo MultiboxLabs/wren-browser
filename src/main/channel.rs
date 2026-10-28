@@ -24,7 +24,8 @@ impl Channel {
         }
     }
 
-    /// The folder in Application Support that holds the app's data.
+    /// The folder in the platform's folder for apps' data
+    /// (`platform::data_dir`) that holds the app's data.
     pub fn data_folder(self) -> &'static str {
         match self {
             Channel::Stable | Channel::Beta => "Wren",

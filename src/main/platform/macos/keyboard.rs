@@ -1,9 +1,5 @@
-// The keys the tab switcher answers (ipc/tab_switcher.rs), read from the
-// app's keyboard events before a page, Chromium or the menu sees them: ⌃Tab
-// is Chrome's Select Next Tab otherwise, and a page that has the keyboard
-// hears Control's release where the app would not. The switcher's one
-// place in AppKit; another platform gives the same `Key`s from its own
-// events.
+// macOS's side of platform/keyboard.rs: a local monitor of AppKit's events,
+// which sees them before any view does.
 
 use std::ptr::NonNull;
 
@@ -12,29 +8,15 @@ use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2_app_kit::{NSEvent, NSEventMask, NSEventModifierFlags, NSEventType};
 
+use crate::platform::Key;
+
 // AppKit's key codes, which name the key whatever the layout.
 const TAB: u16 = 48;
 const ESCAPE: u16 = 53;
 
-/// A key the tab switcher may take.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Key {
-    /// ⌃Tab, or ⌃⇧Tab: `back`. Held, it repeats.
-    ControlTab {
-        back: bool,
-    },
-    /// Control is no longer held.
-    ControlUp,
-    Escape,
-}
-
-/// Watches the app's keyboard events for as long as it is kept.
 pub struct KeyWatch(Retained<AnyObject>);
 
 impl KeyWatch {
-    /// `take` hears each `Key`, and answers whether it took it: a key it
-    /// takes goes no further. Control's release always goes on, as it
-    /// would have.
     pub fn new(take: impl Fn(Key) -> bool + 'static) -> Option<KeyWatch> {
         let block = RcBlock::new(move |event: NonNull<NSEvent>| -> *mut NSEvent {
             match key(unsafe { event.as_ref() }) {

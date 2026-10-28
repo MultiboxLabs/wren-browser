@@ -5,6 +5,8 @@
 use serde::Serialize;
 use wren::{AppExtension, Browser, Error, MainThread, ManifestV2, Startup};
 
+use crate::platform;
+
 /// uBlock Origin's ID, which its author's key gives it
 /// (scripts/sync-ublock.ts).
 const ID: &str = "fkgkibajhfbepljeaefdnfnegdcjomkh";
@@ -16,13 +18,7 @@ const ID: &str = "fkgkibajhfbepljeaefdnfnegdcjomkh";
 // nothing in them unless the user turns on "Allow in Incognito" on
 // chrome://extensions.
 pub fn ship(startup: &mut Startup) {
-    let executable = std::env::current_exe().expect("the app's executable has a path");
-    // Contents/Resources, beside Contents/MacOS, which holds the executable.
-    let crx = executable
-        .parent()
-        .and_then(|folder| folder.parent())
-        .expect("the executable is in the app's bundle")
-        .join("Resources/uBlock0.crx");
+    let crx = platform::resources_dir().join("uBlock0.crx");
     startup
         .extensions
         .push(AppExtension::bundled(crx.to_string_lossy(), true));

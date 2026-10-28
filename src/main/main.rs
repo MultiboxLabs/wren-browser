@@ -5,7 +5,6 @@ mod channel;
 mod db;
 mod downloads;
 mod ipc;
-mod keyboard;
 mod menus;
 mod pages;
 mod platform;
@@ -31,11 +30,8 @@ fn main() {
         Some(_) => Perf::DATA_FOLDER,
         None => channel.data_folder(),
     };
-    let data = format!(
-        "{}/Library/Application Support/{folder}",
-        std::env::var("HOME").unwrap()
-    );
-    let mut startup = Startup::new(data.clone(), Keychain::Mock);
+    let data = platform::data_dir().join(folder);
+    let mut startup = Startup::new(data.to_string_lossy(), Keychain::Mock);
     channel.brand(&mut startup);
     startup.schemes = vec![Scheme::new(
         SCHEME,
@@ -47,7 +43,7 @@ fn main() {
     if perf.is_none() {
         ad_block::ship(&mut startup);
     }
-    let state = Rc::new(State::new(data.into(), perf));
+    let state = Rc::new(State::new(data, perf));
     let status = wren::run(
         startup,
         Wren {

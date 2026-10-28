@@ -8,6 +8,7 @@ use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSpl
 
 use crate::ipc::{self, OwnToast};
 use crate::menus;
+use crate::platform;
 
 /// A tab on `url`, at the top of the list, as the sidebar shows new tabs.
 pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
@@ -246,7 +247,7 @@ pub fn copy_url(browser: &Browser) -> Result<(), Error> {
     if is_new_tab(&url) {
         return Ok(());
     }
-    menus::copy(&url);
+    platform::copy_text(&url);
     ipc::show_toast(browser, OwnToast::UrlCopied)
 }
 

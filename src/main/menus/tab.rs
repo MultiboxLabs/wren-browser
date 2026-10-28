@@ -4,8 +4,9 @@ use wren::{
     Browser, BrowserTab, Error, MainThread, MenuItem, NativeView, SplitLayout, TabGroup, TabSplit,
 };
 
+use super::enabled;
 use super::group::group_name;
-use super::{copy, enabled};
+use crate::platform;
 use crate::tabs;
 
 /// Shows a tab's menu at `point` in the page's `view`, acts on what is
@@ -92,7 +93,7 @@ pub fn show_tab_menu(
             Some("move-up") => tabs::move_by(mt, &browser, tab, -1),
             Some("move-down") => tabs::move_by(mt, &browser, tab, 1),
             Some("copy-link") => {
-                copy(&tab.url());
+                platform::copy_text(&tab.url());
                 Ok(())
             }
             Some("new-group") => tabs::new_group(mt, &browser, &[tab]).map(drop),

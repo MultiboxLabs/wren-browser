@@ -8,8 +8,6 @@ mod group;
 mod site;
 mod tab;
 
-use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
-use objc2_foundation::NSString;
 use wren::{ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifiers, MenuRole};
 
 use crate::db::SpaceId;
@@ -352,11 +350,4 @@ pub(super) fn enabled(mut item: MenuItem, on: bool) -> MenuItem {
         *enabled = on;
     }
     item
-}
-
-/// Puts text on the clipboard.
-pub fn copy(text: &str) {
-    let pasteboard = NSPasteboard::generalPasteboard();
-    pasteboard.clearContents();
-    pasteboard.setString_forType(&NSString::from_str(text), unsafe { NSPasteboardTypeString });
 }

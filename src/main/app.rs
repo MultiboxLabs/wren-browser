@@ -14,10 +14,10 @@ use crate::ad_block::AdBlock;
 use crate::changes;
 use crate::db::Db;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
-use crate::keyboard::KeyWatch;
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
+use crate::platform::KeyWatch;
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
 use crate::shell::{
