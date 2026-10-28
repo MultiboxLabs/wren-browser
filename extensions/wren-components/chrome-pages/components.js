@@ -335,6 +335,13 @@
       color: var(--wren-on-ink);
     }
 
+    /* Settings pages Wren has no use for, out of the sidebar. Chromium's own
+       way to hide a page (its page visibility) is the page's module, which
+       a script outside cannot reach. */
+    :host(settings-menu) :is(#ai, #onStartup) {
+      display: none;
+    }
+
     /* Links are the text's colour here, so they are underlined to read as
        links. */
     :where(a[href]:not(.cr-nav-menu-item)) {
