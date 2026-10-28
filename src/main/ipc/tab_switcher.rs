@@ -1,9 +1,9 @@
 // The tab switcher: ⌃Tab shows the window's tabs, the last used first,
 // with the one before the active tab selected; each ⌃Tab more selects the
-// next, and ⌃⇧Tab the one before. Letting go of Control goes
-// to the tab selected, and Escape leaves it. The app hears the keys
-// (keyboard.rs) and tells the page; the page keeps the order the tabs were
-// used in, and draws the switcher (components/tab-switcher/).
+// next, and ⌃⇧Tab the one before. Letting go of Control goes to the tab
+// selected, and Escape leaves it. The app hears the keys
+// (platform/keyboard.rs) and tells the page; the page keeps the order the
+// tabs were used in, and draws the switcher (components/tab-switcher/).
 
 use std::rc::Rc;
 
