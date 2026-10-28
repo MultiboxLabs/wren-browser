@@ -1,9 +1,9 @@
-mod ad_block;
 mod app;
 mod changes;
 mod channel;
 mod db;
 mod downloads;
+mod extensions;
 mod ipc;
 mod menus;
 mod pages;
@@ -41,7 +41,7 @@ fn main() {
     startup.development_switches = source.development_switches();
     // Not in a performance run, which measures the app alone.
     if perf.is_none() {
-        ad_block::ship(&mut startup);
+        extensions::ad_block::ship(&mut startup);
     }
     let state = Rc::new(State::new(data, perf));
     let status = wren::run(

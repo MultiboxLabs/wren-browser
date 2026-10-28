@@ -10,9 +10,9 @@ use wren::{
     PopoverRequest, PopoverTrigger, Profile, QuitPrompt,
 };
 
-use crate::ad_block::AdBlock;
 use crate::changes;
 use crate::db::Db;
+use crate::extensions::ad_block::AdBlock;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};

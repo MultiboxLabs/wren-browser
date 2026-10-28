@@ -1,4 +1,4 @@
-// Syncs uBlock Origin, the ad blocker every profile gets (src/main/ad_block.rs),
+// Syncs uBlock Origin, the ad blocker every profile gets (src/main/extensions/ad_block.rs),
 // from its GitHub releases (github.com/gorhill/uBlock) into
 // extensions/uBlock0.crx: the latest release, or --version <v>. The release's
 // .crx is signed by its author, whose key gives its ID; a file that is not a

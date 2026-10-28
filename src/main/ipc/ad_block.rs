@@ -1,13 +1,14 @@
-// Each profile's ad blocker (ad_block.rs): whether it is on, and turning it
-// on or off, as the Library does. Chromium keeps it, so its extensions page
-// turns it on or off too; `adBlock.changed` tells every window either way.
+// Each profile's ad blocker (extensions/ad_block.rs): whether it is on, and
+// turning it on or off, as the Library does. Chromium keeps it, so its
+// extensions page turns it on or off too; `adBlock.changed` tells every window
+// either way.
 
 use serde::{Deserialize, Serialize};
 use wren::{Browser, MainThread, ProfileKind, WebView};
 
 use super::{WindowRef, failed};
-use crate::ad_block::{self, AdBlock};
 use crate::app::State;
+use crate::extensions::ad_block::{self, AdBlock};
 
 /// What `adBlock.set` takes.
 #[derive(Deserialize)]
