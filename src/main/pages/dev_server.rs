@@ -5,8 +5,9 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::thread;
 
-use dispatch2::DispatchQueue;
 use wren::{SchemeFailure, SchemeRequest, SchemeResponse};
+
+use crate::platform;
 
 thread_local! {
     // Requests waiting for the server, by ID. A request stays on the main
@@ -22,7 +23,7 @@ pub fn proxy(request: SchemeRequest, url: String) {
     WAITING.with(|waiting| waiting.borrow_mut().insert(id, request));
     thread::spawn(move || {
         let response = fetch(&url);
-        DispatchQueue::main().exec_async(move || {
+        platform::on_main_thread(move || {
             if let Some(request) = WAITING.with(|waiting| waiting.borrow_mut().remove(&id)) {
                 let _ = request.respond(response);
             }

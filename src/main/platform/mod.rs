@@ -12,15 +12,15 @@ use macos as current;
 mod clipboard;
 mod files;
 mod keyboard;
+mod main_thread;
 mod paths;
-mod timer;
 mod window;
 
 pub use clipboard::copy_text;
 pub use files::{file_kind, file_thumbnail, file_type_icon};
 pub use keyboard::{Key, KeyWatch};
+pub use main_thread::{after, on_main_thread};
 pub use paths::{data_dir, resources_dir};
-pub use timer::after;
 pub use window::{DevToolsWindow, PageWindow, TitleBarKind, close_other_key_window};
 
 /// Whether closing the last window quits the app, as the platform's apps

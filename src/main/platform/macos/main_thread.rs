@@ -1,5 +1,4 @@
-// macOS's side of platform/timer.rs: the main queue runs what waits for a
-// time.
+// macOS's side of platform/main_thread.rs: the main dispatch queue.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -24,4 +23,8 @@ pub fn after(delay: Duration, f: impl FnOnce() + 'static) {
             f();
         }
     });
+}
+
+pub fn on_main_thread(f: impl FnOnce() + Send + 'static) {
+    DispatchQueue::main().exec_async(f);
 }

@@ -17,6 +17,10 @@ Wren Browser is a modern, privacy-focused browser with a minimalistic design.
 - Keep platform-specific code (`objc2`, AppKit) small and behind an interface
   that Windows and Linux can implement. Do not spread it through the app's
   logic.
+- Platform code lives in `src/main/platform/`: `platform/<part>.rs` is the
+  interface, `platform/macos/<part>` its implementation, under the same name.
+  Name parts for what they do, not in a platform's terms (`clipboard`, not
+  `pasteboard`).
 
 ## Commands
 

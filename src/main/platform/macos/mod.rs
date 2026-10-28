@@ -3,8 +3,8 @@
 pub mod clipboard;
 pub mod files;
 pub mod keyboard;
+pub mod main_thread;
 pub mod paths;
-pub mod timer;
 pub mod window;
 
 // A Mac app keeps running with no window, as Chrome does, until the user
