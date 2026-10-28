@@ -1,0 +1,309 @@
+/* Wren's look for Chromium's own pages (settings, extensions, downloads,
+   history, bookmarks, flags, version): neutral greys with no tint, ink (near
+   black in light, near white in dark) where Chromium has its blue, grouped
+   lists with soft corners and hairlines, and soft pill buttons. Red, green
+   and the like that mean something (errors, success) stay Chromium's. Light
+   and dark follow the system, as the pages do.
+
+   This is the palette, and Chromium's own colour tokens mapped onto it, on
+   the document. It is the pages' theming interface: chrome://theme/colors.css
+   gives each of Chromium's colours as a `--color-*` property, and the shared
+   components (cr_elements) read those and their `--cr-*` properties, which
+   cross shadow roots. A token Chromium renames only falls back to its own
+   colour; `bun run check` names any this sets that no page reads any more.
+   How each control is drawn is in components.js.
+
+   Chromium sets these on `html` from several sheets that all come after
+   this one (colors.css as `html:not(#z)`), so each is !important. */
+
+:root {
+  --wren-radius-group: 12px;
+  --wren-radius-row: 8px;
+  /* Icon buttons, under the pointer. */
+  --wren-radius-icon-button: 8px;
+  /* Buttons and selects: fully round. */
+  --wren-radius-button: 999px;
+  --wren-radius-menu: 10px;
+  --wren-radius-menu-item: 6px;
+  --wren-radius-dialog: 14px;
+
+  /* The page, and the groups on it. */
+  --wren-page: rgb(245 245 245);
+  --wren-group: rgb(255 255 255);
+  --wren-group-edge: rgb(0 0 0 / 0.07);
+  /* What is over the page: menus and dialogs. */
+  --wren-raised: rgb(255 255 255);
+  --wren-raised-edge: rgb(0 0 0 / 0.08);
+  --wren-backdrop: rgb(0 0 0 / 0.2);
+  --wren-shadow-menu:
+    0 0 0 1px var(--wren-raised-edge), 0 10px 32px -6px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.05);
+  --wren-shadow-dialog:
+    0 0 0 1px var(--wren-raised-edge), 0 24px 64px -12px rgb(0 0 0 / 0.24), 0 4px 12px rgb(0 0 0 / 0.06);
+
+  /* Text: body, secondary, and faint (placeholders, what is disabled). */
+  --wren-fg: rgb(24 24 24);
+  --wren-fg-2: rgb(0 0 0 / 0.55);
+  --wren-fg-3: rgb(0 0 0 / 0.32);
+
+  --wren-separator: rgb(0 0 0 / 0.07);
+  --wren-fill: rgb(0 0 0 / 0.04);
+  --wren-hover: rgb(0 0 0 / 0.045);
+  --wren-pressed: rgb(0 0 0 / 0.08);
+  --wren-selected: rgb(0 0 0 / 0.065);
+
+  /* Where Chromium has its blue: a default button, a switch that is on, a
+     checked box. */
+  --wren-ink: rgb(24 24 24);
+  --wren-on-ink: rgb(255 255 255);
+  --wren-ink-hover: rgb(255 255 255 / 0.12);
+
+  /* A button (and a select): a soft tonal fill and no edge, a shade deeper
+     under the pointer. */
+  --wren-control: rgb(0 0 0 / 0.055);
+  --wren-control-hover: rgb(0 0 0 / 0.085);
+  /* The ring of a box or a radio button that is not checked. */
+  --wren-mark-edge: rgb(0 0 0 / 0.22);
+  /* A text field: an edge that darkens, and a soft halo, while focused. */
+  --wren-field: rgb(255 255 255);
+  --wren-field-edge: rgb(0 0 0 / 0.12);
+  --wren-field-edge-focused: rgb(0 0 0 / 0.36);
+  --wren-field-halo: rgb(0 0 0 / 0.07);
+  /* The keyboard's focus on anything else. */
+  --wren-focus: rgb(0 0 0 / 0.4);
+
+  --wren-switch-off: rgb(0 0 0 / 0.12);
+  --wren-knob-off: rgb(255 255 255);
+  --wren-knob-on: rgb(255 255 255);
+
+  /* A pop-up button's arrows (a select), and on ink. */
+  --wren-chevrons: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1.25 4.25 4 1.5l2.75 2.75M1.25 7.75 4 10.5l2.75-2.75' fill='none' stroke='%23000' stroke-opacity='.55' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --wren-chevrons-on-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1.25 4.25 4 1.5l2.75 2.75M1.25 7.75 4 10.5l2.75-2.75' fill='none' stroke='%23fff' stroke-opacity='.75' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Graphite, not black: the page, its groups a clear step lighter with
+       a crisp edge, and what is over them a step more. Softer than black,
+       but the steps stay distinct and the text bright, or the layers run
+       together into one muddy grey. */
+    --wren-page: rgb(27 27 27);
+    --wren-group: rgb(38 38 38);
+    --wren-group-edge: rgb(255 255 255 / 0.08);
+    --wren-raised: rgb(46 46 46);
+    --wren-raised-edge: rgb(255 255 255 / 0.09);
+    --wren-backdrop: rgb(0 0 0 / 0.35);
+    --wren-shadow-menu:
+      0 0 0 1px var(--wren-raised-edge), 0 12px 32px -6px rgb(0 0 0 / 0.4), 0 2px 6px rgb(0 0 0 / 0.2);
+    --wren-shadow-dialog:
+      0 0 0 1px var(--wren-raised-edge), 0 24px 64px -12px rgb(0 0 0 / 0.5), 0 4px 12px rgb(0 0 0 / 0.2);
+
+    --wren-fg: rgb(237 237 237);
+    --wren-fg-2: rgb(255 255 255 / 0.55);
+    --wren-fg-3: rgb(255 255 255 / 0.3);
+
+    --wren-separator: rgb(255 255 255 / 0.08);
+    --wren-fill: rgb(255 255 255 / 0.05);
+    --wren-hover: rgb(255 255 255 / 0.06);
+    --wren-pressed: rgb(255 255 255 / 0.1);
+    --wren-selected: rgb(255 255 255 / 0.085);
+
+    --wren-ink: rgb(237 237 237);
+    --wren-on-ink: rgb(27 27 27);
+    --wren-ink-hover: rgb(0 0 0 / 0.08);
+
+    --wren-control: rgb(255 255 255 / 0.09);
+    --wren-control-hover: rgb(255 255 255 / 0.13);
+    --wren-mark-edge: rgb(255 255 255 / 0.3);
+    --wren-field: rgb(255 255 255 / 0.04);
+    --wren-field-edge: rgb(255 255 255 / 0.1);
+    --wren-field-edge-focused: rgb(255 255 255 / 0.34);
+    --wren-field-halo: rgb(255 255 255 / 0.07);
+    --wren-focus: rgb(255 255 255 / 0.45);
+
+    --wren-switch-off: rgb(255 255 255 / 0.18);
+    --wren-knob-off: rgb(232 232 232);
+    --wren-knob-on: rgb(27 27 27);
+
+    --wren-chevrons: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1.25 4.25 4 1.5l2.75 2.75M1.25 7.75 4 10.5l2.75-2.75' fill='none' stroke='%23fff' stroke-opacity='.6' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --wren-chevrons-on-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1.25 4.25 4 1.5l2.75 2.75M1.25 7.75 4 10.5l2.75-2.75' fill='none' stroke='%23000' stroke-opacity='.7' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+}
+
+:root {
+  /* The page behind everything. */
+  background-color: var(--wren-page) !important;
+  --md-background-color: var(--wren-page) !important;
+  --color-webui-page-background: var(--wren-page) !important;
+  --color-settings-webui-page-background: var(--wren-page) !important;
+  --md-toolbar-border: 1px solid var(--wren-separator) !important;
+
+  /* Text and links. Links are the text's colour; components.js underlines
+     them. */
+  --color-primary-foreground: var(--wren-fg) !important;
+  --color-secondary-foreground: var(--wren-fg-2) !important;
+  --color-settings-title-text: var(--wren-fg) !important;
+  --color-settings-columned-section-description-header: var(--wren-fg) !important;
+  --color-link-foreground-default: var(--wren-fg) !important;
+  --cr-primary-text-color: var(--wren-fg) !important;
+  --cr-secondary-text-color: var(--wren-fg-2) !important;
+  --cr-title-text-color: var(--wren-fg) !important;
+  --cr-link-color: var(--wren-fg) !important;
+
+  /* Groups: a box with soft corners and a hairline, not a card lifted off
+     the page. */
+  --cr-card-background-color: var(--wren-group) !important;
+  --cr-card-border-radius: var(--wren-radius-group) !important;
+  --cr-card-shadow: 0 0 0 1px var(--wren-group-edge) !important;
+  --color-webui-card-background: var(--wren-group) !important;
+  --color-settings-section-background: var(--wren-group) !important;
+  --color-sys-surface1: var(--wren-group) !important;
+  --color-settings-info-card-background: var(--wren-fill) !important;
+  --color-download-manager-item-background: var(--wren-group) !important;
+  --color-download-manager-item-background-inactive: var(--wren-group) !important;
+
+  /* Lines. */
+  --cr-separator-color: var(--wren-separator) !important;
+  --cr-separator-line: 1px solid var(--wren-separator) !important;
+  --cr-hairline: 1px solid var(--wren-separator) !important;
+  --color-history-page-separator: var(--wren-separator) !important;
+  --color-menu-separator: var(--wren-separator) !important;
+
+  /* What is under the pointer, pressed, selected, and the keyboard's focus. */
+  --cr-hover-background-color: var(--wren-hover) !important;
+  --cr-hover-on-subtle-background-color: var(--wren-hover) !important;
+  --cr-hover-on-prominent-background-color: var(--wren-ink-hover) !important;
+  --cr-active-background-color: var(--wren-pressed) !important;
+  --cr-active-neutral-on-subtle-background-color: var(--wren-pressed) !important;
+  --cr-active-on-primary-background-color: transparent !important;
+  --cr-focus-outline-color: var(--wren-focus) !important;
+  --cr-focus-outline-inverse-color: var(--wren-focus) !important;
+  --color-sys-state-hover: var(--wren-hover) !important;
+  --color-sys-state-hover-on-subtle: var(--wren-hover) !important;
+  --color-sys-state-hover-on-prominent: var(--wren-ink-hover) !important;
+  --color-sys-state-pressed: var(--wren-pressed) !important;
+  --color-sys-state-ripple-neutral-on-subtle: var(--wren-pressed) !important;
+  --color-sys-state-ripple-primary: transparent !important;
+  --color-sys-state-focus-ring: var(--wren-focus) !important;
+  --color-sys-state-focus-ring-inverse: var(--wren-focus) !important;
+  --color-sys-primary-container: var(--wren-selected) !important;
+  --color-sys-on-tonal-container: var(--wren-fg) !important;
+  --color-settings-radio-card-selected: var(--wren-selected) !important;
+  --color-bookmark-manager-item-background-selected: var(--wren-selected) !important;
+  --cr-iph-anchor-highlight-color: var(--wren-selected) !important;
+
+  /* The sidebars' rows. */
+  --color-nav-menu-item: var(--wren-fg) !important;
+  --color-nav-menu-item-selected: var(--wren-fg) !important;
+  --color-nav-menu-item-background-hover: var(--wren-hover) !important;
+  --color-nav-menu-item-background-selected: var(--wren-selected) !important;
+  --color-settings-nav-menu-item-foreground: var(--wren-fg) !important;
+  --color-settings-nav-menu-item-foreground-selected: var(--wren-fg) !important;
+  --color-settings-nav-menu-item-background: var(--wren-selected) !important;
+  --color-settings-nav-menu-item-icon: var(--wren-fg-2) !important;
+  --color-tab-nav-item-selected: var(--wren-fg) !important;
+
+  /* Buttons. */
+  --cr-button-height: 30px !important;
+  --color-button-background-prominent: var(--wren-ink) !important;
+  --color-button-foreground-prominent: var(--wren-on-ink) !important;
+  --color-button-background-tonal: var(--wren-control) !important;
+  --color-button-foreground-tonal: var(--wren-fg) !important;
+  --color-button-border: transparent !important;
+  --color-button-foreground: var(--wren-fg) !important;
+
+  /* Switches, boxes and radio buttons. */
+  --cr-checked-color: var(--wren-ink) !important;
+  --color-checkbox-foreground-checked: var(--wren-ink) !important;
+  --color-checkbox-check: var(--wren-on-ink) !important;
+  --color-checkbox-foreground-unchecked: var(--wren-mark-edge) !important;
+  --color-radio-button-foreground-checked: var(--wren-ink) !important;
+  --color-radio-button-foreground-unchecked: var(--wren-mark-edge) !important;
+  --color-toggle-button-track-on: var(--wren-ink) !important;
+  --color-toggle-button-track-off: var(--wren-switch-off) !important;
+  --color-toggle-button-thumb-on: var(--wren-knob-on) !important;
+  --color-toggle-button-thumb-on-hover: var(--wren-knob-on) !important;
+  --color-toggle-button-thumb-off: var(--wren-knob-off) !important;
+  --color-slider-active: var(--wren-ink) !important;
+  --color-slider-active-container: var(--wren-switch-off) !important;
+  --color-download-manager-progress: var(--wren-ink) !important;
+
+  /* Chips (filters and suggestions). */
+  --color-chip-background-selected: var(--wren-ink) !important;
+  --color-chip-border: var(--wren-field-edge) !important;
+  --color-chip-foreground: var(--wren-fg) !important;
+  --color-chip-foreground-selected: var(--wren-on-ink) !important;
+  --color-chip-icon: var(--wren-fg-2) !important;
+  --color-chip-icon-selected: var(--wren-on-ink) !important;
+
+  /* Text fields and the toolbar's search field. */
+  --color-textfield-filled-background: var(--wren-field) !important;
+  --color-textfield-filled-underline: transparent !important;
+  --color-textfield-filled-underline-focused: var(--wren-ink) !important;
+  --color-textfield-foreground-label: var(--wren-fg-2) !important;
+  --color-textfield-foreground-placeholder: var(--wren-fg-3) !important;
+  --color-textfield-foreground-icon: var(--wren-fg-2) !important;
+  --color-focusable-border-unfocused: var(--wren-field-edge) !important;
+  --color-combobox-container-outline: var(--wren-field-edge) !important;
+  --color-toolbar-search-field-background: var(--wren-fill) !important;
+  --color-toolbar-search-field-background-hover: transparent !important;
+  --color-toolbar-search-field-foreground: var(--wren-fg) !important;
+  --color-toolbar-search-field-foreground-placeholder: var(--wren-fg-3) !important;
+  --color-toolbar-search-field-icon: var(--wren-fg-2) !important;
+
+  /* Menus, dialogs and toasts. */
+  --color-menu-background: var(--wren-raised) !important;
+  --color-menu-item-foreground: var(--wren-fg) !important;
+  --cr-menu-background-color: var(--wren-raised) !important;
+  --cr-menu-background-focus-color: var(--wren-hover) !important;
+  --cr-menu-border-radius: var(--wren-radius-menu) !important;
+  --cr-menu-shadow: var(--wren-shadow-menu) !important;
+  --color-webui-dialog-background: var(--wren-raised) !important;
+  --cr-dialog-background-color: var(--wren-raised) !important;
+  --cr-dialog-border-radius: var(--wren-radius-dialog) !important;
+  --color-webui-dialog-container-background: var(--cr-fallback-color-surface3) !important;
+  --color-toast-background: var(--wren-ink) !important;
+  --color-toast-foreground: var(--wren-on-ink) !important;
+  --color-toast-button: var(--wren-on-ink) !important;
+
+  /* The palette pages fall back to where Chromium gives no colour, which
+     some read directly: their tinted surfaces as neutral shades of what is
+     raised, each a step darker in light and lighter in dark. */
+  --cr-fallback-color-surface: var(--wren-raised) !important;
+  --cr-fallback-color-surface1: color-mix(in srgb, var(--wren-raised), var(--wren-fg) 2%) !important;
+  --cr-fallback-color-surface2: color-mix(in srgb, var(--wren-raised), var(--wren-fg) 3.5%) !important;
+  --cr-fallback-color-surface3: color-mix(in srgb, var(--wren-raised), var(--wren-fg) 4.5%) !important;
+  --cr-fallback-color-surface4: color-mix(in srgb, var(--wren-raised), var(--wren-fg) 5.5%) !important;
+  --cr-fallback-color-surface5: color-mix(in srgb, var(--wren-raised), var(--wren-fg) 6.5%) !important;
+  --cr-fallback-color-base-container: var(--wren-fill) !important;
+  --cr-fallback-color-neutral-container: var(--wren-fill) !important;
+  --cr-fallback-color-surface-variant: var(--wren-fill) !important;
+  --cr-fallback-color-on-surface: var(--wren-fg) !important;
+  --cr-fallback-color-on-surface-subtle: var(--wren-fg-2) !important;
+  --cr-fallback-color-on-surface-variant: var(--wren-fg-2) !important;
+  --cr-fallback-color-outline: var(--wren-mark-edge) !important;
+  --cr-fallback-color-neutral-outline: var(--wren-field-edge) !important;
+  --cr-fallback-color-inverse-primary: var(--wren-ink) !important;
+  --cr-fallback-color-primary: var(--wren-ink) !important;
+  --cr-fallback-color-on-primary: var(--wren-on-ink) !important;
+  --cr-fallback-color-primary-container: var(--wren-selected) !important;
+  --cr-fallback-color-on-primary-container: var(--wren-fg) !important;
+  --cr-fallback-color-secondary-container: var(--wren-fill) !important;
+  --cr-fallback-color-tonal-container: var(--wren-fill) !important;
+  --cr-fallback-color-on-tonal-container: var(--wren-fg) !important;
+  --cr-fallback-color-tonal-outline: var(--wren-field-edge) !important;
+  --cr-fallback-color-divider: var(--wren-separator) !important;
+
+  /* Chromium's blue scale, which pages reach for where they have no token
+     (a download's link and progress, history's addresses, tabs, spinners),
+     as a grey one: each shade as light as the blue it stands for. */
+  --google-blue-50-rgb: 245, 245, 245 !important;
+  --google-blue-100-rgb: 235, 235, 235 !important;
+  --google-blue-200-rgb: 217, 217, 217 !important;
+  --google-blue-300-rgb: 200, 200, 200 !important;
+  --google-blue-400-rgb: 166, 166, 166 !important;
+  --google-blue-500-rgb: 130, 130, 130 !important;
+  --google-blue-600-rgb: 90, 90, 90 !important;
+  --google-blue-700-rgb: 64, 64, 64 !important;
+  --google-blue-800-rgb: 48, 48, 48 !important;
+  --google-blue-900-rgb: 32, 32, 32 !important;
+}

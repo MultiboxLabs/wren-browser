@@ -1,7 +1,8 @@
 // Wren Components: an internal extension (a hidden component extension, which
 // the user never sees on chrome://extensions or turns off) that holds the
 // code Wren runs inside pages. Only this file knows the extension; its
-// folder is extensions/wren-components, its parts one script for each site.
+// folder is extensions/wren-components, its parts one for each site (a
+// script, or a folder: chrome-pages/ restyles Chromium's own pages).
 
 use wren::{AppExtension, Startup};
 

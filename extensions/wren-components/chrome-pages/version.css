@@ -1,0 +1,28 @@
+/* chrome://version is a plain page, with its colours set on `html` by a
+   sheet after this one, so they are !important. Its table of versions sits
+   in a group, as the other pages' lists do. */
+
+:root {
+  --primary-color: var(--wren-fg) !important;
+  --background-color: var(--wren-page) !important;
+  --hover-background-color: var(--wren-hover) !important;
+  --active-background-color: var(--wren-pressed) !important;
+}
+
+#outer #inner {
+  background: var(--wren-group);
+  border-radius: var(--wren-radius-group);
+  box-shadow: 0 0 0 1px var(--wren-group-edge);
+  margin-top: 16px;
+  padding: 10px 16px;
+}
+
+#outer .label {
+  color: var(--wren-fg-2);
+  font-weight: 500;
+  padding-block: 3px;
+}
+
+#outer .copy-button {
+  border-radius: var(--wren-radius-icon-button);
+}

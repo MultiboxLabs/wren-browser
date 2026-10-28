@@ -10,6 +10,26 @@
       "js": ["chrome-web-store.js"],
       "run_at": "document_start",
       "world": "MAIN"
+    },
+    {
+      "matches": [
+        "chrome://settings/*",
+        "chrome://extensions/*",
+        "chrome://downloads/*",
+        "chrome://history/*",
+        "chrome://bookmarks/*",
+        "chrome://flags/*",
+        "chrome://version/*"
+      ],
+      "css": ["chrome-pages/theme.css"],
+      "js": ["chrome-pages/components.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["chrome://version/*"],
+      "css": ["chrome-pages/version.css"],
+      "run_at": "document_start"
     }
   ]
 }
