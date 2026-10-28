@@ -18,9 +18,10 @@ use serde::Serialize;
 use wren::{Browser, BubbleAnchor};
 
 use super::tag::Tag;
-use super::{PageWindow, Place};
+use super::Place;
 use crate::db::SpaceId;
 use crate::downloads;
+use crate::platform::PageWindow;
 use crate::tabs::placeholder;
 
 /// The page's mark on its page info button, which the site's bubbles (page

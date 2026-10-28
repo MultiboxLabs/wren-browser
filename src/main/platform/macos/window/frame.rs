@@ -1,0 +1,91 @@
+// Where a page's window is and how large, in AppKit's screen coordinates,
+// whose origin is the bottom left of the main screen.
+
+use objc2::MainThreadMarker;
+use objc2_app_kit::NSScreen;
+use objc2_foundation::{NSIntersectsRect, NSPoint, NSRect, NSSize};
+use wren::RequestedBounds;
+
+use super::PageWindow;
+
+impl PageWindow {
+    // AppKit keeps the window on a screen.
+    pub fn cascade_from(&self, other: &PageWindow) {
+        if let Some(frame) = other.cascaded(other.window.frame().size) {
+            self.window.setFrame_display(frame, false);
+        }
+    }
+
+    pub fn place_popup(
+        &self,
+        size: (f64, f64),
+        origin: Option<(f64, f64)>,
+        near: Option<&PageWindow>,
+    ) {
+        let window = &self.window;
+        let size = NSSize::new(size.0, size.1);
+        window.setContentSize(at_least(size, window.contentMinSize()));
+        let size = window.frame().size;
+        let asked = origin
+            .map(|(x, y)| NSRect::new(NSPoint::new(x, y), size))
+            .filter(|&frame| is_on_screen(frame));
+        match asked.or_else(|| near?.cascaded(size)) {
+            Some(frame) => window.setFrame_display(frame, false),
+            None => window.center(),
+        }
+    }
+
+    // The frame of a window of `size` cascaded from this one, as AppKit
+    // cascades windows: its top left just below and right of this one's.
+    // None in full screen, which has no place to cascade from.
+    fn cascaded(&self, size: NSSize) -> Option<NSRect> {
+        const STEP: f64 = 26.0;
+        if self.is_full_screen() {
+            return None;
+        }
+        let frame = self.window.frame();
+        let top = frame.origin.y + frame.size.height - STEP;
+        let origin = NSPoint::new(frame.origin.x + STEP, top - size.height);
+        Some(NSRect::new(origin, size))
+    }
+
+    // AppKit moves the window back onto a screen if that one has gone.
+    pub fn restore_frame(&self, bounds: RequestedBounds) {
+        let size = NSSize::new(bounds.width, bounds.height);
+        let size = at_least(size, self.window.minSize());
+        let origin = match bounds.origin {
+            Some((x, y)) => NSPoint::new(x, y),
+            None => self.window.frame().origin,
+        };
+        let frame = NSRect::new(origin, size);
+        let frame = self
+            .window
+            .constrainFrameRect_toScreen(frame, self.window.screen().as_deref());
+        self.window.setFrame_display(frame, false);
+    }
+
+    pub fn frame(&self) -> Option<RequestedBounds> {
+        if self.is_full_screen() {
+            return None;
+        }
+        let frame = self.window.frame();
+        Some(RequestedBounds {
+            origin: Some((frame.origin.x, frame.origin.y)),
+            width: frame.size.width,
+            height: frame.size.height,
+        })
+    }
+}
+
+// AppKit keeps the user from resizing a window below its minimum, but not
+// the app.
+fn at_least(size: NSSize, min: NSSize) -> NSSize {
+    NSSize::new(size.width.max(min.width), size.height.max(min.height))
+}
+
+// Whether a screen shows some of `frame`.
+fn is_on_screen(frame: NSRect) -> bool {
+    NSScreen::screens(MainThreadMarker::new().unwrap())
+        .iter()
+        .any(|screen| NSIntersectsRect(screen.visibleFrame(), frame))
+}

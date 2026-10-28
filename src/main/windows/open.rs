@@ -13,7 +13,8 @@ use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::tabs::placeholder;
-use crate::shell::{BrowserWindow, PageWindow, Place, Popup, TitleBarKind, WindowId};
+use crate::platform::{PageWindow, TitleBarKind};
+use crate::shell::{BrowserWindow, Place, Popup, WindowId};
 
 /// A browser window's size when nothing gives it one.
 const WINDOW_SIZE: (f64, f64) = (1280.0, 800.0);
@@ -83,14 +84,13 @@ impl State {
             false
         };
         let page = PageWindow::open(
-            &profile,
-            &UI,
+            UI.web_view(&profile)?,
             "Wren",
             WINDOW_SIZE,
             min_size,
             title_bar,
             should_close,
-        )?;
+        );
         ipc::handle_ui(&page.web_view, &WindowRef::new(self, id), mt);
         // The page and the backdrop are drawn as in use while the window is.
         // A popup's is never the window the user browses in.

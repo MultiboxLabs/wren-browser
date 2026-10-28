@@ -5,7 +5,9 @@ mod dev_server;
 mod embedded;
 pub mod icons;
 
-use wren::{SchemeFailure, SchemeRequest, SchemeResponse};
+use wren::{
+    Profile, SchemeFailure, SchemeRequest, SchemeResponse, WebView, WebViewKind, WebViewOptions,
+};
 
 pub const SCHEME: &str = "wren";
 
@@ -46,6 +48,24 @@ const PAGES: [&Page; 2] = [&UI, &GAME];
 impl Page {
     pub fn url(&self) -> String {
         format!("{SCHEME}://{}/", self.host)
+    }
+
+    /// A web view of the page in `profile`, for a window of the app's own
+    /// (`platform::PageWindow`): the browser's UI, see-through where the
+    /// page draws nothing, and dragging the window where the page lets it.
+    pub fn web_view(&self, profile: &Profile) -> Option<WebView> {
+        let options = WebViewOptions {
+            kind: WebViewKind::BrowserUi,
+            // Only Toggle UI Devtools opens the UI's DevTools, not Inspect.
+            disallow_user_devtools_activation: true,
+            messages: self.messages,
+            embeds_views: self.embeds_views,
+            anchors: self.anchors,
+            drags_window: true,
+            transparent: true,
+            ..Default::default()
+        };
+        WebView::new(profile, &self.url(), &options)
     }
 }
 

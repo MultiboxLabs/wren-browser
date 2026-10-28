@@ -17,18 +17,18 @@ use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
-use crate::platform::KeyWatch;
+use crate::platform::{
+    DevToolsWindow, KeyWatch, QUITS_WITH_LAST_WINDOW, close_other_key_window,
+};
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
-use crate::shell::{
-    BrowserWindow, PlainWindow, QUITS_WITH_LAST_WINDOW, WindowId, Windows, close_other_key_window,
-};
+use crate::shell::{BrowserWindow, WindowId, Windows};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
     // The pages', not the user's.
     pub(crate) ui_profile: RefCell<Option<Profile>>,
-    devtools: RefCell<HashMap<Browser, PlainWindow>>,
+    devtools: RefCell<HashMap<Browser, DevToolsWindow>>,
     pub windows: Windows,
     // What the pages keep between runs, in `data`; all windows share it.
     pub sidebar: SidebarStore,
@@ -274,7 +274,7 @@ impl App for Wren {
         match kind {
             BrowserType::Normal => self.state.place_opened(mt, opened, opener),
             BrowserType::Devtools => {
-                let window = PlainWindow::new(opened.clone());
+                let window = DevToolsWindow::new(opened.clone());
                 self.state.devtools.borrow_mut().insert(opened, window);
             }
             _ => self.state.open_popup(mt, opened, opener),

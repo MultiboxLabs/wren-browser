@@ -1,4 +1,5 @@
-// A window for Chromium's undocked DevTools, showing the tab's own view.
+// The window of Chromium's undocked DevTools: a plain NSWindow, whose
+// content is the DevTools tab's own view.
 
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
@@ -9,15 +10,15 @@ use objc2_app_kit::{
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use wren::{Browser, NativeView};
 
-use super::WindowDelegate;
+use super::delegate::WindowDelegate;
 
-pub struct PlainWindow {
+pub struct DevToolsWindow {
     browser: Browser,
     window: Retained<NSWindow>,
     _delegate: Retained<WindowDelegate>,
 }
 
-impl PlainWindow {
+impl DevToolsWindow {
     pub fn new(browser: Browser) -> Self {
         let mtm = MainThreadMarker::new().unwrap();
         let size = browser
@@ -91,7 +92,7 @@ impl PlainWindow {
     }
 }
 
-impl Drop for PlainWindow {
+impl Drop for DevToolsWindow {
     fn drop(&mut self) {
         self.browser.attach_to_view(None);
         self.window.setDelegate(None);

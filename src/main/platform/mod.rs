@@ -14,9 +14,15 @@ mod files;
 mod keyboard;
 mod paths;
 mod timer;
+mod window;
 
 pub use clipboard::copy_text;
 pub use files::{file_kind, file_thumbnail, file_type_icon};
 pub use keyboard::{Key, KeyWatch};
 pub use paths::{data_dir, resources_dir};
 pub use timer::after;
+pub use window::{DevToolsWindow, PageWindow, TitleBarKind, close_other_key_window};
+
+/// Whether closing the last window quits the app, as the platform's apps
+/// do; or it keeps running with none, until the user quits it.
+pub const QUITS_WITH_LAST_WINDOW: bool = current::QUITS_WITH_LAST_WINDOW;
