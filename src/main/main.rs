@@ -39,6 +39,7 @@ fn main() {
     )];
     let source = Source::from_env();
     startup.development_switches = source.development_switches();
+    extensions::components::ship(&mut startup);
     // Not in a performance run, which measures the app alone.
     if perf.is_none() {
         extensions::ad_block::ship(&mut startup);

@@ -5,6 +5,6 @@
   "version": "0.1.0",
   "icon": "branding/dev.icon",
   "copyright": "Copyright 2026 Multibox Labs. All rights reserved.",
-  "resources": ["extensions/uBlock0.crx"],
+  "resources": ["extensions/uBlock0.crx", "extensions/wren-components"],
   "wren": "0.2.0"
 }

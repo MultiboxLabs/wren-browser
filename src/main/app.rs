@@ -252,8 +252,8 @@ impl App for Wren {
         });
     }
 
-    // The app's extensions (the ad blocker), in every profile but the
-    // pages'.
+    // The app's extensions (the ad blocker and Wren Components), in every
+    // profile but the pages'.
     fn profile_extensions(&self, _profile_id: &str, gets: &mut [bool]) {
         gets.fill(!self.state.making_ui_profile.get());
     }
