@@ -1,9 +1,10 @@
-/* Wren's look for Chromium's own pages (settings, extensions, downloads,
-   history, bookmarks, flags, version): neutral greys with no tint, ink (near
-   black in light, near white in dark) where Chromium has its blue, grouped
-   lists with soft corners and hairlines, and soft pill buttons. Red, green
-   and the like that mean something (errors, success) stay Chromium's. Light
-   and dark follow the system, as the pages do.
+/* Wren's look for Chromium's own pages (the ones in manifest.json: those that
+   open in a tab and are built on Chromium's colour tokens and shared
+   components): neutral greys with no tint, ink (near black in light, near
+   white in dark) where Chromium has its blue, grouped lists with soft
+   corners and hairlines, and soft pill buttons. Red, green and the like
+   that mean something (errors, success) stay Chromium's. Light and dark
+   follow the system, as the pages do.
 
    This is the palette, and Chromium's own colour tokens mapped onto it, on
    the document. It is the pages' theming interface: chrome://theme/colors.css
