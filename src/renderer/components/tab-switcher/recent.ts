@@ -1,12 +1,17 @@
 // The order the window's tabs were last used in, for the tab switcher: for
 // each space, its tabs by the last time each was the active one. Kept for
 // as long as the page is; a tab not shown since comes after those that
-// were, in the sidebar's order.
+// were, in the sidebar's order. A split's two tabs are one entry, named by
+// the one of them used last, as the switcher shows them as one.
 
 import { useLayoutEffect, useRef } from "react";
 import { useBrowser } from "../../state/browser";
 
-/** Reads the IDs of the space's tabs, the active one first, then the last used; stable, so a listener keeps it. */
+/**
+ * Reads the IDs of the space's tabs, the active one first, then the last
+ * used, with each split once by its last used tab; stable, so a listener
+ * keeps it.
+ */
 export function useRecentTabs() {
   const { space, current, tabs } = useBrowser();
   // Each space's tabs, last used first; closed ones too, until the next read.
@@ -28,7 +33,16 @@ export function useRecentTabs() {
     const kept = (used.current.get(space) ?? []).filter((id) => open.has(id));
     used.current.set(space, kept);
     const seen = new Set(kept);
-    return [...kept, ...tabs.filter((tab) => !seen.has(tab.id)).map((tab) => tab.id)];
+    const order = [...kept, ...tabs.filter((tab) => !seen.has(tab.id)).map((tab) => tab.id)];
+    const split = new Map(tabs.map((tab) => [tab.id, tab.split]));
+    const splits = new Set<string>();
+    return order.filter((id) => {
+      const of = split.get(id);
+      if (!of) return true;
+      if (splits.has(of)) return false;
+      splits.add(of);
+      return true;
+    });
   });
   return read.current;
 }
