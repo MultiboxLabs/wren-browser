@@ -22,6 +22,7 @@ import { SpaceSwitcher } from "./space-switcher";
 import { TabList } from "./tab-list";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
 import { useDownloadIndicator } from "../../state/downloads";
+import { useSettings } from "../../state/library";
 import { usePins } from "../../state/pins";
 import { useSpace } from "../../state/space";
 import { SLIDE } from "../../state/space-slide";
@@ -190,6 +191,7 @@ function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "addr
   const { current } = useBrowser();
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
+  const settings = useSettings(true);
   // The tab drawn selected, as a pin's or a favourite's too; none while the
   // omnibox for a new tab is open.
   const selected = omnibox.shown?.target === "new-tab" ? undefined : current?.id;
@@ -197,7 +199,7 @@ function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "addr
     <>
       <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
 
-      <Favorites favorites={pins.favorites} selected={selected} />
+      <Favorites favorites={pins.favorites} read={pins.read} settings={settings} selected={selected} />
 
       <TabList omnibox={omnibox} pinned={pins.pinned} onToggleFolder={pins.toggleFolder} />
     </>
