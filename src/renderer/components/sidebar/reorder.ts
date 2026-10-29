@@ -13,10 +13,8 @@ import { addressesOf, carriesAddress } from "./dropped-address";
 import { useEdgeScroll } from "./edge-scroll";
 import { type DropMark, type Grabbed, type Held, type Landing, landingAt, OUTSIDE } from "./landing";
 import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
-import { draggableUnitOf, readUnit, type UnitKind } from "./units";
-
-/** What a drag carries for the platform to start it. Only the list reads what it was. */
-const UNIT_TYPE = "application/x-wren-unit";
+import { isPinDrop } from "./pin-drop";
+import { draggableUnitOf, readUnit, UNIT_TYPE, type UnitKind } from "./units";
 
 const tabUnit = (kind: UnitKind, tab: number): TabUnit =>
   kind === "split" ? { split: tab } : kind === "group" ? { group: tab } : { tab };
@@ -134,6 +132,12 @@ export function useTabReorder(order: string) {
       onDragOver: (event: DragEvent<HTMLElement>) => {
         const over = dragged(event);
         if (!over) return;
+        // Over the space's heading, which pins what is dropped on it
+        // (pin-drop.ts): no place in the list is marked.
+        if (isPinDrop(event.target)) {
+          edge.stop();
+          return show(null);
+        }
         const scroller = event.currentTarget;
         const at = (x: number, y: number) => landingAt(scroller, over, x, y);
         edge.follow(scroller, event.clientX, event.clientY, (x, y) => show(at(x, y)));
@@ -153,6 +157,7 @@ export function useTabReorder(order: string) {
 
       onDrop: (event: DragEvent<HTMLElement>) => {
         const own = held.current;
+        if (isPinDrop(event.target)) return end();
         if (!own && !carriesAddress(event.dataTransfer)) return;
         event.preventDefault();
         const urls = own ? [] : addressesOf(event.dataTransfer);

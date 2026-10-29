@@ -31,6 +31,17 @@ export const pins = {
     wren.invoke<number>("pins.newFolder", { space, parent, index }),
   /** Names a pin; null lets a tab or a split go by its page's title again. A folder keeps a name. */
   rename: (id: number, name: string | null) => wren.invoke<null>("pins.rename", { id, name }),
+  /**
+   * Pins a tab of the window, or its split, and links it, at `index` (null:
+   * last) of the favourites, or of the space's pins at the top or in a folder.
+   */
+  pinTab: (tab: number, to: { favorites: true } | { parent: number | null }, index: number | null) =>
+    wren.invoke<number>("pins.pinTab", {
+      tab,
+      favorites: "favorites" in to,
+      parent: "parent" in to ? to.parent : null,
+      index
+    }),
   /** Opens a pin in the window's space, or selects its tab if it is open. */
   open: (id: number) => wren.invoke<null>("pins.open", id),
   /** Takes an open pin's tab on `side` back to the pin's page. */

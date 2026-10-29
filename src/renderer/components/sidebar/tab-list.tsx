@@ -4,7 +4,16 @@
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { memo, type ReactNode, useRef, useState } from "react";
-import { browser, type GroupColor, groups, type Pin, type PinFolder, type TabGroup, type TabSplit } from "../../ipc";
+import {
+  browser,
+  type GroupColor,
+  groups,
+  type Pin,
+  type PinFolder,
+  pins,
+  type TabGroup,
+  type TabSplit
+} from "../../ipc";
 import { useHoldUntil } from "../ui/hold";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
@@ -19,6 +28,7 @@ import { useGroupKeys } from "./keys";
 import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
+import { usePinDrop } from "./pin-drop";
 import { PinRows } from "./pins";
 import { CloseButton, Disclosed, IconSlot, pressHandlers, Row } from "./rows";
 
@@ -119,7 +129,7 @@ export function TabList({
           <PinRows pins={pinned} selected={selected} onToggleFolder={onToggleFolder} />
         </Disclosed>
 
-        {pinned.length > 0 && <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />}
+        <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
 
         <Row selected={newTabOpen} className={cn(!newTabOpen && "text-fg-3")} onPress={() => omnibox.toggle("new-tab")}>
           <Plus size={14} strokeWidth={2} className={cn("mx-px", newTabOpen ? "glyph-1" : "glyph-3")} />
@@ -179,28 +189,32 @@ export function TabList({
 
 /**
  * The space's name over its pinned tabs. Hovered, its icon gives way to a
- * chevron, and a press folds the pinned tabs up or down.
+ * chevron, and a press folds the pinned tabs up or down. A tab dropped on it
+ * is pinned first among them; a window on a profile has no pins to drop to.
  */
 function SpaceHeading({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const { space } = useSpace();
+  const { space, profile } = useSpace();
+  const drop = usePinDrop((tab) => void pins.pinTab(tab, { parent: null }, 0).catch(() => {}), !profile);
   return (
-    <Row still onPress={onToggle} className="font-semibold text-fg-3">
-      <IconSlot>
-        <span className="grid text-accent group-hover:invisible">
-          <SpaceIcon icon={space.icon} size={17} strokeWidth={1.75} />
-        </span>
-        <ChevronDown
-          size={17}
-          strokeWidth={2.75}
-          aria-label={open ? "Collapse" : "Expand"}
-          className={cn(
-            "invisible absolute glyph-3 transition-[rotate] duration-120 group-hover:visible motion-reduce:transition-none",
-            !open && "-rotate-90"
-          )}
-        />
-      </IconSlot>
-      <span className="min-w-0 flex-1 truncate">{space.name}</span>
-    </Row>
+    <div {...drop.handlers} className="flex flex-col">
+      <Row still selected={drop.over} onPress={onToggle} className="font-semibold text-fg-3">
+        <IconSlot>
+          <span className="grid text-accent group-hover:invisible">
+            <SpaceIcon icon={space.icon} size={17} strokeWidth={1.75} />
+          </span>
+          <ChevronDown
+            size={17}
+            strokeWidth={2.75}
+            aria-label={open ? "Collapse" : "Expand"}
+            className={cn(
+              "invisible absolute glyph-3 transition-[rotate] duration-120 group-hover:visible motion-reduce:transition-none",
+              !open && "-rotate-90"
+            )}
+          />
+        </IconSlot>
+        <span className="min-w-0 flex-1 truncate">{space.name}</span>
+      </Row>
+    </div>
   );
 }
 

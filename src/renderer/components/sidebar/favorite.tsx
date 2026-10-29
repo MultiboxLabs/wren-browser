@@ -10,7 +10,7 @@ import { Button } from "../ui/button";
 import { type Pin, type PinFolder, pins } from "../../ipc";
 import { cn } from "../../utils/cn";
 import { host } from "../../utils/url";
-import { PageIcon, pinTitle, usePinTabs } from "./pins";
+import { PinPageIcon, pinTitle, usePinTabs } from "./pins";
 
 /** `selected`: the selected tab's ID, unless none is. */
 export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; selected?: number }) {
@@ -25,7 +25,7 @@ export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; sele
   const icon = (
     <span className="flex gap-1">
       {pages.map((page, side) => (
-        <PageIcon key={side} page={page} open={open[side]} />
+        <PinPageIcon key={side} page={page} open={open[side]} />
       ))}
     </span>
   );
