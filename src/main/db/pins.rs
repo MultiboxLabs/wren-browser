@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use rusqlite::{OptionalExtension, Row, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, Row, ToSql, Transaction, params};
 
 use super::{Db, SpaceId, sql};
 
@@ -143,7 +143,7 @@ impl Db {
     }
 
     // The pins `filter` picks, as a tree.
-    fn pin_tree(&self, filter: &str, value: impl rusqlite::ToSql) -> Result<Vec<PinRow>, String> {
+    fn pin_tree(&self, filter: &str, value: impl ToSql) -> Result<Vec<PinRow>, String> {
         let rows: Vec<Kept> = self
             .conn
             .prepare(&format!(
@@ -151,7 +151,16 @@ impl Db {
             ))
             .and_then(|mut query| query.query_map([&value], kept)?.collect())
             .map_err(sql)?;
-        let mut pages: HashMap<PinId, Vec<PinPage>> = HashMap::new();
+        let mut pages = self.pages(filter, &value)?;
+        Ok(build(&rows, None, &mut pages))
+    }
+
+    // The pages of the pins `filter` picks, each pin's in order.
+    fn pages(
+        &self,
+        filter: &str,
+        value: impl ToSql,
+    ) -> Result<HashMap<PinId, Vec<PinPage>>, String> {
         let mut query = self
             .conn
             .prepare(&format!(
@@ -160,7 +169,7 @@ impl Db {
             ))
             .map_err(sql)?;
         let found = query
-            .query_map([&value], |row| {
+            .query_map([value], |row| {
                 let page = PinPage {
                     url: row.get(1)?,
                     title: row.get(2)?,
@@ -169,11 +178,12 @@ impl Db {
                 Ok((row.get::<_, PinId>(0)?, page))
             })
             .map_err(sql)?;
+        let mut pages: HashMap<PinId, Vec<PinPage>> = HashMap::new();
         for each in found {
             let (id, page) = each.map_err(sql)?;
             pages.entry(id).or_default().push(page);
         }
-        Ok(build(&rows, None, &mut pages))
+        Ok(pages)
     }
 
     /// Makes a pin in `place`, at `index` among the pins there (None, or one
@@ -209,14 +219,8 @@ impl Db {
             }
         };
         let count = siblings(&transaction, &profile, space, parent)?.len();
-        let position = index.unwrap_or(count).min(count) as i64;
-        transaction
-            .execute(
-                "UPDATE pins SET position = position + 1
-                 WHERE profile_id = ?1 AND space_id IS ?2 AND parent_id IS ?3 AND position >= ?4",
-                params![profile, space, parent, position],
-            )
-            .map_err(sql)?;
+        let position = position_at(index, count);
+        make_room(&transaction, (&profile, space, parent), position, None)?;
         transaction
             .execute(
                 "INSERT INTO pins (profile_id, space_id, parent_id, kind, name, layout, ratio,
@@ -253,8 +257,7 @@ impl Db {
     /// A folder keeps a name.
     pub fn rename_pin(&self, id: PinId, name: Option<&str>) -> Result<(), String> {
         let name = name.and_then(trimmed);
-        let kind = self.pin_kind(id)?;
-        if kind == "folder" && name.is_none() {
+        if kept_spot(&self.conn, id)?.kind == "folder" && name.is_none() {
             return Err("A folder needs a name.".into());
         }
         self.conn
@@ -265,7 +268,7 @@ impl Db {
 
     /// Opens a folder, or closes it.
     pub fn set_folder_open(&self, id: PinId, open: bool) -> Result<(), String> {
-        if self.pin_kind(id)? != "folder" {
+        if kept_spot(&self.conn, id)?.kind != "folder" {
             return Err("That pin is not a folder.".into());
         }
         self.conn
@@ -291,43 +294,24 @@ impl Db {
         };
         // Built as the one pin at the top.
         row.parent = None;
-        let mut pages = HashMap::new();
-        let mut query = self
-            .conn
-            .prepare("SELECT url, title, favicon FROM pin_pages WHERE pin_id = ?1 ORDER BY side")
-            .map_err(sql)?;
-        let kept_pages = query
-            .query_map([id], |row| {
-                Ok(PinPage {
-                    url: row.get(0)?,
-                    title: row.get(1)?,
-                    favicon: row.get(2)?,
-                })
-            })
-            .and_then(|rows| rows.collect::<rusqlite::Result<Vec<_>>>())
-            .map_err(sql)?;
-        pages.insert(id, kept_pages);
+        let mut pages = self.pages("id = ?1", id)?;
         let built = build(&[row], None, &mut pages).pop();
         Ok(built.map(|pin| (profile, space, pin)))
     }
 
     /// Where a pin is, and its index there; None if it is gone.
     pub fn pin_place(&self, id: PinId) -> Result<Option<(PinPlace, usize)>, String> {
-        let found: Option<(String, Option<SpaceId>, Option<PinId>, i64)> = self
-            .conn
-            .query_row(
-                "SELECT profile_id, space_id, parent_id, position FROM pins WHERE id = ?1",
-                [id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-            )
-            .optional()
-            .map_err(sql)?;
-        Ok(found.map(|(profile, space, parent, position)| {
-            let place = match space {
-                Some(space) => PinPlace::Space { space, parent },
-                None => PinPlace::Favorites { profile },
+        Ok(spot(&self.conn, id)?.map(|spot| {
+            let place = match spot.space {
+                Some(space) => PinPlace::Space {
+                    space,
+                    parent: spot.parent,
+                },
+                None => PinPlace::Favorites {
+                    profile: spot.profile,
+                },
             };
-            (place, position as usize)
+            (place, spot.position as usize)
         }))
     }
 
@@ -371,34 +355,12 @@ impl Db {
     /// profile, and a folder never goes to the favourites or into itself.
     pub fn move_pin(&self, id: PinId, to: &PinPlace, index: Option<usize>) -> Result<(), String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
-        let (kind, profile, space, parent, position): (
-            String,
-            String,
-            Option<SpaceId>,
-            Option<PinId>,
-            i64,
-        ) = transaction
-            .query_row(
-                "SELECT kind, profile_id, space_id, parent_id, position FROM pins WHERE id = ?1",
-                [id],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
-                    ))
-                },
-            )
-            .optional()
-            .map_err(sql)?
-            .ok_or("That pin is gone.")?;
+        let from = kept_spot(&transaction, id)?;
         let (to_profile, to_space, to_parent) = resolve(&transaction, to)?;
-        if to_profile != profile {
+        if to_profile != from.profile {
             return Err("A pin stays with its profile.".into());
         }
-        if kind == "folder" && to_space.is_none() {
+        if from.kind == "folder" && to_space.is_none() {
             return Err("A folder can only be among a space's pins.".into());
         }
         if let Some(parent) = to_parent
@@ -406,26 +368,14 @@ impl Db {
         {
             return Err("A folder can't go into itself.".into());
         }
-        transaction
-            .execute(
-                "UPDATE pins SET position = position - 1
-                 WHERE profile_id = ?1 AND space_id IS ?2 AND parent_id IS ?3 AND position > ?4",
-                params![profile, space, parent, position],
-            )
-            .map_err(sql)?;
-        let count = siblings(&transaction, &profile, to_space, to_parent)?
+        close_gap(&transaction, &from)?;
+        let count = siblings(&transaction, &from.profile, to_space, to_parent)?
             .into_iter()
             .filter(|each| *each != id)
             .count();
-        let position = index.unwrap_or(count).min(count) as i64;
-        transaction
-            .execute(
-                "UPDATE pins SET position = position + 1
-                 WHERE profile_id = ?1 AND space_id IS ?2 AND parent_id IS ?3 AND position >= ?4
-                   AND id != ?5",
-                params![profile, to_space, to_parent, position, id],
-            )
-            .map_err(sql)?;
+        let position = position_at(index, count);
+        let place = (from.profile.as_str(), to_space, to_parent);
+        make_room(&transaction, place, position, Some(id))?;
         transaction
             .execute(
                 "UPDATE pins SET space_id = ?2, parent_id = ?3, position = ?4 WHERE id = ?1",
@@ -495,38 +445,13 @@ impl Db {
     pub fn delete_pin(&self, id: PinId) -> Result<Vec<PinId>, String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
         let deleted = descendants(&transaction, id)?;
-        let (profile, space, parent, position): (String, Option<SpaceId>, Option<PinId>, i64) =
-            transaction
-                .query_row(
-                    "SELECT profile_id, space_id, parent_id, position FROM pins WHERE id = ?1",
-                    [id],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-                )
-                .optional()
-                .map_err(sql)?
-                .ok_or("That pin is gone.")?;
+        let spot = kept_spot(&transaction, id)?;
         transaction
             .execute("DELETE FROM pins WHERE id = ?1", [id])
             .map_err(sql)?;
-        transaction
-            .execute(
-                "UPDATE pins SET position = position - 1
-                 WHERE profile_id = ?1 AND space_id IS ?2 AND parent_id IS ?3 AND position > ?4",
-                params![profile, space, parent, position],
-            )
-            .map_err(sql)?;
+        close_gap(&transaction, &spot)?;
         transaction.commit().map_err(sql)?;
         Ok(deleted)
-    }
-
-    fn pin_kind(&self, id: PinId) -> Result<String, String> {
-        self.conn
-            .query_row("SELECT kind FROM pins WHERE id = ?1", [id], |row| {
-                row.get(0)
-            })
-            .optional()
-            .map_err(sql)?
-            .ok_or_else(|| "That pin is gone.".into())
     }
 }
 
@@ -605,6 +530,75 @@ fn resolve(
             Ok((profile, Some(*space), *parent))
         }
     }
+}
+
+// Where a pin is kept: its kind, and its position among the pins of its
+// profile, space and folder.
+struct Spot {
+    kind: String,
+    profile: String,
+    space: Option<SpaceId>,
+    parent: Option<PinId>,
+    position: i64,
+}
+
+// Pin `id`'s spot, or none if it is gone.
+fn spot(conn: &Connection, id: PinId) -> Result<Option<Spot>, String> {
+    conn.query_row(
+        "SELECT kind, profile_id, space_id, parent_id, position FROM pins WHERE id = ?1",
+        [id],
+        |row| {
+            Ok(Spot {
+                kind: row.get(0)?,
+                profile: row.get(1)?,
+                space: row.get(2)?,
+                parent: row.get(3)?,
+                position: row.get(4)?,
+            })
+        },
+    )
+    .optional()
+    .map_err(sql)
+}
+
+// Pin `id`'s spot, or why not: it is gone.
+fn kept_spot(conn: &Connection, id: PinId) -> Result<Spot, String> {
+    spot(conn, id)?.ok_or_else(|| "That pin is gone.".into())
+}
+
+// The position `index` (None, or one past the last: last) is among `count`
+// pins.
+fn position_at(index: Option<usize>, count: usize) -> i64 {
+    index.unwrap_or(count).min(count) as i64
+}
+
+// Moves the pins after `spot` up into the gap it leaves.
+fn close_gap(conn: &Connection, spot: &Spot) -> Result<(), String> {
+    conn.execute(
+        "UPDATE pins SET position = position - 1
+         WHERE profile_id = ?1 AND space_id IS ?2 AND parent_id IS ?3 AND position > ?4",
+        params![spot.profile, spot.space, spot.parent, spot.position],
+    )
+    .map(drop)
+    .map_err(sql)
+}
+
+// Moves the pins of a place (profile, space, folder) from `position` on down
+// one, for a pin to take it, leaving `moving` (the pin moved there) as it is.
+fn make_room(
+    conn: &Connection,
+    (profile, space, parent): (&str, Option<SpaceId>, Option<PinId>),
+    position: i64,
+    moving: Option<PinId>,
+) -> Result<(), String> {
+    conn.execute(
+        "UPDATE pins SET position = position + 1
+         WHERE profile_id = ?1 AND space_id IS ?2 AND parent_id IS ?3 AND position >= ?4
+           AND id IS NOT ?5",
+        params![profile, space, parent, position, moving],
+    )
+    .map(drop)
+    .map_err(sql)
 }
 
 // A pin's ID, and those of everything in it, however deep.
