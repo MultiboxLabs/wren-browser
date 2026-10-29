@@ -32,6 +32,19 @@ export type Unit = {
 
 const SELECTOR = "[data-reorder-kind]";
 
+/**
+ * What a drag of a unit carries, "<kind>:<tab>": the platform needs some to
+ * start it, and what the list is dropped on outside the list (pin-drop.ts)
+ * reads it.
+ */
+export const UNIT_TYPE = "application/x-wren-unit";
+
+/** The unit a drag carries, once it is dropped; null for any other drag. */
+export function droppedUnit(data: DataTransfer): { kind: UnitKind; tab: number } | null {
+  const [kind, tab] = data.getData(UNIT_TYPE).split(":");
+  return kind && tab ? { kind: kind as UnitKind, tab: Number(tab) } : null;
+}
+
 /** The attributes that make an element of the list a unit. */
 export function reorderUnit(unit: Unit) {
   return {

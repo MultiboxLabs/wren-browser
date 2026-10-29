@@ -3,13 +3,13 @@
 // any window changes any.
 
 use serde::{Deserialize, Serialize};
-use wren::{MainThread, WebView};
+use wren::{BrowserTab, MainThread, WebView};
 
 use super::{WindowRef, with_browser, with_window};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinLayout, PinPage, PinRow, SpaceId};
 use crate::pages::icons;
-use crate::pins;
+use crate::pins::{self, PinTarget};
 use crate::shell::Place;
 
 /// A pin as the page draws it.
@@ -71,6 +71,17 @@ struct NewFolder {
     space: SpaceId,
     parent: Option<PinId>,
     /// None: last.
+    index: Option<usize>,
+}
+
+/// A tab of the window's Browser to pin, or its split: to the favourites,
+/// or among the space's pins, at the top or in a folder; at `index` there,
+/// or last.
+#[derive(Deserialize)]
+struct TabToPin {
+    tab: i32,
+    favorites: bool,
+    parent: Option<PinId>,
     index: Option<usize>,
 }
 
@@ -166,6 +177,23 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 let _ = call.fail(&error);
             }
         }
+    });
+
+    // Pins a tab, and links it: it leaves the list, drawn as the pin.
+    let weak = window.clone();
+    let _ = web_view.handle("pins.pinTab", move |pin: TabToPin| {
+        let state = weak.state()?;
+        with_browser(&weak, |window, browser| {
+            let tab = BrowserTab::from_id(mt, pin.tab)
+                .filter(|tab| tab.browser().as_ref() == Some(browser))
+                .ok_or("There is no such tab.")?;
+            let place = window.place().ok_or("The window is on no space.")?;
+            let target = match pin.favorites {
+                true => PinTarget::Favorites,
+                false => PinTarget::Space { parent: pin.parent },
+            };
+            pins::pin_tab(&state, browser, &place, tab, target, pin.index)
+        })
     });
 
     // Takes an open pin's tab back to the pin's page.

@@ -38,17 +38,13 @@ export function usePinTabs(pin: Pin): PinTab[] {
   return found.every((each) => each !== undefined) ? found : [];
 }
 
-/** A pin's page's icon: the one kept with it, or one made from its address. */
-export const PinIcon = ({ page }: { page: PinPage }) => (
-  <Favicon url={page.url} title={page.title} icon={page.favicon} />
-);
-
 /**
- * The icon a pin's page shows: its tab's while the tab is on the pin's
- * page, or else the one kept with the pin.
+ * The icon a pin's page shows: its open tab's while the tab is on the pin's
+ * page, or else the one kept with the pin (made from its address if it has
+ * none).
  */
-export function PageIcon({ page, open }: { page: PinPage; open?: PinTab }) {
-  if (!open || open.away) return <PinIcon page={page} />;
+export function PinPageIcon({ page, open }: { page: PinPage; open?: PinTab }) {
+  if (!open || open.away) return <Favicon url={page.url} title={page.title} icon={page.favicon} />;
   return <Favicon url={open.tab.url} title={open.tab.title} icon={open.tab.favicon ?? page.favicon} />;
 }
 
@@ -103,7 +99,7 @@ function TabPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, { k
         <AwayTitle pin={pin} page={pin.page} title={title} />
       ) : (
         <>
-          <PageIcon page={pin.page} open={tab} />
+          <PinPageIcon page={pin.page} open={tab} />
           <Tooltip label={title}>
             <span className="min-w-0 flex-1 truncate">{title}</span>
           </Tooltip>
@@ -120,7 +116,7 @@ function TabPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, { k
  * left edge, and the title says what it does under it; pressing it takes
  * the tab back to the pin's page, without selecting the row first.
  */
-function AwayTitle({ pin, page, title, side = 0 }: { pin: Pin; page: PinPage; title: string; side?: number }) {
+function AwayTitle({ pin, page, title }: { pin: Pin; page: PinPage; title: string }) {
   return (
     <>
       <button
@@ -128,10 +124,10 @@ function AwayTitle({ pin, page, title, side = 0 }: { pin: Pin; page: PinPage; ti
         aria-label="Back to Pinned URL"
         tabIndex={-1}
         onPointerDown={(event) => event.stopPropagation()}
-        onClick={() => pinsIpc.back(pin.id, side)}
+        onClick={() => pinsIpc.back(pin.id, 0)}
         className="peer/back -ml-2.5 flex shrink-0 items-center self-stretch rounded-l-row pr-1.5 pl-2.5 hover:bg-hover"
       >
-        <PinIcon page={page} />
+        <PinPageIcon page={page} />
       </button>
       <span aria-hidden className="-ml-2.75 shrink-0 text-[17px] font-light text-fg-3 peer-hover/back:hidden">
         /
@@ -181,7 +177,7 @@ function SplitPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, {
                 active && "bg-fill"
               )}
             >
-              <PageIcon page={page} open={half} />
+              <PinPageIcon page={page} open={half} />
               <Tooltip label={title}>
                 <span className="min-w-0 flex-1 truncate">{title}</span>
               </Tooltip>
