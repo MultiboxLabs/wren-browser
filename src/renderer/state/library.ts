@@ -172,12 +172,23 @@ export type LibrarySettings = ReturnType<typeof useSettings>;
 /**
  * The user's settings, as the app keeps them, read again each time the
  * Library opens and followed as they change, here or in another window.
- * Until they are read, they are the defaults. `update` shows a change at
- * once; if the app can't keep it, they are read again.
+ * Until they are read (`read`), they are the defaults. `update` shows a
+ * change at once; if the app can't keep it, they are read again.
  */
 export function useSettings(open: boolean) {
-  const [shown, setShown] = useState<Settings>({ archiveAfter: DEFAULT_ARCHIVE_AFTER });
-  const refresh = () => void settings.get().then(setShown, () => {});
+  const [shown, setShown] = useState<Settings>({
+    archiveAfter: DEFAULT_ARCHIVE_AFTER,
+    favoritesTipDismissed: false
+  });
+  const [read, setRead] = useState(false);
+  const refresh = () =>
+    void settings.get().then(
+      (values) => {
+        setShown(values);
+        setRead(true);
+      },
+      () => {}
+    );
   useEffect(() => {
     if (open && hasApp) refresh();
   }, [open]);
@@ -186,5 +197,5 @@ export function useSettings(open: boolean) {
     setShown((shown) => ({ ...shown, ...change }));
     if (hasApp) settings.update(change).then(setShown, refresh);
   };
-  return { values: shown, update };
+  return { values: shown, read, update };
 }

@@ -2,7 +2,11 @@
 export type ArchiveAfter = "12h" | "24h" | "7d" | "30d";
 
 /** The user's settings, as the app keeps them. */
-export type Settings = { archiveAfter: ArchiveAfter };
+export type Settings = {
+  archiveAfter: ArchiveAfter;
+  /** The user closed the box that shows where favourites go while there are none. */
+  favoritesTipDismissed: boolean;
+};
 
 export const settings = {
   get: () => wren.invoke<Settings>("settings.get"),

@@ -15,6 +15,9 @@ use super::{Db, sql};
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub archive_after: ArchiveAfter,
+    /// The user closed the box that shows where favourites go while there
+    /// are none.
+    pub favorites_tip_dismissed: bool,
 }
 
 /// What a change sets; each it leaves out stays as it is.
@@ -22,6 +25,7 @@ pub struct Settings {
 #[serde(rename_all = "camelCase")]
 pub struct SettingsChange {
     pub archive_after: Option<ArchiveAfter>,
+    pub favorites_tip_dismissed: Option<bool>,
 }
 
 /// How long a tab goes unused before it is archived.
@@ -57,6 +61,9 @@ impl Db {
             archive_after: self
                 .setting("archiveAfter")?
                 .unwrap_or(defaults.archive_after),
+            favorites_tip_dismissed: self
+                .setting("favoritesTipDismissed")?
+                .unwrap_or(defaults.favorites_tip_dismissed),
         })
     }
 
@@ -65,6 +72,9 @@ impl Db {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
         if let Some(archive_after) = change.archive_after {
             set(&transaction, "archiveAfter", &archive_after)?;
+        }
+        if let Some(dismissed) = change.favorites_tip_dismissed {
+            set(&transaction, "favoritesTipDismissed", &dismissed)?;
         }
         transaction.commit().map_err(sql)?;
         self.settings()
@@ -105,12 +115,20 @@ mod tests {
         assert_eq!(db.settings().unwrap(), Settings::default());
         let change = SettingsChange {
             archive_after: Some(ArchiveAfter::SevenDays),
+            ..SettingsChange::default()
         };
         let settings = db.update_settings(change).unwrap();
         assert_eq!(settings.archive_after, ArchiveAfter::SevenDays);
+        assert!(!settings.favorites_tip_dismissed);
+        let change = SettingsChange {
+            favorites_tip_dismissed: Some(true),
+            ..SettingsChange::default()
+        };
+        assert!(db.update_settings(change).unwrap().favorites_tip_dismissed);
         // A change that sets nothing changes nothing.
         let settings = db.update_settings(SettingsChange::default()).unwrap();
         assert_eq!(settings.archive_after, ArchiveAfter::SevenDays);
+        assert!(settings.favorites_tip_dismissed);
     }
 
     #[test]
