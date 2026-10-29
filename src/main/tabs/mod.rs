@@ -138,9 +138,8 @@ pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) ->
 }
 
 /// A tab on `url`, shown, at `index` of the list and in `group` (None:
-/// none). The page
-/// puts what is dropped on it here, so only a web address or a file's is let
-/// through.
+/// none). The page puts what is dropped on it here, so only a web address or
+/// a file's is let through.
 pub fn open_at(
     mt: MainThread,
     browser: &Browser,
@@ -154,8 +153,22 @@ pub fn open_at(
     {
         return Err(Error::InvalidArgument);
     }
-    let tab = browser.add_tab(url, Some(at_list(browser, index)), true)?;
-    move_tab(mt, browser, tab, index, group)
+    add_at(mt, browser, url, index, group, true).map(drop)
+}
+
+/// A tab on `url` at `index` of the list and in `group` (None: none),
+/// shown if `activate`.
+pub fn add_at(
+    mt: MainThread,
+    browser: &Browser,
+    url: &str,
+    index: usize,
+    group: Option<TabGroup>,
+    activate: bool,
+) -> Result<BrowserTab, Error> {
+    let tab = browser.add_tab(url, Some(at_list(browser, index)), activate)?;
+    move_tab(mt, browser, tab, index, group)?;
+    Ok(tab)
 }
 
 /// Shows `first` and `second` side by side, in a split of their own. Chromium

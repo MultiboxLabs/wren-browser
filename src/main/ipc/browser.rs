@@ -378,7 +378,7 @@ fn keep_chosen(
 
 // The group of the tab the page names, if it names one: the group a tab is to
 // be in.
-fn group_of(
+pub(super) fn group_of(
     mt: MainThread,
     browser: &Browser,
     member: Option<i32>,
@@ -391,7 +391,7 @@ fn group_of(
 }
 
 // The tab an ID from the page names, if it is the Browser's.
-fn tab(mt: MainThread, browser: &Browser, id: i32) -> Result<BrowserTab, String> {
+pub(super) fn tab(mt: MainThread, browser: &Browser, id: i32) -> Result<BrowserTab, String> {
     BrowserTab::from_id(mt, id)
         .filter(|tab| tab.browser().as_ref() == Some(browser))
         .ok_or_else(|| "There is no such tab.".into())

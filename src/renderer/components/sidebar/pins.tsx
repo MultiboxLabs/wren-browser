@@ -14,6 +14,7 @@ import { browser, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from
 import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
 import { FolderIcon } from "./folder-icon";
+import { pinDrag } from "./pin-drop";
 import { CloseButton, Disclosed, IconSlot, NESTED_INDENT, pressHandlers, Row } from "./rows";
 
 type PinProps = {
@@ -60,14 +61,13 @@ export function PinRows({ pins, ...props }: PinProps & { pins: Pin[] }) {
 }
 
 function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
-  switch (pin.kind) {
-    case "folder":
-      return <FolderRow folder={pin} {...props} />;
-    case "split":
-      return <SplitPinRow pin={pin} {...props} />;
-    case "tab":
-      return <TabPinRow pin={pin} {...props} />;
-  }
+  if (pin.kind === "folder") return <FolderRow folder={pin} {...props} />;
+  // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
+  return (
+    <div {...pinDrag(pin.id, false)} className="flex flex-col">
+      {pin.kind === "split" ? <SplitPinRow pin={pin} {...props} /> : <TabPinRow pin={pin} {...props} />}
+    </div>
+  );
 }
 
 /**

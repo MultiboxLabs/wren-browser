@@ -123,11 +123,9 @@ export function TabList({
       {/* Room after the last tab, as the list scrolls to: it does not end at the
           footer, and a tab can be dropped below the last. */}
       <div className="relative flex flex-col gap-1.25 pb-8">
-        <SpaceHeading open={pinnedOpen} onToggle={togglePinned} />
-
-        <Disclosed open={pinnedOpen}>
+        <PinnedSection open={pinnedOpen} onToggle={togglePinned}>
           <PinRows pins={pinned} selected={selected} onToggleFolder={onToggleFolder} />
-        </Disclosed>
+        </PinnedSection>
 
         <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
 
@@ -138,7 +136,7 @@ export function TabList({
 
         {/* Each tab brings its gap with it, so the list's gap goes from
             under the first. */}
-        <div className="-mt-1.25 flex flex-col">
+        <div data-tab-rows="" className="-mt-1.25 flex flex-col">
           {/* No row's layout is motion's to animate, so a row coming or going
               need not draw every other row again. */}
           <AnimatePresence initial={false} presenceAffectsLayout={false}>
@@ -188,33 +186,51 @@ export function TabList({
 }
 
 /**
- * The space's name over its pinned tabs. Hovered, its icon gives way to a
- * chevron, and a press folds the pinned tabs up or down. A tab dropped on it
- * is pinned first among them; a window on a profile has no pins to drop to.
+ * The space's name, and its pins under it while they are not folded up. A
+ * tab, or a favourite, dropped on either is pinned first among them, and the
+ * heading lights up as it would be; a window on a profile has no pins to drop
+ * to.
  */
-function SpaceHeading({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const { space, profile } = useSpace();
-  const drop = usePinDrop((tab) => void pins.pinTab(tab, { parent: null }, 0).catch(() => {}), !profile);
+function PinnedSection({ open, onToggle, children }: { open: boolean; onToggle: () => void; children: ReactNode }) {
+  const { profile } = useSpace();
+  const drop = usePinDrop({
+    takes: "favorites",
+    onTab: (tab) => void pins.pinTab(tab, { parent: null }, 0).catch(() => {}),
+    onPin: (id) => void pins.move(id, { parent: null }, 0).catch(() => {}),
+    enabled: !profile
+  });
   return (
-    <div {...drop.handlers} className="flex flex-col">
-      <Row still selected={drop.over} onPress={onToggle} className="font-semibold text-fg-3">
-        <IconSlot>
-          <span className="grid text-accent group-hover:invisible">
-            <SpaceIcon icon={space.icon} size={17} strokeWidth={1.75} />
-          </span>
-          <ChevronDown
-            size={17}
-            strokeWidth={2.75}
-            aria-label={open ? "Collapse" : "Expand"}
-            className={cn(
-              "invisible absolute glyph-3 transition-[rotate] duration-120 group-hover:visible motion-reduce:transition-none",
-              !open && "-rotate-90"
-            )}
-          />
-        </IconSlot>
-        <span className="min-w-0 flex-1 truncate">{space.name}</span>
-      </Row>
+    <div {...drop.handlers} className="flex flex-col gap-1.25">
+      <SpaceHeading open={open} onToggle={onToggle} dropping={drop.over} />
+      <Disclosed open={open}>{children}</Disclosed>
     </div>
+  );
+}
+
+/**
+ * The space's name over its pinned tabs. Hovered, its icon gives way to a
+ * chevron, and a press folds the pinned tabs up or down.
+ */
+function SpaceHeading({ open, onToggle, dropping }: { open: boolean; onToggle: () => void; dropping: boolean }) {
+  const { space } = useSpace();
+  return (
+    <Row still selected={dropping} onPress={onToggle} className="font-semibold text-fg-3">
+      <IconSlot>
+        <span className="grid text-accent group-hover:invisible">
+          <SpaceIcon icon={space.icon} size={17} strokeWidth={1.75} />
+        </span>
+        <ChevronDown
+          size={17}
+          strokeWidth={2.75}
+          aria-label={open ? "Collapse" : "Expand"}
+          className={cn(
+            "invisible absolute glyph-3 transition-[rotate] duration-120 group-hover:visible motion-reduce:transition-none",
+            !open && "-rotate-90"
+          )}
+        />
+      </IconSlot>
+      <span className="min-w-0 flex-1 truncate">{space.name}</span>
+    </Row>
   );
 }
 

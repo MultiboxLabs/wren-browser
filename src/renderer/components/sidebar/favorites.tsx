@@ -1,8 +1,8 @@
 // The favourites over the space's tabs: their tiles (favorite.tsx), three to
-// a row. While there are none, a box, outlined in dashes, says where they
-// go, until its cross puts it away for good (the app's
-// `favoritesTipDismissed`). A tab dropped on either is a favourite, last
-// among them; on the box, as it lights up.
+// a row, fewer filling the row between them. While there are none, a box,
+// outlined in dashes, says where they go, until its cross puts it away for
+// good (the app's `favoritesTipDismissed`). A tab or a pin dropped on either
+// is a favourite, last among them; on the box, as it lights up.
 
 import { Star, X } from "lucide-react";
 import { Button } from "../ui/button";
@@ -33,7 +33,12 @@ export function Favorites({
   const { profile } = useSpace();
   // An incognito window keeps none.
   const keeps = !profile?.offTheRecord;
-  const drop = usePinDrop((tab) => void pins.pinTab(tab, { favorites: true }, null).catch(() => {}), keeps);
+  const drop = usePinDrop({
+    takes: "pins",
+    onTab: (tab) => void pins.pinTab(tab, { favorites: true }, null).catch(() => {}),
+    onPin: (id) => void pins.move(id, { favorites: true }, null).catch(() => {}),
+    enabled: keeps
+  });
 
   if (favorites.length === 0) {
     const tip = keeps && read && settings.read && !settings.values.favoritesTipDismissed;
@@ -49,9 +54,10 @@ export function Favorites({
     <div
       {...drop.handlers}
       className={cn(
-        "-m-1 mt-1 grid shrink-0 grid-cols-3 gap-2 rounded-[calc(var(--radius-favorite)+4px)] p-1 transition-colors duration-120",
+        "-m-1 mt-1 grid shrink-0 gap-2 rounded-[calc(var(--radius-favorite)+4px)] p-1 transition-colors duration-120",
         drop.over && "bg-hover"
       )}
+      style={{ gridTemplateColumns: `repeat(${Math.min(favorites.length, 3)}, minmax(0, 1fr))` }}
     >
       {favorites.map((pin) => pin.kind !== "folder" && <Favorite key={pin.id} pin={pin} selected={selected} />)}
     </div>
@@ -63,16 +69,14 @@ function FavoritesTip({ onDismiss, dropping }: { onDismiss: () => void; dropping
   return (
     <div
       className={cn(
-        "relative mt-2 flex shrink-0 flex-col items-center gap-1 rounded-favorite border border-dashed border-fg-4 px-6 pt-4 pb-3.5 text-center transition-colors duration-120",
+        "relative mt-2 flex shrink-0 flex-col items-center rounded-favorite border border-dashed border-fg-4 px-5 pt-3 pb-2.5 text-center transition-colors duration-120",
         dropping && "border-fg-3 bg-hover"
       )}
     >
-      <span className="mb-1 grid size-6 place-items-center rounded-full bg-fg">
-        <Star size={13} strokeWidth={0} fill="currentColor" style={{ color: "var(--space)" }} />
-      </span>
+      <Star size={20} strokeWidth={1.75} className="mb-1.5 text-fg-2" />
       <span className="font-semibold">Drag to add Favourites</span>
-      <span className="text-fg-3">Favourites keep your most used sites and apps close</span>
-      <Button icon={X} iconSize={15} label="Close" className="no-drag absolute top-1.5 right-1.5" onClick={onDismiss} />
+      <span className="text-caption text-fg-3">Favourites keep your most used sites and apps close</span>
+      <Button icon={X} iconSize={13} label="Close" className="no-drag absolute top-1 right-1" onClick={onDismiss} />
     </div>
   );
 }
