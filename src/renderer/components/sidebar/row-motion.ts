@@ -1,7 +1,9 @@
-// How the sidebar's rows, pins and favourites come and go: one
+// How the sidebar's rows, pins and favourites come, go and are struck: one
 // set of values, so they move alike.
 
 import type { Transition } from "motion/react";
+import { useRef } from "react";
+import { prefersReducedMotion } from "../../utils/motion";
 
 /** A strong ease-out: fast from the start, so the change is seen at once, and settling gently. */
 export const EASE_OUT = [0.23, 1, 0.32, 1] as const;
@@ -30,3 +32,27 @@ export const REORDER: Transition = { duration: 0.22, ease: EASE_OUT };
 /** A tile, or the favourites' box, fading (and a tile scaling) in and out. */
 export const TILE_IN: Transition = { duration: 0.16, ease: EASE_OUT };
 export const TILE_OUT: Transition = { duration: 0.16, ease: FADE_OUT };
+
+/**
+ * An open pin whose tab is closed by its button or a middle click: struck as
+ * a press is, but deeper, and let go more slowly than it went down. Not as it
+ * closes otherwise (⌘W, its menu), which no press of it did. With Reduced
+ * Motion, it is not.
+ */
+function strike(element: HTMLElement) {
+  if (prefersReducedMotion()) return;
+  element.animate(
+    [
+      { transform: "scale(1)", easing: EASE_OUT_CSS },
+      { transform: "scale(0.95)", offset: 0.3, easing: EASE_OUT_CSS },
+      { transform: "scale(1)" }
+    ],
+    { duration: 360 }
+  );
+}
+
+/** The ref of an element to strike, and what strikes it: as its pin's tab is closed by a press. */
+export function useStrike<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  return { ref, strike: () => ref.current && strike(ref.current) };
+}
