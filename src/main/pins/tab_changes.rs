@@ -1,7 +1,9 @@
 // Keeping the tabs open for pins (open_tabs.rs) as Chromium changes them: a
 // pin's tab closes, is unpinned, leaves its split or its page, or comes back
 // with Reopen Closed Tab; a split pin's sides swap, or its layout or ratio
-// changes.
+// changes; a pin's tab is shown.
+
+use std::time::UNIX_EPOCH;
 
 use wren::{Browser, BrowserTab, Error, SplitLayout, TabSplit};
 
@@ -23,7 +25,8 @@ use crate::tabs;
 ///   (`open_tabs::end_closing`);
 /// - while a pin's tab is on the pin's page, the pin keeps its title and
 ///   favicon;
-/// - a split pin keeps its split's order, layout and ratio.
+/// - a split pin keeps its split's order, layout and ratio;
+/// - a pin keeps when its tabs were last active, as its last use.
 pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
     let all: Vec<(String, BrowserTab)> = browser
         .tabs()
@@ -65,6 +68,7 @@ pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
             changed = true;
             kept_pins = true;
         }
+        kept_pins |= keep_active(state, browser, &link, &found);
     }
     for (id, tab) in pinned {
         if open_tabs::pin_with(browser, id).is_none() && !open_tabs::is_closing(browser, id) {
@@ -244,6 +248,34 @@ fn arrange(split: TabSplit, swapped: bool, layout: SplitLayout, ratio: f64) -> R
     }
     split.set_layout(layout)?;
     split.set_ratio(ratio, false)
+}
+
+// Keeps when a whole link's tabs were last active, the latest of them, as
+// its pin's last use. Whether it changed.
+fn keep_active(
+    state: &State,
+    browser: &Browser,
+    link: &Link,
+    found: &[Option<BrowserTab>],
+) -> bool {
+    let Some(at) = found
+        .iter()
+        .flatten()
+        .filter_map(|tab| tabs::last_active(*tab).duration_since(UNIX_EPOCH).ok())
+        .map(|since| since.as_secs() as i64)
+        .max()
+    else {
+        return false;
+    };
+    if link.last_active == Some(at) {
+        return false;
+    }
+    if let Err(error) = state.db.set_pin_active(link.pin, at) {
+        eprintln!("Wren could not keep when a pin was last used: {error}");
+        return false;
+    }
+    open_tabs::update(browser, link.pin, |link| link.last_active = Some(at));
+    true
 }
 
 // A pinned tab no pin links: linked again to the tab pin it was open for

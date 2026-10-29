@@ -21,6 +21,9 @@ pub struct Link {
     pub sides: Vec<Side>,
     /// A split pin's layout and ratio, as the pin keeps them.
     pub split: Option<(SplitLayout, f64)>,
+    /// When its tabs were last active, as the pin keeps it; None until it
+    /// is first kept (`keep_active` in tab_changes.rs).
+    pub last_active: Option<i64>,
 }
 
 /// A tab open for one of a pin's pages.

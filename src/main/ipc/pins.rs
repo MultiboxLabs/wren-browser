@@ -23,6 +23,9 @@ enum Pin {
         id: PinId,
         name: Option<String>,
         page: Page,
+        /// When it was last used, in milliseconds since the epoch.
+        #[serde(rename = "lastActive")]
+        last_active: i64,
     },
     Split {
         id: PinId,
@@ -30,6 +33,8 @@ enum Pin {
         pages: [Page; 2],
         layout: Layout,
         ratio: f64,
+        #[serde(rename = "lastActive")]
+        last_active: i64,
     },
     Folder {
         id: PinId,
@@ -450,12 +455,20 @@ fn pins(rows: Vec<PinRow>) -> Vec<Pin> {
 }
 
 fn pin(row: PinRow) -> Pin {
-    let PinRow { id, name, kind } = row;
+    let PinRow {
+        id,
+        name,
+        kind,
+        last_active,
+    } = row;
+    // In milliseconds, as the page's `Date` takes it.
+    let last_active = last_active * 1000;
     match kind {
         PinKind::Tab(page) => Pin::Tab {
             id,
             name,
             page: drawn(page),
+            last_active,
         },
         PinKind::Split {
             first,
@@ -471,6 +484,7 @@ fn pin(row: PinRow) -> Pin {
                 PinLayout::Stacked => Layout::Stacked,
             },
             ratio,
+            last_active,
         },
         PinKind::Folder { open, items } => Pin::Folder {
             id,

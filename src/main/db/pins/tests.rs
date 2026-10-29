@@ -296,6 +296,18 @@ fn a_split_keeps_its_layout_ratio_and_order() {
 }
 
 #[test]
+fn a_pin_is_last_used_when_made_until_it_is_used_again() {
+    let db = db();
+    let place = top(space(&db, "a"));
+    let before = now();
+    let id = db.create_pin(&place, None, tab("https://a/")).unwrap();
+    let made = db.pin(id).unwrap().unwrap().2.last_active;
+    assert!(made >= before && made <= now());
+    db.set_pin_active(id, 42).unwrap();
+    assert_eq!(db.pin(id).unwrap().unwrap().2.last_active, 42);
+}
+
+#[test]
 fn a_pin_moves_between_places_and_both_close_up() {
     let db = db();
     let space = space(&db, "a");

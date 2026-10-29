@@ -585,6 +585,7 @@ fn link_to(id: PinId, sides: impl IntoIterator<Item = (BrowserTab, PinPage)>) ->
             })
             .collect(),
         split: None,
+        last_active: None,
     }
 }
 

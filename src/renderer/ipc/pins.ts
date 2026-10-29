@@ -3,7 +3,14 @@ export type PinPage = { url: string; title: string; favicon: string | null };
 
 /** A tab, a split or a folder the user keeps: a favourite, or one of a space's pins. */
 export type Pin =
-  | { kind: "tab"; id: number; name: string | null; page: PinPage }
+  | {
+      kind: "tab";
+      id: number;
+      name: string | null;
+      page: PinPage;
+      /** When it was last used, in milliseconds since the epoch. */
+      lastActive: number;
+    }
   | {
       kind: "split";
       id: number;
@@ -12,6 +19,7 @@ export type Pin =
       layout: "sideBySide" | "stacked";
       /** The first page's share, between 0 and 1. */
       ratio: number;
+      lastActive: number;
     }
   /** Only ever among a space's pins. */
   | { kind: "folder"; id: number; name: string; open: boolean; items: Pin[] };
