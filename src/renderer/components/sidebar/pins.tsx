@@ -64,7 +64,7 @@ function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
   if (pin.kind === "folder") return <FolderRow folder={pin} {...props} />;
   // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
   return (
-    <div {...pinDrag(pin.id, false)} className="flex flex-col">
+    <div {...pinDrag(pin, false)} className="flex flex-col">
       {pin.kind === "split" ? <SplitPinRow pin={pin} {...props} /> : <TabPinRow pin={pin} {...props} />}
     </div>
   );
@@ -195,12 +195,16 @@ function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
   const { indent = 0, onToggleFolder } = props;
   return (
     <>
-      <Row indent={indent} onPress={() => onToggleFolder(folder)}>
-        <IconSlot>
-          <FolderIcon open={folder.open} className="text-fg" />
-        </IconSlot>
-        <span className="min-w-0 flex-1 truncate font-semibold">{folder.name}</span>
-      </Row>
+      {/* Dragged, it moves among the pins with what is in it (pin-drop.ts); a
+          press that is not a drag opens or closes it. */}
+      <div {...pinDrag(folder, false)} className="flex flex-col">
+        <Row indent={indent} onClick={() => onToggleFolder(folder)}>
+          <IconSlot>
+            <FolderIcon open={folder.open} className="text-fg" />
+          </IconSlot>
+          <span className="min-w-0 flex-1 truncate font-semibold">{folder.name}</span>
+        </Row>
+      </div>
       <Disclosed open={folder.open}>
         <PinRows pins={folder.items} {...props} indent={indent + NESTED_INDENT} />
       </Disclosed>

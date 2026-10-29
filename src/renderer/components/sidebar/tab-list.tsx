@@ -4,16 +4,7 @@
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { memo, type ReactNode, useRef, useState } from "react";
-import {
-  browser,
-  type GroupColor,
-  groups,
-  type Pin,
-  type PinFolder,
-  pins,
-  type TabGroup,
-  type TabSplit
-} from "../../ipc";
+import { browser, type GroupColor, groups, type Pin, type PinFolder, type TabGroup, type TabSplit } from "../../ipc";
 import { useHoldUntil } from "../ui/hold";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
@@ -29,6 +20,7 @@ import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
 import { usePinDrop } from "./pin-drop";
+import { pinsLandingAt } from "./pin-landing";
 import { PinRows } from "./pins";
 import { CloseButton, Disclosed, IconSlot, pressHandlers, Row } from "./rows";
 
@@ -123,11 +115,16 @@ export function TabList({
       {/* Room after the last tab, as the list scrolls to: it does not end at the
           footer, and a tab can be dropped below the last. */}
       <div className="relative flex flex-col gap-1.25 pb-8">
-        <PinnedSection open={pinnedOpen} onToggle={togglePinned}>
-          <PinRows pins={pinned} selected={selected} onToggleFolder={onToggleFolder} />
-        </PinnedSection>
+        <PinnedSection
+          pinned={pinned}
+          selected={selected}
+          onToggleFolder={onToggleFolder}
+          open={pinnedOpen}
+          onToggle={togglePinned}
+        />
 
-        <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />
+        {/* Only between the pins and the tabs: with no pins, the heading needs none. */}
+        {pinned.length > 0 && <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />}
 
         <Row selected={newTabOpen} className={cn(!newTabOpen && "text-fg-3")} onPress={() => omnibox.toggle("new-tab")}>
           <Plus size={14} strokeWidth={2} className={cn("mx-px", newTabOpen ? "glyph-1" : "glyph-3")} />
@@ -186,48 +183,82 @@ export function TabList({
 }
 
 /**
- * The space's name, and its pins under it while they are not folded up. A
- * tab, or a favourite, dropped on either is pinned first among them, and the
- * heading lights up as it would be; a window on a profile has no pins to drop
- * to.
+ * The space's name, and its pins under it while they are not folded up.
+ * What is dropped on them lands among them (pin-landing.ts); on the heading,
+ * first, as it lights up. A window on a profile has no pins to drop to.
  */
-function PinnedSection({ open, onToggle, children }: { open: boolean; onToggle: () => void; children: ReactNode }) {
+function PinnedSection({
+  pinned,
+  selected,
+  onToggleFolder,
+  open,
+  onToggle
+}: {
+  pinned: Pin[];
+  selected?: number;
+  onToggleFolder: (folder: PinFolder) => void;
+  open: boolean;
+  onToggle: () => void;
+}) {
   const { profile } = useSpace();
   const drop = usePinDrop({
-    takes: "favorites",
-    onTab: (tab) => void pins.pinTab(tab, { parent: null }, 0).catch(() => {}),
-    onPin: (id) => void pins.move(id, { parent: null }, 0).catch(() => {}),
+    landingAt: (section, held, x, y) => pinsLandingAt(section, pinned, held, x, y),
+    folders: true,
     enabled: !profile
   });
   return (
-    <div {...drop.handlers} className="flex flex-col gap-1.25">
-      <SpaceHeading open={open} onToggle={onToggle} dropping={drop.over} />
-      <Disclosed open={open}>{children}</Disclosed>
+    <div {...drop.handlers} className="relative flex flex-col gap-1.25">
+      <div data-pin-heading="" className="flex flex-col">
+        <SpaceHeading foldable={pinned.length > 0} open={open} onToggle={onToggle} dropping={drop.over} />
+      </div>
+      {/* With no pins, nothing: not even its gap under the heading. */}
+      <Disclosed open={open && pinned.length > 0}>
+        <PinRows pins={pinned} selected={selected} onToggleFolder={onToggleFolder} />
+      </Disclosed>
+      {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}
     </div>
   );
 }
 
 /**
  * The space's name over its pinned tabs. Hovered, its icon gives way to a
- * chevron, and a press folds the pinned tabs up or down.
+ * chevron, and a press folds the pinned tabs up or down; with none to fold,
+ * it is only a name, and a place to drop a tab to pin.
  */
-function SpaceHeading({ open, onToggle, dropping }: { open: boolean; onToggle: () => void; dropping: boolean }) {
+function SpaceHeading({
+  foldable,
+  open,
+  onToggle,
+  dropping
+}: {
+  foldable: boolean;
+  open: boolean;
+  onToggle: () => void;
+  dropping: boolean;
+}) {
   const { space } = useSpace();
   return (
-    <Row still selected={dropping} onPress={onToggle} className="font-semibold text-fg-3">
+    <Row
+      still
+      selected={dropping}
+      onPress={foldable ? onToggle : undefined}
+      className={cn("font-semibold text-fg-3", !foldable && "hover:bg-transparent")}
+    >
       <IconSlot>
-        <span className="grid text-accent group-hover:invisible">
+        <span className={cn("grid text-accent", foldable && "group-hover:invisible")}>
           <SpaceIcon icon={space.icon} size={17} strokeWidth={1.75} />
         </span>
-        <ChevronDown
-          size={17}
-          strokeWidth={2.75}
-          aria-label={open ? "Collapse" : "Expand"}
-          className={cn(
-            "invisible absolute glyph-3 transition-[rotate] duration-120 group-hover:visible motion-reduce:transition-none",
-            !open && "-rotate-90"
-          )}
-        />
+        {foldable && (
+          <ChevronDown
+            size={17}
+            strokeWidth={2.75}
+            aria-label={open ? "Collapse" : "Expand"}
+            className={cn(
+              "invisible absolute glyph-3 transition-[rotate] duration-120 group-hover:visible motion-reduce:transition-none",
+              !open && "-rotate-90"
+            )}
+          />
+        )}
       </IconSlot>
       <span className="min-w-0 flex-1 truncate">{space.name}</span>
     </Row>

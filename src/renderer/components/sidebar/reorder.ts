@@ -14,7 +14,7 @@ import { holdForDrag, releaseDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
 import { useEdgeScroll } from "./edge-scroll";
 import { type DropMark, type Grabbed, type Held, type Landing, landingAt, OUTSIDE } from "./landing";
-import { carriesPin, droppedPin, isPinDrop } from "./pin-drop";
+import { carriesTabPin, droppedPin, isPinDrop } from "./pin-drop";
 import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
 import { draggableUnitOf, readUnit, UNIT_TYPE, type UnitKind } from "./units";
 
@@ -79,11 +79,11 @@ export function useTabReorder(order: string) {
   useLayoutEffect(() => end, []);
 
   /**
-   * What is over the list: a unit of it, or from outside it a pin, or a link
+   * What is over the list: a unit of it, or from outside it a pin (not a folder), or a link
    * if it has an address; each lands as a new tab would.
    */
   const dragged = (event: DragEvent) =>
-    held.current ?? (carriesPin(event.dataTransfer) || carriesAddress(event.dataTransfer) ? OUTSIDE : null);
+    held.current ?? (carriesTabPin(event.dataTransfer) || carriesAddress(event.dataTransfer) ? OUTSIDE : null);
 
   const move = (scroller: HTMLElement, { unit, kind, tab }: Grabbed, place: Landing) => {
     if (place?.kind !== "move") return;
@@ -137,7 +137,7 @@ export function useTabReorder(order: string) {
         // Dropping is allowed anywhere in the list; a drop where the tab is
         // does nothing.
         event.preventDefault();
-        const copies = over.kind === "outside" && !carriesPin(event.dataTransfer);
+        const copies = over.kind === "outside" && !carriesTabPin(event.dataTransfer);
         event.dataTransfer.dropEffect = place ? (copies ? "copy" : "move") : "none";
         show(place);
       },

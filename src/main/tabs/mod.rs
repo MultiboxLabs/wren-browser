@@ -137,9 +137,16 @@ pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) ->
     }
 }
 
+/// Whether an address dropped on the sidebar may open: only a web address
+/// or a file's is let through.
+pub fn is_droppable(url: &str) -> bool {
+    ["https://", "http://", "file://"]
+        .iter()
+        .any(|scheme| url.starts_with(scheme))
+}
+
 /// A tab on `url`, shown, at `index` of the list and in `group` (None:
-/// none). The page puts what is dropped on it here, so only a web address or
-/// a file's is let through.
+/// none). The page puts what is dropped on it here (`is_droppable`).
 pub fn open_at(
     mt: MainThread,
     browser: &Browser,
@@ -147,10 +154,7 @@ pub fn open_at(
     index: usize,
     group: Option<TabGroup>,
 ) -> Result<(), Error> {
-    if !["https://", "http://", "file://"]
-        .iter()
-        .any(|scheme| url.starts_with(scheme))
-    {
+    if !is_droppable(url) {
         return Err(Error::InvalidArgument);
     }
     add_at(mt, browser, url, index, group, true).map(drop)

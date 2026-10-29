@@ -103,6 +103,14 @@ struct TabToPin {
     to: To,
 }
 
+/// An address dropped on the favourites or the space's pins, to pin there.
+#[derive(Deserialize)]
+struct AddressToPin {
+    url: String,
+    #[serde(flatten)]
+    to: To,
+}
+
 /// A pin to move.
 #[derive(Deserialize)]
 struct MovePin {
@@ -221,6 +229,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             let tab = tab(mt, browser, pin.tab)?;
             let (target, index) = (pin.to.target(), pin.to.index);
             pins::pin_tab(&state, browser, &place(window)?, tab, target, index)
+        })
+    });
+
+    // Pins an address dropped on the sidebar, unopened.
+    let weak = window.clone();
+    let _ = web_view.handle("pins.addAddress", move |add: AddressToPin| {
+        let state = weak.state()?;
+        with_window(&weak, |window| {
+            let (target, index) = (add.to.target(), add.to.index);
+            pins::add_address(&state, &place(window)?, &add.url, target, index)
         })
     });
 

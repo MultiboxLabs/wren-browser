@@ -32,7 +32,7 @@ export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; sele
   );
   return (
     // Dragged out, it is a pin, or an ordinary tab (pin-drop.ts).
-    <div {...pinDrag(pin.id, true)} className="grid">
+    <div {...pinDrag(pin, true)} className="grid">
       <Button
         variant="filled"
         shape="none"
