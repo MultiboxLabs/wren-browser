@@ -10,6 +10,7 @@
 
 import { type DragEvent, type PointerEvent, useLayoutEffect, useRef, useState } from "react";
 import { browser, pins, type TabUnit } from "../../ipc";
+import { noteDrop } from "./arrival";
 import { holdForDrag, releaseDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
 import { useDropSide } from "./drop-side";
@@ -158,6 +159,7 @@ export function useTabReorder(order: string) {
         const place = landingAt(scroller, own ?? OUTSIDE, event.clientX, event.clientY);
         end();
         if (!place) return;
+        noteDrop(event.clientX, event.clientY);
         if (pin !== null) {
           if (place.kind === "move") pins.toList(pin, place.index, place.group).catch(() => {});
         } else if (!own) {

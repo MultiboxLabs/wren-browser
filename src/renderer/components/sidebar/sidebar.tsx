@@ -15,6 +15,7 @@ import { scaleTo } from "../../utils/motion";
 import { DownloadFlights } from "../downloads/flight";
 import { Indicator } from "../downloads/indicator";
 import { Shelf, useShelf } from "../downloads/shelf";
+import { ArrivalScope } from "./arrival";
 import { Favorites } from "./favorites";
 import { usePinActions } from "./pin-actions";
 import { NewSpaceForm } from "./new-space";
@@ -23,6 +24,7 @@ import { SpaceSwitcher } from "./space-switcher";
 import { TabList } from "./tab-list";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
 import { useDownloadIndicator } from "../../state/downloads";
+import { useSettings } from "../../state/library";
 import { usePins } from "../../state/pins";
 import { useSpace } from "../../state/space";
 import { SLIDE } from "../../state/space-slide";
@@ -188,19 +190,33 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
 /** What the sidebar shows of the space, below its toolbar: the address, the favourites, the pins and the tabs. */
 function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "address">) {
   const { space, profile } = useSpace();
-  const { current } = useBrowser();
+  const { current, ready } = useBrowser();
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
+  const settings = useSettings(true);
   const { actions, dialog } = usePinActions(pins.toggleFolder);
   // The tab drawn selected, as a pin's or a favourite's too; none while the
   // omnibox for a new tab is open.
   const selected = omnibox.shown?.target === "new-tab" ? undefined : current?.id;
+  // The space's tabs, pins and settings are read after it is shown, as it
+  // comes in. Once they are, what shows them is made anew, so what is there
+  // from the start is simply there, rather than coming in as if it were new
+  // (rows growing in, the pins unfolding); only what changes after moves.
+  const read = ready && pins.read && settings.read ? "read" : "reading";
   return (
-    <>
+    // Where its tabs and pins were is its own (arrival.ts).
+    <ArrivalScope>
       <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
-      <Favorites favorites={pins.favorites} read={pins.read} selected={selected} actions={actions} />
-      <TabList omnibox={omnibox} pinned={pins.pinned} pinActions={actions} />
+      <Favorites
+        key={`favorites-${read}`}
+        favorites={pins.favorites}
+        read={pins.read}
+        settings={settings}
+        selected={selected}
+        actions={actions}
+      />
+      <TabList key={`tabs-${read}`} omnibox={omnibox} pinned={pins.pinned} pinActions={actions} />
       {dialog}
-    </>
+    </ArrivalScope>
   );
 }

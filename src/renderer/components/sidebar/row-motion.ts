@@ -1,0 +1,32 @@
+// How the sidebar's rows, pins and favourites come and go: one
+// set of values, so they move alike.
+
+import type { Transition } from "motion/react";
+
+/** A strong ease-out: fast from the start, so the change is seen at once, and settling gently. */
+export const EASE_OUT = [0.23, 1, 0.32, 1] as const;
+export const EASE_OUT_CSS = `cubic-bezier(${EASE_OUT.join(", ")})`;
+
+/** A gentle ease for a fade out, which a strong ease-out would end in its first frames. */
+const FADE_OUT = [0.25, 0.1, 0.25, 1] as const;
+
+/**
+ * A row growing in: its room opens, and it fades in over the end of it, so
+ * nothing is seen squeezed. Shrinking out, as it closes or goes: it fades
+ * away, quickly but seen, and its room closes as it does, a little after.
+ */
+export const ROW_IN: Transition = {
+  height: { duration: 0.18, ease: EASE_OUT },
+  opacity: { duration: 0.14, delay: 0.05, ease: EASE_OUT }
+};
+export const ROW_OUT: Transition = {
+  opacity: { duration: 0.16, ease: FADE_OUT },
+  height: { duration: 0.2, delay: 0.06, ease: EASE_OUT }
+};
+
+/** A pin or a favourite sliding to its new place in its list, as another comes, goes or moves. */
+export const REORDER: Transition = { duration: 0.22, ease: EASE_OUT };
+
+/** A tile, or the favourites' box, fading (and a tile scaling) in and out. */
+export const TILE_IN: Transition = { duration: 0.16, ease: EASE_OUT };
+export const TILE_OUT: Transition = { duration: 0.16, ease: FADE_OUT };
