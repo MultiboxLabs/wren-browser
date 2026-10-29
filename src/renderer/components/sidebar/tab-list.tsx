@@ -26,6 +26,10 @@ import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
 // the gap, in 0.12s.
 const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
 
+// The space's pinned tabs fold up under its heading, and down again, as a
+// disclosed section of a list does on macOS.
+const pinnedTransition = { duration: 0.2, ease: "easeInOut" } as const;
+
 // The app makes each change, and the page hears it back as new tabs. Only
 // the Browser's tabs are real: the made-up favourites and pinned ones do
 // nothing yet.
@@ -64,6 +68,15 @@ export function TabList({ omnibox }: { omnibox: OmniboxState }) {
   const { space, toggleFolder } = useSpace();
   const { tabs, groups: tabGroups, splits, current } = useBrowser();
   const [renaming, setRenaming] = useState<string | null>(null);
+  // The spaces whose pinned tabs are folded up, as long as the window is open.
+  const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());
+  const pinnedOpen = !folded.has(space.id);
+  const togglePinned = () =>
+    setFolded((folded) => {
+      const next = new Set(folded);
+      if (!next.delete(space.id)) next.add(space.id);
+      return next;
+    });
   // The omnibox for a new tab is open: the New Tab row shows as selected,
   // and the tab we are on does not.
   const newTabOpen = omnibox.shown?.target === "new-tab";
@@ -110,22 +123,17 @@ export function TabList({ omnibox }: { omnibox: OmniboxState }) {
       {/* Room after the last tab, as the list scrolls to: it does not end at the
           footer, and a tab can be dropped below the last. */}
       <div className="relative flex flex-col gap-1.25 pb-8">
-        <div className="flex h-9 items-center gap-2.75 pl-2.5 font-semibold text-fg-3">
-          <IconSlot>
-            <span className="grid text-accent">
-              <SpaceIcon icon={space.icon} size={17} strokeWidth={1.75} />
-            </span>
-          </IconSlot>
-          {space.name}
-        </div>
+        <SpaceHeading open={pinnedOpen} onToggle={togglePinned} />
 
-        {space.pinned.map((item) =>
-          isFolder(item) ? (
-            <FolderRow key={item.id} folder={item} {...props} />
-          ) : (
-            <TabRow key={item.id} tab={item} {...props} />
-          )
-        )}
+        <Disclosed open={pinnedOpen}>
+          {space.pinned.map((item) =>
+            isFolder(item) ? (
+              <FolderRow key={item.id} folder={item} {...props} />
+            ) : (
+              <TabRow key={item.id} tab={item} {...props} />
+            )
+          )}
+        </Disclosed>
 
         {space.pinned.length > 0 && <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />}
 
@@ -209,6 +217,7 @@ function Row({
   selected,
   active,
   indent = 0,
+  still,
   className,
   onPress,
   onClick,
@@ -220,6 +229,8 @@ function Row({
   /** The row of the active tab, which the list scrolls to. */
   active?: boolean;
   indent?: number;
+  /** Not scaled as it is pressed. */
+  still?: boolean;
   className?: string;
   onPress?: () => void;
   /** For a row that can be dragged: what a press does is done once it is a click, which a drag is not. */
@@ -230,7 +241,7 @@ function Row({
 }) {
   return (
     <motion.div
-      {...press(0.985)}
+      {...(still ? {} : press(0.985))}
       role="button"
       tabIndex={-1}
       aria-pressed={selected}
@@ -260,11 +271,62 @@ function Row({
   );
 }
 
+/**
+ * The space's name over its pinned tabs. Hovered, its icon gives way to a
+ * chevron, and a press folds the pinned tabs up or down.
+ */
+function SpaceHeading({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const { space } = useSpace();
+  return (
+    <Row still onPress={onToggle} className="font-semibold text-fg-3">
+      <IconSlot>
+        <span className="grid text-accent group-hover:invisible">
+          <SpaceIcon icon={space.icon} size={17} strokeWidth={1.75} />
+        </span>
+        <ChevronDown
+          size={17}
+          strokeWidth={2.75}
+          aria-label={open ? "Collapse" : "Expand"}
+          className={cn(
+            "invisible absolute glyph-3 transition-[rotate] duration-120 group-hover:visible motion-reduce:transition-none",
+            !open && "-rotate-90"
+          )}
+        />
+      </IconSlot>
+      <span className="min-w-0 flex-1 truncate">{space.name}</span>
+    </Row>
+  );
+}
+
+/**
+ * Rows under a heading that fold up into it and down out of it, clipped as
+ * they go; with Reduced Motion they only fade. The gap above them goes with
+ * them.
+ */
+function Disclosed({ open, children }: { open: boolean; children: ReactNode }) {
+  const still = useReducedMotion();
+  return (
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div
+          initial={{ height: still ? "auto" : 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: still ? "auto" : 0, opacity: 0 }}
+          transition={pinnedTransition}
+          className="-mt-1.25 shrink-0 overflow-hidden"
+        >
+          <div className="flex flex-col gap-1.25 pt-1.25">{children}</div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 /** The icon column of a row, a favicon wide: a larger icon (a folder's, the space's) overflows it evenly. */
 function IconSlot({ children }: { children: ReactNode }) {
   // Flex, not grid: grid would align an icon wider than the slot to its
   // start and let it overflow only to the right.
-  return <span className="flex size-4 shrink-0 items-center justify-center">{children}</span>;
+  return <span className="relative flex size-4 shrink-0 items-center justify-center">{children}</span>;
 }
 
 function TabRow({
