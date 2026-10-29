@@ -14,6 +14,7 @@ export * from "./icons";
 export * from "./menu";
 export * from "./omnibox";
 export * from "./perf";
+export * from "./pins";
 export * from "./profiles";
 export * from "./quit";
 export * from "./settings";

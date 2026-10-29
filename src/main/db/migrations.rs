@@ -72,4 +72,35 @@ pub const MIGRATIONS: &[&str] = &[
       value TEXT NOT NULL
     );
     ",
+    // Pins: tabs, splits and folders the user keeps, drawn as favourites
+    // (`space_id` NULL: the profile's) or as a space's pins. A folder is only
+    // ever among a space's pins. Positions are dense, from 0, among the pins
+    // of one place: (profile_id, space_id, parent_id). A tab pin has one
+    // page (side 0), a split pin two.
+    "
+    CREATE TABLE pins (
+      id INTEGER PRIMARY KEY,
+      profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      space_id INTEGER REFERENCES spaces(id) ON DELETE CASCADE,
+      parent_id INTEGER REFERENCES pins(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('tab', 'split', 'folder')),
+      name TEXT,
+      open INTEGER NOT NULL DEFAULT 1,
+      layout TEXT CHECK (layout IN ('side-by-side', 'stacked')),
+      ratio REAL,
+      position INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      CHECK (kind != 'folder' OR (space_id IS NOT NULL AND name IS NOT NULL)),
+      CHECK (parent_id IS NULL OR space_id IS NOT NULL)
+    );
+    CREATE INDEX pins_by_place ON pins(profile_id, space_id, parent_id, position);
+    CREATE TABLE pin_pages (
+      pin_id INTEGER NOT NULL REFERENCES pins(id) ON DELETE CASCADE,
+      side INTEGER NOT NULL CHECK (side IN (0, 1)),
+      url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      favicon BLOB,
+      PRIMARY KEY (pin_id, side)
+    );
+    ",
 ];

@@ -9,6 +9,7 @@ mod menus;
 mod pages;
 mod platform;
 mod perf;
+mod pins;
 mod shell;
 mod sidebar;
 mod tabs;

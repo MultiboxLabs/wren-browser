@@ -9,6 +9,20 @@ use super::group::group_name;
 use crate::platform;
 use crate::tabs;
 
+/// Where a tab's menu can keep it, as the window it is in allows.
+#[derive(Clone, Copy)]
+pub struct Keeps {
+    /// Add to Favourites: not in an off-the-record window.
+    pub favorites: bool,
+    /// Pin Tab: only in a window on a space.
+    pub pins: bool,
+}
+
+/// What `done` hears for Pin Tab and Add to Favourites, which its caller
+/// does, as it knows the window's place.
+pub const PIN_TAB: &str = "pin-tab";
+pub const ADD_FAVORITE: &str = "add-favorite";
+
 /// Shows a tab's menu at `point` in the page's `view`, acts on what is
 /// chosen, and calls `done` with its ID, or None.
 pub fn show_tab_menu(
@@ -17,6 +31,7 @@ pub fn show_tab_menu(
     browser: &Browser,
     tab: BrowserTab,
     point: (f64, f64),
+    keeps: Keeps,
     done: impl FnOnce(Option<String>) + 'static,
 ) -> Result<(), Error> {
     // Among the list's tabs: a pin's tab is never closed with them.
@@ -34,6 +49,12 @@ pub fn show_tab_menu(
     let mut items = vec![
         MenuItem::item("reload", "Reload"),
         MenuItem::item("copy-link", "Copy Link"),
+        MenuItem::Separator,
+        enabled(MenuItem::item(PIN_TAB, "Pin Tab"), keeps.pins),
+        enabled(
+            MenuItem::item(ADD_FAVORITE, "Add to Favourites"),
+            keeps.favorites,
+        ),
         MenuItem::Separator,
         MenuItem::item("new-group", "Add Tab to New Group"),
     ];

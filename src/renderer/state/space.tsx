@@ -1,9 +1,8 @@
 // The space the window shows: the app's, with its name, icon and colour, and
-// the spaces it can switch to. Its tabs are the Browser's; until favourites
-// and pinned tabs are real too, those are made up here, the same for every
-// space, and so is the space drawn before the window knows its own, and
-// outside the app. A window on a profile shows a space made up for the
-// profile, and has none to switch to.
+// the spaces it can switch to. Its tabs are the Browser's (browser.tsx), its
+// favourites and pins the app's (pins.ts). The space drawn before the window
+// knows its own, and outside the app, is made up here. A window on a profile
+// shows a space made up for the profile, and has none to switch to.
 // A window on no space, while the user makes one, shows that one as it is so
 // far (new-space.ts). A popup's window is on its profile, and takes the
 // colour of the space it was opened from, if it was from one.
@@ -27,9 +26,9 @@ import { useProfiles, useSpaces } from "./library";
 import { NO_PROFILE_COLOR, type NewSpaceState, type SpaceDraft, useNewSpace } from "./new-space";
 import { type SpaceSlide, useSpaceSlide } from "./space-slide";
 
-/** A tab of the Browser, by its ID, or a made-up favourite or pinned one, by its address. */
+/** A tab of the Browser. */
 export type Tab = {
-  id: number | string;
+  id: number;
   title: string;
   url: string;
   favicon?: string | null;
@@ -38,8 +37,6 @@ export type Tab = {
   /** A tab of the Browser's split's ID. */
   split?: string | null;
 };
-/** A folder of pinned tabs, and of folders of its own. */
-export type Folder = { id: string; title: string; open: boolean; items: (Tab | Folder)[] };
 export type Space = {
   /** Its ID in the app's database; 0 for a made-up one, and `NEW_SPACE` for the one being made. */
   id: number;
@@ -59,25 +56,7 @@ export type Space = {
    * over the window (menus, popovers, the omnibox) takes the system's.
    */
   scheme: "light" | "dark";
-  favorites: Tab[];
-  pinned: (Tab | Folder)[];
 };
-
-export const isFolder = (item: Tab | Folder): item is Folder => "items" in item;
-
-/** The tabs among `items`, and in their folders, however deep. */
-export const tabsIn = (items: (Tab | Folder)[]): Tab[] =>
-  items.flatMap((item) => (isFolder(item) ? tabsIn(item.items) : [item]));
-
-/** `items` with `folder` opened or closed, wherever it is among them. */
-const toggled = (items: (Tab | Folder)[], folder: Folder): (Tab | Folder)[] =>
-  items.map((item) =>
-    item === folder
-      ? { ...folder, open: !folder.open }
-      : isFolder(item)
-        ? { ...item, items: toggled(item.items, folder) }
-        : item
-  );
 
 /** The ID the space being made is drawn with, and has its place by, after the last space. */
 export const NEW_SPACE = -1;
@@ -89,47 +68,13 @@ export const NEW_SPACE = -1;
  */
 export const themeKey = ({ id, theme }: Space) => (id === NEW_SPACE ? "new-space" : JSON.stringify(theme));
 
-const tab = (title: string, url: string): Tab => ({ id: url, title, url });
-
 export const personal: Space = {
   id: 0,
   name: "Personal",
   icon: "lucide:orbit",
   theme: defaultTheme("#6f00ff"),
   color: "#6f00ff",
-  scheme: "dark",
-  favorites: [
-    tab("Mail", "https://mail.example.com/"),
-    tab("Chat", "https://chat.example.com/"),
-    tab("Calendar", "https://calendar.example.com/"),
-    tab("Notes", "https://notes.example.com/"),
-    tab("Videos", "https://videos.example.com/"),
-    tab("Music", "https://music.example.com/")
-  ],
-  pinned: [
-    tab("Search", "https://search.example.com/"),
-    {
-      id: "folder-reading",
-      title: "Reading",
-      open: true,
-      items: [
-        tab("Chromium Architecture", "https://docs.example.com/chromium"),
-        {
-          id: "folder-papers",
-          title: "Papers",
-          open: true,
-          items: [
-            tab("Site Isolation", "https://papers.example.com/site-isolation"),
-            tab("Compositing", "https://papers.example.com/compositing")
-          ]
-        },
-        tab("Rust Book", "https://docs.example.com/rust")
-      ]
-    },
-    tab("Wren Runtime", "https://code.example.com/wren-runtime"),
-    { id: "folder-work", title: "Work", open: false, items: [tab("Tickets", "https://tickets.example.com/")] },
-    tab("Inbox", "https://mail.example.com/inbox")
-  ]
+  scheme: "dark"
 };
 
 /** A space as the window draws it, by its ID, or 0 for a made-up one. */
@@ -139,9 +84,7 @@ const drawn = (id: number, { name, icon, theme }: NewSpace): Space => ({
   icon,
   theme,
   color: primaryHex(theme),
-  scheme: contentScheme(theme),
-  favorites: [],
-  pinned: []
+  scheme: contentScheme(theme)
 });
 
 /** A profile's off-the-record side is drawn all but black, whatever the profile's colour. */
@@ -178,8 +121,6 @@ type SpaceState = {
   showNow: (id: number) => void;
   /** How the sidebar's content moves as the space changes. */
   slide: SpaceSlide;
-  /** Opens a folder of its pinned tabs, or closes it. */
-  toggleFolder: (folder: Folder) => void;
 };
 
 const SpaceContext = createContext<SpaceState | null>(null);
@@ -193,10 +134,6 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const making = onSpace?.kind === "newSpace";
   const [profile, setProfile] = useState<WindowProfile | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.profile, appWindow.onProfile, setProfile) : undefined), []);
-  // The made-up space, whose favourites and pinned tabs every space shows,
-  // and whose folders open and close here.
-  const [madeUp, setMadeUp] = useState<Space>(personal);
-
   const spaces = useMemo(() => (profile ? [] : (entries ?? [])), [entries, profile]);
   // Where the window is among the spaces: the one being made is after the last.
   const at = making ? NEW_SPACE : current;
@@ -208,21 +145,21 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const profileEntry = profile ? listed?.find(({ id }) => id === profile.id) : undefined;
   const openedFrom = popup?.space != null ? entries?.find(({ id }) => id === popup.space) : undefined;
   // Until the spaces are read, the made-up one stands in, as the window's.
-  // Whichever it is, it shows the made-up favourites and pinned tabs.
-  const space = useMemo(() => {
-    const shown = openedFrom
-      ? drawn(openedFrom.id, openedFrom)
-      : profile
-        ? ofProfile(profile, profileEntry)
-        : draft
-          ? ofDraft(draft)
-          : entry
-            ? drawn(entry.id, entry)
-            : current === null
-              ? madeUp
-              : { ...madeUp, id: current };
-    return { ...shown, favorites: madeUp.favorites, pinned: madeUp.pinned };
-  }, [openedFrom, profile, profileEntry, draft, entry, madeUp, current]);
+  const space = useMemo(
+    () =>
+      openedFrom
+        ? drawn(openedFrom.id, openedFrom)
+        : profile
+          ? ofProfile(profile, profileEntry)
+          : draft
+            ? ofDraft(draft)
+            : entry
+              ? drawn(entry.id, entry)
+              : current === null
+                ? personal
+                : { ...personal, id: current },
+    [openedFrom, profile, profileEntry, draft, entry, current]
+  );
 
   // The content slides out toward `to`'s place, then `then` runs; at once
   // if either has no place.
@@ -242,11 +179,6 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const latestShow = useRef(show);
   latestShow.current = show;
   useEffect(() => (hasApp ? appWindow.onChooseSpace((id) => latestShow.current(id)) : undefined), []);
-  const toggleFolder = (folder: Folder) =>
-    setMadeUp((space) => ({
-      ...space,
-      pinned: toggled(space.pinned, folder)
-    }));
   const startNewSpace = (profile?: string) => {
     if (!making) leaveFor(NEW_SPACE, () => newSpace.start(profile ?? entry?.profile));
   };
@@ -262,8 +194,7 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
         moveSpace,
         show,
         showNow,
-        slide,
-        toggleFolder
+        slide
       }}
     >
       {children}

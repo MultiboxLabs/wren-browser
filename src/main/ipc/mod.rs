@@ -12,6 +12,7 @@ mod groups;
 mod menu;
 mod omnibox;
 mod perf;
+mod pins;
 mod profiles;
 mod quit;
 mod settings;
@@ -46,6 +47,7 @@ pub use menu::send_toggle_sidebar;
 pub use omnibox::{
     OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox, stop_omnibox,
 };
+pub use pins::broadcast_pins;
 pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
 pub use side_panel::send_side_panel;
 pub use site::send_site;
@@ -96,6 +98,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     profiles::handle(web_view, window, mt);
     ad_block::handle(web_view, window, mt);
     spaces::handle(web_view, window, mt);
+    pins::handle(web_view, window);
     tab_switcher::handle(web_view, window);
     downloads::handle(web_view, window, mt);
 }
