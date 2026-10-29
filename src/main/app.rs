@@ -429,6 +429,12 @@ impl App for Wren {
         if id == menus::CLOSE_TAB {
             return self.state.close_tab(mt, &window);
         }
+        if let Some(number) = id
+            .strip_prefix(menus::FAVORITE)
+            .and_then(|n| n.parse::<usize>().ok())
+        {
+            return pins::open_favorite(&self.state, mt, &window, number.saturating_sub(1));
+        }
         let Some(browser) = window.browser() else {
             return;
         };

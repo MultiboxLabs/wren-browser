@@ -33,6 +33,8 @@ pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
 /// A space's item is this and the space's ID.
 pub const SPACE: &str = "space:";
+/// The items for ⌘1 to ⌘9 are this and the favourite's number, from 1.
+pub const FAVORITE: &str = "favorite:";
 
 /// What the window in front allows of the items that act on it.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -201,6 +203,10 @@ fn main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) -> Vec<
             vec![
                 MenuItem::chromium(Command::SelectNextTab),
                 MenuItem::chromium(Command::SelectPreviousTab),
+            ]
+            .into_iter()
+            .chain(favorite_items())
+            .chain([
                 MenuItem::Separator,
                 MenuItem::chromium(Command::DuplicateTab),
                 MenuItem::chromium(Command::MuteSite),
@@ -228,7 +234,8 @@ fn main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) -> Vec<
                     key: None,
                     enabled: true,
                 },
-            ],
+            ])
+            .collect(),
         ),
         system(
             MenuRole::Window,
@@ -309,6 +316,20 @@ fn space_items(spaces: &[(SpaceId, String)]) -> Vec<MenuItem> {
             }
         })
         .collect()
+}
+
+// ⌘1 to ⌘9, which open the key window's favourites in their order, or
+// select their tabs, in place of Chromium's own, which select its tabs.
+// Hidden: their keys run them all the same.
+fn favorite_items() -> impl Iterator<Item = MenuItem> {
+    (1..=9).map(|number| MenuItem::Item {
+        id: format!("{FAVORITE}{number}"),
+        label: format!("Open Favourite {number}"),
+        enabled: true,
+        checked: false,
+        hidden: true,
+        key: Some(MenuKey::new(number.to_string(), MenuModifiers::PRIMARY)),
+    })
 }
 
 // For working on the app, in a development build only.
