@@ -9,7 +9,7 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
-use wren::{Browser, BrowserTab};
+use wren::{Browser, BrowserTab, SplitLayout};
 
 use crate::db::{PinId, PinPage};
 
@@ -19,6 +19,8 @@ pub struct Link {
     pub pin: PinId,
     /// Its tab, or a split pin's two, in the pin's order.
     pub sides: Vec<Side>,
+    /// A split pin's layout and ratio, as the pin keeps them.
+    pub split: Option<(SplitLayout, f64)>,
 }
 
 /// A tab open for one of a pin's pages.
@@ -29,6 +31,16 @@ pub struct Side {
     /// The pin's page as it keeps it: the tab is away once it leaves its
     /// address, and only a change of its title or favicon is kept again.
     pub page: PinPage,
+}
+
+impl Link {
+    /// The link, of a split pin whose split is as `layout` and `ratio` say.
+    pub fn with_split(self, layout: SplitLayout, ratio: f64) -> Link {
+        Link {
+            split: Some((layout, ratio)),
+            ..self
+        }
+    }
 }
 
 thread_local! {

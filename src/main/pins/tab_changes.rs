@@ -1,11 +1,12 @@
 // Keeping the tabs open for pins (open_tabs.rs) as Chromium changes them: a
 // pin's tab closes, is unpinned, leaves its split or its page, or comes back
-// with Reopen Closed Tab.
+// with Reopen Closed Tab; a split pin's sides swap, or its layout or ratio
+// changes.
 
-use wren::{Browser, BrowserTab};
+use wren::{Browser, BrowserTab, Error, SplitLayout, TabSplit};
 
 use super::open_tabs::{self, Link, Side};
-use super::{is_away, link_to};
+use super::{is_away, link_to, pin_layout, tab_with};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinRow};
 use crate::tabs;
@@ -21,7 +22,8 @@ use crate::tabs;
 ///   it closed, or else unpinned, unless it is closing for a pin
 ///   (`open_tabs::end_closing`);
 /// - while a pin's tab is on the pin's page, the pin keeps its title and
-///   favicon.
+///   favicon;
+/// - a split pin keeps its split's order, layout and ratio.
 pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
     let all: Vec<(String, BrowserTab)> = browser
         .tabs()
@@ -40,7 +42,7 @@ pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
     };
     open_tabs::settle_closing(browser, |id| all.iter().any(|(each, _)| each == id));
     let mut changed = false;
-    let mut kept_look = false;
+    let mut kept_pins = false;
     for link in open_tabs::of(browser) {
         let found: Vec<Option<BrowserTab>> = link
             .sides
@@ -55,8 +57,13 @@ pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
         }
         for (index, (side, tab)) in link.sides.iter().zip(&found).enumerate() {
             if let Some(tab) = tab {
-                kept_look |= keep_look(state, browser, link.pin, index, side, *tab);
+                kept_pins |= keep_look(state, browser, link.pin, index, side, *tab);
             }
+        }
+        // After its look, which is kept by side as the link has them.
+        if keep_split(state, browser, &link, &found) {
+            changed = true;
+            kept_pins = true;
         }
     }
     for (id, tab) in pinned {
@@ -65,7 +72,7 @@ pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
             relink(state, browser, id, *tab);
         }
     }
-    if kept_look {
+    if kept_pins {
         crate::ipc::broadcast_pins(state);
     }
     changed
@@ -87,7 +94,7 @@ pub fn drop_restored(browser: &Browser) {
 // Whether a link's tabs are all open and pinned, and a split pin's two are
 // still one split.
 fn is_whole(found: &[Option<BrowserTab>]) -> bool {
-    let split = |tab: &Option<BrowserTab>| tab.and_then(|tab| tab.state().ok()?.split);
+    let split = |tab: &Option<BrowserTab>| tab.and_then(tabs::split_of);
     match found {
         [Some(_)] => true,
         [first @ Some(_), second @ Some(_)] => {
@@ -142,7 +149,10 @@ fn keep_side(
         }
     }
     let side = link.sides[kept].clone();
-    open_tabs::update(browser, link.pin, |link| link.sides = vec![side]);
+    open_tabs::update(browser, link.pin, |link| {
+        link.sides = vec![side];
+        link.split = None;
+    });
     crate::ipc::broadcast_pins(state);
 }
 
@@ -179,6 +189,61 @@ fn keep_look(
         page.favicon = favicon;
     });
     true
+}
+
+// Keeps a whole split pin's split as the pin's, as the user swaps its sides,
+// changes its layout or lets go of its divider. Whether it changed. The
+// pin's tabs in other Browsers are made a split alike, so each link keeps
+// its sides in the pin's order.
+fn keep_split(state: &State, browser: &Browser, link: &Link, found: &[Option<BrowserTab>]) -> bool {
+    let (Some(kept), [Some(tab), Some(_)]) = (link.split, found) else {
+        return false;
+    };
+    let Some(now) = tabs::split_of(*tab).and_then(|split| split.state().ok()) else {
+        return false;
+    };
+    let swapped = now
+        .first
+        .is_some_and(|first| first.persistent_id() == link.sides[1].tab);
+    if !swapped && (now.layout, now.ratio) == kept {
+        return false;
+    }
+    let layout = pin_layout(now.layout);
+    if let Err(error) = state.db.set_pin_split(link.pin, layout, now.ratio, swapped) {
+        eprintln!("Wren could not keep a split pin's split: {error}");
+        return false;
+    }
+    for window in state.windows.all() {
+        for each in window.browsers() {
+            let Some(other) = open_tabs::find(&each, link.pin).filter(|link| link.sides.len() == 2)
+            else {
+                continue;
+            };
+            open_tabs::update(&each, link.pin, |link| {
+                if swapped {
+                    link.sides.reverse();
+                }
+                link.split = Some((now.layout, now.ratio));
+            });
+            let split = tab_with(&each, &other.sides[0].tab).and_then(tabs::split_of);
+            if each != *browser
+                && let Some(split) = split
+                && let Err(error) = arrange(split, swapped, now.layout, now.ratio)
+            {
+                eprintln!("Wren could not change a split pin's tabs: {error:?}");
+            }
+        }
+    }
+    true
+}
+
+// Swaps a split's sides if `swapped`, and gives it `layout` and `ratio`.
+fn arrange(split: TabSplit, swapped: bool, layout: SplitLayout, ratio: f64) -> Result<(), Error> {
+    if swapped {
+        split.swap_tabs()?;
+    }
+    split.set_layout(layout)?;
+    split.set_ratio(ratio, false)
 }
 
 // A pinned tab no pin links: linked again to the tab pin it was open for

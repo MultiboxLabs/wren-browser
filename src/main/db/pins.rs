@@ -350,6 +350,42 @@ impl Db {
             .map_err(sql)
     }
 
+    /// Keeps a split pin's layout and ratio, and, `swapped`, its two pages
+    /// the other way round.
+    pub fn set_pin_split(
+        &self,
+        id: PinId,
+        layout: PinLayout,
+        ratio: f64,
+        swapped: bool,
+    ) -> Result<(), String> {
+        let transaction = self.conn.unchecked_transaction().map_err(sql)?;
+        let changed = transaction
+            .execute(
+                "UPDATE pins SET layout = ?2, ratio = ?3 WHERE id = ?1 AND kind = 'split'",
+                params![id, layout.text(), ratio],
+            )
+            .map_err(sql)?;
+        if changed == 0 {
+            return Err("That pin is not a split.".into());
+        }
+        // The pages swap what they hold, not their sides, which would each
+        // be the other's for a moment, as their key refuses.
+        if swapped {
+            let pages = self.pages("id = ?1", id)?.remove(&id).unwrap_or_default();
+            for (side, page) in pages.iter().rev().enumerate() {
+                transaction
+                    .execute(
+                        "UPDATE pin_pages SET url = ?3, title = ?4, favicon = ?5
+                         WHERE pin_id = ?1 AND side = ?2",
+                        params![id, side as i64, page.url, page.title, page.favicon],
+                    )
+                    .map_err(sql)?;
+            }
+        }
+        transaction.commit().map_err(sql)
+    }
+
     /// Moves a pin to `index` (None, or one past the last: last) among the
     /// pins of `to`, the pins of both places closing up. A pin stays with its
     /// profile, and a folder never goes to the favourites or into itself.
