@@ -1,7 +1,7 @@
 // The tab switcher (ipc/tab_switcher.rs hears its keys): ⌃Tab shows the
-// space's tabs in a row over the window, the last used first, with the one
-// used before the active tab selected; a split's two tabs are one card, as
-// they are one row in the sidebar, and choosing it shows the one of them
+// five tabs used last in a row over the window, the last used first, with
+// the one used before the active tab selected; a split's two tabs are one
+// card, as they are one row in the sidebar, and choosing it shows the one of them
 // used last. ⌃Tab again selects the next, ⌃⇧Tab
 // the one before, and letting go of Control shows the tab selected. A quick
 // ⌃Tab goes back to the last tab without the switcher showing at all, as a

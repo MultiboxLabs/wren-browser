@@ -1,4 +1,4 @@
-// The tab switcher: ⌃Tab shows the window's tabs, the last used first,
+// The tab switcher: ⌃Tab shows the five tabs used last, the last used first,
 // with the one before the active tab selected; each ⌃Tab more selects the
 // next, and ⌃⇧Tab the one before. Letting go of Control goes to the tab
 // selected, and Escape leaves it. The app hears the keys
