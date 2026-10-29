@@ -1,5 +1,10 @@
 // What the app does to a Browser's tabs, whether the page, the main menu or
 // a context menu asks.
+//
+// The sidebar's list shows only the tabs Chromium has not pinned: a pinned
+// tab is a pin's (pins/), drawn as the pin. So every index the list, its
+// moves and its menu use is among those (`listed`), and is turned into the
+// Browser's own only where a tab is put in place (`at_list`).
 
 pub mod archive;
 pub mod placeholder;
@@ -12,7 +17,30 @@ use crate::platform;
 
 /// A tab on `url`, at the top of the list, as the sidebar shows new tabs.
 pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
-    browser.add_tab(url, Some(0), true).map(drop)
+    browser
+        .add_tab(url, Some(at_list(browser, 0)), true)
+        .map(drop)
+}
+
+/// The tabs the sidebar's list shows, in its order: those Chromium has not
+/// pinned. The placeholder is among them, which the page hides itself.
+pub fn listed(browser: &Browser) -> Vec<BrowserTab> {
+    browser
+        .tabs()
+        .into_iter()
+        .filter(|tab| !tab.state().is_ok_and(|state| state.pinned))
+        .collect()
+}
+
+// The Browser's index of `index` among the listed tabs: Chromium keeps its
+// pinned tabs first.
+fn at_list(browser: &Browser, index: usize) -> usize {
+    let tabs = browser.tabs();
+    let pinned = tabs
+        .iter()
+        .take_while(|tab| tab.state().is_ok_and(|state| state.pinned))
+        .count();
+    pinned + index
 }
 
 /// Whether `url` is Chromium's New Tab page, or none yet.
@@ -44,7 +72,7 @@ fn runs(browser: &Browser, tab: BrowserTab) -> Result<(Vec<Vec<BrowserTab>>, usi
     let group = tab.state()?.group;
     let among = match group {
         Some(group) => in_group(browser, group),
-        None => browser.tabs(),
+        None => listed(browser),
     };
     let mut runs: Vec<Vec<BrowserTab>> = Vec::new();
     let mut last = None;
@@ -84,7 +112,7 @@ pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) ->
     else {
         return Ok(());
     };
-    let all = browser.tabs();
+    let all = listed(browser);
     let start = |run: &[BrowserTab]| all.iter().position(|each| *each == run[0]).unwrap_or(0);
     // Down, it lands past the run, which the tabs of its own then leave.
     let to = if by < 0 {
@@ -99,7 +127,8 @@ pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) ->
     }
 }
 
-/// A tab on `url`, shown, at `index` and in `group` (None: none). The page
+/// A tab on `url`, shown, at `index` of the list and in `group` (None:
+/// none). The page
 /// puts what is dropped on it here, so only a web address or a file's is let
 /// through.
 pub fn open_at(
@@ -115,7 +144,7 @@ pub fn open_at(
     {
         return Err(Error::InvalidArgument);
     }
-    let tab = browser.add_tab(url, Some(index), true)?;
+    let tab = browser.add_tab(url, Some(at_list(browser, index)), true)?;
     move_tab(mt, browser, tab, index, group)
 }
 
@@ -125,10 +154,10 @@ pub fn split(first: BrowserTab, second: BrowserTab) -> Result<(), Error> {
     first.split_with(second, SplitLayout::SideBySide).map(drop)
 }
 
-/// Moves a tab to `to` in the list, into `group` (None: out of any). Joining
-/// a group puts the tab at the group's nearer end and leaving puts it out
-/// past that end, and the move then keeps the group, as the tab lands next
-/// to one of its tabs, or, leaving, next to none.
+/// Moves a tab to `to` among the listed tabs, into `group` (None: out of
+/// any). Joining a group puts the tab at the group's nearer end and leaving
+/// puts it out past that end, and the move then keeps the group, as the tab
+/// lands next to one of its tabs, or, leaving, next to none.
 pub fn move_tab(
     mt: MainThread,
     browser: &Browser,
@@ -145,9 +174,9 @@ pub fn move_tab(
     move_run(browser, &[tab], to)
 }
 
-/// Moves a split's two tabs to `to`, the first's index. Chromium ends a split
-/// whose tab is moved alone, so it is made again from the same tabs, with
-/// the same layout and ratio.
+/// Moves a split's two tabs to `to`, the first's index among the listed
+/// tabs. Chromium ends a split whose tab is moved alone, so it is made again
+/// from the same tabs, with the same layout and ratio.
 pub fn move_split(browser: &Browser, split: TabSplit, to: usize) -> Result<(), Error> {
     let state = split.state()?;
     let (Some(first), Some(second)) = (state.first, state.second) else {
@@ -195,9 +224,9 @@ pub fn new_group(
     Ok(group)
 }
 
-/// Moves a group's tabs to `to`, the first's index. Chromium keeps a group's
-/// tabs where they are, so they are taken out of it and put in a new group
-/// with the old one's title, colour and fold.
+/// Moves a group's tabs to `to`, the first's index among the listed tabs.
+/// Chromium keeps a group's tabs where they are, so they are taken out of it
+/// and put in a new group with the old one's title, colour and fold.
 pub fn move_group(
     mt: MainThread,
     browser: &Browser,
@@ -213,11 +242,12 @@ pub fn move_group(
     moved.and(regrouped)
 }
 
-/// Moves tabs that are together, in order, so the first is at `to`. Each goes
-/// straight to its place, the last first when they move down the list, so no
-/// tab stops between the tabs of a group it is not to join.
+/// Moves tabs that are together, in order, so the first is at `to` among the
+/// listed tabs. Each goes straight to its place, the last first when they
+/// move down the list, so no tab stops between the tabs of a group it is not
+/// to join.
 fn move_run(browser: &Browser, run: &[BrowserTab], to: usize) -> Result<(), Error> {
-    let all = browser.tabs();
+    let all = listed(browser);
     let Some(from) = run
         .first()
         .and_then(|first| all.iter().position(|tab| tab == first))
@@ -225,13 +255,14 @@ fn move_run(browser: &Browser, run: &[BrowserTab], to: usize) -> Result<(), Erro
         return Ok(());
     };
     let to = to.min(all.len().saturating_sub(run.len()));
+    let to_browser = at_list(browser, to);
     if to > from {
         for (offset, tab) in run.iter().enumerate().rev() {
-            tab.move_to(to + offset)?;
+            tab.move_to(to_browser + offset)?;
         }
     } else if to < from {
         for (offset, tab) in run.iter().enumerate() {
-            tab.move_to(to + offset)?;
+            tab.move_to(to_browser + offset)?;
         }
     }
     Ok(())

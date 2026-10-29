@@ -19,7 +19,8 @@ pub fn show_tab_menu(
     point: (f64, f64),
     done: impl FnOnce(Option<String>) + 'static,
 ) -> Result<(), Error> {
-    let all = browser.tabs();
+    // Among the list's tabs: a pin's tab is never closed with them.
+    let all = tabs::listed(browser);
     let index = all.iter().position(|each| *each == tab).unwrap_or(0);
     let state = tab.state()?;
     let in_group = state.group;
@@ -118,15 +119,14 @@ pub fn show_tab_menu(
             },
             Some("close") => tabs::close(&browser, &[tab]),
             Some("close-others") => {
-                let others: Vec<_> = browser
-                    .tabs()
+                let others: Vec<_> = tabs::listed(&browser)
                     .into_iter()
                     .filter(|each| *each != tab)
                     .collect();
                 tabs::close(&browser, &others)
             }
             Some("close-below") => {
-                let all = browser.tabs();
+                let all = tabs::listed(&browser);
                 let below = all
                     .iter()
                     .position(|each| *each == tab)
