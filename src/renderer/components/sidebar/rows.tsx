@@ -1,6 +1,6 @@
 // What the sidebar's rows are made of, whichever list they are in: the row
-// itself, its icon's column, its close button, and the rows that fold up
-// under a heading.
+// itself, a split's row and its halves, its icon's column, its close button,
+// and the rows that fold up under a heading.
 
 import { X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -94,6 +94,78 @@ export function Row({
     >
       {children}
     </motion.div>
+  );
+}
+
+/**
+ * A split's row: its two halves side by side, as they show in the window,
+ * hovered whole as one row. Selected (`active`), the halves show as two,
+ * each filled over the row's fill; otherwise a line parts them.
+ */
+export function SplitFrame({ active, indent, children }: { active: boolean; indent?: number; children: ReactNode }) {
+  return (
+    <motion.div
+      {...press(0.985)}
+      role="group"
+      data-active-tab={active ? "" : undefined}
+      style={{ marginLeft: indent }}
+      className={cn(
+        "no-drag group flex h-9 shrink-0 items-center rounded-row p-1",
+        active ? "bg-selected" : "hover:bg-hover"
+      )}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** One half of a `SplitFrame`, pressed on its own; `side` 1 has the line before it. */
+export function SplitHalf({
+  side,
+  active,
+  pressed,
+  onPress,
+  onMiddlePress,
+  onMenu,
+  children
+}: {
+  side: number;
+  /** Whether the split is selected. */
+  active: boolean;
+  /** Whether this half's tab is the selected one. */
+  pressed: boolean;
+  onPress: () => void;
+  onMiddlePress?: () => void;
+  onMenu?: (x: number, y: number) => void;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      {side > 0 && <div className={cn("mx-[1.5px] h-4 w-px shrink-0", !active && "bg-separator")} />}
+      <div
+        role="button"
+        tabIndex={-1}
+        aria-pressed={pressed}
+        {...pressHandlers(onPress, onMiddlePress)}
+        onContextMenu={(event) => {
+          if (!onMenu) return;
+          event.preventDefault();
+          onMenu(event.clientX, event.clientY);
+        }}
+        // Its content in from the row's padding as far as a lone tab's; a
+        // close button as far from its right edge as its top and bottom.
+        // The first is half the row, less half the line between them, so
+        // what the row shows past the second (a pin's button, as it is
+        // hovered) takes the second's room alone.
+        className={cn(
+          "flex h-full min-w-0 items-center gap-2.75 rounded-[calc(var(--radius-row)-4px)] pr-0.75 pl-1.5",
+          side === 0 ? "flex-none basis-[calc(50%-2px)]" : "flex-1",
+          active && "bg-fill"
+        )}
+      >
+        {children}
+      </div>
+    </>
   );
 }
 

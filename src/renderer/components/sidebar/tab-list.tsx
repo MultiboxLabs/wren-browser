@@ -6,7 +6,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { memo, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type Pin, type PinFolder, type TabGroup, type TabSplit } from "../../ipc";
 import { useHoldUntil } from "../ui/hold";
-import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
 import { Favicon } from "../favicon";
 import { SpaceIcon } from "../space-icon";
@@ -22,7 +21,7 @@ import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
 import { usePinDrop } from "./pin-drop";
 import { pinsLandingAt } from "./pin-landing";
 import { PinRows } from "./pins";
-import { CloseButton, Disclosed, IconSlot, pressHandlers, Row } from "./rows";
+import { CloseButton, Disclosed, IconSlot, Row, SplitFrame, SplitHalf } from "./rows";
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
 // it stands, unclipped, while the rows below slide to make room or close
@@ -347,54 +346,30 @@ function BrowserRow(props: ListProps & { row: BrowserRowItem; indent?: number })
 
 // A split's two tabs side by side in one row, as they show in the window:
 // one tab to the list, hovered whole with both close buttons, though a
-// press on either half selects that half's tab. Selected, the halves show
-// as two, each filled over the row's fill; otherwise a line parts them.
+// press on either half selects that half's tab.
 function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab; indent?: number }) {
   const { first, second, selected } = props;
   const active = first.id === selected || second.id === selected;
   return (
-    <motion.div
-      {...press(0.985)}
-      role="group"
-      data-active-tab={active ? "" : undefined}
-      style={{ marginLeft: props.indent }}
-      className={cn(
-        "no-drag group flex h-9 shrink-0 items-center rounded-row p-1",
-        active ? "bg-selected" : "hover:bg-hover"
-      )}
-    >
-      {[first, second].map((tab, index) => (
-        <div key={tab.id} className="contents">
-          {index > 0 && <div className={cn("mx-[1.5px] h-4 w-px shrink-0", !active && "bg-separator")} />}
-          <div
-            role="button"
-            tabIndex={-1}
-            aria-pressed={tab.id === selected}
-            {...pressHandlers(
-              () => props.onSelect(tab),
-              () => props.onClose(tab)
-            )}
-            onContextMenu={(event) => {
-              event.preventDefault();
-              props.onTabMenu(tab, event.clientX, event.clientY);
-            }}
-            // Its content in from the row's padding as far as a lone tab's;
-            // the close button as far from its right edge as its top and
-            // bottom.
-            className={cn(
-              "flex h-full min-w-0 flex-1 items-center gap-2.75 rounded-[calc(var(--radius-row)-4px)] pr-0.75 pl-1.5",
-              active && "bg-fill"
-            )}
-          >
-            <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />
-            <Tooltip label={tab.title}>
-              <span className="min-w-0 flex-1 truncate">{tab.title}</span>
-            </Tooltip>
-            <CloseButton onClose={() => props.onClose(tab)} />
-          </div>
-        </div>
+    <SplitFrame active={active} indent={props.indent}>
+      {[first, second].map((tab, side) => (
+        <SplitHalf
+          key={tab.id}
+          side={side}
+          active={active}
+          pressed={tab.id === selected}
+          onPress={() => props.onSelect(tab)}
+          onMiddlePress={() => props.onClose(tab)}
+          onMenu={(x, y) => props.onTabMenu(tab, x, y)}
+        >
+          <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />
+          <Tooltip label={tab.title}>
+            <span className="min-w-0 flex-1 truncate">{tab.title}</span>
+          </Tooltip>
+          <CloseButton onClose={() => props.onClose(tab)} />
+        </SplitHalf>
       ))}
-    </motion.div>
+    </SplitFrame>
   );
 }
 
