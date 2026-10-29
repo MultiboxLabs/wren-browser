@@ -113,11 +113,12 @@ function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
  */
 function PinBody({ pin, peek = false, ...props }: PinProps & { pin: Pin; peek?: boolean }) {
   const open = usePinTabs(pin);
+  const active = open.some(({ tab }) => tab.id === props.selected);
   const { ref: struck, strike } = useStrike<HTMLDivElement>();
-  // What its button and a middle click do: an open pin's tab closes, struck
-  // as it does; an unopened pin is unpinned.
+  // What its button and a middle click do: the active pin's tab closes,
+  // struck as it does; any other pin is unpinned.
   const dismiss = () => {
-    if (open.length === 0) return void pinsIpc.delete(pin.id);
+    if (!active) return void pinsIpc.delete(pin.id);
     strike();
     void pinsIpc.close(pin.id);
   };
@@ -135,9 +136,9 @@ function PinBody({ pin, peek = false, ...props }: PinProps & { pin: Pin; peek?: 
           className="flex flex-col"
         >
           {pin.kind === "split" ? (
-            <SplitPinRow pin={pin} open={open} onDismiss={dismiss} {...props} />
+            <SplitPinRow pin={pin} open={open} active={active} onDismiss={dismiss} {...props} />
           ) : (
-            <TabPinRow pin={pin} open={open} onDismiss={dismiss} {...props} />
+            <TabPinRow pin={pin} open={open} active={active} onDismiss={dismiss} {...props} />
           )}
         </div>
       )}
@@ -155,11 +156,11 @@ export const pinPeek = (pin: Pin, props: PinProps) => ({
 });
 
 /**
- * The button over an unopened pin's row, a cross that unpins it, which an
- * open pin's turns into a minus that closes its tab.
+ * The button over a pin's row, a cross that unpins it, which the active
+ * pin's turns into a minus that closes its tab.
  */
-function PinButton({ open, onDismiss }: { open: boolean; onDismiss: () => void }) {
-  return open ? (
+function PinButton({ active, onDismiss }: { active: boolean; onDismiss: () => void }) {
+  return active ? (
     <CloseButton icon={Minus} label="Close Tab" onClose={onDismiss} />
   ) : (
     <CloseButton icon={X} label="Unpin" onClose={onDismiss} />
@@ -167,10 +168,11 @@ function PinButton({ open, onDismiss }: { open: boolean; onDismiss: () => void }
 }
 
 /**
- * A tab or split pin's row: `open` is its open tabs (`usePinTabs`), and
- * `onDismiss` what its button and a middle click do (`PinBody`).
+ * A tab or split pin's row: `open` is its open tabs (`usePinTabs`), `active`
+ * whether one is the selected tab, and `onDismiss` what its button and a
+ * middle click do (`PinBody`).
  */
-type PinRowProps = PinProps & { open: PinTab[]; onDismiss: () => void };
+type PinRowProps = PinProps & { open: PinTab[]; active: boolean; onDismiss: () => void };
 
 /**
  * A pin's page as its row shows it: its icon, and its title, in full in a
@@ -208,18 +210,17 @@ function PinNameField({ pin, title, actions }: { pin: Pin; title: string; action
 function TabPinRow({
   pin,
   open,
+  active,
   indent,
-  selected,
   actions,
   onDismiss
 }: PinRowProps & { pin: Extract<Pin, { kind: "tab" }> }) {
   const [tab] = open;
   const title = pinTitle(pin, open);
-  const isSelected = tab !== undefined && tab.tab.id === selected;
   return (
     <Row
-      selected={isSelected}
-      active={isSelected}
+      selected={active}
+      active={active}
       indent={indent}
       onPress={() => pinsIpc.open(pin.id)}
       onMiddlePress={onDismiss}
@@ -242,7 +243,7 @@ function TabPinRow({
       ) : (
         <PinLabel page={pin.page} open={tab} title={title} onRename={() => actions.onStartRename(pin)} />
       )}
-      <PinButton open={tab !== undefined} onDismiss={onDismiss} />
+      <PinButton active={active} onDismiss={onDismiss} />
     </Row>
   );
 }
@@ -315,12 +316,12 @@ function AwayTitle({
 function SplitPinRow({
   pin,
   open,
+  active,
   indent,
   selected,
   actions,
   onDismiss
 }: PinRowProps & { pin: Extract<Pin, { kind: "split" }> }) {
-  const active = open.some(({ tab }) => tab.id === selected);
   if (actions.renaming === pin.id) {
     // Its one name, over both halves.
     return (
@@ -365,7 +366,7 @@ function SplitPinRow({
           </SplitHalf>
         );
       })}
-      <PinButton open={open.length > 0} onDismiss={onDismiss} />
+      <PinButton active={active} onDismiss={onDismiss} />
     </SplitFrame>
   );
 }
