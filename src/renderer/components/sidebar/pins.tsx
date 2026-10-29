@@ -19,6 +19,7 @@ import { FolderIcon } from "./folder-icon";
 import { pinIdentity, tabIdentity } from "./arrival";
 import type { PinActions } from "./pin-actions";
 import { pinDrag } from "./pin-drop";
+import { useStrike } from "./row-motion";
 import {
   Appear,
   CloseButton,
@@ -92,9 +93,14 @@ export function PinRows({ pins, ...props }: PinProps & { pins: Pin[] }) {
 
 function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
   const open = usePinTabs(pin);
-  // What its button does: an open pin's tab closes; an unopened pin is
-  // unpinned. A middle click closes an open pin's tab.
-  const dismiss = () => void (open.length > 0 ? pinsIpc.close(pin.id) : pinsIpc.delete(pin.id));
+  const { ref: struck, strike } = useStrike<HTMLDivElement>();
+  // What its button and a middle click do: an open pin's tab closes, struck
+  // as it does; an unopened pin is unpinned.
+  const dismiss = () => {
+    if (open.length === 0) return void pinsIpc.delete(pin.id);
+    strike();
+    void pinsIpc.close(pin.id);
+  };
   return (
     <Appear identities={identitiesOf(pin, open)} reorders>
       {/* Each brings the gap above it, which grows and shrinks with it. */}
@@ -103,7 +109,11 @@ function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
           <FolderRow folder={pin} {...props} />
         ) : (
           // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
-          <div {...pinDrag(pin, { renaming: props.actions.renaming === pin.id })} className="flex flex-col">
+          <div
+            ref={struck}
+            {...pinDrag(pin, { renaming: props.actions.renaming === pin.id })}
+            className="flex flex-col"
+          >
             {pin.kind === "split" ? (
               <SplitPinRow pin={pin} onDismiss={dismiss} {...props} />
             ) : (
@@ -128,7 +138,7 @@ function PinButton({ open, onDismiss }: { open: boolean; onDismiss: () => void }
   );
 }
 
-/** A tab or split pin's row: `onDismiss` is what its button does (`PinItem`). */
+/** A tab or split pin's row: `onDismiss` is what its button and a middle click do (`PinItem`). */
 type PinRowProps = PinProps & { onDismiss: () => void };
 
 /** A pin's page as its row shows it: its icon, and its title, in full in a tooltip. */
@@ -165,7 +175,7 @@ function TabPinRow({
       active={isSelected}
       indent={indent}
       onPress={() => pinsIpc.open(pin.id)}
-      onMiddlePress={tab ? onDismiss : undefined}
+      onMiddlePress={onDismiss}
       onMenu={(x, y) => actions.onMenu(pin, x, y)}
       identities={identitiesOf(pin, open)}
     >
@@ -278,7 +288,7 @@ function SplitPinRow({
             active={active}
             pressed={half?.tab.id === selected}
             onPress={() => (half ? browser.activate(half.tab.id) : pinsIpc.open(pin.id))}
-            onMiddlePress={half ? onDismiss : undefined}
+            onMiddlePress={onDismiss}
             onMenu={(x, y) => actions.onMenu(pin, x, y)}
             identities={half ? [tabIdentity(half.tab.id)] : []}
           >

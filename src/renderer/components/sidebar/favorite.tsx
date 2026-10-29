@@ -20,7 +20,8 @@ import { scaleTo } from "../../utils/motion";
 import { host } from "../../utils/url";
 import { useArrival, useMoving } from "./arrival";
 import type { PinActions } from "./pin-actions";
-import { REORDER, TILE_IN, TILE_OUT } from "./row-motion";
+import { REORDER, TILE_IN, TILE_OUT, useStrike } from "./row-motion";
+import { pressHandlers } from "./rows";
 import { pinDrag } from "./pin-drop";
 import { identitiesOf, PinPageIcon, pinTitle, usePinTabs } from "./pins";
 
@@ -58,16 +59,23 @@ export function Favorite({
   const identities = identitiesOf(pin, open);
   const arrival = useArrival<HTMLDivElement>(identities);
   const moving = useMoving(identities);
+  // A middle click closes its tab, struck as it does.
+  const { ref: struck, strike } = useStrike<HTMLButtonElement>();
+  const closeTab = () => {
+    strike();
+    void pins.close(pin.id);
+  };
   const still = useReducedMotion();
   const tile = (
     // Dragged out, it is a pin, or an ordinary tab (pin-drop.ts).
     <div ref={arrival} {...pinDrag(pin, { favorite: true, renaming })} className="grid">
       <Button
+        ref={struck}
         variant="filled"
         shape="none"
         label={away < 0 ? title : `${title} — Double-click to go back to ${host(pages[away].url)}`}
         pressed={isSelected}
-        onPointerDown={(event) => event.button === 0 && pins.open(pin.id)}
+        {...pressHandlers(() => pins.open(pin.id), open.length > 0 ? closeTab : undefined)}
         onDoubleClick={() => away >= 0 && pins.back(pin.id, away)}
         onContextMenu={(event) => {
           event.preventDefault();
