@@ -22,7 +22,8 @@ import { SpaceSwitcher } from "./space-switcher";
 import { TabList } from "./tab-list";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
 import { useDownloadIndicator } from "../../state/downloads";
-import { tabsIn, useSpace } from "../../state/space";
+import { usePins } from "../../state/pins";
+import { useSpace } from "../../state/space";
 import { SLIDE } from "../../state/space-slide";
 
 export type SidebarProps = {
@@ -183,23 +184,23 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   );
 }
 
-/** What the sidebar shows of the space, below its toolbar: the address, the favourites and the tabs. */
+/** What the sidebar shows of the space, below its toolbar: the address, the favourites, the pins and the tabs. */
 function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "address">) {
-  const { space } = useSpace();
-  const { tabs, current: active } = useBrowser();
-  const selected = active?.id;
-  const current = [...space.favorites, ...tabsIn(space.pinned), ...tabs].find((tab) => tab.id === selected);
+  const { space, profile } = useSpace();
+  const { current } = useBrowser();
+  // A window on a profile shows its favourites; a made-up space has none.
+  const { favorites, pinned, toggleFolder } = usePins(profile ? null : space.id > 0 ? space.id : undefined);
   return (
     <>
       <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
 
-      <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
-        {space.favorites.map((tab) => (
-          <Favorite key={tab.id} tab={tab} selected={tab.id === selected} />
-        ))}
-      </div>
+      {favorites.length > 0 && (
+        <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
+          {favorites.map((pin) => pin.kind !== "folder" && <Favorite key={pin.id} pin={pin} selected={false} />)}
+        </div>
+      )}
 
-      <TabList omnibox={omnibox} />
+      <TabList omnibox={omnibox} pinned={pinned} onToggleFolder={toggleFolder} />
     </>
   );
 }

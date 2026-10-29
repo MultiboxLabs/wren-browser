@@ -1,7 +1,6 @@
 // What the Library shows: the profiles, their spaces, the boosts and the
 // settings. The profiles, the spaces and the settings are the app's; the
-// boosts are not real yet, and are made up here, as the space's favourites
-// are.
+// boosts are not real yet, and are made up here.
 
 import { useEffect, useRef, useState } from "react";
 import {

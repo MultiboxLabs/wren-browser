@@ -4,13 +4,15 @@ use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, TabSta
 use super::groups::Group;
 use super::splits::Split;
 use super::window::page_space;
-use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
+use super::{MenuAt, WindowRef, failed, menu_call, with_browser, with_window};
+use crate::app::State;
 use crate::db::SpaceId;
-use crate::menus;
+use crate::menus::{self, ADD_FAVORITE, Keeps, PIN_TAB};
 use crate::pages::icons;
+use crate::pins::{self, PinTarget};
 use crate::platform;
+use crate::shell::{BrowserWindow, Place};
 use crate::tabs::{self, placeholder};
-use crate::shell::BrowserWindow;
 
 /// A tab as the sidebar draws it. Its favicon comes apart ("tab.favicon").
 #[derive(Serialize)]
@@ -207,7 +209,21 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle_call("tabs.menu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<i32>, done| {
             let tab = tab(mt, browser, at.id)?;
-            menus::show_tab_menu(mt, view, browser, tab, (at.x, at.y), done).map_err(failed)
+            let place = with_window(&weak, |found| Ok(found.place_of(browser)))?;
+            let keeps = Keeps {
+                favorites: place
+                    .as_ref()
+                    .is_some_and(|place| !place.is_off_the_record()),
+                pins: place.as_ref().and_then(Place::space).is_some(),
+            };
+            let weak = weak.clone();
+            let done = move |chosen: Option<String>| {
+                if let (Some(place), Ok(state)) = (&place, weak.state()) {
+                    keep_chosen(&state, place, tab, chosen.as_deref());
+                }
+                done(chosen);
+            };
+            menus::show_tab_menu(mt, view, browser, tab, (at.x, at.y), keeps, done).map_err(failed)
         })
     });
 
@@ -313,6 +329,19 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
         full_screen: browser.fullscreen_tab().map(BrowserTab::id),
         groups: groups.into_iter().map(Group::new).collect(),
         splits: splits.into_iter().filter_map(Split::new).collect(),
+    }
+}
+
+// Pins `tab` as Pin Tab or Add to Favourites, chosen from its menu, would:
+// first among the space's pins, or last among the favourites.
+fn keep_chosen(state: &State, place: &Place, tab: BrowserTab, chosen: Option<&str>) {
+    let (target, index) = match chosen {
+        Some(PIN_TAB) => (PinTarget::Space { parent: None }, Some(0)),
+        Some(ADD_FAVORITE) => (PinTarget::Favorites, None),
+        _ => return,
+    };
+    if let Err(error) = pins::keep_tab(state, place, tab, target, index) {
+        eprintln!("Wren kept no pin: {error}");
     }
 }
 

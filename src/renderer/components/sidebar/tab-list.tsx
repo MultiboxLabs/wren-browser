@@ -4,7 +4,7 @@
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { memo, type ReactNode, useRef, useState } from "react";
-import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
+import { browser, type GroupColor, groups, type Pin, type PinFolder, type TabGroup, type TabSplit } from "../../ipc";
 import { useHoldUntil } from "../ui/hold";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
@@ -12,31 +12,23 @@ import { Favicon } from "../favicon";
 import { SpaceIcon } from "../space-icon";
 import type { OmniboxState } from "../omnibox/shown";
 import { useBrowser } from "../../state/browser";
-import { type Folder, isFolder, type Tab, useSpace } from "../../state/space";
+import { type Tab, useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 import { DropMarkView } from "./drop-mark";
-import { FolderIcon } from "./folder-icon";
 import { useGroupKeys } from "./keys";
 import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
-import { CloseButton, Disclosed, IconSlot, NESTED_INDENT, pressHandlers, Row } from "./rows";
+import { PinRows } from "./pins";
+import { CloseButton, Disclosed, IconSlot, pressHandlers, Row } from "./rows";
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
 // it stands, unclipped, while the rows below slide to make room or close
 // the gap, in 0.12s.
 const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
 
-// The app makes each change, and the page hears it back as new tabs. Only
-// the Browser's tabs are real: the made-up favourites and pinned ones do
-// nothing yet.
-const real = (tab: Tab) => (typeof tab.id === "number" ? tab.id : undefined);
-
-/** Switches to a tab. */
-export function selectTab(tab: Tab) {
-  const id = real(tab);
-  if (id !== undefined) browser.activate(id);
-}
+// The app makes each change, and the page hears it back as new tabs.
+const selectTab = (tab: Tab) => browser.activate(tab.id);
 
 /** What the list's rows share: the selected tab, and what a press on a row or its menu does. */
 type ListProps = ListActions & { selected?: Tab["id"] };
@@ -48,7 +40,6 @@ type ListActions = {
   onClose: (tab: Tab) => void;
   /** A right click on a tab, at a point in the page. */
   onTabMenu: (tab: Tab, x: number, y: number) => void;
-  onToggleFolder: (folder: Folder) => void;
   onToggleGroup: (group: TabGroup) => void;
   /** A right click on a group's heading. */
   onGroupMenu: (group: TabGroup, x: number, y: number) => void;
@@ -59,10 +50,19 @@ type ListActions = {
   onRename: (group: TabGroup, title: string | null) => void;
 };
 
-export function TabList({ omnibox }: { omnibox: OmniboxState }) {
+export function TabList({
+  omnibox,
+  pinned,
+  onToggleFolder
+}: {
+  omnibox: OmniboxState;
+  /** The space's pins, over its tabs. */
+  pinned: Pin[];
+  onToggleFolder: (folder: PinFolder) => void;
+}) {
   // A tab's or a group's menu holds the floating sidebar out until it closes.
   const holdUntil = useHoldUntil();
-  const { space, toggleFolder } = useSpace();
+  const { space } = useSpace();
   const { listed: tabs, groups: tabGroups, splits, current } = useBrowser();
   const [renaming, setRenaming] = useState<string | null>(null);
   // The spaces whose pinned tabs are folded up, as long as the window is open.
@@ -85,15 +85,8 @@ export function TabList({ omnibox }: { omnibox: OmniboxState }) {
   const actions: ListActions = {
     splits,
     onSelect: selectTab,
-    onClose: (tab) => {
-      const id = real(tab);
-      if (id !== undefined) browser.close(id);
-    },
-    onTabMenu: (tab, x, y) => {
-      const id = real(tab);
-      if (id !== undefined) holdUntil(browser.menu(id, x, y));
-    },
-    onToggleFolder: toggleFolder,
+    onClose: (tab) => browser.close(tab.id),
+    onTabMenu: (tab, x, y) => holdUntil(browser.menu(tab.id, x, y)),
     onToggleGroup: (group) => groups.toggle(group.id),
     onGroupMenu: (group, x, y) =>
       holdUntil(groups.menu(group.id, x, y)).then(
@@ -123,16 +116,10 @@ export function TabList({ omnibox }: { omnibox: OmniboxState }) {
         <SpaceHeading open={pinnedOpen} onToggle={togglePinned} />
 
         <Disclosed open={pinnedOpen}>
-          {space.pinned.map((item) =>
-            isFolder(item) ? (
-              <FolderRow key={item.id} folder={item} {...props} />
-            ) : (
-              <TabRow key={item.id} tab={item} {...props} />
-            )
-          )}
+          <PinRows pins={pinned} onToggleFolder={onToggleFolder} />
         </Disclosed>
 
-        {space.pinned.length > 0 && <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />}
+        {pinned.length > 0 && <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />}
 
         <Row selected={newTabOpen} className={cn(!newTabOpen && "text-fg-3")} onPress={() => omnibox.toggle("new-tab")}>
           <Plus size={14} strokeWidth={2} className={cn("mx-px", newTabOpen ? "glyph-1" : "glyph-3")} />
@@ -241,31 +228,6 @@ function TabRow({
       </Tooltip>
       {closable && <CloseButton onClose={() => onClose(tab)} />}
     </Row>
-  );
-}
-
-/** A folder and, while it is open, what is in it, a step further in for each folder it is in. */
-function FolderRow(props: ListProps & { folder: Folder; indent?: number }) {
-  const { folder, indent = 0 } = props;
-  const inner = indent + NESTED_INDENT;
-  return (
-    <>
-      <Row indent={indent} onPress={() => props.onToggleFolder(folder)}>
-        <IconSlot>
-          <FolderIcon open={folder.open} className="text-fg" />
-        </IconSlot>
-        <span className="min-w-0 flex-1 truncate font-semibold">{folder.title}</span>
-      </Row>
-      <Disclosed open={folder.open}>
-        {folder.items.map((item) =>
-          isFolder(item) ? (
-            <FolderRow key={item.id} {...props} folder={item} indent={inner} />
-          ) : (
-            <TabRow key={item.id} {...props} tab={item} indent={inner} />
-          )
-        )}
-      </Disclosed>
-    </>
   );
 }
 

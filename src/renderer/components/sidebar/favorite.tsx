@@ -1,27 +1,34 @@
-// A favourite: a tile of the grid over the tabs, showing its site's icon.
+// A favourite: a tile of the grid over the tabs, showing its site's icon, or
+// a split's two side by side.
 // Selected, it has a light fill with a soft shadow, the icon's colours
 // glowing faintly through it, and a thin ring of the same colours (see
 // .favorite in index.css).
 
 import { type CSSProperties, useId } from "react";
 import { Button } from "../ui/button";
-import { Favicon } from "../favicon";
-import type { Tab } from "../../state/space";
+import type { Pin, PinFolder } from "../../ipc";
 import { cn } from "../../utils/cn";
-import { selectTab } from "./tab-list";
+import { PinIcon, pinTitle } from "./pins";
 
-export function Favorite({ tab, selected }: { tab: Tab; selected: boolean }) {
+export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; selected: boolean }) {
   // The ring's filter: Chromium takes an SVG filter only from the page
   // itself, so the tile draws its own, by an ID of its own.
   const filter = `favorite-ring-${useId().replace(/[^\w-]/g, "")}`;
-  const icon = <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />;
+  const icon =
+    pin.kind === "tab" ? (
+      <PinIcon page={pin.page} />
+    ) : (
+      <span className="flex gap-1">
+        <PinIcon page={pin.pages[0]} />
+        <PinIcon page={pin.pages[1]} />
+      </span>
+    );
   return (
     <Button
       variant="filled"
       shape="none"
-      label={tab.title}
+      label={pinTitle(pin)}
       pressed={selected}
-      onPointerDown={() => selectTab(tab)}
       className={cn(
         "favorite relative grid h-11.75 place-items-center rounded-favorite",
         selected && "favorite-selected"
