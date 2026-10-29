@@ -220,7 +220,9 @@ function Disclosed({ open, onFrame, children }: { open: boolean; onFrame: () => 
           exit={{ height: still ? "auto" : 0, opacity: 0 }}
           transition={FOLD}
           onUpdate={onFrame}
-          className="flex shrink-0 flex-col justify-end overflow-hidden"
+          // Clipped, not hidden: a field focused in a row growing in (a new
+          // folder's name) would scroll a box that hides what overflows it.
+          className="flex shrink-0 flex-col justify-end overflow-clip"
         >
           <div className="flex shrink-0 flex-col">{children}</div>
         </motion.div>
