@@ -1,7 +1,8 @@
 // A folder of pinned tabs, closed or open, as a sticker: a rim in the
 // text's colour, round at every corner, filled with a brighter shade of the
-// space's colour. Closed, a line across it under its tab; open, its front
-// leans out over its back. Drawn in 100 units.
+// space's colour. Closed, a line across it under its tab, or three dots in
+// it while it still shows one of its pins (peeks.ts); open, its front leans
+// out over its back. Drawn in 100 units.
 
 import { cn } from "../../utils/cn";
 
@@ -28,7 +29,19 @@ const VIEW = "9 9 82 82";
 /** Wider than a favicon, at a favicon's scale, so that it reads as holding something. */
 const SIZE = 19;
 
-export function FolderIcon({ open, className }: { open: boolean; className?: string }) {
+/** The dots' centres, across the middle of the closed folder's body. */
+const DOTS = [33, 50, 67].map((x) => ({ cx: x, cy: 54 }));
+
+export function FolderIcon({
+  open,
+  peeking = false,
+  className
+}: {
+  open: boolean;
+  /** Closed, it still shows one of its pins. */
+  peeking?: boolean;
+  className?: string;
+}) {
   return (
     <svg width={SIZE} height={SIZE} viewBox={VIEW} aria-hidden className={cn("shrink-0 overflow-visible", className)}>
       {open ? (
@@ -39,7 +52,11 @@ export function FolderIcon({ open, className }: { open: boolean; className?: str
       ) : (
         <>
           <path d={closedBack} style={FILL} {...RIM} />
-          <path d="M12 37H88" {...RIM} strokeWidth={5} />
+          {peeking ? (
+            DOTS.map((dot) => <circle key={dot.cx} {...dot} r={5.5} fill="currentColor" />)
+          ) : (
+            <path d="M12 37H88" {...RIM} strokeWidth={5} />
+          )}
         </>
       )}
     </svg>

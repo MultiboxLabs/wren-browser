@@ -21,13 +21,15 @@ import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
 import type { PinActions } from "./pin-actions";
 import { usePinDrop } from "./pin-drop";
 import { pinsLandingAt } from "./pin-landing";
-import { PinRows } from "./pins";
+import { PeeksContext, SECTION, usePeeks } from "./peeks";
+import { FoldingRows } from "./folding";
+import { pinPeek, PinRows } from "./pins";
 import { tabIdentity } from "./arrival";
 import {
   Appear,
   CloseButton,
-  Disclosed,
   IconSlot,
+  NESTED_INDENT,
   Row,
   SplitFrame,
   SplitHalf,
@@ -221,6 +223,8 @@ function PinnedSection({
   onToggle: () => void;
 }) {
   const { profile } = useSpace();
+  const peeks = usePeeks(pinned, open, selected);
+  const sectionPeek = peeks.get(SECTION);
   const drop = usePinDrop({
     landingAt: (section, dragging, x, y) => pinsLandingAt(section, pinned, dragging, x, y),
     folders: true,
@@ -232,9 +236,11 @@ function PinnedSection({
         <SpaceHeading foldable={pinned.length > 0} open={open} onToggle={onToggle} dropping={drop.over} />
       </div>
       {/* With no pins, nothing: not even its gap under the heading. */}
-      <Disclosed open={open && pinned.length > 0}>
-        <PinRows pins={pinned} selected={selected} actions={actions} />
-      </Disclosed>
+      <PeeksContext value={peeks}>
+        <FoldingRows open={open && pinned.length > 0} peek={sectionPeek && pinPeek(sectionPeek, { selected, actions })}>
+          <PinRows pins={pinned} selected={selected} actions={actions} />
+        </FoldingRows>
+      </PeeksContext>
       {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}
     </div>
   );
@@ -508,19 +514,22 @@ function GroupRows({
           <Chevron size={14} strokeWidth={2} />
         </span>
       </Row>
-      <AnimatePresence initial={false} presenceAffectsLayout={false}>
-        {!group.collapsed &&
-          rows(members, actions.splits, start).map((row) => (
+      {/* Folded, it shows none of its rows, not even its active tab's. */}
+      <FoldingRows open={!group.collapsed}>
+        <AnimatePresence initial={false} presenceAffectsLayout={false}>
+          {rows(members, actions.splits, start).map((row) => (
             <UnitRow
               key={rowKey(inOrder(row)[0].id)}
               actions={actions}
               row={row}
               scope={group.id}
-              indent={16}
+              indent={NESTED_INDENT}
               selected={selectedIn(row, selected)}
+              className="pt-1.25"
             />
           ))}
-      </AnimatePresence>
+        </AnimatePresence>
+      </FoldingRows>
     </div>
   );
 }
