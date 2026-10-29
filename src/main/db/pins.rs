@@ -311,6 +311,42 @@ impl Db {
         Ok(built.map(|pin| (profile, space, pin)))
     }
 
+    /// Where a pin is, and its index there; None if it is gone.
+    pub fn pin_place(&self, id: PinId) -> Result<Option<(PinPlace, usize)>, String> {
+        let found: Option<(String, Option<SpaceId>, Option<PinId>, i64)> = self
+            .conn
+            .query_row(
+                "SELECT profile_id, space_id, parent_id, position FROM pins WHERE id = ?1",
+                [id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()
+            .map_err(sql)?;
+        Ok(found.map(|(profile, space, parent, position)| {
+            let place = match space {
+                Some(space) => PinPlace::Space { space, parent },
+                None => PinPlace::Favorites { profile },
+            };
+            (place, position as usize)
+        }))
+    }
+
+    /// Makes a pin's page on `side` another: its address, title and favicon.
+    pub fn set_pin_page(&self, id: PinId, side: usize, page: &PinPage) -> Result<(), String> {
+        let changed = self
+            .conn
+            .execute(
+                "UPDATE pin_pages SET url = ?3, title = ?4, favicon = ?5
+                 WHERE pin_id = ?1 AND side = ?2",
+                params![id, side as i64, page.url, page.title, page.favicon],
+            )
+            .map_err(sql)?;
+        match changed {
+            0 => Err("That pin has no such page.".into()),
+            _ => Ok(()),
+        }
+    }
+
     /// Keeps the title and favicon a pin's page shows now, its address
     /// unchanged. Answers whether they were not kept so already.
     pub fn set_pin_look(

@@ -236,6 +236,53 @@ pub fn open_pins(browser: &Browser) -> Vec<OpenPin> {
         .collect()
 }
 
+/// Whether pin `id` is open in `browser`.
+pub fn is_open(browser: &Browser, id: PinId) -> bool {
+    open_tabs::find(browser, id).is_some()
+}
+
+/// The sides of pin `id` open in `browser` whose tabs are away from its
+/// pages; none if it is not open there.
+pub fn away_sides(browser: &Browser, id: PinId) -> Vec<usize> {
+    let open = open_pins(browser).into_iter().find(|open| open.pin == id);
+    let away = open.map(|open| open.away).unwrap_or_default();
+    (0..away.len()).filter(|side| away[*side]).collect()
+}
+
+/// Makes the pages of the open pin's tabs in `browser` that are away the
+/// pin's own: it keeps where they are now, in every Browser it is open in.
+pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), String> {
+    let open = open_pins(browser)
+        .into_iter()
+        .find(|open| open.pin == id)
+        .ok_or("That pin is not open.")?;
+    let mut updated = Vec::new();
+    for (side, tab) in open.tabs.iter().enumerate() {
+        if open.away[side] {
+            let page = page_of(*tab);
+            state.db.set_pin_page(id, side, &page)?;
+            updated.push((side, page));
+        }
+    }
+    for window in state.windows.all() {
+        for each in window.browsers() {
+            open_tabs::update(&each, id, |link| {
+                for (side, page) in &updated {
+                    if let Some(kept) = link.sides.get_mut(*side) {
+                        kept.page = page.clone();
+                    }
+                }
+            });
+            // Nothing of its tabs changed to tell the page they are home.
+            if window.browser().as_ref() == Some(&each) {
+                crate::ipc::send_tabs(&window, &each);
+            }
+        }
+    }
+    crate::ipc::broadcast_pins(state);
+    Ok(())
+}
+
 /// Closes the open pin's tabs, all of them, leaving the pin unopened. The
 /// link ends first (`end_closing`): a split pin's first tab closing would
 /// otherwise leave it a split broken, and `follow_tab_changes` would keep
