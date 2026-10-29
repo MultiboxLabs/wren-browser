@@ -388,9 +388,11 @@ function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
           press that is not a drag opens or closes it. Folded, the pointer
           resting on it shows what is in it (folder-menu.tsx). */}
       <FolderMenu folder={folder} enabled={!folder.open && !renaming}>
-        <div {...pinDrag(folder, { renaming })} className="flex flex-col">
+        <div {...pinDrag(folder, { renaming })} className="group/menu flex flex-col">
           <Row
             indent={indent}
+            // Hovered while its menu is open, which the pointer has gone to.
+            className="group-data-[state=open]/menu:bg-hover"
             onClick={() => actions.onToggleFolder(folder)}
             onMenu={(x, y) => actions.onMenu(folder, x, y)}
             identities={[pinIdentity(folder.id)]}
