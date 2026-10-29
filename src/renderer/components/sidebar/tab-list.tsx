@@ -23,7 +23,17 @@ import { usePinDrop } from "./pin-drop";
 import { pinsLandingAt } from "./pin-landing";
 import { PinRows } from "./pins";
 import { tabIdentity } from "./arrival";
-import { Appear, CloseButton, Disclosed, IconSlot, Row, SplitFrame, SplitHalf, TitleField } from "./rows";
+import {
+  Appear,
+  CloseButton,
+  Disclosed,
+  IconSlot,
+  Row,
+  SplitFrame,
+  SplitHalf,
+  TitleField,
+  useRenameClick
+} from "./rows";
 
 // The app makes each change, and the page hears it back as new tabs.
 const selectTab = (tab: Tab) => browser.activate(tab.id);
@@ -471,6 +481,7 @@ function GroupRows({
   start: number;
 }) {
   const Chevron = group.collapsed ? ChevronRight : ChevronDown;
+  const renameClick = useRenameClick(() => actions.onStartRename(group));
   return (
     <div className="flex flex-col gap-1.25">
       <Row onClick={() => actions.onToggleGroup(group)} onMenu={(x, y) => actions.onGroupMenu(group, x, y)}>
@@ -488,7 +499,7 @@ function GroupRows({
         ) : (
           <span
             className={cn("min-w-0 flex-1 truncate font-semibold", !group.title && "text-fg-3")}
-            onDoubleClick={() => actions.onStartRename(group)}
+            onClick={renameClick}
           >
             {group.title || "Unnamed Group"}
           </span>

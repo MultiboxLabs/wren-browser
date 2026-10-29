@@ -6,7 +6,7 @@
 // it is open it is drawn as that tab. Once the tab leaves the pin's page,
 // its row is away: a slash between the pin's icon and the tab's title, and
 // the icon takes the tab back. A right click shows its menu, and its name is
-// edited in its row (pin-actions.tsx).
+// edited in its row (pin-actions.tsx), as a double click on it does.
 
 import { Minus, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
@@ -29,7 +29,8 @@ import {
   Row,
   SplitFrame,
   SplitHalf,
-  TitleField
+  TitleField,
+  useRenameClick
 } from "./rows";
 
 type PinProps = {
@@ -141,13 +142,29 @@ function PinButton({ open, onDismiss }: { open: boolean; onDismiss: () => void }
 /** A tab or split pin's row: `onDismiss` is what its button and a middle click do (`PinItem`). */
 type PinRowProps = PinProps & { onDismiss: () => void };
 
-/** A pin's page as its row shows it: its icon, and its title, in full in a tooltip. */
-function PinLabel({ page, open, title }: { page: PinPage; open?: PinTab; title: string }) {
+/**
+ * A pin's page as its row shows it: its icon, and its title, in full in a
+ * tooltip, which a double click renames (`onRename`).
+ */
+function PinLabel({
+  page,
+  open,
+  title,
+  onRename
+}: {
+  page: PinPage;
+  open?: PinTab;
+  title: string;
+  onRename: () => void;
+}) {
+  const renameClick = useRenameClick(onRename);
   return (
     <>
       <PinPageIcon page={page} open={open} />
       <Tooltip label={title}>
-        <span className="min-w-0 flex-1 truncate">{title}</span>
+        <span className="min-w-0 flex-1 truncate" onClick={renameClick}>
+          {title}
+        </span>
       </Tooltip>
     </>
   );
@@ -185,9 +202,15 @@ function TabPinRow({
           <PinNameField pin={pin} title={title} actions={actions} />
         </>
       ) : tab?.away ? (
-        <AwayTitle page={pin.page} title={title} inset="row" onBack={() => pinsIpc.back(pin.id, 0)} />
+        <AwayTitle
+          page={pin.page}
+          title={title}
+          inset="row"
+          onBack={() => pinsIpc.back(pin.id, 0)}
+          onRename={() => actions.onStartRename(pin)}
+        />
       ) : (
-        <PinLabel page={pin.page} open={tab} title={title} />
+        <PinLabel page={pin.page} open={tab} title={title} onRename={() => actions.onStartRename(pin)} />
       )}
       <PinButton open={tab !== undefined} onDismiss={onDismiss} />
     </Row>
@@ -206,19 +229,23 @@ const BACK_INSET = { row: "-ml-2.5 -mr-1 px-2.5", half: "-ml-1.5 px-1.5" };
  * then the tab's title. Hovered, the icon is a button of its own, filled to
  * the left edge of the row (or the half) as its corners are, and the title
  * says what it does under it; pressing it takes the tab back to the pin's
- * page (`onBack`), without selecting the row first.
+ * page (`onBack`), without selecting the row first. A double click on the
+ * title renames the pin (`onRename`).
  */
 function AwayTitle({
   page,
   title,
   inset,
-  onBack
+  onBack,
+  onRename
 }: {
   page: PinPage;
   title: string;
   inset: keyof typeof BACK_INSET;
   onBack: () => void;
+  onRename: () => void;
 }) {
+  const renameClick = useRenameClick(onRename);
   return (
     <>
       <button
@@ -242,7 +269,9 @@ function AwayTitle({
       </span>
       <span className="-ml-1.25 flex min-w-0 flex-1 flex-col leading-tight peer-hover/back:ml-0">
         <Tooltip label={title}>
-          <span className="truncate">{title}</span>
+          <span className="truncate" onClick={renameClick}>
+            {title}
+          </span>
         </Tooltip>
         <span className="hidden truncate text-caption text-fg-3 peer-hover/back:block">Back to Pinned URL</span>
       </span>
@@ -293,9 +322,15 @@ function SplitPinRow({
             identities={half ? [tabIdentity(half.tab.id)] : []}
           >
             {half?.away ? (
-              <AwayTitle page={page} title={title} inset="half" onBack={() => pinsIpc.back(pin.id, side)} />
+              <AwayTitle
+                page={page}
+                title={title}
+                inset="half"
+                onBack={() => pinsIpc.back(pin.id, side)}
+                onRename={() => actions.onStartRename(pin)}
+              />
             ) : (
-              <PinLabel page={page} open={half} title={title} />
+              <PinLabel page={page} open={half} title={title} onRename={() => actions.onStartRename(pin)} />
             )}
           </SplitHalf>
         );
@@ -309,6 +344,7 @@ function SplitPinRow({
 function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
   const { indent = 0, actions } = props;
   const renaming = actions.renaming === folder.id;
+  const renameClick = useRenameClick(() => actions.onStartRename(folder));
   return (
     <>
       {/* Dragged, it moves among the pins with what is in it (pin-drop.ts); a
@@ -331,7 +367,7 @@ function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
               onDone={(name) => actions.onRename(folder, name)}
             />
           ) : (
-            <span className="min-w-0 flex-1 truncate font-semibold" onDoubleClick={() => actions.onStartRename(folder)}>
+            <span className="min-w-0 flex-1 truncate font-semibold" onClick={renameClick}>
               {folder.name}
             </span>
           )}
