@@ -269,6 +269,33 @@ fn a_split_becomes_a_tab_of_the_side_it_keeps() {
 }
 
 #[test]
+fn a_split_keeps_its_layout_ratio_and_order() {
+    let db = db();
+    let split = NewPin::Split {
+        first: page("https://a/"),
+        second: page("https://b/"),
+        layout: PinLayout::SideBySide,
+        ratio: 0.5,
+    };
+    let place = top(space(&db, "a"));
+    let id = db.create_pin(&place, None, split).unwrap();
+    db.set_pin_split(id, PinLayout::Stacked, 0.3, true).unwrap();
+    let (_, _, pin) = db.pin(id).unwrap().unwrap();
+    let expected = PinKind::Split {
+        first: page("https://b/"),
+        second: page("https://a/"),
+        layout: PinLayout::Stacked,
+        ratio: 0.3,
+    };
+    assert_eq!(pin.kind, expected);
+    let tab = db.create_pin(&place, None, tab("https://c/")).unwrap();
+    assert!(
+        db.set_pin_split(tab, PinLayout::Stacked, 0.3, false)
+            .is_err()
+    );
+}
+
+#[test]
 fn a_pin_moves_between_places_and_both_close_up() {
     let db = db();
     let space = space(&db, "a");

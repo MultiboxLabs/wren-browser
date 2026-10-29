@@ -73,7 +73,7 @@ fn shown(browser: &Browser) -> Vec<BrowserTab> {
     let Some(active) = browser.active_tab() else {
         return Vec::new();
     };
-    let Some(split) = active.state().ok().and_then(|state| state.split) else {
+    let Some(split) = super::split_of(active) else {
         return vec![active];
     };
     browser

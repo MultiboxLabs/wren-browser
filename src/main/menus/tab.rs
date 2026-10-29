@@ -124,8 +124,8 @@ pub fn show_tab_menu(
                 Some(active) => active.split_with(tab, SplitLayout::SideBySide).map(drop),
                 None => Ok(()),
             },
-            Some("swap") => split_of(tab).map_or(Ok(()), TabSplit::swap_tabs),
-            Some("layout") => split_of(tab).map_or(Ok(()), |split| {
+            Some("swap") => tabs::split_of(tab).map_or(Ok(()), TabSplit::swap_tabs),
+            Some("layout") => tabs::split_of(tab).map_or(Ok(()), |split| {
                 let stacked = split.state()?.layout == SplitLayout::Stacked;
                 split.set_layout(if stacked {
                     SplitLayout::SideBySide
@@ -133,7 +133,7 @@ pub fn show_tab_menu(
                     SplitLayout::Stacked
                 })
             }),
-            Some("unsplit") => split_of(tab).map_or(Ok(()), TabSplit::unsplit),
+            Some("unsplit") => tabs::split_of(tab).map_or(Ok(()), TabSplit::unsplit),
             Some(id) if id.starts_with("group:") => match TabGroup::parse(mt, &id[6..]) {
                 Some(group) => group.add(&[tab]),
                 None => Ok(()),
@@ -171,8 +171,4 @@ fn groups(browser: &Browser) -> Vec<TabGroup> {
         }
     }
     groups
-}
-
-fn split_of(tab: BrowserTab) -> Option<TabSplit> {
-    tab.state().ok().and_then(|state| state.split)
 }

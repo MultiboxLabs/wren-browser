@@ -79,11 +79,7 @@ pub fn pin_tab(
     index: Option<usize>,
 ) -> Result<PinId, String> {
     let to = target.resolve(state, place)?;
-    let split = tab
-        .state()
-        .ok()
-        .and_then(|state| state.split)
-        .and_then(|split| Some((split, split.state().ok()?)));
+    let split = tabs::split_of(tab).and_then(|split| Some((split, split.state().ok()?)));
     let id = match split {
         Some((
             split,
@@ -103,7 +99,8 @@ pub fn pin_tab(
             let id = state.db.create_pin(&to, index, pin)?;
             split.unsplit().map_err(failed)?;
             split_pinned(first, second, layout, ratio, true)?;
-            open_tabs::add(browser, link_now(id, &[first, second]));
+            let link = link_now(id, &[first, second]);
+            open_tabs::add(browser, link.with_split(layout, ratio));
             id
         }
         _ => {
@@ -180,11 +177,13 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
         } => {
             let one = browser.add_tab(&first.url, None, true).map_err(failed)?;
             let two = browser.add_tab(&second.url, None, false).map_err(failed)?;
-            if let Err(error) = split_pinned(one, two, split_layout(layout), ratio, true) {
+            let layout = split_layout(layout);
+            if let Err(error) = split_pinned(one, two, layout, ratio, true) {
                 let _ = tabs::close(browser, &[one, two]);
                 return Err(error);
             }
-            open_tabs::add(browser, link_to(id, [(one, first), (two, second)]));
+            let link = link_to(id, [(one, first), (two, second)]);
+            open_tabs::add(browser, link.with_split(layout, ratio));
         }
         PinKind::Folder { .. } => return Err("A folder does not open.".into()),
     }
@@ -225,8 +224,9 @@ pub fn split_with(
     };
     // Linked in the same call as it is pinned, or `follow_tab_changes` would
     // unpin it.
-    let split = split_pinned(sides[0].0, sides[1].0, SplitLayout::SideBySide, 0.5, true);
-    open_tabs::add(browser, link_to(id, sides));
+    let (layout, ratio) = (SplitLayout::SideBySide, 0.5);
+    let split = split_pinned(sides[0].0, sides[1].0, layout, ratio, true);
+    open_tabs::add(browser, link_to(id, sides).with_split(layout, ratio));
     split?;
     crate::ipc::broadcast_pins(state);
     tab.activate().map_err(failed)
@@ -535,11 +535,7 @@ fn split_pinned(
 // Takes the split `tab` is in apart, and answers its layout and ratio, to
 // make it again.
 fn unsplit(tab: BrowserTab) -> Result<(SplitLayout, f64), String> {
-    let split = tab
-        .state()
-        .ok()
-        .and_then(|state| state.split)
-        .ok_or("The tabs are in no split.")?;
+    let split = tabs::split_of(tab).ok_or("The tabs are in no split.")?;
     let state = split.state().map_err(failed)?;
     split.unsplit().map_err(failed)?;
     Ok((state.layout, state.ratio))
@@ -576,7 +572,8 @@ fn link_now(id: PinId, tabs: &[BrowserTab]) -> Link {
     link_to(id, tabs.iter().map(|tab| (*tab, page_of(*tab))))
 }
 
-// A link of pin `id` to tabs, each for the pin's page beside it.
+// A link of pin `id` to tabs, each for the pin's page beside it; a split
+// pin's is given its split (`Link::with_split`).
 fn link_to(id: PinId, sides: impl IntoIterator<Item = (BrowserTab, PinPage)>) -> Link {
     Link {
         pin: id,
@@ -587,6 +584,7 @@ fn link_to(id: PinId, sides: impl IntoIterator<Item = (BrowserTab, PinPage)>) ->
                 page,
             })
             .collect(),
+        split: None,
     }
 }
 
