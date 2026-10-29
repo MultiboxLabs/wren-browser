@@ -452,7 +452,8 @@ body,
   visibility: hidden;
 }
 
-/* A popover (components/ui/popover.tsx): the system's neutral colours, as
+/* A popover (components/ui/popover.tsx), or a hover card
+   (components/ui/hover-card.tsx): the system's neutral colours, as
    menus' and tooltips' are, not the space's; light or dark with the system,
    and solid: backdrop-filter blurs nothing in the window's page, so a
    see-through one only shows what is under it, sharp. A light inner edge
@@ -465,7 +466,7 @@ body,
     inset 0 0 0 1px var(--popover-highlight),
     0 0 0 0.5px var(--popover-edge),
     0 12px 32px rgb(0 0 0 / 0.28);
-  transform-origin: var(--radix-popover-content-transform-origin);
+  transform-origin: var(--radix-popover-content-transform-origin, var(--radix-hover-card-content-transform-origin));
   animation: popover-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.1);
 }
 .popover[data-state="closed"] {

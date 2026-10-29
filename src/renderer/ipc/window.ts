@@ -23,6 +23,10 @@ export const appWindow = {
   show: () => wren.invoke<null>("window.show"),
   /** What makes the window a popup's; null for a browser window. It never changes. */
   popup: () => wren.invoke<WindowPopup | null>("window.popup"),
+  /** Takes the keyboard from the tab that has it, for a field the user did not press into. */
+  takeKeyboard: () => wren.invoke<null>("window.takeKeyboard"),
+  /** Gives the keyboard back to the active tab's page. */
+  giveBackKeyboard: () => wren.invoke<null>("window.giveBackKeyboard"),
   /** Whether the window is in use: main, or under a sheet or bubble of its own. */
   active: () => wren.invoke<boolean>("window.active"),
   onActive: (listener: (active: boolean) => void) => wren.on<boolean>("window.active", listener),

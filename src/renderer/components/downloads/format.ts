@@ -6,26 +6,6 @@ import type { Download } from "../../ipc";
 import { isRunning, lastChanged } from "../../state/downloads";
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-
-// The largest unit `relative` says a time in, from seconds up.
-const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
-  ["year", 365 * 24 * 60 * 60],
-  ["month", 30 * 24 * 60 * 60],
-  ["week", 7 * 24 * 60 * 60],
-  ["day", 24 * 60 * 60],
-  ["hour", 60 * 60],
-  ["minute", 60]
-];
-
-/** `time`, relative to `now`: "2 hours ago", "yesterday", "now". */
-export function ago(time: number, now: number) {
-  const seconds = Math.max(0, (now - time) / 1000);
-  for (const [unit, length] of UNITS) {
-    if (seconds >= length) return relative.format(-Math.floor(seconds / length), unit);
-  }
-  return relative.format(0, "second");
-}
-
 const counted = new Intl.RelativeTimeFormat(undefined, { numeric: "always" });
 
 // The spans a heading groups by, past yesterday, in days.

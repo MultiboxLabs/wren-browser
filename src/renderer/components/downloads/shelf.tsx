@@ -11,8 +11,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { downloads, hasApp } from "../../ipc";
 import { useHoldWhile } from "../ui/hold";
 import { lastChanged, newestFirst, useDownloads } from "../../state/downloads";
-import { useNow } from "../../utils/now";
-import { ago, statusLine } from "./format";
+import { ago, useNow } from "../../utils/now";
+import { statusLine } from "./format";
 import { DownloadRow } from "./row";
 
 /** How many downloads it shows. */
