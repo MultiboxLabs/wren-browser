@@ -16,6 +16,8 @@ mod tab_changes;
 pub use open_tabs::{forget, pin_of};
 pub use tab_changes::{drop_restored, follow_tab_changes};
 
+use std::rc::Rc;
+
 use wren::{Browser, BrowserTab, MainThread, SplitLayout, SplitState, TabGroup, TabSplit};
 
 use crate::app::State;
@@ -187,6 +189,56 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
         PinKind::Folder { .. } => return Err("A folder does not open.".into()),
     }
     Ok(())
+}
+
+/// Opens pin `id` in `window`, as `open` does in its Browser; a place
+/// without a Browser gets one first, as the omnibox's does. `done` hears how
+/// it went.
+pub fn open_in(
+    state: &Rc<State>,
+    mt: MainThread,
+    window: &BrowserWindow,
+    id: PinId,
+    done: impl FnOnce(Result<(), String>) + 'static,
+) {
+    let Some(place) = window.place() else {
+        return done(Err("The window is on no space.".into()));
+    };
+    if let Some(browser) = window.browser() {
+        return done(open(state, &browser, &place, id));
+    }
+    let (inner, window) = (state.clone(), window.id);
+    state.open_browser(mt, window, place, move || {
+        let opened = inner
+            .windows
+            .get(window)
+            .and_then(|window| Some((window.browser()?, window.place()?)))
+            .ok_or_else(|| "The window has no Browser.".to_string())
+            .and_then(|(browser, place)| open(&inner, &browser, &place, id));
+        done(opened);
+    });
+}
+
+/// Opens the favourite at `index` of those `window` shows, or selects its
+/// tab, as ⌘1 to ⌘9 do. Past the last, nothing.
+pub fn open_favorite(state: &Rc<State>, mt: MainThread, window: &BrowserWindow, index: usize) {
+    let Some(place) = window.place() else {
+        return;
+    };
+    let favorites = PinTarget::Favorites
+        .resolve(state, &place)
+        .and_then(|found| match found {
+            PinPlace::Favorites { profile } => state.db.favorites(&profile),
+            PinPlace::Space { .. } => Ok(Vec::new()),
+        });
+    let Some(favorite) = favorites.ok().and_then(|all| all.into_iter().nth(index)) else {
+        return;
+    };
+    open_in(state, mt, window, favorite.id, |opened| {
+        if let Err(error) = opened {
+            eprintln!("Wren opened no favourite: {error}");
+        }
+    });
 }
 
 /// Takes the open pin's tab on `side` back to the pin's page, and selects it.

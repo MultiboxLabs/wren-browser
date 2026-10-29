@@ -195,39 +195,26 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 
     // Opens a pin in the window's place, or selects its tab if it is open.
-    // A place without a Browser gets one first, as the omnibox's does.
+    // A place without a Browser gets one first.
     let weak = window.clone();
     let _ = web_view.handle_call("pins.open", move |call| {
-        let id: PinId = match call.value() {
-            Ok(id) => id,
+        let found = call
+            .value::<PinId>()
+            .map_err(|error| error.to_string())
+            .and_then(|id| Ok((weak.state()?, id)));
+        let (state, id) = match found {
+            Ok(found) => found,
             Err(error) => {
-                let _ = call.fail(&error.to_string());
+                let _ = call.fail(&error);
                 return;
             }
         };
-        let found = weak.state().map_err(str::to_owned).and_then(|state| {
-            with_window(&weak, |window| Ok((window.browser(), window.place())))
-                .map(|found| (state, found))
+        let opened = with_window(&weak, |window| {
+            pins::open_in(&state, mt, window, id, move |opened| answer(call, opened));
+            Ok(())
         });
-        let open = move |state: &State, weak: &WindowRef| {
-            with_browser(weak, |window, browser| {
-                pins::open(state, browser, &place(window)?, id)
-            })
-        };
-        match found {
-            Ok((state, (Some(_), _))) => answer(call, open(&state, &weak)),
-            Ok((state, (None, Some(place)))) => {
-                let (inner, weak) = (state.clone(), weak.clone());
-                state.open_browser(mt, weak.id, place, move || {
-                    answer(call, open(&inner, &weak));
-                });
-            }
-            Ok((_, (None, None))) => {
-                let _ = call.fail("The window is on no space.");
-            }
-            Err(error) => {
-                let _ = call.fail(&error);
-            }
+        if let Err(error) = opened {
+            eprintln!("Wren opened no pin: {error}");
         }
     });
 
