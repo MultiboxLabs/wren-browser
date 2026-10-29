@@ -10,6 +10,7 @@ import { Button } from "../ui/button";
 import { type Pin, type PinFolder, pins } from "../../ipc";
 import { cn } from "../../utils/cn";
 import { host } from "../../utils/url";
+import { pinDrag } from "./pin-drop";
 import { PinPageIcon, pinTitle, usePinTabs } from "./pins";
 
 /** `selected`: the selected tab's ID, unless none is. */
@@ -30,35 +31,38 @@ export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; sele
     </span>
   );
   return (
-    <Button
-      variant="filled"
-      shape="none"
-      label={away < 0 ? title : `${title} — Double-click to go back to ${host(pages[away].url)}`}
-      pressed={isSelected}
-      onPointerDown={(event) => event.button === 0 && pins.open(pin.id)}
-      onDoubleClick={() => away >= 0 && pins.back(pin.id, away)}
-      className={cn(
-        "favorite relative grid h-11.75 place-items-center rounded-favorite",
-        isSelected && "favorite-selected"
-      )}
-    >
-      {isSelected && (
-        <>
-          <span aria-hidden className="favorite-glow">
-            {icon}
-          </span>
-          <span
-            aria-hidden
-            className="favorite-ring"
-            style={{ "--favorite-ring-filter": `url(#${filter})` } as CSSProperties}
-          >
-            <RingFilter id={filter} />
-            {icon}
-          </span>
-        </>
-      )}
-      <span className="relative grid">{icon}</span>
-    </Button>
+    // Dragged out, it is a pin, or an ordinary tab (pin-drop.ts).
+    <div {...pinDrag(pin.id, true)} className="grid">
+      <Button
+        variant="filled"
+        shape="none"
+        label={away < 0 ? title : `${title} — Double-click to go back to ${host(pages[away].url)}`}
+        pressed={isSelected}
+        onPointerDown={(event) => event.button === 0 && pins.open(pin.id)}
+        onDoubleClick={() => away >= 0 && pins.back(pin.id, away)}
+        className={cn(
+          "favorite relative grid h-11.75 place-items-center rounded-favorite",
+          isSelected && "favorite-selected"
+        )}
+      >
+        {isSelected && (
+          <>
+            <span aria-hidden className="favorite-glow">
+              {icon}
+            </span>
+            <span
+              aria-hidden
+              className="favorite-ring"
+              style={{ "--favorite-ring-filter": `url(#${filter})` } as CSSProperties}
+            >
+              <RingFilter id={filter} />
+              {icon}
+            </span>
+          </>
+        )}
+        <span className="relative grid">{icon}</span>
+      </Button>
+    </div>
   );
 }
 

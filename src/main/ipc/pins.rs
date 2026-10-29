@@ -3,14 +3,15 @@
 // any window changes any.
 
 use serde::{Deserialize, Serialize};
-use wren::{BrowserTab, MainThread, WebView};
+use wren::{MainThread, WebView};
 
+use super::browser::{group_of, tab};
 use super::{WindowRef, with_browser, with_window};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinLayout, PinPage, PinRow, SpaceId};
 use crate::pages::icons;
 use crate::pins::{self, PinTarget};
-use crate::shell::Place;
+use crate::shell::{BrowserWindow, Place};
 
 /// A pin as the page draws it.
 #[derive(Serialize)]
@@ -74,15 +75,49 @@ struct NewFolder {
     index: Option<usize>,
 }
 
-/// A tab of the window's Browser to pin, or its split: to the favourites,
-/// or among the space's pins, at the top or in a folder; at `index` there,
-/// or last.
+/// Where a pin goes: to the favourites, or among the space's pins, at the
+/// top or in folder `parent`; at `index` there, or last.
 #[derive(Deserialize)]
-struct TabToPin {
-    tab: i32,
+struct To {
     favorites: bool,
     parent: Option<PinId>,
     index: Option<usize>,
+}
+
+impl To {
+    fn target(&self) -> PinTarget {
+        match self.favorites {
+            true => PinTarget::Favorites,
+            false => PinTarget::Space {
+                parent: self.parent,
+            },
+        }
+    }
+}
+
+/// A tab of the window's Browser to pin, or its split.
+#[derive(Deserialize)]
+struct TabToPin {
+    tab: i32,
+    #[serde(flatten)]
+    to: To,
+}
+
+/// A pin to move.
+#[derive(Deserialize)]
+struct MovePin {
+    id: PinId,
+    #[serde(flatten)]
+    to: To,
+}
+
+/// A pin to make an ordinary tab, where it was dropped on the list: at
+/// `index` among the list's tabs, in the group of tab `group`, or none.
+#[derive(Deserialize)]
+struct ToList {
+    id: PinId,
+    index: usize,
+    group: Option<i32>,
 }
 
 /// One of an open pin's tabs: its only one, or a split's first or second.
@@ -158,8 +193,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         });
         let open = move |state: &State, weak: &WindowRef| {
             with_browser(weak, |window, browser| {
-                let place = window.place().ok_or("The window is on no space.")?;
-                pins::open(state, browser, &place, id)
+                pins::open(state, browser, &place(window)?, id)
             })
         };
         match found {
@@ -184,15 +218,30 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("pins.pinTab", move |pin: TabToPin| {
         let state = weak.state()?;
         with_browser(&weak, |window, browser| {
-            let tab = BrowserTab::from_id(mt, pin.tab)
-                .filter(|tab| tab.browser().as_ref() == Some(browser))
-                .ok_or("There is no such tab.")?;
-            let place = window.place().ok_or("The window is on no space.")?;
-            let target = match pin.favorites {
-                true => PinTarget::Favorites,
-                false => PinTarget::Space { parent: pin.parent },
-            };
-            pins::pin_tab(&state, browser, &place, tab, target, pin.index)
+            let tab = tab(mt, browser, pin.tab)?;
+            let (target, index) = (pin.to.target(), pin.to.index);
+            pins::pin_tab(&state, browser, &place(window)?, tab, target, index)
+        })
+    });
+
+    // Moves a pin to the favourites, or among the space's pins.
+    let weak = window.clone();
+    let _ = web_view.handle("pins.move", move |moved: MovePin| {
+        let state = weak.state()?;
+        with_window(&weak, |window| {
+            let (target, index) = (moved.to.target(), moved.to.index);
+            pins::move_pin(&state, &place(window)?, moved.id, target, index)
+        })
+    });
+
+    // Removes a pin dropped on the list, its tab left there as an ordinary
+    // one, or opened there if the pin was unopened.
+    let weak = window.clone();
+    let _ = web_view.handle("pins.toList", move |to: ToList| {
+        let state = weak.state()?;
+        with_browser(&weak, |window, browser| {
+            let group = group_of(mt, browser, to.group)?;
+            pins::to_list(&state, mt, browser, &place(window)?, to.id, to.index, group)
         })
     });
 
@@ -207,6 +256,13 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("pins.close", move |id: PinId| {
         with_browser(&weak, |_, browser| pins::close(browser, id))
     });
+}
+
+// The place the window is on, whose pins it shows.
+fn place(window: &BrowserWindow) -> Result<Place, String> {
+    window
+        .place()
+        .ok_or_else(|| "The window is on no space.".into())
 }
 
 // Answers a call with what was done, or why not.

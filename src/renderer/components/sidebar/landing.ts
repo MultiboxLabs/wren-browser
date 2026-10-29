@@ -128,9 +128,10 @@ function boxMark(box: DOMRect, content: DOMRect, half?: "left" | "right"): DropM
  */
 export function landingAt(scroller: HTMLElement, held: Held, x: number, y: number): Landing {
   const items = itemsOf(scroller);
-  if (!items?.length) return null;
+  if (!items) return null;
   if (held.kind !== "outside" && !scroller.contains(held.unit)) return null;
   const content = (scroller.firstElementChild ?? scroller).getBoundingClientRect();
+  if (!items.length) return firstLanding(scroller, content);
   // What comes from outside is new: nothing in the list moves for it.
   const mine = held.kind === "outside" ? null : readUnit(held.unit);
   const [from, size] = mine ? [mine.start, mine.size] : [Infinity, 0];
@@ -177,6 +178,28 @@ export function landingAt(scroller: HTMLElement, held: Held, x: number, y: numbe
     mark: { kind: "line", top: gap.line - content.top, left: left - content.left, width: right - left, height: 0 },
     index,
     group: heading?.unit.tab ?? null
+  };
+}
+
+/**
+ * Where what comes from outside lands in a list with no tabs: first, the
+ * line under the New Tab row. The rows' box starts a gap above the row's
+ * bottom (tab-list.tsx), which each row brings with it.
+ */
+function firstLanding(scroller: HTMLElement, content: DOMRect): Landing {
+  const rows = scroller.querySelector("[data-tab-rows]")?.getBoundingClientRect();
+  if (!rows) return null;
+  return {
+    kind: "move",
+    mark: {
+      kind: "line",
+      top: rows.top + ROW_GAP * 1.5 - content.top,
+      left: rows.left - content.left,
+      width: rows.width,
+      height: 0
+    },
+    index: 0,
+    group: null
   };
 }
 

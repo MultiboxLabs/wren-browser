@@ -5,15 +5,17 @@
 // as the units that move (units.ts).
 //
 // What is dragged in from outside the list, like a link, is a tab that opens
-// where it is dropped.
+// where it is dropped; a pin or a favourite dropped there is an ordinary tab
+// there (pin-drop.ts).
 
 import { type DragEvent, type PointerEvent, useLayoutEffect, useRef, useState } from "react";
-import { browser, type TabUnit } from "../../ipc";
+import { browser, pins, type TabUnit } from "../../ipc";
+import { holdForDrag, releaseDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
 import { useEdgeScroll } from "./edge-scroll";
 import { type DropMark, type Grabbed, type Held, type Landing, landingAt, OUTSIDE } from "./landing";
+import { carriesPin, droppedPin, isPinDrop } from "./pin-drop";
 import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
-import { isPinDrop } from "./pin-drop";
 import { draggableUnitOf, readUnit, UNIT_TYPE, type UnitKind } from "./units";
 
 const tabUnit = (kind: UnitKind, tab: number): TabUnit =>
@@ -53,15 +55,6 @@ export function useTabReorder(order: string) {
   const making = useRef<HTMLElement | null>(null);
   const edge = useEdgeScroll();
 
-  // While a tab is held the page does not move the window (index.css): the
-  // drag would not reach what is under a drag region.
-  const pressing = useRef<AbortController | null>(null);
-  const release = () => {
-    pressing.current?.abort();
-    pressing.current = null;
-    delete document.documentElement.dataset.reordering;
-  };
-
   // The mark, changed only when it moves: a drag says where it is often.
   const show = (place: Landing) => {
     const target = place?.kind === "split" ? place.target : null;
@@ -76,7 +69,7 @@ export function useTabReorder(order: string) {
     edge.stop();
     held.current = null;
     show(null);
-    release();
+    releaseDrag();
   };
   useLayoutEffect(() => {
     end();
@@ -85,8 +78,12 @@ export function useTabReorder(order: string) {
   }, [order]);
   useLayoutEffect(() => end, []);
 
-  /** What is over the list: a unit of it, or a link from outside, if it has an address. */
-  const dragged = (event: DragEvent) => held.current ?? (carriesAddress(event.dataTransfer) ? OUTSIDE : null);
+  /**
+   * What is over the list: a unit of it, or from outside it a pin, or a link
+   * if it has an address; each lands as a new tab would.
+   */
+  const dragged = (event: DragEvent) =>
+    held.current ?? (carriesPin(event.dataTransfer) || carriesAddress(event.dataTransfer) ? OUTSIDE : null);
 
   const move = (scroller: HTMLElement, { unit, kind, tab }: Grabbed, place: Landing) => {
     if (place?.kind !== "move") return;
@@ -105,12 +102,7 @@ export function useTabReorder(order: string) {
     handlers: {
       onPointerDown: (event: PointerEvent<HTMLElement>) => {
         if (event.button !== 0 || !draggableUnitOf(event.target)) return;
-        release();
-        pressing.current = new AbortController();
-        document.documentElement.dataset.reordering = "";
-        // A press that does not become a drag ends at its release; a drag
-        // takes the pointer, and ends at `onDragEnd`.
-        window.addEventListener("pointerup", release, { signal: pressing.current.signal });
+        holdForDrag();
       },
 
       onDragStart: (event: DragEvent<HTMLElement>) => {
@@ -132,7 +124,7 @@ export function useTabReorder(order: string) {
       onDragOver: (event: DragEvent<HTMLElement>) => {
         const over = dragged(event);
         if (!over) return;
-        // Over the space's heading, which pins what is dropped on it
+        // Over the space's pins, which take what they pin themselves
         // (pin-drop.ts): no place in the list is marked.
         if (isPinDrop(event.target)) {
           edge.stop();
@@ -145,7 +137,8 @@ export function useTabReorder(order: string) {
         // Dropping is allowed anywhere in the list; a drop where the tab is
         // does nothing.
         event.preventDefault();
-        event.dataTransfer.dropEffect = place ? (over.kind === "outside" ? "copy" : "move") : "none";
+        const copies = over.kind === "outside" && !carriesPin(event.dataTransfer);
+        event.dataTransfer.dropEffect = place ? (copies ? "copy" : "move") : "none";
         show(place);
       },
 
@@ -158,14 +151,17 @@ export function useTabReorder(order: string) {
       onDrop: (event: DragEvent<HTMLElement>) => {
         const own = held.current;
         if (isPinDrop(event.target)) return end();
-        if (!own && !carriesAddress(event.dataTransfer)) return;
+        const pin = own ? null : droppedPin(event.dataTransfer);
+        if (!own && pin === null && !carriesAddress(event.dataTransfer)) return;
         event.preventDefault();
-        const urls = own ? [] : addressesOf(event.dataTransfer);
+        const urls = own || pin !== null ? [] : addressesOf(event.dataTransfer);
         const scroller = event.currentTarget;
         const place = landingAt(scroller, own ?? OUTSIDE, event.clientX, event.clientY);
         end();
         if (!place) return;
-        if (!own) {
+        if (pin !== null) {
+          if (place.kind === "move") pins.toList(pin, place.index, place.group).catch(() => {});
+        } else if (!own) {
           if (place.kind === "move") void openAll(urls, place.index, place.group);
         } else if (place.kind === "split") {
           const [first, second] = place.side === "left" ? [own.tab, place.targetTab] : [place.targetTab, own.tab];

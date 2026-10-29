@@ -237,6 +237,60 @@ fn a_split_becomes_a_tab_of_the_side_it_keeps() {
 }
 
 #[test]
+fn a_pin_moves_between_places_and_both_close_up() {
+    let db = db();
+    let space = space(&db, "a");
+    let favorites = PinPlace::Favorites {
+        profile: "a".into(),
+    };
+    let one = db.create_pin(&favorites, None, tab("https://a/")).unwrap();
+    let two = db.create_pin(&favorites, None, tab("https://b/")).unwrap();
+    let pin = db.create_pin(&top(space), None, tab("https://c/")).unwrap();
+
+    db.move_pin(one, &top(space), Some(0)).unwrap();
+    assert_eq!(ids(&db.favorites("a").unwrap()), vec![two]);
+    assert_eq!(ids(&db.space_pins(space).unwrap()), vec![one, pin]);
+    // Within its place, to the end.
+    db.move_pin(one, &top(space), None).unwrap();
+    assert_eq!(ids(&db.space_pins(space).unwrap()), vec![pin, one]);
+    db.move_pin(pin, &favorites, Some(0)).unwrap();
+    assert_eq!(ids(&db.favorites("a").unwrap()), vec![pin, two]);
+    // Made at index 1, each place is still dense.
+    let three = db
+        .create_pin(&favorites, Some(1), tab("https://d/"))
+        .unwrap();
+    assert_eq!(ids(&db.favorites("a").unwrap()), vec![pin, three, two]);
+}
+
+#[test]
+fn a_folder_stays_among_its_profiles_pins_and_out_of_itself() {
+    let db = db();
+    let (space, other) = (space(&db, "a"), space(&db, "b"));
+    let folder = db
+        .create_pin(&top(space), None, NewPin::Folder { name: "F".into() })
+        .unwrap();
+    let inner = PinPlace::Space {
+        space,
+        parent: Some(folder),
+    };
+    let deep = db
+        .create_pin(&inner, None, NewPin::Folder { name: "G".into() })
+        .unwrap();
+    let favorites = PinPlace::Favorites {
+        profile: "a".into(),
+    };
+    assert!(db.move_pin(folder, &favorites, None).is_err());
+    let into_deep = PinPlace::Space {
+        space,
+        parent: Some(deep),
+    };
+    assert!(db.move_pin(folder, &into_deep, None).is_err());
+    assert!(db.move_pin(folder, &top(other), None).is_err());
+    db.move_pin(deep, &top(space), Some(0)).unwrap();
+    assert_eq!(ids(&db.space_pins(space).unwrap()), vec![deep, folder]);
+}
+
+#[test]
 fn a_name_can_be_cleared_except_a_folders() {
     let db = db();
     let space = space(&db, "a");

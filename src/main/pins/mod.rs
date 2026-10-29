@@ -16,11 +16,11 @@ mod tab_changes;
 pub use open_tabs::{forget, pin_of};
 pub use tab_changes::{drop_restored, follow_tab_changes};
 
-use wren::{Browser, BrowserTab, SplitLayout, SplitState};
+use wren::{Browser, BrowserTab, MainThread, SplitLayout, SplitState, TabGroup, TabSplit};
 
 use crate::app::State;
 use crate::db::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
-use crate::shell::Place;
+use crate::shell::{BrowserWindow, Place};
 use crate::tabs;
 use open_tabs::{Link, Side};
 
@@ -99,10 +99,8 @@ pub fn pin_tab(
                 ratio,
             };
             let id = state.db.create_pin(&to, index, pin)?;
-            // Pinning one side alone would end the split: it is made again
-            // from the two, pinned.
             split.unsplit().map_err(failed)?;
-            pin_split(first, second, layout, ratio)?;
+            split_pinned(first, second, layout, ratio, true)?;
             open_tabs::add(browser, link_now(id, &[first, second]));
             id
         }
@@ -156,7 +154,7 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
         } => {
             let one = browser.add_tab(&first.url, None, true).map_err(failed)?;
             let two = browser.add_tab(&second.url, None, false).map_err(failed)?;
-            if let Err(error) = pin_split(one, two, split_layout(layout), ratio) {
+            if let Err(error) = split_pinned(one, two, split_layout(layout), ratio, true) {
                 let _ = tabs::close(browser, &[one, two]);
                 return Err(error);
             }
@@ -233,9 +231,92 @@ pub fn close(browser: &Browser, id: PinId) -> Result<(), String> {
 /// Deletes pin `id`, and what is in it, closing their tabs in every window.
 pub fn delete(state: &State, id: PinId) -> Result<(), String> {
     let deleted = state.db.delete_pin(id)?;
+    close_where(state, &deleted, |_, _| true);
+    crate::ipc::broadcast_pins(state);
+    Ok(())
+}
+
+/// Moves pin `id` to `target` of the window on `place`, at `index` (None:
+/// last). A favourite that becomes a space's pin is closed in the Browsers
+/// of the other spaces, which no longer show it.
+pub fn move_pin(
+    state: &State,
+    place: &Place,
+    id: PinId,
+    target: PinTarget,
+    index: Option<usize>,
+) -> Result<(), String> {
+    let to = target.resolve(state, place)?;
+    state.db.move_pin(id, &to, index)?;
+    if let PinPlace::Space { space, .. } = to {
+        close_where(state, &[id], |window, browser| {
+            window.space_of(browser) != Some(space)
+        });
+    }
+    crate::ipc::broadcast_pins(state);
+    Ok(())
+}
+
+/// Makes pin `id` an ordinary tab at `index` of the list, in `group`, and
+/// removes the pin: its tab in `browser` stays, unpinned (a split's two
+/// still a split), or, unopened, opens there. Its tabs elsewhere close with
+/// it.
+pub fn to_list(
+    state: &State,
+    mt: MainThread,
+    browser: &Browser,
+    place: &Place,
+    id: PinId,
+    index: usize,
+    group: Option<TabGroup>,
+) -> Result<(), String> {
+    let pin = pin_for(state, place, id)?;
+    let open: Vec<BrowserTab> = open_tabs::remove(browser, id)
+        .map(|link| tabs_of(browser, &link).collect())
+        .unwrap_or_default();
+    match (pin.kind, open.as_slice()) {
+        (PinKind::Tab(_), [tab]) => {
+            tab.set_pinned(false).map_err(failed)?;
+            tabs::move_tab(mt, browser, *tab, index, group).map_err(failed)?;
+        }
+        (PinKind::Tab(page), _) => {
+            tabs::add_at(mt, browser, &page.url, index, group, true).map_err(failed)?;
+        }
+        (PinKind::Split { .. }, [first, second]) => {
+            let (layout, ratio) = unsplit(*first)?;
+            let split = split_pinned(*first, *second, layout, ratio, false)?;
+            tabs::move_split(browser, split, index).map_err(failed)?;
+        }
+        (
+            PinKind::Split {
+                first,
+                second,
+                layout,
+                ratio,
+            },
+            _,
+        ) => {
+            let one = tabs::add_at(mt, browser, &first.url, index, group, true);
+            let two = tabs::add_at(mt, browser, &second.url, index + 1, group, false);
+            let (one, two) = (one.map_err(failed)?, two.map_err(failed)?);
+            one.split_with(two, split_layout(layout))
+                .and_then(|split| split.set_ratio(ratio, false))
+                .map_err(failed)?;
+        }
+        (PinKind::Folder { .. }, _) => return Err("A folder can't be a tab.".into()),
+    }
+    delete(state, id)
+}
+
+// Ends the links of `pins` in every Browser `closes` picks, and closes their
+// tabs there.
+fn close_where(state: &State, pins: &[PinId], closes: impl Fn(&BrowserWindow, &Browser) -> bool) {
     for window in state.windows.all() {
         for browser in window.browsers() {
-            let open: Vec<BrowserTab> = deleted
+            if !closes(&window, &browser) {
+                continue;
+            }
+            let open: Vec<BrowserTab> = pins
                 .iter()
                 .filter_map(|pin| open_tabs::end_closing(&browser, *pin))
                 .flat_map(|link| tabs_of(&browser, &link).collect::<Vec<_>>())
@@ -247,8 +328,6 @@ pub fn delete(state: &State, id: PinId) -> Result<(), String> {
             }
         }
     }
-    crate::ipc::broadcast_pins(state);
-    Ok(())
 }
 
 /// Whether a tab on `url` is away from a pin's page on `pinned`: on another
@@ -272,17 +351,34 @@ fn same_page(url: &str) -> String {
     format!("https://{host}{slash}{path}")
 }
 
-// Pins two tabs and makes them a split, side by side or stacked.
-fn pin_split(
+// Pins two tabs, or unpins them, and makes them a split, side by side or
+// stacked. Chromium ends a split one side of which is pinned or unpinned
+// alone, so tabs in a split are taken out of it first (`unsplit`).
+fn split_pinned(
     first: BrowserTab,
     second: BrowserTab,
     layout: SplitLayout,
     ratio: f64,
-) -> Result<(), String> {
-    first.set_pinned(true).map_err(failed)?;
-    second.set_pinned(true).map_err(failed)?;
+    pinned: bool,
+) -> Result<TabSplit, String> {
+    first.set_pinned(pinned).map_err(failed)?;
+    second.set_pinned(pinned).map_err(failed)?;
     let split = first.split_with(second, layout).map_err(failed)?;
-    split.set_ratio(ratio, false).map_err(failed)
+    split.set_ratio(ratio, false).map_err(failed)?;
+    Ok(split)
+}
+
+// Takes the split `tab` is in apart, and answers its layout and ratio, to
+// make it again.
+fn unsplit(tab: BrowserTab) -> Result<(SplitLayout, f64), String> {
+    let split = tab
+        .state()
+        .ok()
+        .and_then(|state| state.split)
+        .ok_or("The tabs are in no split.")?;
+    let state = split.state().map_err(failed)?;
+    split.unsplit().map_err(failed)?;
+    Ok((state.layout, state.ratio))
 }
 
 // Pin `id`, as the window on `place` may open it: a favourite of the place's

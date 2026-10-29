@@ -21,6 +21,14 @@ export type PinFolder = Extract<Pin, { kind: "folder" }>;
 /** What a space shows: its profile's favourites, and its own pins. */
 export type Pins = { favorites: Pin[]; pinned: Pin[] };
 
+/** Where a pin goes: the favourites, or the space's pins, at the top (`parent` null) or in a folder. */
+export type PinTarget = { favorites: true } | { parent: number | null };
+
+const placeOf = (to: PinTarget) => ({
+  favorites: "favorites" in to,
+  parent: "parent" in to ? to.parent : null
+});
+
 export const pins = {
   /** A space's favourites and pins; null for the favourites of the profile a window on one shows. */
   list: (space: number | null) => wren.invoke<Pins>("pins.list", space),
@@ -35,13 +43,17 @@ export const pins = {
    * Pins a tab of the window, or its split, and links it, at `index` (null:
    * last) of the favourites, or of the space's pins at the top or in a folder.
    */
-  pinTab: (tab: number, to: { favorites: true } | { parent: number | null }, index: number | null) =>
-    wren.invoke<number>("pins.pinTab", {
-      tab,
-      favorites: "favorites" in to,
-      parent: "parent" in to ? to.parent : null,
-      index
-    }),
+  pinTab: (tab: number, to: PinTarget, index: number | null) =>
+    wren.invoke<number>("pins.pinTab", { tab, ...placeOf(to), index }),
+  /** Moves a pin to `index` (null: last) of the favourites, or of the space's pins at the top or in a folder. */
+  move: (id: number, to: PinTarget, index: number | null) =>
+    wren.invoke<null>("pins.move", { id, ...placeOf(to), index }),
+  /**
+   * Removes a pin dropped on the list, its tab left at `index` there, in the
+   * group of tab `group` (or none), as an ordinary tab; an unopened pin opens there.
+   */
+  toList: (id: number, index: number, group: number | null) =>
+    wren.invoke<null>("pins.toList", { id, index, group }),
   /** Opens a pin in the window's space, or selects its tab if it is open. */
   open: (id: number) => wren.invoke<null>("pins.open", id),
   /** Takes an open pin's tab on `side` back to the pin's page. */

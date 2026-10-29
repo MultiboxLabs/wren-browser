@@ -330,6 +330,75 @@ impl Db {
             .map_err(sql)
     }
 
+    /// Moves a pin to `index` (None, or one past the last: last) among the
+    /// pins of `to`, the pins of both places closing up. A pin stays with its
+    /// profile, and a folder never goes to the favourites or into itself.
+    pub fn move_pin(&self, id: PinId, to: &PinPlace, index: Option<usize>) -> Result<(), String> {
+        let transaction = self.conn.unchecked_transaction().map_err(sql)?;
+        let (kind, profile, space, parent, position): (
+            String,
+            String,
+            Option<SpaceId>,
+            Option<PinId>,
+            i64,
+        ) = transaction
+            .query_row(
+                "SELECT kind, profile_id, space_id, parent_id, position FROM pins WHERE id = ?1",
+                [id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .optional()
+            .map_err(sql)?
+            .ok_or("That pin is gone.")?;
+        let (to_profile, to_space, to_parent) = resolve(&transaction, to)?;
+        if to_profile != profile {
+            return Err("A pin stays with its profile.".into());
+        }
+        if kind == "folder" && to_space.is_none() {
+            return Err("A folder can only be among a space's pins.".into());
+        }
+        if let Some(parent) = to_parent
+            && descendants(&transaction, id)?.contains(&parent)
+        {
+            return Err("A folder can't go into itself.".into());
+        }
+        transaction
+            .execute(
+                "UPDATE pins SET position = position - 1
+                 WHERE profile_id = ?1 AND space_id IS ?2 AND parent_id IS ?3 AND position > ?4",
+                params![profile, space, parent, position],
+            )
+            .map_err(sql)?;
+        let count = siblings(&transaction, &profile, to_space, to_parent)?
+            .into_iter()
+            .filter(|each| *each != id)
+            .count();
+        let position = index.unwrap_or(count).min(count) as i64;
+        transaction
+            .execute(
+                "UPDATE pins SET position = position + 1
+                 WHERE profile_id = ?1 AND space_id IS ?2 AND parent_id IS ?3 AND position >= ?4
+                   AND id != ?5",
+                params![profile, to_space, to_parent, position, id],
+            )
+            .map_err(sql)?;
+        transaction
+            .execute(
+                "UPDATE pins SET space_id = ?2, parent_id = ?3, position = ?4 WHERE id = ?1",
+                params![id, to_space, to_parent, position],
+            )
+            .map_err(sql)?;
+        transaction.commit().map_err(sql)
+    }
+
     /// Makes a split pin a tab pin of its page on `side` (0 or 1), as its
     /// tabs stop being a split.
     pub fn split_to_tab(&self, id: PinId, side: usize) -> Result<(), String> {
@@ -360,15 +429,7 @@ impl Db {
     /// close the gap. Answers the IDs of every pin deleted.
     pub fn delete_pin(&self, id: PinId) -> Result<Vec<PinId>, String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
-        let deleted: Vec<PinId> = transaction
-            .prepare(
-                "WITH RECURSIVE gone(id) AS (
-                   SELECT id FROM pins WHERE id = ?1
-                   UNION ALL SELECT pins.id FROM pins JOIN gone ON pins.parent_id = gone.id
-                 ) SELECT id FROM gone",
-            )
-            .and_then(|mut query| query.query_map([id], |row| row.get(0))?.collect())
-            .map_err(sql)?;
+        let deleted = descendants(&transaction, id)?;
         let (profile, space, parent, position): (String, Option<SpaceId>, Option<PinId>, i64) =
             transaction
                 .query_row(
@@ -479,6 +540,19 @@ fn resolve(
             Ok((profile, Some(*space), *parent))
         }
     }
+}
+
+// A pin's ID, and those of everything in it, however deep.
+fn descendants(transaction: &Transaction, id: PinId) -> Result<Vec<PinId>, String> {
+    transaction
+        .prepare(
+            "WITH RECURSIVE under(id) AS (
+               SELECT id FROM pins WHERE id = ?1
+               UNION ALL SELECT pins.id FROM pins JOIN under ON pins.parent_id = under.id
+             ) SELECT id FROM under",
+        )
+        .and_then(|mut query| query.query_map([id], |row| row.get(0))?.collect())
+        .map_err(sql)
 }
 
 // The IDs of the pins of one place, in order.
