@@ -15,7 +15,7 @@ import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
 import { FolderIcon } from "./folder-icon";
 import { pinDrag } from "./pin-drop";
-import { CloseButton, Disclosed, IconSlot, NESTED_INDENT, pressHandlers, Row } from "./rows";
+import { CloseButton, Disclosed, IconSlot, NESTED_INDENT, Row, SplitFrame, SplitHalf } from "./rows";
 
 type PinProps = {
   indent?: number;
@@ -82,6 +82,18 @@ function PinButton({ pin, open }: { pin: Pin; open: boolean }) {
   );
 }
 
+/** A pin's page as its row shows it: its icon, and its title, in full in a tooltip. */
+function PinLabel({ page, open, title }: { page: PinPage; open?: PinTab; title: string }) {
+  return (
+    <>
+      <PinPageIcon page={page} open={open} />
+      <Tooltip label={title}>
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+      </Tooltip>
+    </>
+  );
+}
+
 function TabPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, { kind: "tab" }> }) {
   const open = usePinTabs(pin);
   const [tab] = open;
@@ -96,27 +108,40 @@ function TabPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, { k
       onMiddlePress={tab ? () => pinsIpc.close(pin.id) : undefined}
     >
       {tab?.away ? (
-        <AwayTitle pin={pin} page={pin.page} title={title} />
+        <AwayTitle page={pin.page} title={title} inset="row" onBack={() => pinsIpc.back(pin.id, 0)} />
       ) : (
-        <>
-          <PinPageIcon page={pin.page} open={tab} />
-          <Tooltip label={title}>
-            <span className="min-w-0 flex-1 truncate">{title}</span>
-          </Tooltip>
-        </>
+        <PinLabel page={pin.page} open={tab} title={title} />
       )}
       <PinButton pin={pin} open={tab !== undefined} />
     </Row>
   );
 }
 
+// How far in from its row's edge an away title's icon is: a row's padding,
+// or a split half's. The back button fills it, and as much past the icon: a
+// square as tall as the row (or the half). Past a row's icon, it reaches
+// over the slash's gap (`-mr-1`), so the slash and the title stay where they
+// are.
+const BACK_INSET = { row: "-ml-2.5 -mr-1 px-2.5", half: "-ml-1.5 px-1.5" };
+
 /**
- * An away row's icon and title: the pin's icon, a slash, then the tab's
- * title. Hovered, the icon is a button of its own, filled to the row's
- * left edge, and the title says what it does under it; pressing it takes
- * the tab back to the pin's page, without selecting the row first.
+ * An away row's icon and title, or a split half's: the pin's icon, a slash,
+ * then the tab's title. Hovered, the icon is a button of its own, filled to
+ * the left edge of the row (or the half) as its corners are, and the title
+ * says what it does under it; pressing it takes the tab back to the pin's
+ * page (`onBack`), without selecting the row first.
  */
-function AwayTitle({ pin, page, title }: { pin: Pin; page: PinPage; title: string }) {
+function AwayTitle({
+  page,
+  title,
+  inset,
+  onBack
+}: {
+  page: PinPage;
+  title: string;
+  inset: keyof typeof BACK_INSET;
+  onBack: () => void;
+}) {
   return (
     <>
       <button
@@ -124,12 +149,18 @@ function AwayTitle({ pin, page, title }: { pin: Pin; page: PinPage; title: strin
         aria-label="Back to Pinned URL"
         tabIndex={-1}
         onPointerDown={(event) => event.stopPropagation()}
-        onClick={() => pinsIpc.back(pin.id, 0)}
-        className="peer/back -ml-2.5 flex shrink-0 items-center self-stretch rounded-l-row pr-1.5 pl-2.5 hover:bg-hover"
+        onClick={onBack}
+        className={cn(
+          "peer/back flex shrink-0 items-center self-stretch rounded-l-[inherit] hover:bg-hover",
+          BACK_INSET[inset]
+        )}
       >
         <PinPageIcon page={page} />
       </button>
-      <span aria-hidden className="-ml-2.75 shrink-0 text-[17px] font-light text-fg-3 peer-hover/back:hidden">
+      <span
+        aria-hidden
+        className="pointer-events-none -ml-2.75 shrink-0 text-[17px] font-light text-fg-3 peer-hover/back:hidden"
+      >
         /
       </span>
       <span className="-ml-1.25 flex min-w-0 flex-1 flex-col leading-tight peer-hover/back:ml-0">
@@ -144,49 +175,34 @@ function AwayTitle({ pin, page, title }: { pin: Pin; page: PinPage; title: strin
 
 // A split pin's two pages side by side in one row, as the list draws a
 // split of the Browser's. Open, a press on either half selects that half's
-// tab, and the selected one is drawn as the Browser's split is.
+// tab, and either half that is away is drawn as an away row is.
 function SplitPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, { kind: "split" }> }) {
   const open = usePinTabs(pin);
   const active = open.some(({ tab }) => tab.id === selected);
   return (
-    <div
-      role="group"
-      data-active-tab={active ? "" : undefined}
-      style={{ marginLeft: indent }}
-      className={cn(
-        "no-drag group flex h-9 shrink-0 items-center rounded-row p-1",
-        active ? "bg-selected" : "hover:bg-hover"
-      )}
-    >
+    <SplitFrame active={active} indent={indent}>
       {pin.pages.map((page, side) => {
         const half = open[side];
         const title = half?.tab.title || page.title;
         return (
-          <div key={side} className="contents">
-            {side > 0 && <div className={cn("mx-[1.5px] h-4 w-px shrink-0", !active && "bg-separator")} />}
-            <div
-              role="button"
-              tabIndex={-1}
-              aria-pressed={half?.tab.id === selected}
-              {...pressHandlers(
-                () => (half ? browser.activate(half.tab.id) : pinsIpc.open(pin.id)),
-                half ? () => pinsIpc.close(pin.id) : undefined
-              )}
-              className={cn(
-                "flex h-full min-w-0 flex-1 items-center gap-2.75 rounded-[calc(var(--radius-row)-4px)] pr-0.75 pl-1.5",
-                active && "bg-fill"
-              )}
-            >
-              <PinPageIcon page={page} open={half} />
-              <Tooltip label={title}>
-                <span className="min-w-0 flex-1 truncate">{title}</span>
-              </Tooltip>
-            </div>
-          </div>
+          <SplitHalf
+            key={side}
+            side={side}
+            active={active}
+            pressed={half?.tab.id === selected}
+            onPress={() => (half ? browser.activate(half.tab.id) : pinsIpc.open(pin.id))}
+            onMiddlePress={half ? () => pinsIpc.close(pin.id) : undefined}
+          >
+            {half?.away ? (
+              <AwayTitle page={page} title={title} inset="half" onBack={() => pinsIpc.back(pin.id, side)} />
+            ) : (
+              <PinLabel page={page} open={half} title={title} />
+            )}
+          </SplitHalf>
         );
       })}
       <PinButton pin={pin} open={open.length > 0} />
-    </div>
+    </SplitFrame>
   );
 }
 
