@@ -5,7 +5,8 @@
 // A pin opens in place: pressing it opens it, or selects its tab, and while
 // it is open it is drawn as that tab. Once the tab leaves the pin's page,
 // its row is away: a slash between the pin's icon and the tab's title, and
-// the icon takes the tab back.
+// the icon takes the tab back. A right click shows its menu, and its name is
+// edited in its row (pin-actions.tsx).
 
 import { Minus, X } from "lucide-react";
 import { Favicon } from "../favicon";
@@ -14,14 +15,15 @@ import { browser, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from
 import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
 import { FolderIcon } from "./folder-icon";
+import type { PinActions } from "./pin-actions";
 import { pinDrag } from "./pin-drop";
-import { CloseButton, Disclosed, IconSlot, NESTED_INDENT, Row, SplitFrame, SplitHalf } from "./rows";
+import { CloseButton, Disclosed, IconSlot, NESTED_INDENT, Row, SplitFrame, SplitHalf, TitleField } from "./rows";
 
 type PinProps = {
   indent?: number;
   /** The selected tab's ID, unless none is: the New Tab omnibox is open. */
   selected?: number;
-  onToggleFolder: (folder: PinFolder) => void;
+  actions: PinActions;
 };
 
 /** A pin's tab or a split pin's two, while it is open in the window's Browser, each with whether it is away. */
@@ -64,7 +66,7 @@ function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
   if (pin.kind === "folder") return <FolderRow folder={pin} {...props} />;
   // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
   return (
-    <div {...pinDrag(pin, false)} className="flex flex-col">
+    <div {...pinDrag(pin, { renaming: props.actions.renaming === pin.id })} className="flex flex-col">
       {pin.kind === "split" ? <SplitPinRow pin={pin} {...props} /> : <TabPinRow pin={pin} {...props} />}
     </div>
   );
@@ -94,7 +96,12 @@ function PinLabel({ page, open, title }: { page: PinPage; open?: PinTab; title: 
   );
 }
 
-function TabPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, { kind: "tab" }> }) {
+/** The field a pin's name is edited in, from what it is called now. */
+function PinNameField({ pin, title, actions }: { pin: Pin; title: string; actions: PinActions }) {
+  return <TitleField initial={title} label="Pin Name" onDone={(name) => actions.onRename(pin, name)} />;
+}
+
+function TabPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extract<Pin, { kind: "tab" }> }) {
   const open = usePinTabs(pin);
   const [tab] = open;
   const title = pinTitle(pin, open);
@@ -106,8 +113,14 @@ function TabPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, { k
       indent={indent}
       onPress={() => pinsIpc.open(pin.id)}
       onMiddlePress={tab ? () => pinsIpc.close(pin.id) : undefined}
+      onMenu={(x, y) => actions.onMenu(pin, x, y)}
     >
-      {tab?.away ? (
+      {actions.renaming === pin.id ? (
+        <>
+          <PinPageIcon page={pin.page} open={tab} />
+          <PinNameField pin={pin} title={title} actions={actions} />
+        </>
+      ) : tab?.away ? (
         <AwayTitle page={pin.page} title={title} inset="row" onBack={() => pinsIpc.back(pin.id, 0)} />
       ) : (
         <PinLabel page={pin.page} open={tab} title={title} />
@@ -176,9 +189,22 @@ function AwayTitle({
 // A split pin's two pages side by side in one row, as the list draws a
 // split of the Browser's. Open, a press on either half selects that half's
 // tab, and either half that is away is drawn as an away row is.
-function SplitPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, { kind: "split" }> }) {
+function SplitPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extract<Pin, { kind: "split" }> }) {
   const open = usePinTabs(pin);
   const active = open.some(({ tab }) => tab.id === selected);
+  if (actions.renaming === pin.id) {
+    // Its one name, over both halves.
+    return (
+      <SplitFrame active={active} indent={indent}>
+        <div className="flex h-full min-w-0 flex-1 items-center gap-2.75 pl-1.5">
+          {pin.pages.map((page, side) => (
+            <PinPageIcon key={side} page={page} open={open[side]} />
+          ))}
+          <PinNameField pin={pin} title={pinTitle(pin, open)} actions={actions} />
+        </div>
+      </SplitFrame>
+    );
+  }
   return (
     <SplitFrame active={active} indent={indent}>
       {pin.pages.map((page, side) => {
@@ -192,6 +218,7 @@ function SplitPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, {
             pressed={half?.tab.id === selected}
             onPress={() => (half ? browser.activate(half.tab.id) : pinsIpc.open(pin.id))}
             onMiddlePress={half ? () => pinsIpc.close(pin.id) : undefined}
+            onMenu={(x, y) => actions.onMenu(pin, x, y)}
           >
             {half?.away ? (
               <AwayTitle page={page} title={title} inset="half" onBack={() => pinsIpc.back(pin.id, side)} />
@@ -208,17 +235,33 @@ function SplitPinRow({ pin, indent, selected }: PinProps & { pin: Extract<Pin, {
 
 /** A folder and, while it is open, what is in it. */
 function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
-  const { indent = 0, onToggleFolder } = props;
+  const { indent = 0, actions } = props;
+  const renaming = actions.renaming === folder.id;
   return (
     <>
       {/* Dragged, it moves among the pins with what is in it (pin-drop.ts); a
           press that is not a drag opens or closes it. */}
-      <div {...pinDrag(folder, false)} className="flex flex-col">
-        <Row indent={indent} onClick={() => onToggleFolder(folder)}>
+      <div {...pinDrag(folder, { renaming })} className="flex flex-col">
+        <Row
+          indent={indent}
+          onClick={() => actions.onToggleFolder(folder)}
+          onMenu={(x, y) => actions.onMenu(folder, x, y)}
+        >
           <IconSlot>
             <FolderIcon open={folder.open} className="text-fg" />
           </IconSlot>
-          <span className="min-w-0 flex-1 truncate font-semibold">{folder.name}</span>
+          {renaming ? (
+            <TitleField
+              initial={folder.name}
+              label="Folder Name"
+              className="font-semibold"
+              onDone={(name) => actions.onRename(folder, name)}
+            />
+          ) : (
+            <span className="min-w-0 flex-1 truncate font-semibold" onDoubleClick={() => actions.onStartRename(folder)}>
+              {folder.name}
+            </span>
+          )}
         </Row>
       </div>
       <Disclosed open={folder.open}>

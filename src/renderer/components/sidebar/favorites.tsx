@@ -13,6 +13,7 @@ import { cn } from "../../utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { Favorite } from "./favorite";
 import { usePinDrop } from "./pin-drop";
+import type { PinActions } from "./pin-actions";
 import { favoritesLandingAt } from "./pin-landing";
 
 /**
@@ -25,12 +26,14 @@ export function Favorites({
   favorites,
   read,
   settings,
-  selected
+  selected,
+  actions
 }: {
   favorites: Pin[];
   read: boolean;
   settings: LibrarySettings;
   selected?: number;
+  actions: PinActions;
 }) {
   const { profile } = useSpace();
   // An incognito window keeps none.
@@ -59,7 +62,9 @@ export function Favorites({
       )}
       style={{ gridTemplateColumns: `repeat(${Math.min(favorites.length, 3)}, minmax(0, 1fr))` }}
     >
-      {favorites.map((pin) => pin.kind !== "folder" && <Favorite key={pin.id} pin={pin} selected={selected} />)}
+      {favorites.map(
+        (pin) => pin.kind !== "folder" && <Favorite key={pin.id} pin={pin} selected={selected} actions={actions} />
+      )}
       {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}
     </div>
   );

@@ -14,12 +14,18 @@ export function Popover({
   arrowFill,
   side = "bottom",
   windowMargin = 8,
+  anchored = false,
+  onEscape,
   children
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Opens and closes it; it must take a ref (a DOM element). */
   trigger: ReactNode;
+  /** `trigger` only marks what it hangs off, and a press on it does not open or close it: `open` alone does. */
+  anchored?: boolean;
+  /** Escape is pressed in it, before it closes (`onOpenChange`). */
+  onEscape?: () => void;
   /** What it is, for assistive technology. */
   label: string;
   /**
@@ -41,7 +47,7 @@ export function Popover({
   useHoldWhile(open);
   return (
     <Radix.Root open={open} onOpenChange={onOpenChange}>
-      <Radix.Trigger asChild>{trigger}</Radix.Trigger>
+      {anchored ? <Radix.Anchor asChild>{trigger}</Radix.Anchor> : <Radix.Trigger asChild>{trigger}</Radix.Trigger>}
       <Radix.Portal>
         <Radix.Content
           aria-label={label}
@@ -50,6 +56,7 @@ export function Popover({
           collisionPadding={windowMargin}
           // Opened by a click, it takes no focus ring to its first control.
           onOpenAutoFocus={(event) => event.preventDefault()}
+          onEscapeKeyDown={onEscape}
           data-scheme="system"
           // Over the window's title bar too: a press in it is the
           // popover's, not a drag of the window.

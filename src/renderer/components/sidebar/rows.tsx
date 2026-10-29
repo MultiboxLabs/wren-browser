@@ -1,10 +1,10 @@
 // What the sidebar's rows are made of, whichever list they are in: the row
 // itself, a split's row and its halves, its icon's column, its close button,
-// and the rows that fold up under a heading.
+// the field that renames it, and the rows that fold up under a heading.
 
 import { X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import type { CSSProperties, MouseEvent, PointerEvent, ReactNode } from "react";
+import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import { Button, type Icon } from "../ui/button";
 import { press } from "../ui/press";
 import { cn } from "../../utils/cn";
@@ -224,6 +224,52 @@ export function CloseButton({
       onClick={onClose}
       // Hovered, a fill of its own over the row's, and the cross full.
       className="hidden size-5.5 place-items-center rounded-control group-hover:grid hover:[&>span]:glyph-1"
+    />
+  );
+}
+
+/**
+ * Edits a row's title in place: Return or a click elsewhere keeps it, and
+ * Escape leaves it as it was. `onDone` has the new title, or null for none:
+ * left as it was, or not changed.
+ */
+export function TitleField({
+  initial,
+  placeholder,
+  label,
+  className,
+  onDone
+}: {
+  initial: string;
+  placeholder?: string;
+  label: string;
+  className?: string;
+  onDone: (title: string | null) => void;
+}) {
+  // Return or Escape ends it before the blur that follows.
+  const done = useRef(false);
+  const finish = (title: string | null) => {
+    if (done.current) return;
+    done.current = true;
+    onDone(title === initial ? null : title);
+  };
+  return (
+    <input
+      autoFocus
+      defaultValue={initial}
+      placeholder={placeholder}
+      aria-label={label}
+      spellCheck={false}
+      // Clicks in the field stay in it, not the row.
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+      onFocus={(event) => event.currentTarget.select()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") finish(event.currentTarget.value);
+        if (event.key === "Escape") finish(null);
+      }}
+      onBlur={(event) => finish(event.currentTarget.value)}
+      className={cn("min-w-0 flex-1 bg-transparent outline-none placeholder:text-fg-3", className)}
     />
   );
 }

@@ -16,6 +16,7 @@ import { DownloadFlights } from "../downloads/flight";
 import { Indicator } from "../downloads/indicator";
 import { Shelf, useShelf } from "../downloads/shelf";
 import { Favorites } from "./favorites";
+import { usePinActions } from "./pin-actions";
 import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
@@ -192,6 +193,7 @@ function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "addr
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
   const settings = useSettings(true);
+  const { actions, dialog } = usePinActions(pins.toggleFolder);
   // The tab drawn selected, as a pin's or a favourite's too; none while the
   // omnibox for a new tab is open.
   const selected = omnibox.shown?.target === "new-tab" ? undefined : current?.id;
@@ -199,9 +201,16 @@ function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "addr
     <>
       <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
 
-      <Favorites favorites={pins.favorites} read={pins.read} settings={settings} selected={selected} />
+      <Favorites
+        favorites={pins.favorites}
+        read={pins.read}
+        settings={settings}
+        selected={selected}
+        actions={actions}
+      />
 
-      <TabList omnibox={omnibox} pinned={pins.pinned} onToggleFolder={pins.toggleFolder} />
+      <TabList omnibox={omnibox} pinned={pins.pinned} pinActions={actions} />
+      {dialog}
     </>
   );
 }

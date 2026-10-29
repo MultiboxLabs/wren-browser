@@ -216,6 +216,38 @@ fn a_pin_is_found_with_its_place_and_keeps_its_look() {
 }
 
 #[test]
+fn a_pin_is_found_where_it_is_and_takes_another_page() {
+    let db = db();
+    let space = space(&db, "a");
+    db.create_pin(&top(space), None, tab("https://a/")).unwrap();
+    let id = db.create_pin(&top(space), None, tab("https://b/")).unwrap();
+    assert_eq!(db.pin_place(id).unwrap(), Some((top(space), 1)));
+    let favorite = db
+        .create_pin(
+            &PinPlace::Favorites {
+                profile: "a".into(),
+            },
+            None,
+            tab("https://c/"),
+        )
+        .unwrap();
+    assert_eq!(
+        db.pin_place(favorite).unwrap(),
+        Some((
+            PinPlace::Favorites {
+                profile: "a".into()
+            },
+            0
+        ))
+    );
+    db.set_pin_page(id, 0, &page("https://d/")).unwrap();
+    let (_, _, pin) = db.pin(id).unwrap().unwrap();
+    assert_eq!(pin.kind, PinKind::Tab(page("https://d/")));
+    assert!(db.set_pin_page(id, 1, &page("https://e/")).is_err());
+    assert!(db.pin_place(id + 10).unwrap().is_none());
+}
+
+#[test]
 fn a_split_becomes_a_tab_of_the_side_it_keeps() {
     let db = db();
     let split = NewPin::Split {

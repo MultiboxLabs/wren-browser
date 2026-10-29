@@ -62,6 +62,14 @@ export const pins = {
   back: (id: number, side: number) => wren.invoke<null>("pins.back", { id, side }),
   /** Closes an open pin's tabs, leaving it unopened. */
   close: (id: number) => wren.invoke<null>("pins.close", id),
+  /**
+   * Shows a pin's context menu, or a folder's, at a point in the page; the
+   * app does what is chosen, then answers with its ID. "open", "rename" and
+   * "delete-folder" are the page's to do; for "new-folder", `folder` is the
+   * folder made, for the page to name.
+   */
+  menu: (id: number, x: number, y: number) =>
+    wren.invoke<{ chosen: string | null; folder: number | null }>("pins.menu", { id, x, y }),
   /** Opens a folder, or closes it. */
   setOpen: (id: number, open: boolean) => wren.invoke<null>("pins.setOpen", { id, open }),
   /** Deletes a pin, and what is in it if it is a folder, closing their tabs. */

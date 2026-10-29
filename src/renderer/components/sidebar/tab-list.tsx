@@ -4,7 +4,7 @@
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { memo, type ReactNode, useRef, useState } from "react";
-import { browser, type GroupColor, groups, type Pin, type PinFolder, type TabGroup, type TabSplit } from "../../ipc";
+import { browser, type GroupColor, groups, type Pin, type TabGroup, type TabSplit } from "../../ipc";
 import { useHoldUntil } from "../ui/hold";
 import { Tooltip } from "../ui/tooltip";
 import { Favicon } from "../favicon";
@@ -18,10 +18,11 @@ import { useGroupKeys } from "./keys";
 import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
+import type { PinActions } from "./pin-actions";
 import { usePinDrop } from "./pin-drop";
 import { pinsLandingAt } from "./pin-landing";
 import { PinRows } from "./pins";
-import { CloseButton, Disclosed, IconSlot, Row, SplitFrame, SplitHalf } from "./rows";
+import { CloseButton, Disclosed, IconSlot, Row, SplitFrame, SplitHalf, TitleField } from "./rows";
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
 // it stands, unclipped, while the rows below slide to make room or close
@@ -54,12 +55,12 @@ type ListActions = {
 export function TabList({
   omnibox,
   pinned,
-  onToggleFolder
+  pinActions
 }: {
   omnibox: OmniboxState;
   /** The space's pins, over its tabs. */
   pinned: Pin[];
-  onToggleFolder: (folder: PinFolder) => void;
+  pinActions: PinActions;
 }) {
   // A tab's or a group's menu holds the floating sidebar out until it closes.
   const holdUntil = useHoldUntil();
@@ -117,7 +118,7 @@ export function TabList({
         <PinnedSection
           pinned={pinned}
           selected={selected}
-          onToggleFolder={onToggleFolder}
+          actions={pinActions}
           open={pinnedOpen}
           onToggle={togglePinned}
         />
@@ -189,13 +190,13 @@ export function TabList({
 function PinnedSection({
   pinned,
   selected,
-  onToggleFolder,
+  actions,
   open,
   onToggle
 }: {
   pinned: Pin[];
   selected?: number;
-  onToggleFolder: (folder: PinFolder) => void;
+  actions: PinActions;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -212,7 +213,7 @@ function PinnedSection({
       </div>
       {/* With no pins, nothing: not even its gap under the heading. */}
       <Disclosed open={open && pinned.length > 0}>
-        <PinRows pins={pinned} selected={selected} onToggleFolder={onToggleFolder} />
+        <PinRows pins={pinned} selected={selected} actions={actions} />
       </Disclosed>
       {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}
     </div>
@@ -475,7 +476,13 @@ function GroupRows({
           <span className="size-3 rounded-[3.5px]" style={{ background: groupColors[group.color] }} />
         </IconSlot>
         {actions.renaming === group.id ? (
-          <GroupTitleField group={group} onDone={(title) => actions.onRename(group, title)} />
+          <TitleField
+            initial={group.title}
+            placeholder="Unnamed Group"
+            label="Group Title"
+            className="font-semibold"
+            onDone={(title) => actions.onRename(group, title)}
+          />
         ) : (
           <span
             className={cn("min-w-0 flex-1 truncate font-semibold", !group.title && "text-fg-3")}
@@ -502,35 +509,5 @@ function GroupRows({
           ))}
       </AnimatePresence>
     </div>
-  );
-}
-
-// Edits a group's title in place: Return keeps it, Escape leaves it as it
-// was.
-function GroupTitleField({ group, onDone }: { group: TabGroup; onDone: (title: string | null) => void }) {
-  // Return or Escape ends it before the blur that follows.
-  const done = useRef(false);
-  const finish = (title: string | null) => {
-    if (done.current) return;
-    done.current = true;
-    onDone(title);
-  };
-  return (
-    <input
-      autoFocus
-      defaultValue={group.title}
-      placeholder="Unnamed Group"
-      aria-label="Group Title"
-      // Clicks in the field stay in it, not the row.
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
-      onFocus={(event) => event.currentTarget.select()}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") finish(event.currentTarget.value);
-        if (event.key === "Escape") finish(null);
-      }}
-      onBlur={(event) => finish(event.currentTarget.value)}
-      className="min-w-0 flex-1 bg-transparent font-semibold outline-none placeholder:text-fg-3"
-    />
   );
 }

@@ -1,20 +1,34 @@
 // A favourite: a tile of the grid over the tabs, showing its site's icon, or
 // a split's two side by side. Pressed, it opens in place, or selects its
 // tab; while its tab is away from its page, a double click takes it back.
+// A right click shows its menu, and it is renamed in a popover hanging off
+// it (pin-actions.tsx): Return or a click elsewhere keeps the name, and
+// Escape leaves it as it was.
 // Selected, it has a light fill with a soft shadow, the icon's colours
 // glowing faintly through it, and a thin ring of the same colours (see
 // .favorite in index.css).
 
-import { type CSSProperties, useId } from "react";
+import { type CSSProperties, useId, useRef } from "react";
 import { Button } from "../ui/button";
+import { Popover } from "../ui/popover";
+import { TextField } from "../ui/text-field";
 import { type Pin, type PinFolder, pins } from "../../ipc";
 import { cn } from "../../utils/cn";
 import { host } from "../../utils/url";
+import type { PinActions } from "./pin-actions";
 import { pinDrag } from "./pin-drop";
 import { PinPageIcon, pinTitle, usePinTabs } from "./pins";
 
 /** `selected`: the selected tab's ID, unless none is. */
-export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; selected?: number }) {
+export function Favorite({
+  pin,
+  selected,
+  actions
+}: {
+  pin: Exclude<Pin, PinFolder>;
+  selected?: number;
+  actions: PinActions;
+}) {
   const open = usePinTabs(pin);
   const isSelected = open.some(({ tab }) => tab.id === selected);
   const away = open.findIndex((side) => side.away);
@@ -30,9 +44,10 @@ export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; sele
       ))}
     </span>
   );
-  return (
+  const renaming = actions.renaming === pin.id;
+  const tile = (
     // Dragged out, it is a pin, or an ordinary tab (pin-drop.ts).
-    <div {...pinDrag(pin, true)} className="grid">
+    <div {...pinDrag(pin, { favorite: true, renaming })} className="grid">
       <Button
         variant="filled"
         shape="none"
@@ -40,6 +55,10 @@ export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; sele
         pressed={isSelected}
         onPointerDown={(event) => event.button === 0 && pins.open(pin.id)}
         onDoubleClick={() => away >= 0 && pins.back(pin.id, away)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          actions.onMenu(pin, event.clientX, event.clientY);
+        }}
         className={cn(
           "favorite relative grid h-11.75 place-items-center rounded-favorite",
           isSelected && "favorite-selected"
@@ -63,6 +82,42 @@ export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; sele
         <span className="relative grid">{icon}</span>
       </Button>
     </div>
+  );
+  // The name as it is edited, once it is: a click elsewhere, which closes
+  // the popover, keeps it, and Escape leaves it.
+  const draft = useRef<string | null>(null);
+  const keep = (name: string | null) => {
+    draft.current = null;
+    actions.onRename(pin, name === title ? null : name);
+  };
+  return (
+    <Popover
+      anchored
+      open={renaming}
+      onOpenChange={(open) => !open && keep(draft.current)}
+      onEscape={() => (draft.current = null)}
+      label="Rename Favourite"
+      trigger={tile}
+    >
+      {renaming && (
+        <form
+          className="p-2.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            keep(draft.current);
+          }}
+        >
+          <TextField
+            autoFocus
+            defaultValue={title}
+            aria-label="Favourite Name"
+            onChange={(event) => (draft.current = event.currentTarget.value)}
+            onFocus={(event) => event.currentTarget.select()}
+            className="w-52"
+          />
+        </form>
+      )}
+    </Popover>
   );
 }
 
