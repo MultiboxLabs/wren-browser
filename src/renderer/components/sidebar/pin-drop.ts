@@ -47,12 +47,14 @@ export function droppedPin(data: DataTransfer) {
 /**
  * The props that let `pin` be dragged, as a favourite's tile (`favorite`)
  * or a pin's row, and mark the element as the pin's (`data-pin-row`) for
- * where a drag lands. Not while it is `renaming`, which a drag would take.
+ * where a drag lands, unless it is a `peek`: a row drawn out of its folded
+ * section or folder (folding.tsx) is not where the pin is. Not while it is
+ * `renaming`, which a drag would take.
  */
-export function pinDrag(pin: Pin, { favorite = false, renaming = false } = {}) {
+export function pinDrag(pin: Pin, { favorite = false, renaming = false, peek = false } = {}) {
   return {
     draggable: !renaming,
-    "data-pin-row": pin.id,
+    "data-pin-row": peek ? undefined : pin.id,
     // Chromium draws the drag's image from the nearest stacking context,
     // over the box of the dragged element and all within it, however
     // clipped (as a selected favourite's glow is): as its own, it shows

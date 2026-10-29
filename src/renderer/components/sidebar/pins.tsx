@@ -17,13 +17,14 @@ import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
 import { FolderIcon } from "./folder-icon";
 import { pinIdentity, tabIdentity } from "./arrival";
+import { FoldingRows, foldRow } from "./folding";
 import type { PinActions } from "./pin-actions";
+import { usePeek } from "./peeks";
 import { pinDrag } from "./pin-drop";
 import { useStrike } from "./row-motion";
 import {
   Appear,
   CloseButton,
-  Disclosed,
   IconSlot,
   NESTED_INDENT,
   Row,
@@ -74,11 +75,15 @@ export const identitiesOf = (pin: Pin, open: PinTab[] = []) => [
   ...open.map(({ tab }) => tabIdentity(tab.id))
 ];
 
+/** A tab pin's page, or a split pin's two, in its order. */
+export const pinPages = (pin: Exclude<Pin, PinFolder>) => (pin.kind === "tab" ? [pin.page] : pin.pages);
+
 /** What a pin is called: the user's name for it, or else its open tab's title, or its kept page's. */
 export function pinTitle(pin: Exclude<Pin, PinFolder>, open: PinTab[] = []) {
   if (pin.name) return pin.name;
-  const pages = pin.kind === "tab" ? [pin.page] : pin.pages;
-  return pages.map((page, side) => open[side]?.tab.title || page.title).join(" | ");
+  return pinPages(pin)
+    .map((page, side) => open[side]?.tab.title || page.title)
+    .join(" | ");
 }
 
 /** Pins, coming and going as the list's tabs do (`Appear`); no row's layout is motion's to animate. */
@@ -92,7 +97,21 @@ export function PinRows({ pins, ...props }: PinProps & { pins: Pin[] }) {
   );
 }
 
+/** A pin's row in its list, coming and going as the list's rows do. */
 function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
+  const open = usePinTabs(pin);
+  return (
+    <Appear identities={identitiesOf(pin, open)} reorders>
+      <PinBody pin={pin} {...props} />
+    </Appear>
+  );
+}
+
+/**
+ * A pin's row and the gap above it, marked as the pin's (`foldRow`); `peek`:
+ * drawn out of its folded section or folder (`pinPeek`).
+ */
+function PinBody({ pin, peek = false, ...props }: PinProps & { pin: Pin; peek?: boolean }) {
   const open = usePinTabs(pin);
   const { ref: struck, strike } = useStrike<HTMLDivElement>();
   // What its button and a middle click do: an open pin's tab closes, struck
@@ -103,29 +122,37 @@ function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
     void pinsIpc.close(pin.id);
   };
   return (
-    <Appear identities={identitiesOf(pin, open)} reorders>
-      {/* Each brings the gap above it, which grows and shrinks with it. */}
-      <div className="flex flex-col gap-1.25 pt-1.25">
-        {pin.kind === "folder" ? (
-          <FolderRow folder={pin} {...props} />
-        ) : (
-          // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
-          <div
-            ref={struck}
-            {...pinDrag(pin, { renaming: props.actions.renaming === pin.id })}
-            className="flex flex-col"
-          >
-            {pin.kind === "split" ? (
-              <SplitPinRow pin={pin} onDismiss={dismiss} {...props} />
-            ) : (
-              <TabPinRow pin={pin} onDismiss={dismiss} {...props} />
-            )}
-          </div>
-        )}
-      </div>
-    </Appear>
+    // Each brings the gap above it, which grows and shrinks with it.
+    <div className="flex flex-col gap-1.25 pt-1.25">
+      {pin.kind === "folder" ? (
+        <FolderRow folder={pin} {...props} />
+      ) : (
+        // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
+        <div
+          ref={struck}
+          {...foldRow(pinIdentity(pin.id))}
+          {...pinDrag(pin, { renaming: props.actions.renaming === pin.id, peek })}
+          className="flex flex-col"
+        >
+          {pin.kind === "split" ? (
+            <SplitPinRow pin={pin} open={open} onDismiss={dismiss} {...props} />
+          ) : (
+            <TabPinRow pin={pin} open={open} onDismiss={dismiss} {...props} />
+          )}
+        </div>
+      )}
+    </div>
   );
 }
+
+/**
+ * What a folded section or folder shows of pin `pin` (folding.tsx): its row
+ * as drawn out of the container, as far in as `indent`.
+ */
+export const pinPeek = (pin: Pin, props: PinProps) => ({
+  key: pinIdentity(pin.id),
+  row: <PinBody key={pin.id} pin={pin} peek {...props} />
+});
 
 /**
  * The button over an unopened pin's row, a cross that unpins it, which an
@@ -139,8 +166,11 @@ function PinButton({ open, onDismiss }: { open: boolean; onDismiss: () => void }
   );
 }
 
-/** A tab or split pin's row: `onDismiss` is what its button and a middle click do (`PinItem`). */
-type PinRowProps = PinProps & { onDismiss: () => void };
+/**
+ * A tab or split pin's row: `open` is its open tabs (`usePinTabs`), and
+ * `onDismiss` what its button and a middle click do (`PinBody`).
+ */
+type PinRowProps = PinProps & { open: PinTab[]; onDismiss: () => void };
 
 /**
  * A pin's page as its row shows it: its icon, and its title, in full in a
@@ -177,12 +207,12 @@ function PinNameField({ pin, title, actions }: { pin: Pin; title: string; action
 
 function TabPinRow({
   pin,
+  open,
   indent,
   selected,
   actions,
   onDismiss
 }: PinRowProps & { pin: Extract<Pin, { kind: "tab" }> }) {
-  const open = usePinTabs(pin);
   const [tab] = open;
   const title = pinTitle(pin, open);
   const isSelected = tab !== undefined && tab.tab.id === selected;
@@ -284,12 +314,12 @@ function AwayTitle({
 // tab, and either half that is away is drawn as an away row is.
 function SplitPinRow({
   pin,
+  open,
   indent,
   selected,
   actions,
   onDismiss
 }: PinRowProps & { pin: Extract<Pin, { kind: "split" }> }) {
-  const open = usePinTabs(pin);
   const active = open.some(({ tab }) => tab.id === selected);
   if (actions.renaming === pin.id) {
     // Its one name, over both halves.
@@ -340,10 +370,15 @@ function SplitPinRow({
   );
 }
 
-/** A folder and, while it is open, what is in it. */
+/**
+ * A folder and, while it is open, what is in it; folded, the pin it still
+ * shows, if any (peeks.ts), its icon holding dots as it does.
+ */
 function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
   const { indent = 0, actions } = props;
+  const inner = indent + NESTED_INDENT;
   const renaming = actions.renaming === folder.id;
+  const peek = usePeek(folder.id);
   const renameClick = useRenameClick(() => actions.onStartRename(folder));
   return (
     <>
@@ -357,7 +392,7 @@ function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
           identities={[pinIdentity(folder.id)]}
         >
           <IconSlot>
-            <FolderIcon open={folder.open} className="text-fg" />
+            <FolderIcon open={folder.open} peeking={peek !== undefined} className="text-fg" />
           </IconSlot>
           {renaming ? (
             <TitleField
@@ -373,9 +408,9 @@ function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
           )}
         </Row>
       </div>
-      <Disclosed open={folder.open}>
-        <PinRows pins={folder.items} {...props} indent={indent + NESTED_INDENT} />
-      </Disclosed>
+      <FoldingRows open={folder.open} peek={peek && pinPeek(peek, { ...props, indent: inner })} indent={inner}>
+        <PinRows pins={folder.items} {...props} indent={inner} />
+      </FoldingRows>
     </>
   );
 }

@@ -23,7 +23,7 @@ import type { PinActions } from "./pin-actions";
 import { REORDER, TILE_IN, TILE_OUT, useStrike } from "./row-motion";
 import { pressHandlers } from "./rows";
 import { pinDrag } from "./pin-drop";
-import { identitiesOf, PinPageIcon, pinTitle, usePinTabs } from "./pins";
+import { identitiesOf, PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pins";
 
 /**
  * `selected`: the selected tab's ID, unless none is. `ref` is its tile's, as
@@ -43,7 +43,7 @@ export function Favorite({
   const open = usePinTabs(pin);
   const isSelected = open.some(({ tab }) => tab.id === selected);
   const away = open.findIndex((side) => side.away);
-  const pages = pin.kind === "tab" ? [pin.page] : pin.pages;
+  const pages = pinPages(pin);
   const title = pinTitle(pin, open);
   // The ring's filter: Chromium takes an SVG filter only from the page
   // itself, so the tile draws its own, by an ID of its own.

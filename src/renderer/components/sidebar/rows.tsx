@@ -1,19 +1,16 @@
 // What the sidebar's rows are made of, whichever list they are in: the row
 // itself, a split's row and its halves, its icon's column, its close button,
-// the field that renames it, and the rows that fold up under a heading.
+// and the field that renames it. Rows that fold up under a heading are
+// folding.tsx's.
 
 import { X } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import { Button, type Icon } from "../ui/button";
 import { press } from "../ui/press";
 import { cn } from "../../utils/cn";
 import { useArrival, useMoving } from "./arrival";
 import { REORDER, ROW_IN, ROW_OUT } from "./row-motion";
-
-// The space's pinned tabs fold up under its heading, and down again, as a
-// disclosed section of a list does on macOS.
-const pinnedTransition = { duration: 0.2, ease: "easeInOut" } as const;
 
 /** How far in a folder's or a group's rows are from its own. */
 export const NESTED_INDENT = 16;
@@ -227,30 +224,6 @@ export function Appear({
     >
       {children}
     </motion.div>
-  );
-}
-
-/**
- * Rows under a heading that fold up into it and down out of it, clipped as
- * they go; with Reduced Motion they only fade. Each row brings the gap above
- * it, and the first one's goes with them.
- */
-export function Disclosed({ open, children }: { open: boolean; children: ReactNode }) {
-  const still = useReducedMotion();
-  return (
-    <AnimatePresence initial={false}>
-      {open && (
-        <motion.div
-          initial={{ height: still ? "auto" : 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: still ? "auto" : 0, opacity: 0 }}
-          transition={pinnedTransition}
-          className="-mt-1.25 shrink-0 overflow-hidden"
-        >
-          <div className="flex flex-col">{children}</div>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 
