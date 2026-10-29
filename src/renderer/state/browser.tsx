@@ -40,6 +40,12 @@ type BrowserState = {
   space: number | null;
   /** Its tabs, in its order. */
   tabs: BrowserTabWithFavicon[];
+  /**
+   * The tabs the sidebar's list shows, in its order: those Chromium has not
+   * pinned, which are pins' (the app's `tabs::listed`). The list's indices
+   * are among these.
+   */
+  listed: BrowserTabWithFavicon[];
   groups: TabGroup[];
   splits: TabSplit[];
   /** The active tab. */
@@ -83,6 +89,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     // this, and `current` below, are the page's one check for an empty
     // space, as `BrowserWindow::browser_with_tabs` is the app's.
     tabs: list.filter((tab) => !tab.hidden),
+    listed: list.filter((tab) => !tab.hidden && !tab.pinned),
     groups: tabs?.groups ?? [],
     splits: tabs?.splits ?? [],
     // The New Tab page standing in is not shown either: the window shows no tab.
@@ -105,7 +112,16 @@ export function BrowserOfSpace({ space, children }: { space: number; children: R
   const state = useBrowser();
   const own = useRef<BrowserState | null>(null);
   if (state.space === space) own.current = state;
-  const shown = own.current ?? { ...state, space, id: null, tabs: [], groups: [], splits: [], current: undefined };
+  const shown = own.current ?? {
+    ...state,
+    space,
+    id: null,
+    tabs: [],
+    listed: [],
+    groups: [],
+    splits: [],
+    current: undefined
+  };
   return <BrowserContext value={shown}>{children}</BrowserContext>;
 }
 

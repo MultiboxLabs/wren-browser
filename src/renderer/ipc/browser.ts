@@ -14,6 +14,8 @@ export type BrowserTab = {
   group: string | null;
   /** Its split's ID, if it is in one. */
   split: string | null;
+  /** Chromium has pinned it: it is a pin's, and not in the list. */
+  pinned: boolean;
   /** It stands in for the Browser's tabs while it has none: a New Tab page the window neither lists nor shows. */
   hidden: boolean;
 };

@@ -63,7 +63,7 @@ export function TabList({ omnibox }: { omnibox: OmniboxState }) {
   // A tab's or a group's menu holds the floating sidebar out until it closes.
   const holdUntil = useHoldUntil();
   const { space, toggleFolder } = useSpace();
-  const { tabs, groups: tabGroups, splits, current } = useBrowser();
+  const { listed: tabs, groups: tabGroups, splits, current } = useBrowser();
   const [renaming, setRenaming] = useState<string | null>(null);
   // The spaces whose pinned tabs are folded up, as long as the window is open.
   const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());

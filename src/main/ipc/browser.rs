@@ -27,6 +27,8 @@ pub struct Tab {
     group: Option<String>,
     /// Its split's ID, if it is in one.
     split: Option<String>,
+    /// Chromium has pinned it: it is a pin's, and not in the list.
+    pinned: bool,
     /// It stands in for the Browser's tabs while it has none: the page
     /// neither lists nor shows it.
     hidden: bool,
@@ -82,6 +84,7 @@ struct Pair {
 #[derive(Deserialize)]
 struct OpenAt {
     url: String,
+    /// Among the list's tabs (`tabs::listed`).
     index: usize,
     /// One of the tabs of the group it opens in, or none.
     group: Option<i32>,
@@ -90,7 +93,7 @@ struct OpenAt {
 #[derive(Deserialize)]
 struct MoveTo {
     unit: Movable,
-    /// Where its first tab goes, among all the tabs.
+    /// Where its first tab goes, among the list's tabs (`tabs::listed`).
     index: usize,
     /// For a tab: one of the tabs of the group it ends in, or none for no
     /// group. A split or a group stays as it is.
@@ -297,6 +300,7 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
                 crashed: state.is_some_and(|state| state.crash != TabCrash::None),
                 group: group.map(|group| group.to_string()),
                 split: split.map(|split| split.to_string()),
+                pinned: state.is_some_and(|state| state.pinned),
                 hidden: placeholder::is_placeholder(tab),
             }
         })
