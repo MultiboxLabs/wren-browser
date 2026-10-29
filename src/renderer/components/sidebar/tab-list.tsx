@@ -1,7 +1,7 @@
 // The sidebar's list: the space's pinned tabs and folders, the New Tab row,
 // and the Browser's tabs, in their groups and splits.
 
-import { ChevronDown, ChevronRight, Folder as FolderIcon, FolderOpen, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, memo, type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
@@ -16,6 +16,7 @@ import { useBrowser } from "../../state/browser";
 import { type Folder, isFolder, type Tab, useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 import { DropMarkView } from "./drop-mark";
+import { FolderIcon } from "./folder-icon";
 import { useGroupKeys } from "./keys";
 import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
@@ -375,18 +376,30 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   );
 }
 
-function FolderRow(props: ListProps & { folder: Folder }) {
-  const { folder } = props;
-  const Icon = folder.open ? FolderOpen : FolderIcon;
+/** How far in each folder's tabs and folders are from it. */
+const FOLDER_INDENT = 16;
+
+/** A folder and, while it is open, what is in it, a step further in for each folder it is in. */
+function FolderRow(props: ListProps & { folder: Folder; indent?: number }) {
+  const { folder, indent = 0 } = props;
+  const inner = indent + FOLDER_INDENT;
   return (
     <>
-      <Row onPress={() => props.onToggleFolder(folder)}>
+      <Row indent={indent} onPress={() => props.onToggleFolder(folder)}>
         <IconSlot>
-          <Icon size={22} strokeWidth={1.6} className="-translate-y-px text-accent" />
+          <FolderIcon open={folder.open} className="text-fg" />
         </IconSlot>
         <span className="min-w-0 flex-1 truncate font-semibold">{folder.title}</span>
       </Row>
-      {folder.open && folder.tabs.map((tab) => <TabRow key={tab.id} tab={tab} indent={16} {...props} />)}
+      <Disclosed open={folder.open}>
+        {folder.items.map((item) =>
+          isFolder(item) ? (
+            <FolderRow key={item.id} {...props} folder={item} indent={inner} />
+          ) : (
+            <TabRow key={item.id} {...props} tab={item} indent={inner} />
+          )
+        )}
+      </Disclosed>
     </>
   );
 }

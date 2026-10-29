@@ -38,7 +38,8 @@ export type Tab = {
   /** A tab of the Browser's split's ID. */
   split?: string | null;
 };
-export type Folder = { id: string; title: string; open: boolean; tabs: Tab[] };
+/** A folder of pinned tabs, and of folders of its own. */
+export type Folder = { id: string; title: string; open: boolean; items: (Tab | Folder)[] };
 export type Space = {
   /** Its ID in the app's database; 0 for a made-up one, and `NEW_SPACE` for the one being made. */
   id: number;
@@ -62,7 +63,21 @@ export type Space = {
   pinned: (Tab | Folder)[];
 };
 
-export const isFolder = (item: Tab | Folder): item is Folder => "tabs" in item;
+export const isFolder = (item: Tab | Folder): item is Folder => "items" in item;
+
+/** The tabs among `items`, and in their folders, however deep. */
+export const tabsIn = (items: (Tab | Folder)[]): Tab[] =>
+  items.flatMap((item) => (isFolder(item) ? tabsIn(item.items) : [item]));
+
+/** `items` with `folder` opened or closed, wherever it is among them. */
+const toggled = (items: (Tab | Folder)[], folder: Folder): (Tab | Folder)[] =>
+  items.map((item) =>
+    item === folder
+      ? { ...folder, open: !folder.open }
+      : isFolder(item)
+        ? { ...item, items: toggled(item.items, folder) }
+        : item
+  );
 
 /** The ID the space being made is drawn with, and has its place by, after the last space. */
 export const NEW_SPACE = -1;
@@ -84,27 +99,36 @@ export const personal: Space = {
   color: "#6f00ff",
   scheme: "dark",
   favorites: [
-    // tab("Mail", "https://mail.example.com/"),
-    // tab("Chat", "https://chat.example.com/"),
-    // tab("Calendar", "https://calendar.example.com/"),
-    // tab("Notes", "https://notes.example.com/"),
-    // tab("Videos", "https://videos.example.com/"),
-    // tab("Music", "https://music.example.com/")
+    tab("Mail", "https://mail.example.com/"),
+    tab("Chat", "https://chat.example.com/"),
+    tab("Calendar", "https://calendar.example.com/"),
+    tab("Notes", "https://notes.example.com/"),
+    tab("Videos", "https://videos.example.com/"),
+    tab("Music", "https://music.example.com/")
   ],
   pinned: [
-    // tab("Search", "https://search.example.com/"),
-    // {
-    //   id: "folder-reading",
-    //   title: "Reading",
-    //   open: true,
-    //   tabs: [
-    //     tab("Chromium Architecture", "https://docs.example.com/chromium"),
-    //     tab("Rust Book", "https://docs.example.com/rust")
-    //   ]
-    // },
-    // tab("Wren Runtime", "https://code.example.com/wren-runtime"),
-    // { id: "folder-work", title: "Work", open: false, tabs: [tab("Tickets", "https://tickets.example.com/")] },
-    // tab("Inbox", "https://mail.example.com/inbox")
+    tab("Search", "https://search.example.com/"),
+    {
+      id: "folder-reading",
+      title: "Reading",
+      open: true,
+      items: [
+        tab("Chromium Architecture", "https://docs.example.com/chromium"),
+        {
+          id: "folder-papers",
+          title: "Papers",
+          open: true,
+          items: [
+            tab("Site Isolation", "https://papers.example.com/site-isolation"),
+            tab("Compositing", "https://papers.example.com/compositing")
+          ]
+        },
+        tab("Rust Book", "https://docs.example.com/rust")
+      ]
+    },
+    tab("Wren Runtime", "https://code.example.com/wren-runtime"),
+    { id: "folder-work", title: "Work", open: false, items: [tab("Tickets", "https://tickets.example.com/")] },
+    tab("Inbox", "https://mail.example.com/inbox")
   ]
 };
 
@@ -184,21 +208,21 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const profileEntry = profile ? listed?.find(({ id }) => id === profile.id) : undefined;
   const openedFrom = popup?.space != null ? entries?.find(({ id }) => id === popup.space) : undefined;
   // Until the spaces are read, the made-up one stands in, as the window's.
-  const space = useMemo(
-    () =>
-      openedFrom
-        ? drawn(openedFrom.id, openedFrom)
-        : profile
-          ? ofProfile(profile, profileEntry)
-          : draft
-            ? ofDraft(draft)
-            : entry
-              ? { ...drawn(entry.id, entry), favorites: madeUp.favorites, pinned: madeUp.pinned }
-              : current === null
-                ? madeUp
-                : { ...madeUp, id: current },
-    [openedFrom, profile, profileEntry, draft, entry, madeUp, current]
-  );
+  // Whichever it is, it shows the made-up favourites and pinned tabs.
+  const space = useMemo(() => {
+    const shown = openedFrom
+      ? drawn(openedFrom.id, openedFrom)
+      : profile
+        ? ofProfile(profile, profileEntry)
+        : draft
+          ? ofDraft(draft)
+          : entry
+            ? drawn(entry.id, entry)
+            : current === null
+              ? madeUp
+              : { ...madeUp, id: current };
+    return { ...shown, favorites: madeUp.favorites, pinned: madeUp.pinned };
+  }, [openedFrom, profile, profileEntry, draft, entry, madeUp, current]);
 
   // The content slides out toward `to`'s place, then `then` runs; at once
   // if either has no place.
@@ -221,7 +245,7 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const toggleFolder = (folder: Folder) =>
     setMadeUp((space) => ({
       ...space,
-      pinned: space.pinned.map((item) => (item === folder ? { ...folder, open: !folder.open } : item))
+      pinned: toggled(space.pinned, folder)
     }));
   const startNewSpace = (profile?: string) => {
     if (!making) leaveFor(NEW_SPACE, () => newSpace.start(profile ?? entry?.profile));

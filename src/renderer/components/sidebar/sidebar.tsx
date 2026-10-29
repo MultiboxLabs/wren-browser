@@ -22,7 +22,7 @@ import { SpaceSwitcher } from "./space-switcher";
 import { TabList } from "./tab-list";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
 import { useDownloadIndicator } from "../../state/downloads";
-import { isFolder, useSpace } from "../../state/space";
+import { tabsIn, useSpace } from "../../state/space";
 import { SLIDE } from "../../state/space-slide";
 
 export type SidebarProps = {
@@ -188,11 +188,7 @@ function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "addr
   const { space } = useSpace();
   const { tabs, current: active } = useBrowser();
   const selected = active?.id;
-  const current = [
-    ...space.favorites,
-    ...space.pinned.flatMap((item) => (isFolder(item) ? item.tabs : [item])),
-    ...tabs
-  ].find((tab) => tab.id === selected);
+  const current = [...space.favorites, ...tabsIn(space.pinned), ...tabs].find((tab) => tab.id === selected);
   return (
     <>
       <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
