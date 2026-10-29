@@ -293,10 +293,15 @@ body,
     sans-serif;
   font-size: var(--text-ui);
   line-height: 1.2;
-  /* Controls, not a document: no text selection, the arrow pointer, and
-     no rubber banding. */
+  /* Controls, not a document: no text selection and the arrow pointer. */
   cursor: default;
   user-select: none;
+}
+
+/* Nor any rubber banding, or a swipe that would take a tab back or
+   forward. Chromium reads it for the page's scrolling as a whole from the
+   root alone, not from <body>. */
+:root[data-scheme] {
   overscroll-behavior: none;
 }
 
