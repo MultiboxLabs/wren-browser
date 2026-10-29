@@ -1,12 +1,13 @@
 // A favourite: a tile of the grid over the tabs, showing its site's icon, or
-// a split's two side by side. Pressed, it opens in place, or selects its
-// tab; while its tab is away from its page, a double click takes it back.
+// a split's two, each in the middle of its half, a gap between them.
+// Pressed, it opens in place, or selects its tab; while its tab is away
+// from its page, a double click takes it back.
 // A right click shows its menu, and it is renamed in a popover hanging off
 // it (pin-actions.tsx): Return or a click elsewhere keeps the name, and
 // Escape leaves it as it was.
 // Selected, it has a light fill with a soft shadow, the icon's colours
-// glowing faintly through it, and a thin ring of the same colours (see
-// .favorite in index.css).
+// glowing faintly through it, and a thin ring of the same colours, which
+// fills the gap between a split's halves (see .favorite in index.css).
 
 import { type CSSProperties, useId, useRef } from "react";
 import { Button } from "../ui/button";
@@ -37,13 +38,12 @@ export function Favorite({
   // The ring's filter: Chromium takes an SVG filter only from the page
   // itself, so the tile draws its own, by an ID of its own.
   const filter = `favorite-ring-${useId().replace(/[^\w-]/g, "")}`;
-  const icon = (
-    <span className="flex gap-1">
-      {pages.map((page, side) => (
-        <PinPageIcon key={side} page={page} open={open[side]} />
-      ))}
-    </span>
-  );
+  const split = pages.length > 1;
+  const icons = pages.map((page, side) => <PinPageIcon key={side} page={page} open={open[side]} />);
+  // The glow's and the ring's, blurred over the whole tile: the icons fill
+  // the box that is stretched over it, a split's two side by side, so their
+  // colours reach every edge.
+  const filling = <span className="flex *:min-w-0 *:flex-1 *:size-full!">{icons}</span>;
   const renaming = actions.renaming === pin.id;
   const tile = (
     // Dragged out, it is a pin, or an ordinary tab (pin-drop.ts).
@@ -61,13 +61,14 @@ export function Favorite({
         }}
         className={cn(
           "favorite relative grid h-11.75 place-items-center rounded-favorite",
-          isSelected && "favorite-selected"
+          isSelected && "favorite-selected",
+          split && "favorite-split"
         )}
       >
         {isSelected && (
           <>
             <span aria-hidden className="favorite-glow">
-              {icon}
+              {filling}
             </span>
             <span
               aria-hidden
@@ -75,11 +76,13 @@ export function Favorite({
               style={{ "--favorite-ring-filter": `url(#${filter})` } as CSSProperties}
             >
               <RingFilter id={filter} />
-              {icon}
+              {filling}
             </span>
           </>
         )}
-        <span className="relative grid">{icon}</span>
+        <span className={cn("grid place-items-center", split ? "absolute inset-0 grid-cols-2" : "relative")}>
+          {icons}
+        </span>
       </Button>
     </div>
   );
