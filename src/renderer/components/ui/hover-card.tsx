@@ -1,12 +1,18 @@
 // A card shown beside what the pointer rests on, for as long as the pointer
-// is on either, over whatever is there (the page too). It looks as a popover
-// does (popover.tsx), without an arrow, and is light or dark as the system
-// is. It goes on Escape, a press elsewhere, or a drag of what it is beside.
+// is on either or on its way from one to the other, over whatever is there
+// (the page too). It looks as a popover does (popover.tsx), without an
+// arrow, and is light or dark as the system is. It goes on Escape, a press
+// elsewhere, or a drag of what it is beside.
 
 import { HoverCard as Radix } from "radix-ui";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import { cn } from "../../utils/cn";
 import { useHoldWhile } from "./hold";
+import { useSafeTriangle } from "./safe-triangle";
+
+// How long the pointer may be off the trigger and the card, and off the way
+// between them, before the card closes.
+const CLOSE_DELAY = 150;
 
 export function HoverCard({
   open,
@@ -36,13 +42,29 @@ export function HoverCard({
   children: ReactNode;
 }) {
   useHoldWhile(open);
+  const content = useRef<HTMLDivElement>(null);
+  const triangle = useSafeTriangle(content, () => onOpenChange(false), CLOSE_DELAY);
   return (
-    <Radix.Root open={open} onOpenChange={onOpenChange} openDelay={400} closeDelay={150}>
-      <Radix.Trigger asChild onDragStart={() => onOpenChange(false)}>
+    <Radix.Root open={open} onOpenChange={onOpenChange} openDelay={400} closeDelay={CLOSE_DELAY}>
+      <Radix.Trigger
+        asChild
+        onDragStart={() => onOpenChange(false)}
+        // The pointer alone opens and closes it, not the keyboard coming to
+        // or going from the trigger (or a control in it), as Radix has it: a
+        // card that takes the keyboard, or gives it back to the trigger as
+        // it goes, would close or reopen itself.
+        onFocus={(event) => event.preventDefault()}
+        onBlur={(event) => event.preventDefault()}
+        // Open, it stays as the pointer goes over to it (safe-triangle.tsx).
+        onPointerLeave={(event) => {
+          if (open && triangle.leave(event)) event.preventDefault();
+        }}
+      >
         {trigger}
       </Radix.Trigger>
       <Radix.Portal>
         <Radix.Content
+          ref={content}
           aria-label={label}
           side={side}
           align={align}
@@ -56,6 +78,7 @@ export function HoverCard({
           {children}
         </Radix.Content>
       </Radix.Portal>
+      {triangle.overlay}
     </Radix.Root>
   );
 }
