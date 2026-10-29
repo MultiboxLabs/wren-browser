@@ -10,6 +10,7 @@ import {
   type FindBar,
   type FindShown,
   follow,
+  type PinLink,
   hasApp,
   type SidePanelState,
   type Site,
@@ -48,6 +49,8 @@ type BrowserState = {
   listed: BrowserTabWithFavicon[];
   groups: TabGroup[];
   splits: TabSplit[];
+  /** The pins open in the Browser, each with its tabs. */
+  links: PinLink[];
   /** The active tab. */
   current?: BrowserTabWithFavicon;
   /** The tab whose page has the whole window, if one has. */
@@ -92,6 +95,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
     listed: list.filter((tab) => !tab.hidden && !tab.pinned),
     groups: tabs?.groups ?? [],
     splits: tabs?.splits ?? [],
+    links: tabs?.links ?? [],
     // The New Tab page standing in is not shown either: the window shows no tab.
     current: list.find((tab) => tab.id === tabs?.active && !tab.hidden),
     fullScreen: list.find((tab) => tab.id === tabs?.fullScreen),
@@ -120,6 +124,7 @@ export function BrowserOfSpace({ space, children }: { space: number; children: R
     listed: [],
     groups: [],
     splits: [],
+    links: [],
     current: undefined
   };
   return <BrowserContext value={shown}>{children}</BrowserContext>;

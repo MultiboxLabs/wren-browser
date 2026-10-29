@@ -15,7 +15,7 @@ import { scaleTo } from "../../utils/motion";
 import { DownloadFlights } from "../downloads/flight";
 import { Indicator } from "../downloads/indicator";
 import { Shelf, useShelf } from "../downloads/shelf";
-import { Favorite } from "./favorite";
+import { Favorites } from "./favorites";
 import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
@@ -189,18 +189,17 @@ function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "addr
   const { space, profile } = useSpace();
   const { current } = useBrowser();
   // A window on a profile shows its favourites; a made-up space has none.
-  const { favorites, pinned, toggleFolder } = usePins(profile ? null : space.id > 0 ? space.id : undefined);
+  const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
+  // The tab drawn selected, as a pin's or a favourite's too; none while the
+  // omnibox for a new tab is open.
+  const selected = omnibox.shown?.target === "new-tab" ? undefined : current?.id;
   return (
     <>
       <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
 
-      {favorites.length > 0 && (
-        <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
-          {favorites.map((pin) => pin.kind !== "folder" && <Favorite key={pin.id} pin={pin} selected={false} />)}
-        </div>
-      )}
+      <Favorites favorites={pins.favorites} selected={selected} />
 
-      <TabList omnibox={omnibox} pinned={pinned} onToggleFolder={toggleFolder} />
+      <TabList omnibox={omnibox} pinned={pins.pinned} onToggleFolder={pins.toggleFolder} />
     </>
   );
 }

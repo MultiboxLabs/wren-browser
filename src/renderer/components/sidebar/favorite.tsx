@@ -1,40 +1,48 @@
 // A favourite: a tile of the grid over the tabs, showing its site's icon, or
-// a split's two side by side.
+// a split's two side by side. Pressed, it opens in place, or selects its
+// tab; while its tab is away from its page, a double click takes it back.
 // Selected, it has a light fill with a soft shadow, the icon's colours
 // glowing faintly through it, and a thin ring of the same colours (see
 // .favorite in index.css).
 
 import { type CSSProperties, useId } from "react";
 import { Button } from "../ui/button";
-import type { Pin, PinFolder } from "../../ipc";
+import { type Pin, type PinFolder, pins } from "../../ipc";
 import { cn } from "../../utils/cn";
-import { PinIcon, pinTitle } from "./pins";
+import { host } from "../../utils/url";
+import { PageIcon, pinTitle, usePinTabs } from "./pins";
 
-export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; selected: boolean }) {
+/** `selected`: the selected tab's ID, unless none is. */
+export function Favorite({ pin, selected }: { pin: Exclude<Pin, PinFolder>; selected?: number }) {
+  const open = usePinTabs(pin);
+  const isSelected = open.some(({ tab }) => tab.id === selected);
+  const away = open.findIndex((side) => side.away);
+  const pages = pin.kind === "tab" ? [pin.page] : pin.pages;
+  const title = pinTitle(pin, open);
   // The ring's filter: Chromium takes an SVG filter only from the page
   // itself, so the tile draws its own, by an ID of its own.
   const filter = `favorite-ring-${useId().replace(/[^\w-]/g, "")}`;
-  const icon =
-    pin.kind === "tab" ? (
-      <PinIcon page={pin.page} />
-    ) : (
-      <span className="flex gap-1">
-        <PinIcon page={pin.pages[0]} />
-        <PinIcon page={pin.pages[1]} />
-      </span>
-    );
+  const icon = (
+    <span className="flex gap-1">
+      {pages.map((page, side) => (
+        <PageIcon key={side} page={page} open={open[side]} />
+      ))}
+    </span>
+  );
   return (
     <Button
       variant="filled"
       shape="none"
-      label={pinTitle(pin)}
-      pressed={selected}
+      label={away < 0 ? title : `${title} — Double-click to go back to ${host(pages[away].url)}`}
+      pressed={isSelected}
+      onPointerDown={(event) => event.button === 0 && pins.open(pin.id)}
+      onDoubleClick={() => away >= 0 && pins.back(pin.id, away)}
       className={cn(
         "favorite relative grid h-11.75 place-items-center rounded-favorite",
-        selected && "favorite-selected"
+        isSelected && "favorite-selected"
       )}
     >
-      {selected && (
+      {isSelected && (
         <>
           <span aria-hidden className="favorite-glow">
             {icon}

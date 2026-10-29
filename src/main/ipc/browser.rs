@@ -6,7 +6,7 @@ use super::splits::Split;
 use super::window::page_space;
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser, with_window};
 use crate::app::State;
-use crate::db::SpaceId;
+use crate::db::{PinId, SpaceId};
 use crate::menus::{self, ADD_FAVORITE, Keeps, PIN_TAB};
 use crate::pages::icons;
 use crate::pins::{self, PinTarget};
@@ -62,6 +62,17 @@ pub struct Tabs {
     groups: Vec<Group>,
     /// The splits of `tabs`, in their order.
     splits: Vec<Split>,
+    /// The pins open in the Browser, each with its tabs.
+    links: Vec<Link>,
+}
+
+/// A pin open in the Browser: its tab, or a split pin's two, and whether
+/// each is away from the pin's page.
+#[derive(Serialize)]
+struct Link {
+    pin: PinId,
+    tabs: Vec<i32>,
+    away: Vec<bool>,
 }
 
 /// What the page moves, by one of its tabs: the tab, the split it is in, or
@@ -216,10 +227,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                     .is_some_and(|place| !place.is_off_the_record()),
                 pins: place.as_ref().and_then(Place::space).is_some(),
             };
-            let weak = weak.clone();
+            let (weak, owner) = (weak.clone(), browser.clone());
             let done = move |chosen: Option<String>| {
                 if let (Some(place), Ok(state)) = (&place, weak.state()) {
-                    keep_chosen(&state, place, tab, chosen.as_deref());
+                    keep_chosen(&state, &owner, place, tab, chosen.as_deref());
                 }
                 done(chosen);
             };
@@ -263,6 +274,7 @@ pub fn send_no_tabs(window: &BrowserWindow) {
         full_screen: None,
         groups: Vec::new(),
         splits: Vec::new(),
+        links: Vec::new(),
     };
     let _ = window.page.web_view.send("browser.tabs", &none);
 }
@@ -329,18 +341,37 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
         full_screen: browser.fullscreen_tab().map(BrowserTab::id),
         groups: groups.into_iter().map(Group::new).collect(),
         splits: splits.into_iter().filter_map(Split::new).collect(),
+        links: links(browser),
     }
+}
+
+// The pins open in the Browser, by their tabs' IDs of this launch.
+fn links(browser: &Browser) -> Vec<Link> {
+    pins::open_pins(browser)
+        .into_iter()
+        .map(|open| Link {
+            pin: open.pin,
+            tabs: open.tabs.into_iter().map(BrowserTab::id).collect(),
+            away: open.away,
+        })
+        .collect()
 }
 
 // Pins `tab` as Pin Tab or Add to Favourites, chosen from its menu, would:
 // first among the space's pins, or last among the favourites.
-fn keep_chosen(state: &State, place: &Place, tab: BrowserTab, chosen: Option<&str>) {
+fn keep_chosen(
+    state: &State,
+    browser: &Browser,
+    place: &Place,
+    tab: BrowserTab,
+    chosen: Option<&str>,
+) {
     let (target, index) = match chosen {
         Some(PIN_TAB) => (PinTarget::Space { parent: None }, Some(0)),
         Some(ADD_FAVORITE) => (PinTarget::Favorites, None),
         _ => return,
     };
-    if let Err(error) = pins::keep_tab(state, place, tab, target, index) {
+    if let Err(error) = pins::pin_tab(state, browser, place, tab, target, index) {
         eprintln!("Wren kept no pin: {error}");
     }
 }

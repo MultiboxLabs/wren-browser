@@ -19,15 +19,18 @@ const withOpen = (items: Pin[], folder: number, open: boolean): Pin[] =>
 /**
  * The favourites and pins of `space`; with null, the favourites of the
  * profile a window on one shows; with undefined, none (a made-up space).
- * `toggleFolder` opens a folder or closes it at once, and has the app keep
- * it so; if the app can't, it goes back.
+ * `read` is false until they are first read. `toggleFolder` opens a folder
+ * or closes it at once, and has the app keep it so; if the app can't, it
+ * goes back.
  */
 export function usePins(space: number | null | undefined) {
-  const [shown, setShown] = useState<Pins>(NONE);
+  // Null until the first reading.
+  const [shown, setShown] = useState<Pins | null>(null);
   // Only the latest reading is kept: an earlier one may answer after it.
   const reading = useRef(0);
   useEffect(() => {
     if (!hasApp || space === undefined) return setShown(NONE);
+    setShown(null);
     const read = () => {
       const mine = ++reading.current;
       pinsIpc.list(space).then(
@@ -43,11 +46,11 @@ export function usePins(space: number | null | undefined) {
     };
   }, [space]);
 
+  const setOpen = (folder: PinFolder, open: boolean) =>
+    setShown((pins) => pins && { ...pins, pinned: withOpen(pins.pinned, folder.id, open) });
   const toggleFolder = (folder: PinFolder) => {
-    setShown((pins) => ({ ...pins, pinned: withOpen(pins.pinned, folder.id, !folder.open) }));
-    pinsIpc
-      .setOpen(folder.id, !folder.open)
-      .catch(() => setShown((pins) => ({ ...pins, pinned: withOpen(pins.pinned, folder.id, folder.open) })));
+    setOpen(folder, !folder.open);
+    pinsIpc.setOpen(folder.id, !folder.open).catch(() => setOpen(folder, folder.open));
   };
-  return { ...shown, toggleFolder };
+  return { ...(shown ?? NONE), read: shown !== null, toggleFolder };
 }

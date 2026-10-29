@@ -5,7 +5,7 @@
 import { X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { CSSProperties, MouseEvent, PointerEvent, ReactNode } from "react";
-import { Button } from "../ui/button";
+import { Button, type Icon } from "../ui/button";
 import { press } from "../ui/press";
 import { cn } from "../../utils/cn";
 
@@ -128,14 +128,23 @@ export function IconSlot({ children }: { children: ReactNode }) {
   return <span className="relative flex size-4 shrink-0 items-center justify-center">{children}</span>;
 }
 
-// Shown over a tab's row while it is hovered.
-export function CloseButton({ onClose }: { onClose: () => void }) {
+// Shown over a tab's row while it is hovered: by default a cross that
+// closes the tab; a pin's row gives its own icon and label.
+export function CloseButton({
+  onClose,
+  icon = X,
+  label = "Close Tab"
+}: {
+  onClose: () => void;
+  icon?: Icon;
+  label?: string;
+}) {
   return (
     <Button
-      icon={X}
+      icon={icon}
       iconSize={18}
       shape="none"
-      label="Close Tab"
+      label={label}
       scale={0.9}
       // Pressed alone, without the row around it.
       propagate={{ tap: false }}

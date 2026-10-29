@@ -17,6 +17,7 @@ use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::perf::Perf;
+use crate::pins;
 use crate::platform::{
     DevToolsWindow, KeyWatch, QUITS_WITH_LAST_WINDOW, close_other_key_window,
 };
@@ -177,9 +178,16 @@ impl State {
             .browser_with_tabs()
             .and_then(|browser| Some((browser.active_tab()?, browser)));
         match active {
-            Some((tab, browser)) => {
-                let _ = tabs::close(&browser, &[tab]);
-            }
+            // A pin's tab closes with the rest of the pin's, if it is a
+            // split's, and leaves the pin unopened.
+            Some((tab, browser)) => match pins::pin_of(&browser, tab) {
+                Some(pin) => {
+                    let _ = pins::close(&browser, pin);
+                }
+                None => {
+                    let _ = tabs::close(&browser, &[tab]);
+                }
+            },
             None => self.close_window(mt, window.id),
         }
     }
@@ -322,10 +330,17 @@ impl App for Wren {
                 }
                 // Its profile's ad blocker may have been turned on or off.
                 ChangeKind::ExtensionActions => ipc::broadcast_ad_block(state, browser),
-                // A placeholder goes, or stays, as the tabs change; undocked
-                // DevTools shows its active tab.
-                ChangeKind::Tabs | ChangeKind::Tab => {
+                // A placeholder goes, or stays, as the tabs change, and the
+                // pins' links follow them; undocked DevTools shows its
+                // active tab.
+                ChangeKind::Tabs | ChangeKind::Tab | ChangeKind::Split => {
                     placeholder::settle(browser);
+                    if pins::follow_tab_changes(state, browser)
+                        && let Some(window) = state.windows.of(browser)
+                        && window.browser().as_ref() == Some(browser)
+                    {
+                        ipc::send_tabs(&window, browser);
+                    }
                     if let Some(window) = state.devtools.borrow().get(browser) {
                         window.show_active_tab();
                     }
@@ -553,6 +568,7 @@ impl App for Wren {
     // profile was deleted goes with it (`State::leave_gone_profiles`). A
     // popup's window goes with its Browser, always.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
+        pins::forget(&browser);
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {
             return;

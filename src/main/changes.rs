@@ -20,7 +20,8 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
         | TabFields::HISTORY
         | TabFields::CRASHED
         | TabFields::GROUP
-        | TabFields::SPLIT;
+        | TabFields::SPLIT
+        | TabFields::PINNED;
     let mut tabs_changed = false;
     // The site is the active tab's, which a switch or a navigation
     // changes as well as Chromium's word on it.

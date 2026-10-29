@@ -3,9 +3,9 @@
 // any window changes any.
 
 use serde::{Deserialize, Serialize};
-use wren::WebView;
+use wren::{MainThread, WebView};
 
-use super::{WindowRef, with_window};
+use super::{WindowRef, with_browser, with_window};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinLayout, PinPage, PinRow, SpaceId};
 use crate::pages::icons;
@@ -74,13 +74,20 @@ struct NewFolder {
     index: Option<usize>,
 }
 
+/// One of an open pin's tabs: its only one, or a split's first or second.
+#[derive(Deserialize)]
+struct PinSide {
+    id: PinId,
+    side: usize,
+}
+
 #[derive(Deserialize)]
 struct SetOpen {
     id: PinId,
     open: bool,
 }
 
-pub fn handle(web_view: &WebView, window: &WindowRef) {
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // A space's favourites and pins; null for the window's profile's
     // favourites, in a window on a profile.
     let weak = window.clone();
@@ -116,14 +123,70 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         Ok::<_, String>(())
     });
 
-    // Deletes a pin, and a folder's with it.
+    // Deletes a pin, and a folder's with it, closing their tabs.
     let weak = window.clone();
     let _ = web_view.handle("pins.delete", move |id: PinId| {
         let state = weak.state()?;
-        state.db.delete_pin(id)?;
-        broadcast_pins(&state);
-        Ok::<_, String>(())
+        pins::delete(&state, id)
     });
+
+    // Opens a pin in the window's place, or selects its tab if it is open.
+    // A place without a Browser gets one first, as the omnibox's does.
+    let weak = window.clone();
+    let _ = web_view.handle_call("pins.open", move |call| {
+        let id: PinId = match call.value() {
+            Ok(id) => id,
+            Err(error) => {
+                let _ = call.fail(&error.to_string());
+                return;
+            }
+        };
+        let found = weak.state().map_err(str::to_owned).and_then(|state| {
+            with_window(&weak, |window| Ok((window.browser(), window.place())))
+                .map(|found| (state, found))
+        });
+        let open = move |state: &State, weak: &WindowRef| {
+            with_browser(weak, |window, browser| {
+                let place = window.place().ok_or("The window is on no space.")?;
+                pins::open(state, browser, &place, id)
+            })
+        };
+        match found {
+            Ok((state, (Some(_), _))) => answer(call, open(&state, &weak)),
+            Ok((state, (None, Some(place)))) => {
+                let (inner, weak) = (state.clone(), weak.clone());
+                state.open_browser(mt, weak.id, place, move || {
+                    answer(call, open(&inner, &weak));
+                });
+            }
+            Ok((_, (None, None))) => {
+                let _ = call.fail("The window is on no space.");
+            }
+            Err(error) => {
+                let _ = call.fail(&error);
+            }
+        }
+    });
+
+    // Takes an open pin's tab back to the pin's page.
+    let weak = window.clone();
+    let _ = web_view.handle("pins.back", move |at: PinSide| {
+        with_browser(&weak, |_, browser| pins::back(browser, at.id, at.side))
+    });
+
+    // Closes an open pin's tabs, leaving it unopened.
+    let weak = window.clone();
+    let _ = web_view.handle("pins.close", move |id: PinId| {
+        with_browser(&weak, |_, browser| pins::close(browser, id))
+    });
+}
+
+// Answers a call with what was done, or why not.
+fn answer(call: wren::PageCall, result: Result<(), String>) {
+    let _ = match result {
+        Ok(()) => call.answer(&()),
+        Err(error) => call.fail(&error),
+    };
 }
 
 /// Tells every window's page that pins changed, to read them again.
