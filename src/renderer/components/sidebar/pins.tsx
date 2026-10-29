@@ -9,15 +9,27 @@
 // edited in its row (pin-actions.tsx).
 
 import { Minus, X } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 import { Favicon } from "../favicon";
 import { Tooltip } from "../ui/tooltip";
 import { browser, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from "../../ipc";
 import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
 import { FolderIcon } from "./folder-icon";
+import { pinIdentity, tabIdentity } from "./arrival";
 import type { PinActions } from "./pin-actions";
 import { pinDrag } from "./pin-drop";
-import { CloseButton, Disclosed, IconSlot, NESTED_INDENT, Row, SplitFrame, SplitHalf, TitleField } from "./rows";
+import {
+  Appear,
+  CloseButton,
+  Disclosed,
+  IconSlot,
+  NESTED_INDENT,
+  Row,
+  SplitFrame,
+  SplitHalf,
+  TitleField
+} from "./rows";
 
 type PinProps = {
   indent?: number;
@@ -51,6 +63,15 @@ export function PinPageIcon({ page, open }: { page: PinPage; open?: PinTab }) {
   return <Favicon url={open.tab.url} title={open.tab.title} icon={open.tab.favicon ?? page.favicon} />;
 }
 
+/**
+ * What draws a pin, by which it slides from where it was (arrival.ts): the
+ * pin, then its open tabs, so a tab pinned from the list slides from there.
+ */
+export const identitiesOf = (pin: Pin, open: PinTab[] = []) => [
+  pinIdentity(pin.id),
+  ...open.map(({ tab }) => tabIdentity(tab.id))
+];
+
 /** What a pin is called: the user's name for it, or else its open tab's title, or its kept page's. */
 export function pinTitle(pin: Exclude<Pin, PinFolder>, open: PinTab[] = []) {
   if (pin.name) return pin.name;
@@ -58,17 +79,40 @@ export function pinTitle(pin: Exclude<Pin, PinFolder>, open: PinTab[] = []) {
   return pages.map((page, side) => open[side]?.tab.title || page.title).join(" | ");
 }
 
+/** Pins, coming and going as the list's tabs do (`Appear`); no row's layout is motion's to animate. */
 export function PinRows({ pins, ...props }: PinProps & { pins: Pin[] }) {
-  return pins.map((pin) => <PinItem key={pin.id} pin={pin} {...props} />);
+  return (
+    <AnimatePresence initial={false} presenceAffectsLayout={false}>
+      {pins.map((pin) => (
+        <PinItem key={pin.id} pin={pin} {...props} />
+      ))}
+    </AnimatePresence>
+  );
 }
 
 function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
-  if (pin.kind === "folder") return <FolderRow folder={pin} {...props} />;
-  // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
+  const open = usePinTabs(pin);
+  // What its button does: an open pin's tab closes; an unopened pin is
+  // unpinned. A middle click closes an open pin's tab.
+  const dismiss = () => void (open.length > 0 ? pinsIpc.close(pin.id) : pinsIpc.delete(pin.id));
   return (
-    <div {...pinDrag(pin, { renaming: props.actions.renaming === pin.id })} className="flex flex-col">
-      {pin.kind === "split" ? <SplitPinRow pin={pin} {...props} /> : <TabPinRow pin={pin} {...props} />}
-    </div>
+    <Appear identities={identitiesOf(pin, open)} reorders>
+      {/* Each brings the gap above it, which grows and shrinks with it. */}
+      <div className="flex flex-col gap-1.25 pt-1.25">
+        {pin.kind === "folder" ? (
+          <FolderRow folder={pin} {...props} />
+        ) : (
+          // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
+          <div {...pinDrag(pin, { renaming: props.actions.renaming === pin.id })} className="flex flex-col">
+            {pin.kind === "split" ? (
+              <SplitPinRow pin={pin} onDismiss={dismiss} {...props} />
+            ) : (
+              <TabPinRow pin={pin} onDismiss={dismiss} {...props} />
+            )}
+          </div>
+        )}
+      </div>
+    </Appear>
   );
 }
 
@@ -76,13 +120,16 @@ function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
  * The button over an unopened pin's row, a cross that unpins it, which an
  * open pin's turns into a minus that closes its tab.
  */
-function PinButton({ pin, open }: { pin: Pin; open: boolean }) {
+function PinButton({ open, onDismiss }: { open: boolean; onDismiss: () => void }) {
   return open ? (
-    <CloseButton icon={Minus} label="Close Tab" onClose={() => pinsIpc.close(pin.id)} />
+    <CloseButton icon={Minus} label="Close Tab" onClose={onDismiss} />
   ) : (
-    <CloseButton icon={X} label="Unpin" onClose={() => pinsIpc.delete(pin.id)} />
+    <CloseButton icon={X} label="Unpin" onClose={onDismiss} />
   );
 }
+
+/** A tab or split pin's row: `onDismiss` is what its button does (`PinItem`). */
+type PinRowProps = PinProps & { onDismiss: () => void };
 
 /** A pin's page as its row shows it: its icon, and its title, in full in a tooltip. */
 function PinLabel({ page, open, title }: { page: PinPage; open?: PinTab; title: string }) {
@@ -101,7 +148,13 @@ function PinNameField({ pin, title, actions }: { pin: Pin; title: string; action
   return <TitleField initial={title} label="Pin Name" onDone={(name) => actions.onRename(pin, name)} />;
 }
 
-function TabPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extract<Pin, { kind: "tab" }> }) {
+function TabPinRow({
+  pin,
+  indent,
+  selected,
+  actions,
+  onDismiss
+}: PinRowProps & { pin: Extract<Pin, { kind: "tab" }> }) {
   const open = usePinTabs(pin);
   const [tab] = open;
   const title = pinTitle(pin, open);
@@ -112,8 +165,9 @@ function TabPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extract
       active={isSelected}
       indent={indent}
       onPress={() => pinsIpc.open(pin.id)}
-      onMiddlePress={tab ? () => pinsIpc.close(pin.id) : undefined}
+      onMiddlePress={tab ? onDismiss : undefined}
       onMenu={(x, y) => actions.onMenu(pin, x, y)}
+      identities={identitiesOf(pin, open)}
     >
       {actions.renaming === pin.id ? (
         <>
@@ -125,7 +179,7 @@ function TabPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extract
       ) : (
         <PinLabel page={pin.page} open={tab} title={title} />
       )}
-      <PinButton pin={pin} open={tab !== undefined} />
+      <PinButton open={tab !== undefined} onDismiss={onDismiss} />
     </Row>
   );
 }
@@ -189,13 +243,19 @@ function AwayTitle({
 // A split pin's two pages side by side in one row, as the list draws a
 // split of the Browser's. Open, a press on either half selects that half's
 // tab, and either half that is away is drawn as an away row is.
-function SplitPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extract<Pin, { kind: "split" }> }) {
+function SplitPinRow({
+  pin,
+  indent,
+  selected,
+  actions,
+  onDismiss
+}: PinRowProps & { pin: Extract<Pin, { kind: "split" }> }) {
   const open = usePinTabs(pin);
   const active = open.some(({ tab }) => tab.id === selected);
   if (actions.renaming === pin.id) {
     // Its one name, over both halves.
     return (
-      <SplitFrame active={active} indent={indent}>
+      <SplitFrame active={active} indent={indent} identities={identitiesOf(pin, open)}>
         <div className="flex h-full min-w-0 flex-1 items-center gap-2.75 pl-1.5">
           {pin.pages.map((page, side) => (
             <PinPageIcon key={side} page={page} open={open[side]} />
@@ -206,7 +266,8 @@ function SplitPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extra
     );
   }
   return (
-    <SplitFrame active={active} indent={indent}>
+    // The pin as a whole, and each half its tab, so either can slide here.
+    <SplitFrame active={active} indent={indent} identities={[pinIdentity(pin.id)]}>
       {pin.pages.map((page, side) => {
         const half = open[side];
         const title = half?.tab.title || page.title;
@@ -217,8 +278,9 @@ function SplitPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extra
             active={active}
             pressed={half?.tab.id === selected}
             onPress={() => (half ? browser.activate(half.tab.id) : pinsIpc.open(pin.id))}
-            onMiddlePress={half ? () => pinsIpc.close(pin.id) : undefined}
+            onMiddlePress={half ? onDismiss : undefined}
             onMenu={(x, y) => actions.onMenu(pin, x, y)}
+            identities={half ? [tabIdentity(half.tab.id)] : []}
           >
             {half?.away ? (
               <AwayTitle page={page} title={title} inset="half" onBack={() => pinsIpc.back(pin.id, side)} />
@@ -228,7 +290,7 @@ function SplitPinRow({ pin, indent, selected, actions }: PinProps & { pin: Extra
           </SplitHalf>
         );
       })}
-      <PinButton pin={pin} open={open.length > 0} />
+      <PinButton open={open.length > 0} onDismiss={onDismiss} />
     </SplitFrame>
   );
 }
@@ -246,6 +308,7 @@ function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
           indent={indent}
           onClick={() => actions.onToggleFolder(folder)}
           onMenu={(x, y) => actions.onMenu(folder, x, y)}
+          identities={[pinIdentity(folder.id)]}
         >
           <IconSlot>
             <FolderIcon open={folder.open} className="text-fg" />

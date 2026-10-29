@@ -8,6 +8,8 @@ import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode,
 import { Button, type Icon } from "../ui/button";
 import { press } from "../ui/press";
 import { cn } from "../../utils/cn";
+import { useArrival, useMoving } from "./arrival";
+import { REORDER, ROW_IN, ROW_OUT } from "./row-motion";
 
 // The space's pinned tabs fold up under its heading, and down again, as a
 // disclosed section of a list does on macOS.
@@ -49,6 +51,7 @@ export function Row({
   onClick,
   onMenu,
   onMiddlePress,
+  identities = [],
   children
 }: {
   selected?: boolean;
@@ -63,10 +66,14 @@ export function Row({
   onClick?: () => void;
   onMenu?: (x: number, y: number) => void;
   onMiddlePress?: () => void;
+  /** What it draws, by which it slides from where that was (arrival.ts). */
+  identities?: string[];
   children: ReactNode;
 }) {
+  const ref = useArrival<HTMLDivElement>(identities);
   return (
     <motion.div
+      ref={ref}
       {...(still ? {} : press(0.985))}
       role="button"
       tabIndex={-1}
@@ -102,9 +109,22 @@ export function Row({
  * hovered whole as one row. Selected (`active`), the halves show as two,
  * each filled over the row's fill; otherwise a line parts them.
  */
-export function SplitFrame({ active, indent, children }: { active: boolean; indent?: number; children: ReactNode }) {
+export function SplitFrame({
+  active,
+  indent,
+  identities = [],
+  children
+}: {
+  active: boolean;
+  indent?: number;
+  /** What it draws as a whole, by which it slides from where that was (arrival.ts). */
+  identities?: string[];
+  children: ReactNode;
+}) {
+  const ref = useArrival<HTMLDivElement>(identities);
   return (
     <motion.div
+      ref={ref}
       {...press(0.985)}
       role="group"
       data-active-tab={active ? "" : undefined}
@@ -127,6 +147,7 @@ export function SplitHalf({
   onPress,
   onMiddlePress,
   onMenu,
+  identities = [],
   children
 }: {
   side: number;
@@ -137,12 +158,16 @@ export function SplitHalf({
   onPress: () => void;
   onMiddlePress?: () => void;
   onMenu?: (x: number, y: number) => void;
+  /** What it draws, by which it slides from where that was (arrival.ts). */
+  identities?: string[];
   children: ReactNode;
 }) {
+  const ref = useArrival<HTMLDivElement>(identities);
   return (
     <>
       {side > 0 && <div className={cn("mx-[1.5px] h-4 w-px shrink-0", !active && "bg-separator")} />}
       <div
+        ref={ref}
         role="button"
         tabIndex={-1}
         aria-pressed={pressed}
@@ -170,9 +195,45 @@ export function SplitHalf({
 }
 
 /**
+ * A row of a list, growing in and shrinking out where it stands, as a list's
+ * rows do on macOS, while the rows below slide (row-motion.ts); with Reduced
+ * Motion they do not, and it only fades. One
+ * that is moving here from elsewhere in the sidebar (`identities`, see
+ * arrival.ts) does not fade in, as it slides here whole. With `reorders`, a
+ * row that changes place in its list slides there: Motion measures it each
+ * time it is drawn, so only for a short list (the pins'), not the tabs'.
+ */
+export function Appear({
+  identities = [],
+  reorders = false,
+  className,
+  children
+}: {
+  identities?: string[];
+  reorders?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const still = useReducedMotion();
+  const moving = useMoving(identities);
+  return (
+    <motion.div
+      layout={reorders && !still ? "position" : undefined}
+      initial={{ height: still ? "auto" : 0, opacity: moving ? 1 : 0 }}
+      animate={{ height: "auto", opacity: 1, transition: ROW_IN }}
+      exit={{ height: still ? "auto" : 0, opacity: 0, transition: ROW_OUT }}
+      transition={{ layout: REORDER }}
+      className={cn("shrink-0", className)}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/**
  * Rows under a heading that fold up into it and down out of it, clipped as
- * they go; with Reduced Motion they only fade. The gap above them goes with
- * them.
+ * they go; with Reduced Motion they only fade. Each row brings the gap above
+ * it, and the first one's goes with them.
  */
 export function Disclosed({ open, children }: { open: boolean; children: ReactNode }) {
   const still = useReducedMotion();
@@ -186,7 +247,7 @@ export function Disclosed({ open, children }: { open: boolean; children: ReactNo
           transition={pinnedTransition}
           className="-mt-1.25 shrink-0 overflow-hidden"
         >
-          <div className="flex flex-col gap-1.25 pt-1.25">{children}</div>
+          <div className="flex flex-col">{children}</div>
         </motion.div>
       )}
     </AnimatePresence>

@@ -9,26 +9,35 @@
 // glowing faintly through it, and a thin ring of the same colours, which
 // fills the gap between a split's halves (see .favorite in index.css).
 
-import { type CSSProperties, useId, useRef } from "react";
+import { motion, useReducedMotion } from "motion/react";
+import { type CSSProperties, type Ref, useId, useRef } from "react";
 import { Button } from "../ui/button";
 import { Popover } from "../ui/popover";
 import { TextField } from "../ui/text-field";
 import { type Pin, type PinFolder, pins } from "../../ipc";
 import { cn } from "../../utils/cn";
+import { scaleTo } from "../../utils/motion";
 import { host } from "../../utils/url";
+import { useArrival, useMoving } from "./arrival";
 import type { PinActions } from "./pin-actions";
+import { REORDER, TILE_IN, TILE_OUT } from "./row-motion";
 import { pinDrag } from "./pin-drop";
-import { PinPageIcon, pinTitle, usePinTabs } from "./pins";
+import { identitiesOf, PinPageIcon, pinTitle, usePinTabs } from "./pins";
 
-/** `selected`: the selected tab's ID, unless none is. */
+/**
+ * `selected`: the selected tab's ID, unless none is. `ref` is its tile's, as
+ * the grid takes a tile that goes out of its layout (`popLayout`).
+ */
 export function Favorite({
   pin,
   selected,
-  actions
+  actions,
+  ref
 }: {
   pin: Exclude<Pin, PinFolder>;
   selected?: number;
   actions: PinActions;
+  ref?: Ref<HTMLDivElement>;
 }) {
   const open = usePinTabs(pin);
   const isSelected = open.some(({ tab }) => tab.id === selected);
@@ -45,9 +54,14 @@ export function Favorite({
   // colours reach every edge.
   const filling = <span className="flex *:min-w-0 *:flex-1 *:size-full!">{icons}</span>;
   const renaming = actions.renaming === pin.id;
+  // It slides here from where it, or its tab, was drawn (arrival.ts).
+  const identities = identitiesOf(pin, open);
+  const arrival = useArrival<HTMLDivElement>(identities);
+  const moving = useMoving(identities);
+  const still = useReducedMotion();
   const tile = (
     // Dragged out, it is a pin, or an ordinary tab (pin-drop.ts).
-    <div {...pinDrag(pin, { favorite: true, renaming })} className="grid">
+    <div ref={arrival} {...pinDrag(pin, { favorite: true, renaming })} className="grid">
       <Button
         variant="filled"
         shape="none"
@@ -94,33 +108,47 @@ export function Favorite({
     actions.onRename(pin, name === title ? null : name);
   };
   return (
-    <Popover
-      anchored
-      open={renaming}
-      onOpenChange={(open) => !open && keep(draft.current)}
-      onEscape={() => (draft.current = null)}
-      label="Rename Favourite"
-      trigger={tile}
+    // Comes and goes as the list's rows do, scaling up a little as it fades
+    // in; one moving here from elsewhere slides here whole instead. One that
+    // changes place in the grid, as another comes, goes or moves, slides
+    // there: there are few enough for Motion to measure each time.
+    <motion.div
+      ref={ref}
+      layout={still ? undefined : "position"}
+      initial={moving ? false : { opacity: 0, ...scaleTo(still, 0.95) }}
+      animate={{ opacity: 1, ...scaleTo(still, 1), transition: TILE_IN }}
+      exit={{ opacity: 0, transition: TILE_OUT }}
+      transition={{ layout: REORDER }}
+      className="grid"
     >
-      {renaming && (
-        <form
-          className="p-2.5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            keep(draft.current);
-          }}
-        >
-          <TextField
-            autoFocus
-            defaultValue={title}
-            aria-label="Favourite Name"
-            onChange={(event) => (draft.current = event.currentTarget.value)}
-            onFocus={(event) => event.currentTarget.select()}
-            className="w-52"
-          />
-        </form>
-      )}
-    </Popover>
+      <Popover
+        anchored
+        open={renaming}
+        onOpenChange={(open) => !open && keep(draft.current)}
+        onEscape={() => (draft.current = null)}
+        label="Rename Favourite"
+        trigger={tile}
+      >
+        {renaming && (
+          <form
+            className="p-2.5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              keep(draft.current);
+            }}
+          >
+            <TextField
+              autoFocus
+              defaultValue={title}
+              aria-label="Favourite Name"
+              onChange={(event) => (draft.current = event.currentTarget.value)}
+              onFocus={(event) => event.currentTarget.select()}
+              className="w-52"
+            />
+          </form>
+        )}
+      </Popover>
+    </motion.div>
   );
 }
 

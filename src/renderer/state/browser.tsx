@@ -39,6 +39,8 @@ type BrowserState = {
   id: number | null;
   /** The space its tabs are of, as the app said with them. */
   space: number | null;
+  /** Whether its tabs have been said; until then it has none to show. */
+  ready: boolean;
   /** Its tabs, in its order. */
   tabs: BrowserTabWithFavicon[];
   /**
@@ -88,6 +90,7 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
   const state: BrowserState = {
     id: tabs?.browser ?? null,
     space: tabs?.space ?? null,
+    ready: !!tabs,
     // The New Tab page that stands in while there is no tab is not listed;
     // this, and `current` below, are the page's one check for an empty
     // space, as `BrowserWindow::browser_with_tabs` is the app's.
@@ -119,6 +122,7 @@ export function BrowserOfSpace({ space, children }: { space: number; children: R
   const shown = own.current ?? {
     ...state,
     space,
+    ready: false,
     id: null,
     tabs: [],
     listed: [],

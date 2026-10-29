@@ -12,6 +12,7 @@
 import type { DragEvent, PointerEvent } from "react";
 import { useState } from "react";
 import { type Pin, type PinTarget, pins } from "../../ipc";
+import { noteDrop } from "./arrival";
 import { holdForDrag, releaseDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
 import { useDropSide } from "./drop-side";
@@ -153,6 +154,7 @@ export function usePinDrop({
         const pin = droppedPin(event.dataTransfer);
         const unit = droppedUnit(event.dataTransfer);
         if (!place) return;
+        noteDrop(event.clientX, event.clientY);
         if (place.kind === "split") {
           if (unit) pins.splitWith(place.pin, unit.tab, place.side).catch(() => {});
           return;

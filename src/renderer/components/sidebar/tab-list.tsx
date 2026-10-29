@@ -2,7 +2,7 @@
 // and the Browser's tabs, in their groups and splits.
 
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import { memo, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type Pin, type TabGroup, type TabSplit } from "../../ipc";
 import { useHoldUntil } from "../ui/hold";
@@ -14,7 +14,7 @@ import { useBrowser } from "../../state/browser";
 import { type Tab, useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 import { DropMarkView } from "./drop-mark";
-import { useGroupKeys } from "./keys";
+import { useGroupKeys, useRowKeys } from "./keys";
 import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
@@ -22,12 +22,8 @@ import type { PinActions } from "./pin-actions";
 import { usePinDrop } from "./pin-drop";
 import { pinsLandingAt } from "./pin-landing";
 import { PinRows } from "./pins";
-import { CloseButton, Disclosed, IconSlot, Row, SplitFrame, SplitHalf, TitleField } from "./rows";
-
-// Tabs come and go as a list's rows do on macOS: one fades in or out where
-// it stands, unclipped, while the rows below slide to make room or close
-// the gap, in 0.12s.
-const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
+import { tabIdentity } from "./arrival";
+import { Appear, CloseButton, Disclosed, IconSlot, Row, SplitFrame, SplitHalf, TitleField } from "./rows";
 
 // The app makes each change, and the page hears it back as new tabs.
 const selectTab = (tab: Tab) => browser.activate(tab.id);
@@ -80,6 +76,7 @@ export function TabList({
   // and the tab we are on does not.
   const newTabOpen = omnibox.shown?.target === "new-tab";
   const groupKey = useGroupKeys(tabs, tabGroups);
+  const rowKey = useRowKeys(rows(tabs, splits, 0).map((row) => inOrder(row).map((tab) => tab.id)));
   const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join());
   const scroller = useRef<HTMLDivElement>(null);
   useRevealActive(scroller, current?.id);
@@ -123,8 +120,19 @@ export function TabList({
           onToggle={togglePinned}
         />
 
-        {/* Only between the pins and the tabs: with no pins, the heading needs none. */}
-        {pinned.length > 0 && <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />}
+        {/* Only between the pins and the tabs: with no pins, the heading needs
+            none. It comes and goes as a row does, from nothing: as it does,
+            it takes back the list's gap after it, which its own room makes
+            up once it is in. */}
+        <AnimatePresence initial={false}>
+          {pinned.length > 0 && (
+            <Appear key="separator" className="-mb-1.25">
+              <div className="px-2.5 pt-1.75 pb-3">
+                <div className="h-px bg-separator" />
+              </div>
+            </Appear>
+          )}
+        </AnimatePresence>
 
         <Row selected={newTabOpen} className={cn(!newTabOpen && "text-fg-3")} onPress={() => omnibox.toggle("new-tab")}>
           <Plus size={14} strokeWidth={2} className={cn("mx-px", newTabOpen ? "glyph-1" : "glyph-3")} />
@@ -139,32 +147,34 @@ export function TabList({
           <AnimatePresence initial={false} presenceAffectsLayout={false}>
             {entries(tabs, tabGroups).map((entry) =>
               entry.group ? (
-                <Appear
-                  key={`group-${groupKey(entry.group.id)}`}
-                  className="pt-1.25"
-                  unit={{
-                    kind: "group",
-                    tab: Number(entry.tabs[0].id),
-                    scope: TOP_SCOPE,
-                    start: entry.start,
-                    size: entry.tabs.length,
-                    group: entry.group.id,
-                    // Not while its title is edited, which a drag would take.
-                    draggable: renaming !== entry.group.id
-                  }}
-                >
-                  <GroupRows
-                    actions={actions}
-                    selected={selected}
-                    group={entry.group}
-                    members={entry.tabs}
-                    start={entry.start}
-                  />
+                <Appear key={`group-${groupKey(entry.group.id)}`}>
+                  <div
+                    {...reorderUnit({
+                      kind: "group",
+                      tab: Number(entry.tabs[0].id),
+                      scope: TOP_SCOPE,
+                      start: entry.start,
+                      size: entry.tabs.length,
+                      group: entry.group.id,
+                      // Not while its title is edited, which a drag would take.
+                      draggable: renaming !== entry.group.id
+                    })}
+                    className="pt-1.25"
+                  >
+                    <GroupRows
+                      rowKey={rowKey}
+                      actions={actions}
+                      selected={selected}
+                      group={entry.group}
+                      members={entry.tabs}
+                      start={entry.start}
+                    />
+                  </div>
                 </Appear>
               ) : (
                 rows(entry.tabs, splits, entry.start).map((row) => (
                   <UnitRow
-                    key={rowKey(row)}
+                    key={rowKey(inOrder(row)[0].id)}
                     actions={actions}
                     row={row}
                     scope={TOP_SCOPE}
@@ -282,6 +292,7 @@ function TabRow({
       onPress={() => onSelect(tab)}
       onMenu={(x, y) => onTabMenu(tab, x, y)}
       onMiddlePress={closable ? () => onClose(tab) : undefined}
+      identities={[tabIdentity(tab.id)]}
     >
       <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />
       <Tooltip label={tab.title}>
@@ -308,9 +319,13 @@ function entries(tabs: Tab[], groups: TabGroup[]): Entry[] {
   return list;
 }
 
-/** A row of tabs: one tab, or the two of a split. `start` is its first tab's index among all. */
+/**
+ * A row of tabs: one tab, or the two of a split. `start` is its first tab's
+ * index among all; a split's `lead` is that tab, which keeps the row.
+ */
 type BrowserRowItem =
-  { split?: undefined; tab: Tab; start: number } | { split: TabSplit; first: Tab; second: Tab; start: number };
+  | { split?: undefined; tab: Tab; start: number }
+  | { split: TabSplit; first: Tab; second: Tab; lead: Tab; start: number };
 
 /** `start`: the index among all the tabs of the first of `tabs`. */
 function rows(tabs: Tab[], splits: TabSplit[], start: number): BrowserRowItem[] {
@@ -320,15 +335,17 @@ function rows(tabs: Tab[], splits: TabSplit[], start: number): BrowserRowItem[] 
     const first = split && tabs.find((each) => each.id === split.first);
     const second = split && tabs.find((each) => each.id === split.second);
     if (split && first && second) {
-      if (!list.some((row) => row.split?.id === split.id)) list.push({ split, first, second, start: start + index });
+      if (!list.some((row) => row.split?.id === split.id)) {
+        list.push({ split, first, second, lead: tab, start: start + index });
+      }
     } else list.push({ tab, start: start + index });
   });
   return list;
 }
 
-// A split is kept by its first tab, as the app makes the split again when it
-// moves it, with a new ID.
-const rowKey = (row: BrowserRowItem) => (row.split ? `split-${row.first.id}` : row.tab.id);
+/** A row's tabs in the list's order: the one it starts with first (`useRowKeys` keeps the row by it). */
+const inOrder = (row: BrowserRowItem) =>
+  row.split ? [row.lead, row.lead === row.first ? row.second : row.first] : [row.tab];
 
 /** A row as a unit of the list that moves, in the scope of the tabs it is among. */
 const rowUnit = (scope: string, row: BrowserRowItem): Unit =>
@@ -362,6 +379,7 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
           onPress={() => props.onSelect(tab)}
           onMiddlePress={() => props.onClose(tab)}
           onMenu={(x, y) => props.onTabMenu(tab, x, y)}
+          identities={[tabIdentity(tab.id)]}
         >
           <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />
           <Tooltip label={tab.title}>
@@ -405,8 +423,10 @@ const UnitRow = memo(
     className?: string;
   }) {
     return (
-      <Appear unit={rowUnit(scope, row)} className={className}>
-        <BrowserRow {...actions} selected={selected} row={row} indent={indent} />
+      <Appear identities={tabsOf(row).map((tab) => tabIdentity(tab.id))}>
+        <div {...reorderUnit(rowUnit(scope, row))} className={className}>
+          <BrowserRow {...actions} selected={selected} row={row} indent={indent} />
+        </div>
       </Appear>
     );
   },
@@ -420,27 +440,6 @@ const UnitRow = memo(
     before.row.split === after.row.split &&
     tabsOf(before.row).every((tab, index) => tab === tabsOf(after.row)[index])
 );
-
-/**
- * A row of the Browser's list, fading in and out where it stands while the
- * rows below slide; with Reduced Motion they do not, and it only fades.
- */
-function Appear({ unit, className, children }: { unit: Unit; className?: string; children: ReactNode }) {
-  const still = useReducedMotion();
-  return (
-    <motion.div
-      initial={{ height: still ? "auto" : 0, opacity: 0 }}
-      animate={{ height: "auto", opacity: 1 }}
-      exit={{ height: still ? "auto" : 0, opacity: 0 }}
-      transition={tabTransition}
-      className="shrink-0"
-    >
-      <div {...reorderUnit(unit)} className={className}>
-        {children}
-      </div>
-    </motion.div>
-  );
-}
 
 /** Chromium's group colours, made to read on the space's colour. */
 const groupColors: Record<GroupColor, string> = {
@@ -456,12 +455,15 @@ const groupColors: Record<GroupColor, string> = {
 };
 
 function GroupRows({
+  rowKey,
   actions,
   selected,
   group,
   members,
   start
 }: {
+  /** The key of a row, by its first tab's ID (`useRowKeys`). */
+  rowKey: (first: number) => string;
   actions: ListActions;
   selected?: Tab["id"];
   group: TabGroup;
@@ -499,7 +501,7 @@ function GroupRows({
         {!group.collapsed &&
           rows(members, actions.splits, start).map((row) => (
             <UnitRow
-              key={rowKey(row)}
+              key={rowKey(inOrder(row)[0].id)}
               actions={actions}
               row={row}
               scope={group.id}
