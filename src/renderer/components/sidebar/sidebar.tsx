@@ -202,21 +202,24 @@ function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "addr
   // comes in. Once they are, what shows them is made anew, so what is there
   // from the start is simply there, rather than coming in as if it were new
   // (rows growing in, the pins unfolding); only what changes after moves.
+  // Where its tabs and pins were is made anew with them (arrival.ts): the
+  // rows made anew are not ones moving from where they were drawn before,
+  // which the pins and favourites, read, push down.
   const read = ready && pins.read && settings.read ? "read" : "reading";
   return (
-    // Where its tabs and pins were is its own (arrival.ts).
-    <ArrivalScope>
+    <>
       <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
-      <Favorites
-        key={`favorites-${read}`}
-        favorites={pins.favorites}
-        read={pins.read}
-        settings={settings}
-        selected={selected}
-        actions={actions}
-      />
-      <TabList key={`tabs-${read}`} omnibox={omnibox} pinned={pins.pinned} pinActions={actions} />
+      <ArrivalScope key={read}>
+        <Favorites
+          favorites={pins.favorites}
+          read={pins.read}
+          settings={settings}
+          selected={selected}
+          actions={actions}
+        />
+        <TabList omnibox={omnibox} pinned={pins.pinned} pinActions={actions} />
+      </ArrivalScope>
       {dialog}
-    </ArrivalScope>
+    </>
   );
 }
