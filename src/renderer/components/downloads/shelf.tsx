@@ -153,7 +153,7 @@ export function Shelf({ shelf }: { shelf: ShelfState }) {
           exit={{ opacity: 0, ...(still ? {} : { y: 8 }) }}
           transition={ease}
           {...shelf.shelf}
-          className="absolute inset-x-0 bottom-12.5 flex flex-col gap-0.5 pb-1"
+          className="absolute inset-x-0 bottom-full flex flex-col gap-0.5 pb-1"
         >
           {shelf.latest.map((download) => (
             <DownloadRow

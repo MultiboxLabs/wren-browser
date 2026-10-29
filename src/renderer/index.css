@@ -183,6 +183,11 @@ body,
   --pressed: color(display-p3 0.055 0.059 0.063 / 0.14);
   --selected: rgb(255 255 255 / 0.75);
   --separator: rgb(0 0 0 / 0.15);
+  /* The update, in the sidebar (sidebar/update.tsx): its edge, the card
+     it opens into, and the hairline above it. */
+  --update-edge: rgb(0 0 0 / 0.08);
+  --update-card: color-mix(in oklab, var(--space) 3%, white);
+  --update-hairline: rgb(0 0 0 / 0.06);
   --card: color-mix(in oklab, var(--space) 4%, white);
   --accent: oklch(from var(--space) 0.5 calc(c * 1.4) h);
   /* A site that is not secure. */
@@ -225,6 +230,9 @@ body,
   --pressed: color(display-p3 0.98 0.984 1 / 0.2);
   --selected: rgb(255 255 255 / 0.2);
   --separator: rgb(255 255 255 / 0.15);
+  --update-edge: rgb(255 255 255 / 0.18);
+  --update-card: color-mix(in oklab, var(--space) 10%, rgb(10 10 12));
+  --update-hairline: rgb(255 255 255 / 0.08);
   --card: color-mix(in oklab, var(--space) 6%, rgb(22 22 24));
   --accent: var(--ink);
   --danger: oklch(0.78 0.15 27);

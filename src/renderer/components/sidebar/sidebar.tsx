@@ -1,9 +1,10 @@
 // The sidebar: the toolbar beside the window's buttons, the address, the
 // favourites, and the space's tabs (tab-list.tsx); or, while the window is
-// on no space, the form for a new one (new-space.tsx).
+// on no space, the form for a new one (new-space.tsx). At the bottom, a new
+// version of Wren, if there is one (update.tsx).
 
 import { Archive, Plus } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion, useTransform } from "motion/react";
+import { AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { type RefObject, useRef } from "react";
 import { browser } from "../../ipc";
 import { Button } from "../ui/button";
@@ -22,6 +23,7 @@ import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
 import { TabList } from "./tab-list";
+import { UpdateCard } from "./update";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
 import { useDownloadIndicator } from "../../state/downloads";
 import { useSettings } from "../../state/library";
@@ -100,6 +102,17 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   const indicator = useDownloadIndicator();
   // The latest downloads, over the bottom of the content, which fades out under them.
   const shelf = useShelf(visible && !newSpace);
+  // How far the update's card reaches up over the content as it opens; the
+  // content is cut off there, as the shelf fades it.
+  const update = useMotionValue(0);
+  const mask = useTransform(() => {
+    const height = update.get();
+    const layers = [
+      shelf.mask.get(),
+      height > 0 ? `linear-gradient(black calc(100% - ${height}px), transparent 0)` : "none"
+    ];
+    return layers.filter((layer) => layer !== "none").join(", ") || "none";
+  });
   // Where a download that starts flies to.
   const library = useRef<HTMLDivElement>(null);
 
@@ -143,7 +156,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
           While a space is made, below the toolbar is the form's, not a
           handle for the window: a press that misses a field is no drag. */}
       <motion.div
-        style={{ maskImage: shelf.mask }}
+        style={{ maskImage: mask, maskComposite: "intersect" }}
         className={cn("-mx-2 flex min-h-0 flex-1 flex-col overflow-x-clip px-2", newSpace && "no-drag")}
       >
         <motion.div style={{ x: swipe, opacity: fade }} className="flex min-h-0 flex-1 flex-col">
@@ -158,7 +171,12 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
         </motion.div>
       </motion.div>
 
-      <Shelf shelf={shelf} />
+      {/* Above the buttons: the update, if there is one, and the shelf over
+          the bottom of the content, above it. */}
+      <div className="relative shrink-0">
+        <Shelf shelf={shelf} />
+        {!newSpace && <UpdateCard cover={update} />}
+      </div>
 
       {/* While a space is made, only the switcher: the form is left by its own
           buttons, or by another space. */}
