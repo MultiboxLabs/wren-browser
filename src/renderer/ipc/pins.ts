@@ -48,6 +48,9 @@ export const pins = {
   /** Pins an address dropped on the sidebar, unopened, at `index` (null: last) of the favourites or the space's pins. */
   addAddress: (url: string, to: PinTarget, index: number | null) =>
     wren.invoke<number>("pins.addAddress", { url, ...placeOf(to), index }),
+  /** Makes a tab pin a split with a tab of the window dropped on its row, on `side` of it. */
+  splitWith: (id: number, tab: number, side: "left" | "right") =>
+    wren.invoke<null>("pins.splitWith", { id, tab, side: side === "left" ? 0 : 1 }),
   /** Moves a pin to `index` (null: last) of the favourites, or of the space's pins at the top or in a folder. */
   move: (id: number, to: PinTarget, index: number | null) =>
     wren.invoke<null>("pins.move", { id, ...placeOf(to), index }),

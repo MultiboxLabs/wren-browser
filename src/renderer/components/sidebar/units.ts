@@ -37,7 +37,21 @@ const SELECTOR = "[data-reorder-kind]";
  * start it, and what the list is dropped on outside the list (pin-drop.ts)
  * reads it.
  */
-export const UNIT_TYPE = "application/x-wren-unit";
+const UNIT_TYPE = "application/x-wren-unit";
+
+// Carried as well, with nothing: what a drag shows of the unit's kind
+// before it is dropped, as it is over what may take it.
+const kindType = (kind: UnitKind) => `${UNIT_TYPE}-${kind}`;
+
+/** Puts unit `kind` of tab `tab` on a drag. */
+export function carryUnit(data: DataTransfer, kind: UnitKind, tab: number) {
+  data.setData(UNIT_TYPE, `${kind}:${tab}`);
+  data.setData(kindType(kind), "");
+}
+
+/** Whether a drag carries a unit, or one of `kind`. */
+export const carriesUnit = (data: DataTransfer, kind?: UnitKind) =>
+  data.types.includes(kind ? kindType(kind) : UNIT_TYPE);
 
 /** The unit a drag carries, once it is dropped; null for any other drag. */
 export function droppedUnit(data: DataTransfer): { kind: UnitKind; tab: number } | null {

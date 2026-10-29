@@ -12,11 +12,12 @@ import { type DragEvent, type PointerEvent, useLayoutEffect, useRef, useState } 
 import { browser, pins, type TabUnit } from "../../ipc";
 import { holdForDrag, releaseDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
+import { useDropSide } from "./drop-side";
 import { useEdgeScroll } from "./edge-scroll";
 import { type DropMark, type Grabbed, type Held, type Landing, landingAt, OUTSIDE } from "./landing";
 import { carriesTabPin, droppedPin, isPinDrop } from "./pin-drop";
 import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
-import { draggableUnitOf, readUnit, UNIT_TYPE, type UnitKind } from "./units";
+import { carryUnit, draggableUnitOf, readUnit, type UnitKind } from "./units";
 
 const tabUnit = (kind: UnitKind, tab: number): TabUnit =>
   kind === "split" ? { split: tab } : kind === "group" ? { group: tab } : { tab };
@@ -51,16 +52,14 @@ export function useTabReorder(order: string) {
   // Set at a drop, until the Browser's new order is drawn or it is clear
   // there is none.
   const settling = useRef<Settling | null>(null);
-  // The row a tab would split with, which makes room for it (`data-drop-side`).
-  const making = useRef<HTMLElement | null>(null);
+  // The row a tab would split with makes room for it.
+  const makeRoom = useDropSide();
   const edge = useEdgeScroll();
 
   // The mark, changed only when it moves: a drag says where it is often.
   const show = (place: Landing) => {
-    const target = place?.kind === "split" ? place.target : null;
-    if (making.current && making.current !== target) delete making.current.dataset.dropSide;
-    making.current = target;
-    if (place?.kind === "split") place.target.dataset.dropSide = place.side;
+    if (place?.kind === "split") makeRoom(place.target, place.side);
+    else makeRoom(null);
     const next = place?.mark ?? null;
     setMark((shown) => (sameMark(shown, next) ? shown : next));
   };
@@ -79,8 +78,8 @@ export function useTabReorder(order: string) {
   useLayoutEffect(() => end, []);
 
   /**
-   * What is over the list: a unit of it, or from outside it a pin (not a folder), or a link
-   * if it has an address; each lands as a new tab would.
+   * What is over the list: a unit of it, or from outside it a pin (not a
+   * folder), or a link if it has an address; each lands as a new tab would.
    */
   const dragged = (event: DragEvent) =>
     held.current ?? (carriesTabPin(event.dataTransfer) || carriesAddress(event.dataTransfer) ? OUTSIDE : null);
@@ -116,7 +115,7 @@ export function useTabReorder(order: string) {
         held.current = { kind, unit, tab, scope, grab: event.clientX - box.left };
         settling.current = null;
         event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData(UNIT_TYPE, `${kind}:${tab}`);
+        carryUnit(event.dataTransfer, kind, tab);
         // The row as it is, held where the pointer took it.
         event.dataTransfer.setDragImage(image, event.clientX - box.left, event.clientY - box.top);
       },

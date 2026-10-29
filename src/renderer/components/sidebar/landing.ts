@@ -122,6 +122,12 @@ export function boxMark(box: DOMRect, content: DOMRect, half?: "left" | "right")
   return { kind: "box", top: box.top - content.top, left: box.left - content.left + offset, width, height: box.height };
 }
 
+/** The half of a row a tab dropped at `x` makes a split on, and the box over it. */
+export function splitSide(box: DOMRect, content: DOMRect, x: number) {
+  const side: "left" | "right" = x < (box.left + box.right) / 2 ? "left" : "right";
+  return { side, mark: boxMark(box, content, side) };
+}
+
 /**
  * Where a drag at a point, in the page's coordinates, would land. On the
  * middle of another tab it makes a split with it, on the left or right of
@@ -143,14 +149,7 @@ export function landingAt(scroller: HTMLElement, held: Held, x: number, y: numbe
       (item) => item.role === "row" && item.unit.kind === "tab" && item.el !== held.unit && onMiddle(item.box, y)
     );
     if (target) {
-      const side = x < (target.box.left + target.box.right) / 2 ? "left" : "right";
-      return {
-        kind: "split",
-        mark: boxMark(target.box, content, side),
-        target: target.el,
-        targetTab: target.unit.tab,
-        side
-      };
+      return { kind: "split", target: target.el, targetTab: target.unit.tab, ...splitSide(target.box, content, x) };
     }
   }
 

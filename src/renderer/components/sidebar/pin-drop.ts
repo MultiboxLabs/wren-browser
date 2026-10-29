@@ -3,18 +3,20 @@
 // mark shows it would land (pin-landing.ts):
 // - a pin, from either, which moves there; a folder only among the pins;
 // - a tab of the list, or its split (reorder.ts), which is pinned there and
-//   leaves the list; a group is not;
+//   leaves the list; not a group. A lone tab on half of a tab pin's row
+//   makes the pin a split with it, as on a tab of the list (landing.ts);
 // - a link, or a file, which is a new pin there, unopened.
 // A pin or a favourite dragged onto the list of tabs becomes an ordinary tab
 // there (`droppedPin`, which reorder.ts reads); a folder does not.
 
 import type { DragEvent, PointerEvent } from "react";
 import { useState } from "react";
-import { type Pin, pins } from "../../ipc";
+import { type Pin, type PinTarget, pins } from "../../ipc";
 import { holdForDrag, releaseDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
-import type { HeldPin, PinLanding } from "./pin-landing";
-import { droppedUnit, UNIT_TYPE } from "./units";
+import { useDropSide } from "./drop-side";
+import type { Dragging, HeldPin, PinLanding } from "./pin-landing";
+import { carriesUnit, droppedUnit } from "./units";
 
 /** What a pin's drag carries: its ID. */
 const PIN_TYPE = "application/x-wren-pin";
@@ -79,7 +81,7 @@ const sameLanding = (a: PinLanding | null, b: PinLanding | null) => JSON.stringi
 
 // Pins each address in turn from `index`, so each lands after the last. One
 // that fails ends it.
-async function pinAll(urls: string[], to: PinLanding["to"], index: number | null) {
+async function pinAll(urls: string[], to: PinTarget, index: number | null) {
   for (const [offset, url] of urls.entries()) {
     try {
       await pins.addAddress(url, to, index === null ? null : index + offset);
@@ -93,28 +95,41 @@ async function pinAll(urls: string[], to: PinLanding["to"], index: number | null
  * The handlers that make an element take a drop as a pin, where it would
  * land now, and whether the element itself would take it (a landing with no
  * mark, which the element draws by lighting up). `landingAt` finds where a
- * drag at a point would land, given the pin this page is dragging; `folders`
- * lets it take a folder. With `enabled` false, it takes nothing.
+ * drag at a point would land, given what is dragged; `folders` lets it take
+ * a folder. With `enabled` false, it takes nothing.
  */
 export function usePinDrop({
   landingAt,
   folders = false,
   enabled = true
 }: {
-  landingAt: (element: HTMLElement, held: HeldPin | null, x: number, y: number) => PinLanding | null;
+  landingAt: (element: HTMLElement, dragging: Dragging, x: number, y: number) => PinLanding | null;
   folders?: boolean;
   enabled?: boolean;
 }) {
   const [landing, setLanding] = useState<PinLanding | null>(null);
-  const show = (next: PinLanding | null) => setLanding((shown) => (sameLanding(shown, next) ? shown : next));
+  // A tab pin's row a tab would split with makes room for it.
+  const makeRoom = useDropSide();
+  const show = (element: HTMLElement, next: PinLanding | null) => {
+    if (next?.kind === "split") makeRoom(element.querySelector<HTMLElement>(`[data-pin-row="${next.pin}"]`), next.side);
+    else makeRoom(null);
+    setLanding((shown) => (sameLanding(shown, next) ? shown : next));
+  };
   const takes = ({ dataTransfer: data }: DragEvent) =>
     enabled &&
-    (data.types.includes(UNIT_TYPE) ||
+    ((carriesUnit(data) && !carriesUnit(data, "group")) ||
       carriesAddress(data) ||
       (data.types.includes(PIN_TYPE) && (folders || !data.types.includes(FOLDER_TYPE))));
+  const landingOf = (event: DragEvent<HTMLElement>) =>
+    landingAt(
+      event.currentTarget,
+      { pin: held, loneTab: carriesUnit(event.dataTransfer, "tab") },
+      event.clientX,
+      event.clientY
+    );
   return {
     landing: enabled ? landing : null,
-    over: enabled && !!landing && !landing.mark,
+    over: enabled && landing?.kind === "place" && !landing.mark,
     handlers: {
       [MARK]: enabled ? "" : undefined,
       onDragOver: (event: DragEvent<HTMLElement>) => {
@@ -122,27 +137,30 @@ export function usePinDrop({
         // Taken here even where it would not land, so the list under it
         // does not take it.
         event.preventDefault();
-        const place = landingAt(event.currentTarget, held, event.clientX, event.clientY);
-        const copies = !event.dataTransfer.types.includes(PIN_TYPE) && !event.dataTransfer.types.includes(UNIT_TYPE);
+        const place = landingOf(event);
+        const copies = !event.dataTransfer.types.includes(PIN_TYPE) && !carriesUnit(event.dataTransfer);
         event.dataTransfer.dropEffect = place ? (copies ? "copy" : "move") : "none";
-        show(place);
+        show(event.currentTarget, place);
       },
       onDragLeave: (event: DragEvent<HTMLElement>) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) show(null);
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) show(event.currentTarget, null);
       },
       onDrop: (event: DragEvent<HTMLElement>) => {
-        show(null);
+        show(event.currentTarget, null);
         if (!takes(event)) return;
         event.preventDefault();
-        const place = landingAt(event.currentTarget, held, event.clientX, event.clientY);
-        if (!place) return;
-        const { to, index } = place;
+        const place = landingOf(event);
         const pin = droppedPin(event.dataTransfer);
         const unit = droppedUnit(event.dataTransfer);
+        if (!place) return;
+        if (place.kind === "split") {
+          if (unit) pins.splitWith(place.pin, unit.tab, place.side).catch(() => {});
+          return;
+        }
+        const { to, index } = place;
         if (pin !== null) pins.move(pin, to, index).catch(() => {});
-        else if (unit) {
-          if (unit.kind !== "group") pins.pinTab(unit.tab, to, index).catch(() => {});
-        } else void pinAll(addressesOf(event.dataTransfer), to, index);
+        else if (unit) pins.pinTab(unit.tab, to, index).catch(() => {});
+        else void pinAll(addressesOf(event.dataTransfer), to, index);
       }
     }
   };

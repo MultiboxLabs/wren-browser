@@ -1,10 +1,11 @@
 // Where a drag over the space's pins or the favourites would land, found
 // from the pins and what is drawn of them (`data-pin-row`, pin-drop.ts): a
-// place between the pins, at any depth of the folders, or a folder's row,
-// which takes it in; or a place between the favourites' tiles.
+// place between the pins, at any depth of the folders, a folder's row,
+// which takes it in, or half of a tab pin's row, where a tab of the list
+// makes a split with it; or a place between the favourites' tiles.
 
 import type { Pin, PinTarget } from "../../ipc";
-import { boxMark, type DropMark, indexAt, onMiddle } from "./landing";
+import { boxMark, type DropMark, indexAt, onMiddle, splitSide } from "./landing";
 import { NESTED_INDENT, ROW_GAP } from "./rows";
 
 /** The space between the favourites' tiles (`gap-2`). */
@@ -13,11 +14,17 @@ const TILE_GAP = 8;
 /** A pin picked up in this window, and how far into its row the pointer took it. */
 export type HeldPin = { id: number; grab: number };
 
+/** What is dragged: a pin this window picked up, if it is one, and whether it is a lone tab of the list. */
+export type Dragging = { pin: HeldPin | null; loneTab: boolean };
+
 /**
- * Where a drop would land: at `index` of `to` (null: last), and the mark
- * that shows it. With no mark, it lands on what it is over, which lights up.
+ * Where a drop would land: at `index` of `to` (null: last), with the mark
+ * that shows it, or with none on what it is over, which lights up; or on
+ * `side` of tab pin `pin`, to make a split with it.
  */
-export type PinLanding = { to: PinTarget; index: number | null; mark?: DropMark };
+export type PinLanding =
+  | { kind: "place"; to: PinTarget; index: number | null; mark?: DropMark }
+  | { kind: "split"; pin: number; side: "left" | "right"; mark: DropMark };
 
 const TOP: PinTarget = { parent: null };
 const FAVORITES: PinTarget = { favorites: true };
@@ -41,12 +48,14 @@ function placedIn(section: HTMLElement, pins: Pin[], held: number | undefined, u
   return pins.flatMap((pin, index) => {
     const row = section.querySelector(`[data-pin-row="${pin.id}"]`);
     if (!row) return [];
+    // The row itself, in from the list's edge as its folders are.
+    const drawn = row.firstElementChild ?? row;
     const placed = {
       pin,
       parent: up?.pin.id ?? null,
       index,
       depth: up ? up.depth + 1 : 0,
-      box: row.getBoundingClientRect(),
+      box: drawn.getBoundingClientRect(),
       up
     };
     const inside = pin.kind === "folder" && pin.open && pin.id !== held;
@@ -57,8 +66,9 @@ function placedIn(section: HTMLElement, pins: Pin[], held: number | undefined, u
 /**
  * Where a drag at a point, in the page's coordinates, would land among the
  * space's pins in `section`. On the space's heading, or with no pins drawn,
- * it goes first. On the middle of a folder's row it goes in, first if it is
- * open and last if not. Otherwise it goes in the nearest place between the
+ * it goes first. A lone tab on the middle of a tab pin's row makes a split
+ * with it. On the middle of a folder's row it goes in, first if it is open
+ * and last if not. Otherwise it goes in the nearest place between the
  * rows; past a folder's last, it stays in the folder or leaves it (and the
  * folders around) by how far in the held pin is, as they are indented; what
  * comes from elsewhere leaves them.
@@ -66,19 +76,29 @@ function placedIn(section: HTMLElement, pins: Pin[], held: number | undefined, u
 export function pinsLandingAt(
   section: HTMLElement,
   pins: Pin[],
-  held: HeldPin | null,
+  { pin: held, loneTab }: Dragging,
   x: number,
   y: number
 ): PinLanding | null {
   const heading = section.querySelector("[data-pin-heading]")?.getBoundingClientRect();
   const rows = placedIn(section, pins, held?.id);
-  if (!rows.length || (heading && y < heading.bottom)) return { to: TOP, index: 0 };
+  if (!rows.length || (heading && y < heading.bottom)) return { kind: "place", to: TOP, index: 0 };
   const content = section.getBoundingClientRect();
   const mine = held && rows.find((row) => row.pin.id === held.id);
 
+  if (loneTab) {
+    const target = rows.find((row) => row.pin.kind === "tab" && onMiddle(row.box, y));
+    if (target) return { kind: "split", pin: target.pin.id, ...splitSide(target.box, content, x) };
+  }
+
   const folder = rows.find((row) => row.pin.kind === "folder" && row !== mine && onMiddle(row.box, y));
   if (folder?.pin.kind === "folder") {
-    return { to: { parent: folder.pin.id }, index: folder.pin.open ? 0 : null, mark: boxMark(folder.box, content) };
+    return {
+      kind: "place",
+      to: { parent: folder.pin.id },
+      index: folder.pin.open ? 0 : null,
+      mark: boxMark(folder.box, content)
+    };
   }
 
   // The nearest place between the rows, by the line it would be drawn on.
@@ -95,6 +115,7 @@ export function pinsLandingAt(
   if (index === from) return null;
   const left = place.depth * NESTED_INDENT;
   return {
+    kind: "place",
     to: { parent: place.parent },
     index,
     mark: { kind: "line", top: lines[at] - content.top, left, width: content.width - left, height: 0 }
@@ -123,14 +144,14 @@ function placeBetween(before: Placed | undefined, after: Placed | undefined, wan
 export function favoritesLandingAt(
   grid: HTMLElement,
   favorites: Pin[],
-  held: HeldPin | null,
+  { pin: held }: Dragging,
   x: number,
   y: number
 ): PinLanding | null {
   const tiles = favorites.flatMap(
     (pin) => grid.querySelector(`[data-pin-row="${pin.id}"]`)?.getBoundingClientRect() ?? []
   );
-  if (!tiles.length) return { to: FAVORITES, index: null };
+  if (!tiles.length) return { kind: "place", to: FAVORITES, index: null };
   const content = grid.getBoundingClientRect();
   // The row of the tile nearest the pointer, and the place in it nearest.
   const middles = tiles.map((tile) => (tile.top + tile.bottom) / 2);
@@ -147,6 +168,7 @@ export function favoritesLandingAt(
   const index = indexAt(tiles.indexOf(row[0]) + at, from, 1);
   if (index === from) return null;
   return {
+    kind: "place",
     to: FAVORITES,
     index,
     mark: {
