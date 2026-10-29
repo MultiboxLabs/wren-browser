@@ -1,11 +1,10 @@
 // The sidebar's list: the space's pinned tabs and folders, the New Tab row,
 // and the Browser's tabs, in their groups and splits.
 
-import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { type CSSProperties, memo, type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
+import { memo, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type TabGroup, type TabSplit } from "../../ipc";
-import { Button } from "../ui/button";
 import { useHoldUntil } from "../ui/hold";
 import { press } from "../ui/press";
 import { Tooltip } from "../ui/tooltip";
@@ -21,15 +20,12 @@ import { useGroupKeys } from "./keys";
 import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
+import { CloseButton, Disclosed, IconSlot, NESTED_INDENT, pressHandlers, Row } from "./rows";
 
 // Tabs come and go as a list's rows do on macOS: one fades in or out where
 // it stands, unclipped, while the rows below slide to make room or close
 // the gap, in 0.12s.
 const tabTransition = { duration: 0.12, ease: "easeInOut" } as const;
-
-// The space's pinned tabs fold up under its heading, and down again, as a
-// disclosed section of a list does on macOS.
-const pinnedTransition = { duration: 0.2, ease: "easeInOut" } as const;
 
 // The app makes each change, and the page hears it back as new tabs. Only
 // the Browser's tabs are real: the made-up favourites and pinned ones do
@@ -195,84 +191,6 @@ export function TabList({ omnibox }: { omnibox: OmniboxState }) {
 }
 
 /**
- * The handlers of a row pressed: `onPress` as the primary button goes down,
- * `onMiddlePress` as the middle one does, which is kept from starting an
- * autoscroll.
- */
-function pressHandlers(onPress?: () => void, onMiddlePress?: () => void) {
-  return {
-    onPointerDown: (event: PointerEvent) => {
-      if (event.button === 0) onPress?.();
-      else if (event.button === 1 && onMiddlePress) {
-        event.preventDefault();
-        onMiddlePress();
-      }
-    },
-    onMouseDown: (event: MouseEvent) => {
-      if (event.button === 1 && onMiddlePress) event.preventDefault();
-    }
-  };
-}
-
-function Row({
-  selected,
-  active,
-  indent = 0,
-  still,
-  className,
-  onPress,
-  onClick,
-  onMenu,
-  onMiddlePress,
-  children
-}: {
-  selected?: boolean;
-  /** The row of the active tab, which the list scrolls to. */
-  active?: boolean;
-  indent?: number;
-  /** Not scaled as it is pressed. */
-  still?: boolean;
-  className?: string;
-  onPress?: () => void;
-  /** For a row that can be dragged: what a press does is done once it is a click, which a drag is not. */
-  onClick?: () => void;
-  onMenu?: (x: number, y: number) => void;
-  onMiddlePress?: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <motion.div
-      {...(still ? {} : press(0.985))}
-      role="button"
-      tabIndex={-1}
-      aria-pressed={selected}
-      data-active-tab={active ? "" : undefined}
-      // Selects on press, as a native list does.
-      {...pressHandlers(onPress, onMiddlePress)}
-      onClick={onClick}
-      onContextMenu={(event) => {
-        if (!onMenu) return;
-        event.preventDefault();
-        onMenu(event.clientX, event.clientY);
-      }}
-      // Nested rows are indented whole, their highlight with them.
-      // A percentage of padding is of the list's width, not this row's.
-      style={{ marginLeft: indent, "--indent": `${indent}px` } as CSSProperties}
-      className={cn(
-        "no-drag group flex h-9 shrink-0 items-center gap-2.75 rounded-row pr-1.25 pl-2.5 transition-[padding] duration-120 motion-reduce:transition-none",
-        // A tab dragged to its left or right half has the other half left to
-        // it, past the row's own padding: its title shortens, as the tab's would in a split.
-        "in-data-[drop-side=left]:pl-[calc(50%-var(--indent)/2+var(--spacing)*2.5)] in-data-[drop-side=right]:pr-[calc(50%-var(--indent)/2+var(--spacing)*1.25)]",
-        selected ? "bg-selected" : "hover:bg-hover",
-        className
-      )}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/**
  * The space's name over its pinned tabs. Hovered, its icon gives way to a
  * chevron, and a press folds the pinned tabs up or down.
  */
@@ -297,37 +215,6 @@ function SpaceHeading({ open, onToggle }: { open: boolean; onToggle: () => void 
       <span className="min-w-0 flex-1 truncate">{space.name}</span>
     </Row>
   );
-}
-
-/**
- * Rows under a heading that fold up into it and down out of it, clipped as
- * they go; with Reduced Motion they only fade. The gap above them goes with
- * them.
- */
-function Disclosed({ open, children }: { open: boolean; children: ReactNode }) {
-  const still = useReducedMotion();
-  return (
-    <AnimatePresence initial={false}>
-      {open && (
-        <motion.div
-          initial={{ height: still ? "auto" : 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: still ? "auto" : 0, opacity: 0 }}
-          transition={pinnedTransition}
-          className="-mt-1.25 shrink-0 overflow-hidden"
-        >
-          <div className="flex flex-col gap-1.25 pt-1.25">{children}</div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-/** The icon column of a row, a favicon wide: a larger icon (a folder's, the space's) overflows it evenly. */
-function IconSlot({ children }: { children: ReactNode }) {
-  // Flex, not grid: grid would align an icon wider than the slot to its
-  // start and let it overflow only to the right.
-  return <span className="relative flex size-4 shrink-0 items-center justify-center">{children}</span>;
 }
 
 function TabRow({
@@ -357,32 +244,10 @@ function TabRow({
   );
 }
 
-// Shown over a tab's row while it is hovered.
-function CloseButton({ onClose }: { onClose: () => void }) {
-  return (
-    <Button
-      icon={X}
-      iconSize={18}
-      shape="none"
-      label="Close Tab"
-      scale={0.9}
-      // Pressed alone, without the row around it.
-      propagate={{ tap: false }}
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={onClose}
-      // Hovered, a fill of its own over the row's, and the cross full.
-      className="hidden size-5.5 place-items-center rounded-control group-hover:grid hover:[&>span]:glyph-1"
-    />
-  );
-}
-
-/** How far in each folder's tabs and folders are from it. */
-const FOLDER_INDENT = 16;
-
 /** A folder and, while it is open, what is in it, a step further in for each folder it is in. */
 function FolderRow(props: ListProps & { folder: Folder; indent?: number }) {
   const { folder, indent = 0 } = props;
-  const inner = indent + FOLDER_INDENT;
+  const inner = indent + NESTED_INDENT;
   return (
     <>
       <Row indent={indent} onPress={() => props.onToggleFolder(folder)}>

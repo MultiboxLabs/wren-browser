@@ -1,6 +1,7 @@
 // Where a drag over the tab list would land, found from what the list is
 // drawing: the places between its rows, and its rows themselves.
 
+import { NESTED_INDENT, ROW_GAP } from "./rows";
 import { readUnit, TOP_SCOPE, type Unit, type UnitKind, unitsIn } from "./units";
 
 /** How much of a row, from its middle, is on the row itself rather than between it and the next. */
@@ -8,12 +9,6 @@ const MIDDLE_BAND = 0.5;
 
 /** The space between the room made in a row for a split and the tab beside it. */
 const SPLIT_GAP = 2;
-
-/** The space between rows, half of which each side of a line at an end of the list. */
-const SPACING = 5;
-
-/** How far in a group's tabs are from the list's edge. */
-const INDENT = 16;
 
 /**
  * What shows where a drop would land, in the list's content: a line between
@@ -207,14 +202,14 @@ function leftOf(items: Item[], group: string | null) {
 function nearestGap(items: Item[], held: Held, x: number, y: number) {
   const topLeft = Math.min(...items.map((item) => item.box.left));
   // What comes from outside has no row held, so it goes out of the group.
-  const deep = held.kind !== "outside" && x - held.grab > topLeft + INDENT / 2;
+  const deep = held.kind !== "outside" && x - held.grab > topLeft + NESTED_INDENT / 2;
   let best: { at: number; line: number; group: string | null; distance: number } | null = null;
   for (let at = 0; at <= items.length; at++) {
     const [before, after] = [items[at - 1], items[at]];
     const line = !before
-      ? after.box.top - SPACING / 2
+      ? after.box.top - ROW_GAP / 2
       : !after
-        ? before.box.bottom + SPACING / 2
+        ? before.box.bottom + ROW_GAP / 2
         : (before.box.bottom + after.box.top) / 2;
     const groups = groupsAt(before, after).filter((group) => may(held, group));
     // Both: in the group if held far enough in, otherwise out of it.
