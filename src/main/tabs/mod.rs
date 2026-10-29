@@ -28,19 +28,29 @@ pub fn listed(browser: &Browser) -> Vec<BrowserTab> {
     browser
         .tabs()
         .into_iter()
-        .filter(|tab| !tab.state().is_ok_and(|state| state.pinned))
+        .filter(|tab| !is_pinned(*tab))
         .collect()
+}
+
+/// The tabs Chromium has pinned, in its order: the pins' (pins/).
+pub fn pinned(browser: &Browser) -> Vec<BrowserTab> {
+    browser
+        .tabs()
+        .into_iter()
+        .filter(|tab| is_pinned(*tab))
+        .collect()
+}
+
+/// Whether Chromium has pinned `tab`.
+pub fn is_pinned(tab: BrowserTab) -> bool {
+    tab.state().is_ok_and(|state| state.pinned)
 }
 
 // The Browser's index of `index` among the listed tabs: Chromium keeps its
 // pinned tabs first.
 fn at_list(browser: &Browser, index: usize) -> usize {
-    let tabs = browser.tabs();
-    let pinned = tabs
-        .iter()
-        .take_while(|tab| tab.state().is_ok_and(|state| state.pinned))
-        .count();
-    pinned + index
+    let pinned = browser.tabs().into_iter().take_while(|tab| is_pinned(*tab));
+    pinned.count() + index
 }
 
 /// Whether `url` is Chromium's New Tab page, or none yet.

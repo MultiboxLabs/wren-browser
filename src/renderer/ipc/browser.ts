@@ -37,7 +37,12 @@ export type BrowserTabs = {
   groups: TabGroup[];
   /** The splits of `tabs`, in their order. */
   splits: TabSplit[];
+  /** The pins open in the Browser. */
+  links: PinLink[];
 };
+
+/** A pin open in the Browser: its tab, or a split pin's two, and whether each is away from the pin's page. */
+export type PinLink = { pin: number; tabs: number[]; away: boolean[] };
 
 /** What moves as one in the list, by one of its tabs' IDs: the tab, the split it is in, or its group. */
 export type TabUnit = { tab: number } | { split: number } | { group: number };

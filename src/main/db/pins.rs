@@ -274,10 +274,101 @@ impl Db {
             .map_err(sql)
     }
 
-    /// Deletes a pin, and, for a folder, everything in it; the pins after it
-    /// close the gap.
-    pub fn delete_pin(&self, id: PinId) -> Result<(), String> {
+    /// A pin by its ID, with its profile and, for a space's, its space. A
+    /// folder comes without what is in it.
+    pub fn pin(&self, id: PinId) -> Result<Option<(String, Option<SpaceId>, PinRow)>, String> {
+        let found = self
+            .conn
+            .query_row(
+                &format!("SELECT {COLUMNS}, profile_id, space_id FROM pins WHERE id = ?1"),
+                [id],
+                |row| Ok((kept(row)?, row.get::<_, String>(7)?, row.get(8)?)),
+            )
+            .optional()
+            .map_err(sql)?;
+        let Some((mut row, profile, space)) = found else {
+            return Ok(None);
+        };
+        // Built as the one pin at the top.
+        row.parent = None;
+        let mut pages = HashMap::new();
+        let mut query = self
+            .conn
+            .prepare("SELECT url, title, favicon FROM pin_pages WHERE pin_id = ?1 ORDER BY side")
+            .map_err(sql)?;
+        let kept_pages = query
+            .query_map([id], |row| {
+                Ok(PinPage {
+                    url: row.get(0)?,
+                    title: row.get(1)?,
+                    favicon: row.get(2)?,
+                })
+            })
+            .and_then(|rows| rows.collect::<rusqlite::Result<Vec<_>>>())
+            .map_err(sql)?;
+        pages.insert(id, kept_pages);
+        let built = build(&[row], None, &mut pages).pop();
+        Ok(built.map(|pin| (profile, space, pin)))
+    }
+
+    /// Keeps the title and favicon a pin's page shows now, its address
+    /// unchanged. Answers whether they were not kept so already.
+    pub fn set_pin_look(
+        &self,
+        id: PinId,
+        side: usize,
+        title: &str,
+        favicon: Option<&[u8]>,
+    ) -> Result<bool, String> {
+        self.conn
+            .execute(
+                "UPDATE pin_pages SET title = ?3, favicon = ?4
+                 WHERE pin_id = ?1 AND side = ?2 AND (title IS NOT ?3 OR favicon IS NOT ?4)",
+                params![id, side as i64, title, favicon],
+            )
+            .map(|changed| changed > 0)
+            .map_err(sql)
+    }
+
+    /// Makes a split pin a tab pin of its page on `side` (0 or 1), as its
+    /// tabs stop being a split.
+    pub fn split_to_tab(&self, id: PinId, side: usize) -> Result<(), String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
+        let changed = transaction
+            .execute(
+                "UPDATE pins SET kind = 'tab', layout = NULL, ratio = NULL
+                 WHERE id = ?1 AND kind = 'split'",
+                [id],
+            )
+            .map_err(sql)?;
+        if changed == 0 {
+            return Err("That pin is not a split.".into());
+        }
+        transaction
+            .execute(
+                "DELETE FROM pin_pages WHERE pin_id = ?1 AND side != ?2",
+                params![id, side as i64],
+            )
+            .map_err(sql)?;
+        transaction
+            .execute("UPDATE pin_pages SET side = 0 WHERE pin_id = ?1", [id])
+            .map_err(sql)?;
+        transaction.commit().map_err(sql)
+    }
+
+    /// Deletes a pin, and, for a folder, everything in it; the pins after it
+    /// close the gap. Answers the IDs of every pin deleted.
+    pub fn delete_pin(&self, id: PinId) -> Result<Vec<PinId>, String> {
+        let transaction = self.conn.unchecked_transaction().map_err(sql)?;
+        let deleted: Vec<PinId> = transaction
+            .prepare(
+                "WITH RECURSIVE gone(id) AS (
+                   SELECT id FROM pins WHERE id = ?1
+                   UNION ALL SELECT pins.id FROM pins JOIN gone ON pins.parent_id = gone.id
+                 ) SELECT id FROM gone",
+            )
+            .and_then(|mut query| query.query_map([id], |row| row.get(0))?.collect())
+            .map_err(sql)?;
         let (profile, space, parent, position): (String, Option<SpaceId>, Option<PinId>, i64) =
             transaction
                 .query_row(
@@ -298,7 +389,8 @@ impl Db {
                 params![profile, space, parent, position],
             )
             .map_err(sql)?;
-        transaction.commit().map_err(sql)
+        transaction.commit().map_err(sql)?;
+        Ok(deleted)
     }
 
     fn pin_kind(&self, id: PinId) -> Result<String, String> {

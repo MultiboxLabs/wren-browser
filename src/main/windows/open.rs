@@ -12,6 +12,7 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
+use crate::pins;
 use crate::tabs::placeholder;
 use crate::platform::{PageWindow, TitleBarKind};
 use crate::shell::{BrowserWindow, Place, Popup, WindowId};
@@ -301,6 +302,7 @@ impl State {
             self.host_opened(mt, &browser, Place::of_profile(&profile), None);
             return;
         }
+        pins::drop_restored(&browser);
         if self.place_tagged(&browser, &profile) {
             return;
         }

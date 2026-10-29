@@ -116,7 +116,7 @@ export function TabList({
         <SpaceHeading open={pinnedOpen} onToggle={togglePinned} />
 
         <Disclosed open={pinnedOpen}>
-          <PinRows pins={pinned} onToggleFolder={onToggleFolder} />
+          <PinRows pins={pinned} selected={selected} onToggleFolder={onToggleFolder} />
         </Disclosed>
 
         {pinned.length > 0 && <div className="mx-2.5 my-1.75 h-px shrink-0 bg-separator" />}

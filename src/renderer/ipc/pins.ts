@@ -31,8 +31,14 @@ export const pins = {
     wren.invoke<number>("pins.newFolder", { space, parent, index }),
   /** Names a pin; null lets a tab or a split go by its page's title again. A folder keeps a name. */
   rename: (id: number, name: string | null) => wren.invoke<null>("pins.rename", { id, name }),
+  /** Opens a pin in the window's space, or selects its tab if it is open. */
+  open: (id: number) => wren.invoke<null>("pins.open", id),
+  /** Takes an open pin's tab on `side` back to the pin's page. */
+  back: (id: number, side: number) => wren.invoke<null>("pins.back", { id, side }),
+  /** Closes an open pin's tabs, leaving it unopened. */
+  close: (id: number) => wren.invoke<null>("pins.close", id),
   /** Opens a folder, or closes it. */
   setOpen: (id: number, open: boolean) => wren.invoke<null>("pins.setOpen", { id, open }),
-  /** Deletes a pin, and what is in it if it is a folder. */
+  /** Deletes a pin, and what is in it if it is a folder, closing their tabs. */
   delete: (id: number) => wren.invoke<null>("pins.delete", id)
 };

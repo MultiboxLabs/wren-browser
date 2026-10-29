@@ -164,7 +164,7 @@ fn deleting_closes_the_gap_and_takes_a_folders_pins() {
     };
     let deep = db.create_pin(&inside, None, tab("https://c/")).unwrap();
 
-    db.delete_pin(folder).unwrap();
+    assert_eq!(db.delete_pin(folder).unwrap(), vec![folder, deep]);
     assert_eq!(ids(&db.space_pins(space).unwrap()), vec![first, last]);
     assert!(db.delete_pin(deep).is_err());
     // The gap is closed: a pin made at index 1 lands between the two.
@@ -195,6 +195,45 @@ fn pins_go_with_their_space_and_profile() {
         .unwrap();
     assert!(db.space_pins(two).unwrap().is_empty());
     assert!(db.favorites("a").unwrap().is_empty());
+}
+
+#[test]
+fn a_pin_is_found_with_its_place_and_keeps_its_look() {
+    let db = db();
+    let space = space(&db, "a");
+    let id = db.create_pin(&top(space), None, tab("https://a/")).unwrap();
+    let (profile, found_space, pin) = db.pin(id).unwrap().unwrap();
+    assert_eq!((profile.as_str(), found_space), ("a", Some(space)));
+    assert_eq!(pin.kind, PinKind::Tab(page("https://a/")));
+    assert!(db.set_pin_look(id, 0, "A", Some(&[1, 2])).unwrap());
+    assert!(!db.set_pin_look(id, 0, "A", Some(&[1, 2])).unwrap());
+    let (_, _, pin) = db.pin(id).unwrap().unwrap();
+    let PinKind::Tab(page) = pin.kind else {
+        panic!("not a tab");
+    };
+    assert_eq!((page.title.as_str(), page.favicon), ("A", Some(vec![1, 2])));
+    assert!(db.pin(id + 1).unwrap().is_none());
+}
+
+#[test]
+fn a_split_becomes_a_tab_of_the_side_it_keeps() {
+    let db = db();
+    let split = NewPin::Split {
+        first: page("https://a/"),
+        second: page("https://b/"),
+        layout: PinLayout::SideBySide,
+        ratio: 0.5,
+    };
+    let place = PinPlace::Favorites {
+        profile: "a".into(),
+    };
+    let id = db.create_pin(&place, None, split).unwrap();
+    db.split_to_tab(id, 1).unwrap();
+    assert_eq!(
+        db.favorites("a").unwrap()[0].kind,
+        PinKind::Tab(page("https://b/"))
+    );
+    assert!(db.split_to_tab(id, 0).is_err());
 }
 
 #[test]
