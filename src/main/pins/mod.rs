@@ -191,6 +191,47 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
     Ok(())
 }
 
+/// Makes tab pin `id` a split of its page and `tab`'s, `tab` on `side` (0:
+/// first), side by side, as a tab of the list dropped on half of the pin's
+/// row does: `tab` leaves the list, and the two open as the pin's split. An
+/// unopened pin opens first.
+pub fn split_with(
+    state: &State,
+    browser: &Browser,
+    place: &Place,
+    id: PinId,
+    tab: BrowserTab,
+    side: usize,
+) -> Result<(), String> {
+    if !matches!(pin_for(state, place, id)?.kind, PinKind::Tab(_)) {
+        return Err("Only a tab pin makes a split with a tab.".into());
+    }
+    if open_tabs::pin_of(browser, tab).is_some() {
+        return Err("That tab is a pin's.".into());
+    }
+    open(state, browser, place, id)?;
+    let link = open_tabs::find(browser, id).ok_or("The pin did not open.")?;
+    let own = tabs_of(browser, &link)
+        .next()
+        .ok_or("The pin's tab is gone.")?;
+    let page = page_of(tab);
+    if tab.state().is_ok_and(|state| state.split.is_some()) {
+        unsplit(tab)?;
+    }
+    state.db.tab_to_split(id, side, &page)?;
+    let sides = match side {
+        0 => [(tab, page), (own, link.sides[0].page.clone())],
+        _ => [(own, link.sides[0].page.clone()), (tab, page)],
+    };
+    // Linked in the same call as it is pinned, or `follow_tab_changes` would
+    // unpin it.
+    let split = split_pinned(sides[0].0, sides[1].0, SplitLayout::SideBySide, 0.5, true);
+    open_tabs::add(browser, link_to(id, sides));
+    split?;
+    crate::ipc::broadcast_pins(state);
+    tab.activate().map_err(failed)
+}
+
 /// Opens pin `id` in `window`, as `open` does in its Browser; a place
 /// without a Browser gets one first, as the omnibox's does. `done` hears how
 /// it went.

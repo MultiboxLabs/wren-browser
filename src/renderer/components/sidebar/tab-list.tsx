@@ -202,7 +202,7 @@ function PinnedSection({
 }) {
   const { profile } = useSpace();
   const drop = usePinDrop({
-    landingAt: (section, held, x, y) => pinsLandingAt(section, pinned, held, x, y),
+    landingAt: (section, dragging, x, y) => pinsLandingAt(section, pinned, dragging, x, y),
     folders: true,
     enabled: !profile
   });

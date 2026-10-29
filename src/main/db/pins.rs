@@ -461,6 +461,35 @@ impl Db {
         transaction.commit().map_err(sql)
     }
 
+    /// Makes a tab pin a split of its page and `page`, on `side` of it (0:
+    /// first), side by side and even.
+    pub fn tab_to_split(&self, id: PinId, side: usize, page: &PinPage) -> Result<(), String> {
+        let transaction = self.conn.unchecked_transaction().map_err(sql)?;
+        let changed = transaction
+            .execute(
+                "UPDATE pins SET kind = 'split', layout = 'side-by-side', ratio = 0.5
+                 WHERE id = ?1 AND kind = 'tab'",
+                [id],
+            )
+            .map_err(sql)?;
+        if changed == 0 {
+            return Err("That pin is not a tab.".into());
+        }
+        transaction
+            .execute(
+                "UPDATE pin_pages SET side = ?2 WHERE pin_id = ?1",
+                params![id, (1 - side.min(1)) as i64],
+            )
+            .map_err(sql)?;
+        transaction
+            .execute(
+                "INSERT INTO pin_pages (pin_id, side, url, title, favicon) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![id, side.min(1) as i64, page.url, page.title, page.favicon],
+            )
+            .map_err(sql)?;
+        transaction.commit().map_err(sql)
+    }
+
     /// Deletes a pin, and, for a folder, everything in it; the pins after it
     /// close the gap. Answers the IDs of every pin deleted.
     pub fn delete_pin(&self, id: PinId) -> Result<Vec<PinId>, String> {

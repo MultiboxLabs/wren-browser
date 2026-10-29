@@ -7,50 +7,47 @@
 import { Star, X } from "lucide-react";
 import { Button } from "../ui/button";
 import type { Pin } from "../../ipc";
-import type { LibrarySettings } from "../../state/library";
+import { useSettings } from "../../state/library";
 import { useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { Favorite } from "./favorite";
-import { usePinDrop } from "./pin-drop";
 import type { PinActions } from "./pin-actions";
+import { usePinDrop } from "./pin-drop";
 import { favoritesLandingAt } from "./pin-landing";
 
 /**
  * `read`: whether the favourites have been read, before which the box is
- * not shown, so it never flashes up before them; nor before the settings
- * are, which say whether it was put away. `selected`: the selected tab's ID,
- * unless none is.
+ * not shown, so it never flashes up before them. `selected`: the selected
+ * tab's ID, unless none is.
  */
 export function Favorites({
   favorites,
   read,
-  settings,
   selected,
   actions
 }: {
   favorites: Pin[];
   read: boolean;
-  settings: LibrarySettings;
   selected?: number;
   actions: PinActions;
 }) {
   const { profile } = useSpace();
+  const settings = useSettings(true);
   // An incognito window keeps none.
   const keeps = !profile?.offTheRecord;
   const drop = usePinDrop({
-    landingAt: (grid, held, x, y) => favoritesLandingAt(grid, favorites, held, x, y),
+    landingAt: (element, dragging, x, y) => favoritesLandingAt(element, favorites, dragging, x, y),
     enabled: keeps
   });
 
   if (favorites.length === 0) {
     const tip = keeps && read && settings.read && !settings.values.favoritesTipDismissed;
+    if (!tip) return null;
     return (
-      tip && (
-        <div {...drop.handlers} className="flex shrink-0 flex-col">
-          <FavoritesTip dropping={drop.over} onDismiss={() => settings.update({ favoritesTipDismissed: true })} />
-        </div>
-      )
+      <div {...drop.handlers} className="flex shrink-0 flex-col">
+        <FavoritesTip dropping={drop.over} onDismiss={() => settings.update({ favoritesTipDismissed: true })} />
+      </div>
     );
   }
   return (

@@ -113,6 +113,15 @@ struct AddressToPin {
     to: To,
 }
 
+/// A tab of the window's Browser dropped on half of a tab pin's row, to
+/// make a split with it, on `side` (0: first).
+#[derive(Deserialize)]
+struct SplitWith {
+    id: PinId,
+    tab: i32,
+    side: usize,
+}
+
 /// A pin to move.
 #[derive(Deserialize)]
 struct MovePin {
@@ -236,6 +245,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_window(&weak, |window| {
             let (target, index) = (add.to.target(), add.to.index);
             pins::add_address(&state, &place(window)?, &add.url, target, index)
+        })
+    });
+
+    // Makes a tab pin a split with a tab of the list.
+    let weak = window.clone();
+    let _ = web_view.handle("pins.splitWith", move |split: SplitWith| {
+        let state = weak.state()?;
+        with_browser(&weak, |window, browser| {
+            let tab = tab(mt, browser, split.tab)?;
+            pins::split_with(&state, browser, &place(window)?, split.id, tab, split.side)
         })
     });
 

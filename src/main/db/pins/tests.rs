@@ -345,3 +345,28 @@ fn a_name_can_be_cleared_except_a_folders() {
     ));
     assert!(db.set_folder_open(pin, false).is_err());
 }
+
+#[test]
+fn a_tab_becomes_a_split_with_a_page_on_either_side() {
+    let db = db();
+    let space = space(&db, "a");
+    for side in [0, 1] {
+        let id = db.create_pin(&top(space), None, tab("https://a/")).unwrap();
+        db.tab_to_split(id, side, &page("https://b/")).unwrap();
+        let (_, _, pin) = db.pin(id).unwrap().unwrap();
+        let PinKind::Split {
+            first,
+            second,
+            layout,
+            ratio,
+        } = pin.kind
+        else {
+            panic!("not a split");
+        };
+        let urls = [first.url, second.url];
+        assert_eq!(urls[side], "https://b/");
+        assert_eq!(urls[1 - side], "https://a/");
+        assert_eq!((layout, ratio), (PinLayout::SideBySide, 0.5));
+        assert!(db.tab_to_split(id, 0, &page("https://c/")).is_err());
+    }
+}
