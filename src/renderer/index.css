@@ -378,12 +378,15 @@ body,
   --favorite-selected-unfocused: rgb(255 255 255 / 0.35);
   --favorite-glow: 0;
   --favorite-glow-hover: 0.05;
+  /* Over the stronger fill, the ring needs more of its colour to show. */
+  --favorite-ring: 0.7;
 }
 :root[data-scheme="dark"] {
   --favorite-selected: rgb(255 255 255 / 0.45);
   --favorite-selected-unfocused: rgb(255 255 255 / 0.18);
   --favorite-glow: 0.08;
   --favorite-glow-hover: 0.12;
+  --favorite-ring: 0.5;
 }
 .favorite-selected {
   background: var(--favorite-selected);
@@ -415,13 +418,16 @@ body,
   opacity: var(--favorite-glow-hover);
 }
 /* The ring's icon is blurred and made opaque by an SVG filter of the tile's
-   own (sidebar/favorite.tsx), so it has no gaps. */
+   own (sidebar/favorite.tsx), so it has no gaps. Where a mostly transparent
+   icon still leaves none of its colour, a separator's shows, so the ring
+   is always there, if faintly. */
 .favorite-ring > :not(svg) {
   filter: var(--favorite-ring-filter) saturate(1.5) brightness(1.05) contrast(0.85);
 }
 .favorite-ring {
-  opacity: 0.5;
+  opacity: var(--favorite-ring);
   padding: 2px;
+  background: var(--separator);
   mask:
     linear-gradient(#000 0 0) content-box exclude,
     linear-gradient(#000 0 0);
