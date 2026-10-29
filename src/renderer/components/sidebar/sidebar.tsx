@@ -8,7 +8,6 @@ import { type RefObject, useRef } from "react";
 import { browser } from "../../ipc";
 import { Button } from "../ui/button";
 import { AddressField } from "../address/field";
-import { Favicon } from "../favicon";
 import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../icons";
 import type { OmniboxState } from "../omnibox/shown";
 import { cn } from "../../utils/cn";
@@ -16,10 +15,11 @@ import { scaleTo } from "../../utils/motion";
 import { DownloadFlights } from "../downloads/flight";
 import { Indicator } from "../downloads/indicator";
 import { Shelf, useShelf } from "../downloads/shelf";
+import { Favorite } from "./favorite";
 import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
-import { selectTab, TabList } from "./tab-list";
+import { TabList } from "./tab-list";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
 import { useDownloadIndicator } from "../../state/downloads";
 import { isFolder, useSpace } from "../../state/space";
@@ -199,17 +199,7 @@ function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "addr
 
       <div className="mt-2 grid shrink-0 grid-cols-3 gap-2">
         {space.favorites.map((tab) => (
-          <Button
-            key={tab.id}
-            variant="filled"
-            shape="none"
-            label={tab.title}
-            pressed={tab.id === selected}
-            onPointerDown={() => selectTab(tab)}
-            className="grid h-11.75 place-items-center rounded-field"
-          >
-            <Favicon url={tab.url} title={tab.title} />
-          </Button>
+          <Favorite key={tab.id} tab={tab} selected={tab.id === selected} />
         ))}
       </div>
 

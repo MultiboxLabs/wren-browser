@@ -33,8 +33,10 @@ body,
   --radius-row: 9px;
   /* The sidebar floating over the page. */
   --radius-panel: 10px;
-  /* The address field, favourites. */
+  /* The address field. */
   --radius-field: 11px;
+  /* A favourite. */
+  --radius-favorite: 12px;
   /* The page info popover, and the tiles in it, whose corners nest in its
      corners at its padding. */
   --radius-popover: 18px;
@@ -357,6 +359,65 @@ body,
   inset: 0;
   border-radius: inherit;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / calc(0.28 * var(--peek, 1)));
+}
+
+/* The selected favourite (sidebar/favorite.tsx): a white fill, stronger in
+   light, with a soft shadow; over it, the icon blurred and saturated (a blur,
+   then saturation 1.5, brightness +0.05, contrast 0.85), centred and wider
+   than the tile, so its colour reaches every edge; faint in dark and only on
+   hover in light; and a 2px ring of that glow. Blurred from a favicon, the
+   glow's size, its blur and the ring's opacity are set by eye. */
+:root[data-scheme="light"] {
+  --favorite-selected: rgb(255 255 255 / 0.8);
+  --favorite-glow: 0;
+  --favorite-glow-hover: 0.1;
+}
+:root[data-scheme="dark"] {
+  --favorite-selected: rgb(255 255 255 / 0.45);
+  --favorite-glow: 0.2;
+  --favorite-glow-hover: 0.3;
+}
+.favorite-selected {
+  background: var(--favorite-selected);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+}
+.favorite-glow,
+.favorite-ring {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.favorite-glow > *,
+.favorite-ring > :not(svg) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 130% !important;
+  height: auto !important;
+  aspect-ratio: 1;
+  filter: blur(14px) saturate(1.5) brightness(1.05) contrast(0.85);
+}
+.favorite-glow {
+  opacity: var(--favorite-glow);
+  transition: opacity 0.15s ease-out;
+}
+.favorite:hover .favorite-glow {
+  opacity: var(--favorite-glow-hover);
+}
+/* The ring's icon is blurred and made opaque by an SVG filter of the tile's
+   own (sidebar/favorite.tsx), so it has no gaps. */
+.favorite-ring > :not(svg) {
+  filter: var(--favorite-ring-filter) saturate(1.5) brightness(1.05) contrast(0.85);
+}
+.favorite-ring {
+  opacity: 0.55;
+  padding: 2px;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
 }
 
 /* A popover (components/ui/popover.tsx): the system's neutral colours, as

@@ -1,8 +1,9 @@
 // The space the window shows: the app's, with its name, icon and colour, and
 // the spaces it can switch to. Its tabs are the Browser's; until favourites
-// and pinned tabs are real too, those are made up here, and so is the space
-// drawn before the window knows its own, and outside the app. A window on a
-// profile shows a space made up for the profile, and has none to switch to.
+// and pinned tabs are real too, those are made up here, the same for every
+// space, and so is the space drawn before the window knows its own, and
+// outside the app. A window on a profile shows a space made up for the
+// profile, and has none to switch to.
 // A window on no space, while the user makes one, shows that one as it is so
 // far (new-space.ts). A popup's window is on its profile, and takes the
 // colour of the space it was opened from, if it was from one.
@@ -168,7 +169,8 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const making = onSpace?.kind === "newSpace";
   const [profile, setProfile] = useState<WindowProfile | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.profile, appWindow.onProfile, setProfile) : undefined), []);
-  // The made-up space, whose folders open and close here.
+  // The made-up space, whose favourites and pinned tabs every space shows,
+  // and whose folders open and close here.
   const [madeUp, setMadeUp] = useState<Space>(personal);
 
   const spaces = useMemo(() => (profile ? [] : (entries ?? [])), [entries, profile]);
@@ -191,7 +193,7 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
           : draft
             ? ofDraft(draft)
             : entry
-              ? drawn(entry.id, entry)
+              ? { ...drawn(entry.id, entry), favorites: madeUp.favorites, pinned: madeUp.pinned }
               : current === null
                 ? madeUp
                 : { ...madeUp, id: current },
