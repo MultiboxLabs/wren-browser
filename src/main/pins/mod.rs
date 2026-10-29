@@ -115,6 +115,30 @@ pub fn pin_tab(
     Ok(id)
 }
 
+/// Makes an unopened pin of `place` on an address dropped on the sidebar,
+/// at `index` (None: last). It goes by the address until it is first open
+/// on its page (`keep_look`).
+pub fn add_address(
+    state: &State,
+    place: &Place,
+    url: &str,
+    target: PinTarget,
+    index: Option<usize>,
+) -> Result<PinId, String> {
+    if !tabs::is_droppable(url) {
+        return Err("Only a web address or a file's can be pinned.".into());
+    }
+    let to = target.resolve(state, place)?;
+    let page = PinPage {
+        url: url.into(),
+        title: url.into(),
+        favicon: None,
+    };
+    let id = state.db.create_pin(&to, index, NewPin::Tab(page))?;
+    crate::ipc::broadcast_pins(state);
+    Ok(id)
+}
+
 /// Makes a folder named "New Folder" among a space's pins, and answers its ID.
 pub fn new_folder(
     state: &State,

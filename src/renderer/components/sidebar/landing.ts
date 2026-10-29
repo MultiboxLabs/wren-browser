@@ -11,10 +11,11 @@ const MIDDLE_BAND = 0.5;
 const SPLIT_GAP = 2;
 
 /**
- * What shows where a drop would land, in the list's content: a line between
- * rows, or a box over a row, or half of one, that the drop is on.
+ * What shows where a drop would land, in the content of what it lands in: a
+ * line between rows, an upright one between the favourites' tiles
+ * (pin-landing.ts), or a box over a row, or half of one, that the drop is on.
  */
-export type DropMark = { kind: "line" | "box"; top: number; left: number; width: number; height: number };
+export type DropMark = { kind: "line" | "upright" | "box"; top: number; left: number; width: number; height: number };
 
 /** A unit of the list, picked up. */
 export type Grabbed = {
@@ -104,13 +105,14 @@ function itemsOf(scroller: HTMLElement): Item[] | null {
   return items;
 }
 
-const onMiddle = (box: DOMRect, y: number) => Math.abs(y - (box.top + box.bottom) / 2) < (box.height * MIDDLE_BAND) / 2;
+export const onMiddle = (box: DOMRect, y: number) =>
+  Math.abs(y - (box.top + box.bottom) / 2) < (box.height * MIDDLE_BAND) / 2;
 
 /** The index a unit of `size`, first at `from`, has once it goes before tab `gap`: past itself, its own tabs leave before it. */
-const indexAt = (gap: number, from: number, size: number) => (gap > from ? gap - size : gap);
+export const indexAt = (gap: number, from: number, size: number) => (gap > from ? gap - size : gap);
 
 /** A box over a row, or over one half of it. */
-function boxMark(box: DOMRect, content: DOMRect, half?: "left" | "right"): DropMark {
+export function boxMark(box: DOMRect, content: DOMRect, half?: "left" | "right"): DropMark {
   const [offset, width] =
     half === "left"
       ? [0, box.width / 2 - SPLIT_GAP]

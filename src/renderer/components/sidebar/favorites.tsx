@@ -1,17 +1,19 @@
 // The favourites over the space's tabs: their tiles (favorite.tsx), three to
 // a row, fewer filling the row between them. While there are none, a box,
 // outlined in dashes, says where they go, until its cross puts it away for
-// good (the app's `favoritesTipDismissed`). A tab or a pin dropped on either
-// is a favourite, last among them; on the box, as it lights up.
+// good (the app's `favoritesTipDismissed`). What is dropped on either lands
+// among them (pin-landing.ts); on the box, last, as it lights up.
 
 import { Star, X } from "lucide-react";
 import { Button } from "../ui/button";
-import { type Pin, pins } from "../../ipc";
+import type { Pin } from "../../ipc";
 import type { LibrarySettings } from "../../state/library";
 import { useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
+import { DropMarkView } from "./drop-mark";
 import { Favorite } from "./favorite";
 import { usePinDrop } from "./pin-drop";
+import { favoritesLandingAt } from "./pin-landing";
 
 /**
  * `read`: whether the favourites have been read, before which the box is
@@ -34,9 +36,7 @@ export function Favorites({
   // An incognito window keeps none.
   const keeps = !profile?.offTheRecord;
   const drop = usePinDrop({
-    takes: "pins",
-    onTab: (tab) => void pins.pinTab(tab, { favorites: true }, null).catch(() => {}),
-    onPin: (id) => void pins.move(id, { favorites: true }, null).catch(() => {}),
+    landingAt: (grid, held, x, y) => favoritesLandingAt(grid, favorites, held, x, y),
     enabled: keeps
   });
 
@@ -54,12 +54,13 @@ export function Favorites({
     <div
       {...drop.handlers}
       className={cn(
-        "-m-1 mt-1 grid shrink-0 gap-2 rounded-[calc(var(--radius-favorite)+4px)] p-1 transition-colors duration-120",
+        "relative -m-1 mt-1 grid shrink-0 gap-2 rounded-[calc(var(--radius-favorite)+4px)] p-1 transition-colors duration-120",
         drop.over && "bg-hover"
       )}
       style={{ gridTemplateColumns: `repeat(${Math.min(favorites.length, 3)}, minmax(0, 1fr))` }}
     >
       {favorites.map((pin) => pin.kind !== "folder" && <Favorite key={pin.id} pin={pin} selected={selected} />)}
+      {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}
     </div>
   );
 }
