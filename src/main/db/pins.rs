@@ -62,6 +62,9 @@ pub struct PinRow {
     /// The user's name for it; a folder always has one.
     pub name: Option<String>,
     pub kind: PinKind,
+    /// When it was last used, in Unix seconds: its tab's last active time
+    /// while it was open, or else when it was made.
+    pub last_active: i64,
 }
 
 /// A pin to make.
@@ -104,9 +107,10 @@ struct Kept {
     open: bool,
     layout: Option<String>,
     ratio: Option<f64>,
+    last_active: i64,
 }
 
-const COLUMNS: &str = "id, parent_id, kind, name, open, layout, ratio";
+const COLUMNS: &str = "id, parent_id, kind, name, open, layout, ratio, last_active";
 
 fn kept(row: &Row) -> rusqlite::Result<Kept> {
     Ok(Kept {
@@ -117,6 +121,7 @@ fn kept(row: &Row) -> rusqlite::Result<Kept> {
         open: row.get(4)?,
         layout: row.get(5)?,
         ratio: row.get(6)?,
+        last_active: row.get(7)?,
     })
 }
 
@@ -224,8 +229,8 @@ impl Db {
         transaction
             .execute(
                 "INSERT INTO pins (profile_id, space_id, parent_id, kind, name, layout, ratio,
-                                   position, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                                   position, created_at, last_active)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
                 params![
                     profile,
                     space,
@@ -285,7 +290,7 @@ impl Db {
             .query_row(
                 &format!("SELECT {COLUMNS}, profile_id, space_id FROM pins WHERE id = ?1"),
                 [id],
-                |row| Ok((kept(row)?, row.get::<_, String>(7)?, row.get(8)?)),
+                |row| Ok((kept(row)?, row.get::<_, String>(8)?, row.get(9)?)),
             )
             .optional()
             .map_err(sql)?;
@@ -347,6 +352,17 @@ impl Db {
                 params![id, side as i64, title, favicon],
             )
             .map(|changed| changed > 0)
+            .map_err(sql)
+    }
+
+    /// Keeps when a pin was last used, in Unix seconds.
+    pub fn set_pin_active(&self, id: PinId, at: i64) -> Result<(), String> {
+        self.conn
+            .execute(
+                "UPDATE pins SET last_active = ?2 WHERE id = ?1",
+                params![id, at],
+            )
+            .map(drop)
             .map_err(sql)
     }
 
@@ -522,6 +538,7 @@ fn build(
                 id: row.id,
                 name: row.name.clone(),
                 kind,
+                last_active: row.last_active,
             })
         })
         .collect()

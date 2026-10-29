@@ -103,4 +103,10 @@ pub const MIGRATIONS: &[&str] = &[
       PRIMARY KEY (pin_id, side)
     );
     ",
+    // When each pin was last used, in Unix seconds: its tab's last active
+    // time while it is open, or else when it was made.
+    "
+    ALTER TABLE pins ADD COLUMN last_active INTEGER NOT NULL DEFAULT 0;
+    UPDATE pins SET last_active = created_at;
+    ",
 ];
