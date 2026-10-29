@@ -16,6 +16,7 @@ import { browser, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from
 import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
 import { FolderIcon } from "./folder-icon";
+import { FolderMenu } from "./folder-menu";
 import { pinIdentity, tabIdentity } from "./arrival";
 import { FoldingRows, foldRow } from "./folding";
 import type { PinActions } from "./pin-actions";
@@ -384,31 +385,34 @@ function FolderRow({ folder, ...props }: PinProps & { folder: PinFolder }) {
   return (
     <>
       {/* Dragged, it moves among the pins with what is in it (pin-drop.ts); a
-          press that is not a drag opens or closes it. */}
-      <div {...pinDrag(folder, { renaming })} className="flex flex-col">
-        <Row
-          indent={indent}
-          onClick={() => actions.onToggleFolder(folder)}
-          onMenu={(x, y) => actions.onMenu(folder, x, y)}
-          identities={[pinIdentity(folder.id)]}
-        >
-          <IconSlot>
-            <FolderIcon open={folder.open} peeking={peek !== undefined} className="text-fg" />
-          </IconSlot>
-          {renaming ? (
-            <TitleField
-              initial={folder.name}
-              label="Folder Name"
-              className="font-semibold"
-              onDone={(name) => actions.onRename(folder, name)}
-            />
-          ) : (
-            <span className="min-w-0 flex-1 truncate font-semibold" onClick={renameClick}>
-              {folder.name}
-            </span>
-          )}
-        </Row>
-      </div>
+          press that is not a drag opens or closes it. Folded, the pointer
+          resting on it shows what is in it (folder-menu.tsx). */}
+      <FolderMenu folder={folder} enabled={!folder.open && !renaming}>
+        <div {...pinDrag(folder, { renaming })} className="flex flex-col">
+          <Row
+            indent={indent}
+            onClick={() => actions.onToggleFolder(folder)}
+            onMenu={(x, y) => actions.onMenu(folder, x, y)}
+            identities={[pinIdentity(folder.id)]}
+          >
+            <IconSlot>
+              <FolderIcon open={folder.open} peeking={peek !== undefined} className="text-fg" />
+            </IconSlot>
+            {renaming ? (
+              <TitleField
+                initial={folder.name}
+                label="Folder Name"
+                className="font-semibold"
+                onDone={(name) => actions.onRename(folder, name)}
+              />
+            ) : (
+              <span className="min-w-0 flex-1 truncate font-semibold" onClick={renameClick}>
+                {folder.name}
+              </span>
+            )}
+          </Row>
+        </div>
+      </FolderMenu>
       <FoldingRows open={folder.open} peek={peek && pinPeek(peek, { ...props, indent: inner })} indent={inner}>
         <PinRows pins={folder.items} {...props} indent={inner} />
       </FoldingRows>

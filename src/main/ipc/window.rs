@@ -1,7 +1,7 @@
 use serde::Serialize;
 use wren::WebView;
 
-use super::{WindowRef, with_window};
+use super::{WindowRef, failed, give_back_keyboard, with_window};
 use crate::db::SpaceId;
 use crate::platform::PageWindow;
 use crate::shell::{BrowserWindow, Place};
@@ -59,6 +59,24 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let _ = web_view.handle("window.show", move |()| {
         with_window(&weak, |window| {
             window.page.show();
+            Ok(())
+        })
+    });
+
+    // The page takes the keyboard from the tab that has it, for a field of
+    // its own the user did not press into (a hover's).
+    let weak = window.clone();
+    let _ = web_view.handle("window.takeKeyboard", move |()| {
+        with_window(&weak, |window| window.page.web_view.focus().map_err(failed))
+    });
+
+    // The page gives the keyboard back to the active tab's page.
+    let weak = window.clone();
+    let _ = web_view.handle("window.giveBackKeyboard", move |()| {
+        with_window(&weak, |window| {
+            if let Some(browser) = window.browser() {
+                give_back_keyboard(&browser);
+            }
             Ok(())
         })
     });
