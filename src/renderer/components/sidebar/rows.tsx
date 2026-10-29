@@ -290,6 +290,25 @@ export function CloseButton({
 }
 
 /**
+ * As long after a click as a second one makes a double click. The system's
+ * own interval can be long enough to take two slow clicks for one.
+ */
+const DOUBLE_CLICK_MS = 350;
+
+/**
+ * The click handler of a row's title that a double click renames
+ * (`onRename`), but not two slow clicks.
+ */
+export function useRenameClick(onRename: () => void) {
+  const last = useRef(-Infinity);
+  return (event: MouseEvent) => {
+    const quick = event.detail === 2 && event.timeStamp - last.current <= DOUBLE_CLICK_MS;
+    last.current = event.timeStamp;
+    if (quick) onRename();
+  };
+}
+
+/**
  * Edits a row's title in place: Return or a click elsewhere keeps it, and
  * Escape leaves it as it was. `onDone` has the new title, or null for none:
  * left as it was, or not changed.
