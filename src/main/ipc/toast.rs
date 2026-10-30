@@ -11,9 +11,6 @@ use super::{WindowRef, failed, with_browser};
 use crate::pages::icons;
 use crate::shell::BrowserWindow;
 
-// What Chromium names every toast of the app's.
-const EMBEDDER: &str = "Embedder";
-
 /// The app's own toasts.
 #[derive(Clone, Copy)]
 pub enum OwnToast {
@@ -31,20 +28,8 @@ impl OwnToast {
         }
     }
 
-    // Which of the app's a toast named "Embedder" is, by its text.
-    // TODO: remove once Wren_ShowToast takes a name, which Chromium reports
-    // as the toast's in place of "Embedder"; show_toast passes name() then.
-    fn from_text(text: &str) -> Option<OwnToast> {
-        if let Some(percent) = text.strip_suffix('%').and_then(|n| n.parse().ok()) {
-            return Some(OwnToast::Zoom(percent));
-        }
-        [OwnToast::UrlCopied]
-            .into_iter()
-            .find(|own| own.text() == text)
-    }
-
-    // Its name for the page, which draws its icon by it, as by Chromium's
-    // names for its own.
+    // Its name, which Chromium reports as the toast's, and the page draws
+    // its icon by, as by Chromium's names for its own. None is Chromium's.
     fn name(self) -> &'static str {
         match self {
             OwnToast::UrlCopied => "UrlCopied",
@@ -115,6 +100,7 @@ impl Named {
 pub fn show_toast(browser: &Browser, toast: OwnToast) -> Result<(), Error> {
     browser.show_toast(&ToastOptions {
         text: toast.text(),
+        name: Some(toast.name().into()),
         ..Default::default()
     })
 }
@@ -137,15 +123,9 @@ fn toast(browser: &Browser) -> Option<Toast> {
     let popover = open(browser)?;
     let state = popover.toast_state().ok()?;
     let text = popover.text(UIText::Title);
-    let mut name = popover.toast_name();
-    if name == EMBEDDER
-        && let Some(own) = OwnToast::from_text(&text)
-    {
-        name = own.name().into();
-    }
     Some(Toast {
         id: popover.id(),
-        name,
+        name: popover.toast_name(),
         button: state
             .has_button
             .then(|| popover.text(UIText::Accept))
