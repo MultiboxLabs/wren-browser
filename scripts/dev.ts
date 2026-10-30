@@ -60,14 +60,16 @@ const vite = Bun.spawn(["bunx", "vite"], { stdout: "inherit", stderr: "inherit" 
 try {
   await $`wren install --manifest ${manifest}`;
   await $`WREN_CHANNEL=dev cargo build`;
-  // Rebuilding the bundle takes seconds, and nothing in it changes with the
-  // pages, which are fetched from the server: only with the executable,
-  // the manifest, the icon, the resources or the runtime.
+  // Nothing in the bundle changes with the pages, which are fetched from the
+  // server: only with the executable, the manifest, the icon, the resources
+  // or the runtime. When only the executable or the resources have changed,
+  // --incremental keeps the bundle and signs only the app, instead of making
+  // it again, which takes seconds.
   if (!(await bundleIsCurrent())) {
     await Bun.file(stampPath)
       .delete()
       .catch(() => {});
-    await $`wren bundle --executable ${executablePath} --manifest ${manifest} --output ${app}`;
+    await $`wren bundle --executable ${executablePath} --manifest ${manifest} --output ${app} --incremental`;
     await Bun.write(stampPath, await bundleInputs());
   }
 } catch (error) {
