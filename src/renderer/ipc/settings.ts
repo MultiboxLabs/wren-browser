@@ -6,6 +6,8 @@ export type Settings = {
   archiveAfter: ArchiveAfter;
   /** The user closed the box that shows where favourites go while there are none. */
   favoritesTipDismissed: boolean;
+  /** New versions of Wren install by themselves. */
+  automaticUpdates: boolean;
   /** Wren sends which of its features are used, and its crashes. */
   shareUsageData: boolean;
   /** The ad blocker starts on in a profile made from now on; each profile's is turned on or off in Profiles after. */

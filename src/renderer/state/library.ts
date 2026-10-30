@@ -179,6 +179,7 @@ export function useSettings(open: boolean) {
   const [shown, setShown] = useState<Settings>({
     archiveAfter: DEFAULT_ARCHIVE_AFTER,
     favoritesTipDismissed: false,
+    automaticUpdates: true,
     shareUsageData: true,
     blockAdsInNewProfiles: true,
     passwordManager: true

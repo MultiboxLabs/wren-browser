@@ -1,9 +1,11 @@
 // Whether a new version of Wren is ready to install, and whether updates
-// install by themselves. Neither is real yet: both are made up here, until
-// the app checks for updates. Nor is installing: in its place, the window
-// shows what it shows as it opens on a new version (components/updated.tsx).
+// install by themselves, which is the app's setting (Automatic Updates). The
+// new version is not real yet: it is made up here, until the app checks for
+// updates. Nor is installing: in its place, the window shows what it shows
+// as it opens on a new version (components/updated.tsx).
 
 import { useEffect, useState } from "react";
+import { useSettings } from "./library";
 
 export type Update = {
   /** The version ready to install, once there is one. */
@@ -19,11 +21,11 @@ export type Update = {
 const updated = new Set<() => void>();
 
 export function useUpdate(): Update {
-  const [automatic, setAutomatic] = useState(false);
+  const settings = useSettings(true);
   return {
     version: "1.1.0",
-    automatic,
-    setAutomatic,
+    automatic: settings.values.automaticUpdates,
+    setAutomatic: (automaticUpdates) => settings.update({ automaticUpdates }),
     install: () => updated.forEach((listener) => listener())
   };
 }

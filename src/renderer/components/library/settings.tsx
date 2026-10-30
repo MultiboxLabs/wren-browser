@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { archiveAfterOptions, DEFAULT_ARCHIVE_AFTER, type LibrarySettings } from "../../state/library";
 import { Button } from "../ui/button";
 import { Menu } from "../ui/menu";
+import { Switch } from "../ui/switch";
 import { Tooltip } from "../ui/tooltip";
 import { cn } from "../../utils/cn";
 import { Empty, matches } from "./rows";
@@ -52,6 +53,17 @@ export function Settings({ query, settings }: { query: string; settings: Library
         <OnOff
           on={settings.values.passwordManager}
           onChange={(passwordManager) => settings.update({ passwordManager })}
+        />
+      )
+    },
+    {
+      name: "Automatic Updates",
+      about: "Install new versions of Wren by themselves, as it quits.",
+      control: (
+        <Switch
+          label="Automatic Updates"
+          checked={settings.values.automaticUpdates}
+          onCheckedChange={(automaticUpdates) => settings.update({ automaticUpdates })}
         />
       )
     },

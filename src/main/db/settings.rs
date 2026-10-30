@@ -18,6 +18,8 @@ pub struct Settings {
     /// The user closed the box that shows where favourites go while there
     /// are none.
     pub favorites_tip_dismissed: bool,
+    /// New versions of Wren install by themselves.
+    pub automatic_updates: bool,
     /// Wren sends which of its features are used, and its crashes
     /// (analytics/).
     pub share_usage_data: bool,
@@ -35,6 +37,7 @@ impl Default for Settings {
         Settings {
             archive_after: ArchiveAfter::default(),
             favorites_tip_dismissed: false,
+            automatic_updates: true,
             share_usage_data: true,
             block_ads_in_new_profiles: true,
             password_manager: true,
@@ -48,6 +51,7 @@ impl Default for Settings {
 pub struct SettingsChange {
     pub archive_after: Option<ArchiveAfter>,
     pub favorites_tip_dismissed: Option<bool>,
+    pub automatic_updates: Option<bool>,
     pub share_usage_data: Option<bool>,
     pub block_ads_in_new_profiles: Option<bool>,
     pub password_manager: Option<bool>,
@@ -89,6 +93,9 @@ impl Db {
             favorites_tip_dismissed: self
                 .setting("favoritesTipDismissed")?
                 .unwrap_or(defaults.favorites_tip_dismissed),
+            automatic_updates: self
+                .setting("automaticUpdates")?
+                .unwrap_or(defaults.automatic_updates),
             share_usage_data: self
                 .setting("shareUsageData")?
                 .unwrap_or(defaults.share_usage_data),
@@ -109,6 +116,9 @@ impl Db {
         }
         if let Some(dismissed) = change.favorites_tip_dismissed {
             set(&transaction, "favoritesTipDismissed", &dismissed)?;
+        }
+        if let Some(automatic) = change.automatic_updates {
+            set(&transaction, "automaticUpdates", &automatic)?;
         }
         if let Some(share) = change.share_usage_data {
             set(&transaction, "shareUsageData", &share)?;
@@ -172,6 +182,13 @@ mod tests {
             ..SettingsChange::default()
         };
         assert!(db.update_settings(change).unwrap().favorites_tip_dismissed);
+        // Updates are automatic until turned off.
+        assert!(settings.automatic_updates);
+        let change = SettingsChange {
+            automatic_updates: Some(false),
+            ..SettingsChange::default()
+        };
+        assert!(!db.update_settings(change).unwrap().automatic_updates);
         // Usage data is shared until turned off.
         assert!(settings.share_usage_data);
         let change = SettingsChange {
