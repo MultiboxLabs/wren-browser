@@ -52,6 +52,9 @@ fn changed(change: &SettingsChange) -> Vec<(Setting, Value)> {
             .archive_after
             .map(|after| (Setting::ArchiveAfter, value(after))),
         change
+            .automatic_updates
+            .map(|on| (Setting::AutomaticUpdates, value(on))),
+        change
             .share_usage_data
             .map(|on| (Setting::ShareUsageData, value(on))),
     ]

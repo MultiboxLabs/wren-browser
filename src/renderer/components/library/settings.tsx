@@ -70,7 +70,11 @@ export function Settings({ query, settings }: { query: string; settings: Library
       name: "Help Improve Wren",
       about: "Send anonymous counts of which features you use, and crash reports. Never what you browse.",
       control: (
-        <OnOff on={settings.values.shareUsageData} onChange={(shareUsageData) => settings.update({ shareUsageData })} />
+        <Switch
+          label="Help Improve Wren"
+          checked={settings.values.shareUsageData}
+          onCheckedChange={(shareUsageData) => settings.update({ shareUsageData })}
+        />
       )
     }
   ].filter(({ name, about }) => matches(query, name, about));

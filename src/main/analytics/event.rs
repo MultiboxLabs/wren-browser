@@ -209,6 +209,7 @@ pub enum OpensIn {
 #[serde(rename_all = "snake_case")]
 pub enum Setting {
     ArchiveAfter,
+    AutomaticUpdates,
     ShareUsageData,
 }
 
