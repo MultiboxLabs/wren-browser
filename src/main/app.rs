@@ -333,9 +333,11 @@ impl App for Wren {
                 ChangeKind::ForegroundRequest => state.bring_forward(browser),
                 // A placeholder goes, or stays, as the tabs change, and the
                 // pins' links follow them; undocked DevTools shows its
-                // active tab.
+                // active tab. A tab left for another has its picture taken,
+                // for the tab switcher.
                 ChangeKind::Tabs | ChangeKind::Tab | ChangeKind::Split => {
                     placeholder::settle(browser);
+                    tabs::previews::follow_active(browser);
                     if pins::follow_tab_changes(state, browser)
                         && let Some(window) = state.windows.of(browser)
                         && window.browser().as_ref() == Some(browser)
@@ -580,6 +582,7 @@ impl App for Wren {
     // popup's window goes with its Browser, always.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         pins::forget(&browser);
+        tabs::previews::forget(&browser);
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {
             return;

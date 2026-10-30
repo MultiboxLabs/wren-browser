@@ -158,6 +158,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
+    // The ID the tab's picture is served at (`previewUrl`), as it was when
+    // last left for another tab (tabs/previews.rs); null for one not left
+    // yet.
+    let weak = window.clone();
+    let _ = web_view.handle("tabs.preview", move |id: i32| {
+        with_browser(&weak, |_, browser| {
+            Ok(tabs::previews::of(tab(mt, browser, id)?))
+        })
+    });
+
     let weak = window.clone();
     let _ = web_view.handle("tabs.activate", move |id: i32| {
         with_browser(&weak, |_, browser| {

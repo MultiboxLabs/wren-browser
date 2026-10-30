@@ -64,6 +64,8 @@ export const browser = {
   /** Puts the active tab's address on the clipboard. */
   copyLink: () => wren.invoke<null>("tabs.copyLink"),
   activate: (id: number) => wren.invoke<null>("tabs.activate", id),
+  /** A picture of the tab's page as it was when last left for another tab: the ID it is served at (`previewUrl`), or null for a tab not left yet. */
+  preview: (id: number) => wren.invoke<string | null>("tabs.preview", id),
   close: (id: number) => wren.invoke<null>("tabs.close", id),
   /**
    * Moves a unit so its first tab is at an index among all the tabs. A moved

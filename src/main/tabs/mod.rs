@@ -8,6 +8,7 @@
 
 pub mod archive;
 pub mod placeholder;
+pub mod previews;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 

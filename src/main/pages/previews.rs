@@ -1,9 +1,7 @@
-// Pictures of tabs' pages for the tab switcher (ipc/tab_switcher.rs),
-// served to the page as images on the app's scheme, as icons.rs serves
-// icons. Each picture has an ID of its own, so the page never draws one it
-// kept from before. The latest `CAPACITY` are kept, whatever tab each is
-// of: a picture taken again for the same tab must not take away the one
-// the page was just given, as the answers may come in either order.
+// Pictures of tabs' pages (tabs/previews.rs takes them), served to the page as images on the app's scheme, as icons.rs
+// serves icons. A tab keeps its latest picture, each under an ID of its
+// own, so the page never draws one it kept from before; the tab left
+// longest ago loses its picture once `CAPACITY` tabs have one.
 
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
@@ -14,11 +12,11 @@ use wren::{SchemeFailure, SchemeResponse};
 /// it.
 pub const PATH: &str = "previews/";
 
-/// How many pictures are kept: several times what the switcher shows at
-/// once, its five cards' and a split's two halves.
-const CAPACITY: usize = 40;
+/// How many tabs' pictures are kept: each is a small JPEG.
+const CAPACITY: usize = 100;
 
 struct Preview {
+    tab: i32,
     name: String,
     jpeg: Vec<u8>,
 }
@@ -29,21 +27,28 @@ thread_local! {
     static NEXT_ID: Cell<u64> = const { Cell::new(0) };
 }
 
-/// Keeps `jpeg`, a picture of tab `tab`, and answers the ID the page asks
-/// for it by, at `PATH`.
-pub fn keep(tab: i32, jpeg: Vec<u8>) -> String {
+/// Keeps `jpeg` as the picture of tab `tab`, in place of the one it had.
+pub fn keep(tab: i32, jpeg: Vec<u8>) {
     let number = NEXT_ID.with(|next| next.replace(next.get() + 1));
     let name = format!("{tab}-{number}");
     PREVIEWS.with_borrow_mut(|previews| {
-        previews.push_back(Preview {
-            name: name.clone(),
-            jpeg,
-        });
+        previews.retain(|preview| preview.tab != tab);
+        previews.push_back(Preview { tab, name, jpeg });
         while previews.len() > CAPACITY {
             previews.pop_front();
         }
     });
-    name
+}
+
+/// The ID the page asks for tab `tab`'s picture by, at `PATH`, if it has
+/// one.
+pub fn of(tab: i32) -> Option<String> {
+    PREVIEWS.with_borrow(|previews| {
+        previews
+            .iter()
+            .find(|preview| preview.tab == tab)
+            .map(|preview| preview.name.clone())
+    })
 }
 
 /// The answer to a request for the preview with ID `name`.

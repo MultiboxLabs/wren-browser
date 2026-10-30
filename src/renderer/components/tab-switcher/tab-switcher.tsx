@@ -194,13 +194,13 @@ function Card({
   );
 }
 
-/** A picture of the tab's page, taken as the card shows: its icon until the picture comes, and for a tab with none or one that fails to load. */
+/** A picture of the tab's page as it was last left: its icon for a tab with none, until the picture's ID comes, or if it fails to load. */
 function TabPreview({ tab, iconSize }: { tab: BrowserTabWithFavicon; iconSize: number }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!hasApp) return;
     let current = true;
-    tabSwitcher
+    browser
       .preview(tab.id)
       .then((id) => current && id !== null && setUrl(previewUrl(id)))
       .catch(() => {});
