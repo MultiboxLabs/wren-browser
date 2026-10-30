@@ -8,6 +8,8 @@ export type Settings = {
   favoritesTipDismissed: boolean;
   /** Wren sends which of its features are used, and its crashes. */
   shareUsageData: boolean;
+  /** The ad blocker starts on in a profile made from now on; each profile's is turned on or off in Profiles after. */
+  blockAdsInNewProfiles: boolean;
 };
 
 export const settings = {

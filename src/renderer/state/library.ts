@@ -179,7 +179,8 @@ export function useSettings(open: boolean) {
   const [shown, setShown] = useState<Settings>({
     archiveAfter: DEFAULT_ARCHIVE_AFTER,
     favoritesTipDismissed: false,
-    shareUsageData: true
+    shareUsageData: true,
+    blockAdsInNewProfiles: true
   });
   const [read, setRead] = useState(false);
   const refresh = () =>

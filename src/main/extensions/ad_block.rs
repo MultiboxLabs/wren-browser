@@ -2,8 +2,12 @@
 // turns it off. Chromium keeps whether it is on in each profile, and the
 // Library turns it on or off there. Only this file knows the extension.
 
+use std::cell::Cell;
+
 use serde::Serialize;
-use wren::{AppExtension, Error, MainThread, ManifestV2, Profile, Startup};
+use wren::{
+    AppExtension, Error, MainThread, ManifestV2, Profile, ProfileExtensionsRequest, Startup,
+};
 
 use crate::platform;
 
@@ -11,18 +15,37 @@ use crate::platform;
 /// (scripts/sync-ublock.ts).
 const ID: &str = "fkgkibajhfbepljeaefdnfnegdcjomkh";
 
+thread_local! {
+    // Its place among `Startup::extensions`, once shipped; a profile's
+    // request names each by that place alone.
+    static SHIPPED_AT: Cell<Option<usize>> = const { Cell::new(None) };
+}
+
 /// Lists it among the app's extensions, and lets it run, though it is
 /// Manifest V2, and in incognito windows too in a profile it is installed in
 /// from now on. One that has it already keeps what the user chose there, on
 /// chrome://extensions. Its file is in the app's resources (`wren-app.json`).
 pub fn ship(startup: &mut Startup) {
     let crx = platform::resources_dir().join("uBlock0.crx");
+    SHIPPED_AT.set(Some(startup.extensions.len()));
     startup.extensions.push(AppExtension {
         allowed_in_incognito_on_install: true,
         ..AppExtension::bundled(crx.to_string_lossy(), true)
     });
     startup.manifest_v2 = ManifestV2::Listed;
     startup.manifest_v2_ids.push(ID.to_owned());
+}
+
+/// Says whether it is on when Chromium installs it in the profile `request`
+/// is for: a profile made from now on, as the setting says
+/// (`block_ads_in_new_profiles`). A profile that has it keeps it as it is.
+pub fn on_install(request: &mut ProfileExtensionsRequest, on: bool) {
+    if let Some(entry) = SHIPPED_AT
+        .get()
+        .and_then(|at| request.extensions.get_mut(at))
+    {
+        entry.enabled = on;
+    }
 }
 
 /// The ad blocker in a profile, as Chromium has it.

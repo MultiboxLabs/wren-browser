@@ -21,6 +21,10 @@ pub struct Settings {
     /// Wren sends which of its features are used, and its crashes
     /// (analytics/).
     pub share_usage_data: bool,
+    /// The ad blocker starts on in a profile made from now on; each
+    /// profile's is the user's to turn on or off after
+    /// (extensions/ad_block.rs).
+    pub block_ads_in_new_profiles: bool,
 }
 
 impl Default for Settings {
@@ -29,6 +33,7 @@ impl Default for Settings {
             archive_after: ArchiveAfter::default(),
             favorites_tip_dismissed: false,
             share_usage_data: true,
+            block_ads_in_new_profiles: true,
         }
     }
 }
@@ -40,6 +45,7 @@ pub struct SettingsChange {
     pub archive_after: Option<ArchiveAfter>,
     pub favorites_tip_dismissed: Option<bool>,
     pub share_usage_data: Option<bool>,
+    pub block_ads_in_new_profiles: Option<bool>,
 }
 
 /// How long a tab goes unused before it is archived.
@@ -81,6 +87,9 @@ impl Db {
             share_usage_data: self
                 .setting("shareUsageData")?
                 .unwrap_or(defaults.share_usage_data),
+            block_ads_in_new_profiles: self
+                .setting("blockAdsInNewProfiles")?
+                .unwrap_or(defaults.block_ads_in_new_profiles),
         })
     }
 
@@ -95,6 +104,9 @@ impl Db {
         }
         if let Some(share) = change.share_usage_data {
             set(&transaction, "shareUsageData", &share)?;
+        }
+        if let Some(block) = change.block_ads_in_new_profiles {
+            set(&transaction, "blockAdsInNewProfiles", &block)?;
         }
         transaction.commit().map_err(sql)?;
         self.settings()
@@ -156,6 +168,17 @@ mod tests {
             ..SettingsChange::default()
         };
         assert!(!db.update_settings(change).unwrap().share_usage_data);
+        // New profiles block ads until turned off.
+        assert!(settings.block_ads_in_new_profiles);
+        let change = SettingsChange {
+            block_ads_in_new_profiles: Some(false),
+            ..SettingsChange::default()
+        };
+        assert!(
+            !db.update_settings(change)
+                .unwrap()
+                .block_ads_in_new_profiles
+        );
         // A change that sets nothing changes nothing.
         let settings = db.update_settings(SettingsChange::default()).unwrap();
         assert_eq!(settings.archive_after, ArchiveAfter::SevenDays);

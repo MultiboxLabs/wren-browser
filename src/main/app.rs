@@ -15,6 +15,7 @@ use crate::analytics::{self, Analytics, Event};
 use crate::changes;
 use crate::channel::Channel;
 use crate::db::Db;
+use crate::extensions::ad_block;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
@@ -256,12 +257,16 @@ impl App for Wren {
     }
 
     // The app's extensions (the ad blocker and Wren Components), in every
-    // profile but the pages', the one ephemeral profile.
+    // profile but the pages', the one ephemeral profile. The ad blocker
+    // starts on in a new profile as the setting says.
     fn profile_extensions(&self, request: &mut ProfileExtensionsRequest) {
         let gets = request.kind != ProfileKind::Ephemeral;
         for extension in &mut request.extensions {
             extension.gets = gets;
         }
+        let settings = self.state.db.settings();
+        let block_ads = settings.map_or(true, |settings| settings.block_ads_in_new_profiles);
+        ad_block::on_install(request, block_ads);
     }
 
     // Required: Chromium opened a Browser of its own. A normal one, a

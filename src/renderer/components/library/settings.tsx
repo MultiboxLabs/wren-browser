@@ -35,23 +35,21 @@ export function Settings({ query, settings }: { query: string; settings: Library
       )
     },
     {
+      name: "Ad Blocker in New Profiles",
+      about:
+        "Whether the ad blocker starts on in a profile you make. Each profile's can be turned on or off in Profiles.",
+      control: (
+        <OnOff
+          on={settings.values.blockAdsInNewProfiles}
+          onChange={(blockAdsInNewProfiles) => settings.update({ blockAdsInNewProfiles })}
+        />
+      )
+    },
+    {
       name: "Help Improve Wren",
       about: "Send anonymous counts of which features you use, and crash reports. Never what you browse.",
       control: (
-        <Menu
-          checked={settings.values.shareUsageData ? "on" : "off"}
-          onSelect={(shared) => settings.update({ shareUsageData: shared === "on" })}
-          items={[
-            { id: "on", label: "On (default)" },
-            { id: "off", label: "Off" }
-          ]}
-          trigger={
-            <Button variant="filled" className="gap-1 pr-1.5 font-medium">
-              {settings.values.shareUsageData ? "On" : "Off"}
-              <ChevronsUpDown size={13} strokeWidth={2} className="shrink-0 glyph-2" />
-            </Button>
-          }
-        />
+        <OnOff on={settings.values.shareUsageData} onChange={(shareUsageData) => settings.update({ shareUsageData })} />
       )
     }
   ].filter(({ name, about }) => matches(query, name, about));
@@ -62,6 +60,27 @@ export function Settings({ query, settings }: { query: string; settings: Library
         <SettingRow key={row.name} {...row} separated={index > 0} />
       ))}
     </div>
+  );
+}
+
+// A setting that is on or off, on by default: a menu of the two, as the
+// archive's of its times.
+function OnOff({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <Menu
+      checked={on ? "on" : "off"}
+      onSelect={(chosen) => onChange(chosen === "on")}
+      items={[
+        { id: "on", label: "On (default)" },
+        { id: "off", label: "Off" }
+      ]}
+      trigger={
+        <Button variant="filled" className="gap-1 pr-1.5 font-medium">
+          {on ? "On" : "Off"}
+          <ChevronsUpDown size={13} strokeWidth={2} className="shrink-0 glyph-2" />
+        </Button>
+      }
+    />
   );
 }
 
