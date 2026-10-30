@@ -39,9 +39,10 @@ export function Settings({ query, settings }: { query: string; settings: Library
       about:
         "Whether the ad blocker starts on in a profile you make. Each profile's can be turned on or off in Profiles.",
       control: (
-        <OnOff
-          on={settings.values.blockAdsInNewProfiles}
-          onChange={(blockAdsInNewProfiles) => settings.update({ blockAdsInNewProfiles })}
+        <Switch
+          label="Ad Blocker in New Profiles"
+          checked={settings.values.blockAdsInNewProfiles}
+          onCheckedChange={(blockAdsInNewProfiles) => settings.update({ blockAdsInNewProfiles })}
         />
       )
     },
@@ -49,9 +50,10 @@ export function Settings({ query, settings }: { query: string; settings: Library
       name: "Password Manager",
       about: "Offer to save passwords, and fill them in, in every profile. Off, passwords already saved stay saved.",
       control: (
-        <OnOff
-          on={settings.values.passwordManager}
-          onChange={(passwordManager) => settings.update({ passwordManager })}
+        <Switch
+          label="Password Manager"
+          checked={settings.values.passwordManager}
+          onCheckedChange={(passwordManager) => settings.update({ passwordManager })}
         />
       )
     },
@@ -85,27 +87,6 @@ export function Settings({ query, settings }: { query: string; settings: Library
         <SettingRow key={row.name} {...row} />
       ))}
     </div>
-  );
-}
-
-// A setting that is on or off, on by default: a menu of the two, as the
-// archive's of its times.
-function OnOff({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
-  return (
-    <Menu
-      checked={on ? "on" : "off"}
-      onSelect={(chosen) => onChange(chosen === "on")}
-      items={[
-        { id: "on", label: "On (default)" },
-        { id: "off", label: "Off" }
-      ]}
-      trigger={
-        <Button variant="filled" className="gap-1 pr-1.5 font-medium">
-          {on ? "On" : "Off"}
-          <ChevronsUpDown size={13} strokeWidth={2} className="shrink-0 glyph-2" />
-        </Button>
-      }
-    />
   );
 }
 
