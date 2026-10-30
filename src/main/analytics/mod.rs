@@ -8,20 +8,21 @@
 // Events go to a thread of their own (sender.rs), which sends them in
 // batches, so recording one never waits on the network.
 
+mod crashpad;
 mod event;
 mod sender;
 mod time;
 
 use std::cell::Cell;
 use std::panic;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Instant, SystemTime};
 
 use serde_json::{Map, Value, json};
 
 pub use event::{
-    Crash, Event, LibrarySection, OmniboxPick, OpensIn, PinKind, PinTo, Setting, SpaceField,
-    SplitFrom, TabFrom,
+    Crash, CrashKind, Event, LibrarySection, OmniboxPick, OpensIn, PinKind, PinTo, Setting,
+    SpaceField, SplitFrom, TabFrom,
 };
 
 use crate::channel::Channel;
@@ -65,8 +66,9 @@ fn sends(channel: Channel, perf: bool) -> bool {
 
 impl Analytics {
     /// Starts sending, where this build does, and records an update since
-    /// the last run and a crash in it. `on`: the user shares usage data.
-    pub fn start(db: &Db, channel: Channel, perf: bool, on: bool) -> Analytics {
+    /// the last run and the crashes since. `on`: the user shares usage data.
+    /// `data`: the app's data folder, Crashpad's among it.
+    pub fn start(db: &Db, data: &Path, channel: Channel, perf: bool, on: bool) -> Analytics {
         let started = Instant::now();
         let sending = sends(channel, perf).then(|| {
             let id = db.analytics_id(new_id).unwrap_or_else(|error| {
@@ -104,11 +106,38 @@ impl Analytics {
             Err(error) => eprintln!("Wren could not note its version: {error}"),
         }
         match db.take_crash() {
-            Ok(Some(location)) => analytics.record(Event::AppCrashed { location }),
+            Ok(Some(location)) => analytics.record(Event::AppCrashed {
+                kind: CrashKind::Panic,
+                location: Some(location),
+                crashed_at: None,
+            }),
             Ok(None) => {}
             Err(error) => eprintln!("Wren could not read its last crash: {error}"),
         }
+        analytics.record_native_crashes(db, data);
         analytics
+    }
+
+    // Those Crashpad caught since the last counted. The mark moves on even
+    // while nothing is sent, so turning sharing on sends none from before.
+    fn record_native_crashes(&self, db: &Db, data: &Path) {
+        let last = match db.last_crash_report() {
+            Ok(last) => last,
+            Err(error) => return eprintln!("Wren could not read its crash reports: {error}"),
+        };
+        let (new, mark) = crashpad::new_since(&crashpad::reports(data), last);
+        for crashed in new {
+            self.record(Event::AppCrashed {
+                kind: CrashKind::Native,
+                location: None,
+                crashed_at: Some(time::rfc3339(crashed)),
+            });
+        }
+        if let Some(mark) = mark.filter(|mark| Some(*mark) != last)
+            && let Err(error) = db.set_last_crash_report(mark)
+        {
+            eprintln!("Wren could not note its crash reports: {error}");
+        }
     }
 
     pub fn record(&self, event: Event) {

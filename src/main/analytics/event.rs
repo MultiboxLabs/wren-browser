@@ -23,9 +23,15 @@ pub enum Event {
     AppUpdated {
         from_version: String,
     },
-    /// The app panicked in its last run, at this file and line of its source.
+    /// The app crashed: it panicked in its last run, at `location`, a file
+    /// and line of its source; or Chromium's Crashpad caught a crash, at
+    /// `crashed_at` (analytics/crashpad.rs).
     AppCrashed {
-        location: String,
+        kind: CrashKind,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        location: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        crashed_at: Option<String>,
     },
     /// A window's page crashed, and was reloaded.
     PageCrashed,
@@ -214,6 +220,16 @@ pub enum LibrarySection {
     Boosts,
     Downloads,
     Settings,
+}
+
+/// What caught a crash of the app.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CrashKind {
+    /// The app's own code panicked.
+    Panic,
+    /// Chromium's Crashpad: the browser, the GPU or a renderer.
+    Native,
 }
 
 /// How a tab's page crashed.

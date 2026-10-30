@@ -69,7 +69,7 @@ impl State {
         let on = db
             .settings()
             .is_ok_and(|settings| settings.share_usage_data);
-        let analytics = Analytics::start(&db, channel, perf.is_some(), on);
+        let analytics = Analytics::start(&db, &data, channel, perf.is_some(), on);
         State {
             ui_profile: RefCell::default(),
             devtools: RefCell::default(),

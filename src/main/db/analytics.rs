@@ -1,6 +1,6 @@
 // What analytics (analytics/) keeps between runs, in rows of `settings` that
-// the page never sees: the install's ID, the version that ran last, and a
-// crash not sent yet.
+// the page never sees: the install's ID, the version that ran last, a crash
+// not sent yet, and when the last of Crashpad's reports counted was written.
 
 use std::path::Path;
 
@@ -12,6 +12,7 @@ use super::{Db, FILE};
 const ID: &str = "analyticsId";
 const LAST_VERSION: &str = "lastVersion";
 const PENDING_CRASH: &str = "pendingCrash";
+const LAST_CRASH_REPORT: &str = "lastCrashReport";
 
 /// Where the app crashed (`analytics::Crash`'s location), for the next run to
 /// send. It opens the database itself: the panic hook that calls it has no
@@ -41,6 +42,16 @@ impl Db {
         }
         set(&self.conn, LAST_VERSION, &version)?;
         Ok(last)
+    }
+
+    /// When the last of Crashpad's reports counted was written, in
+    /// milliseconds since the epoch; none before the first count.
+    pub fn last_crash_report(&self) -> Result<Option<u64>, String> {
+        self.setting(LAST_CRASH_REPORT)
+    }
+
+    pub fn set_last_crash_report(&self, millis: u64) -> Result<(), String> {
+        set(&self.conn, LAST_CRASH_REPORT, &millis)
     }
 
     /// The crash `record_crash` kept, if there is one, which is forgotten.
