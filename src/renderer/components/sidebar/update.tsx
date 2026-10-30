@@ -5,7 +5,7 @@
 // as it is tall; both have a faint edge. Its colours are --update-* in
 // index.css.
 
-import { AnimatePresence, type MotionValue, motion, useReducedMotion, useTransform } from "motion/react";
+import { AnimatePresence, type MotionValue, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -26,7 +26,7 @@ const LINE = 26;
 
 /**
  * `cover`: how far up from its line it reaches over the content, as it opens
- * and closes; the content is cut off there (sidebar.tsx), under the hairline.
+ * and closes; the content is cut off there (sidebar.tsx).
  */
 export function UpdateCard({ cover }: { cover: MotionValue<number> }) {
   const update = useUpdate();
@@ -52,14 +52,11 @@ export function UpdateCard({ cover }: { cover: MotionValue<number> }) {
       cover.set(0);
     };
   }, [update.version]);
-  const hairline = useTransform(cover, (height) => -height);
 
   if (!update.version) return null;
   return (
-    // Its line's room, under a hairline where the content above is cut off;
-    // open, it grows up from it, over the content.
+    // Its line's room; open, it grows up from it, over the content.
     <div className="relative shrink-0 pt-2">
-      <motion.div style={{ y: hairline }} className="absolute top-0 right-0 -left-2 h-px bg-(--update-hairline)" />
       <div className="relative h-6.5">
         <div
           ref={box}

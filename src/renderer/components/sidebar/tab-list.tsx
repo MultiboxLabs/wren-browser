@@ -15,6 +15,7 @@ import { type Tab, useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { useGroupKeys, useRowKeys } from "./keys";
+import { useListBelow } from "./list-edge";
 import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
@@ -91,7 +92,9 @@ export function TabList({
   const rowKey = useRowKeys(rows(tabs, splits, 0).map((row) => inOrder(row).map((tab) => tab.id)));
   const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join());
   const scroller = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   useRevealActive(scroller, current?.id);
+  useListBelow(scroller, content);
   const selected = newTabOpen ? undefined : current?.id;
   const actions: ListActions = {
     splits,
@@ -123,7 +126,7 @@ export function TabList({
     >
       {/* Room after the last tab, as the list scrolls to: it does not end at the
           footer, and a tab can be dropped below the last. */}
-      <div className="relative flex flex-col gap-1.25 pb-8">
+      <div ref={content} className="relative flex flex-col gap-1.25 pb-8">
         <PinnedSection
           pinned={pinned}
           selected={selected}

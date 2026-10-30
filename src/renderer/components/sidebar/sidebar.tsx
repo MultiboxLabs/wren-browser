@@ -4,8 +4,15 @@
 // version of Wren, if there is one (update.tsx).
 
 import { Archive, Plus } from "lucide-react";
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
-import { type RefObject, useRef } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+  useTransform
+} from "motion/react";
+import { type RefObject, useRef, useState } from "react";
 import { browser } from "../../ipc";
 import { Button } from "../ui/button";
 import { AddressField } from "../address/field";
@@ -22,6 +29,7 @@ import { usePinActions } from "./pin-actions";
 import { NewSpaceForm } from "./new-space";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
+import { ListBelowContext } from "./list-edge";
 import { TabList } from "./tab-list";
 import { UpdateCard } from "./update";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
@@ -113,6 +121,19 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
     ];
     return layers.filter((layer) => layer !== "none").join(", ") || "none";
   });
+  // Where the list is cut off, a hairline, while any of it goes on below:
+  // at its bottom edge, or where the card reaches. Edge to edge: past the
+  // content's padding on the left, and on the right, the floating sidebar's
+  // padding or, docked, the gap to the page, as wide; but inside the
+  // floating sidebar's 1px edge (`.peek`), which it would otherwise cross.
+  const below = useMotionValue(0);
+  const edge = useTransform(update, (height) => -height);
+  const [cutOff, setCutOff] = useState(false);
+  useMotionValueEvent(
+    useTransform(() => below.get() + update.get() > 1),
+    "change",
+    setCutOff
+  );
   // Where a download that starts flies to.
   const library = useRef<HTMLDivElement>(null);
 
@@ -165,15 +186,25 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
           ) : (
             // Each space's own, so one's tabs never leave or arrive in another's.
             <BrowserOfSpace key={space.id} space={space.id}>
-              <SpaceContent omnibox={omnibox} address={address} />
+              <ListBelowContext value={below}>
+                <SpaceContent omnibox={omnibox} address={address} />
+              </ListBelowContext>
             </BrowserOfSpace>
           )}
         </motion.div>
       </motion.div>
 
       {/* Above the buttons: the update, if there is one, and the shelf over
-          the bottom of the content, above it. */}
+          the bottom of the content, above it; over them, where the list is
+          cut off, its hairline. */}
       <div className="relative shrink-0">
+        <motion.div
+          style={{ y: edge }}
+          className={cn(
+            "pointer-events-none absolute -inset-x-[7px] top-0 h-px bg-(--list-edge) transition-opacity duration-150",
+            cutOff ? "opacity-100" : "opacity-0"
+          )}
+        />
         <Shelf shelf={shelf} />
         {!newSpace && <UpdateCard cover={update} />}
       </div>

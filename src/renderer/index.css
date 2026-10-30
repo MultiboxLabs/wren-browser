@@ -199,11 +199,13 @@ body,
   --pressed: color(display-p3 0.055 0.059 0.063 / 0.14);
   --selected: rgb(255 255 255 / 0.75);
   --separator: rgb(0 0 0 / 0.15);
-  /* The update, in the sidebar (sidebar/update.tsx): its edge, the card
-     it opens into, and the hairline above it. */
+  /* The update, in the sidebar (sidebar/update.tsx): its edge, and the
+     card it opens into. */
   --update-edge: rgb(0 0 0 / 0.08);
   --update-card: color-mix(in oklab, var(--space) 3%, white);
-  --update-hairline: rgb(0 0 0 / 0.06);
+  /* The hairline where the sidebar's list is cut off, while it goes on
+     below (sidebar/list-edge.ts). */
+  --list-edge: rgb(0 0 0 / 0.06);
   /* A switch's track (components/ui/switch.tsx): off, deep enough to stand
      out of the window's colour; on, the space's colour, more of it, and
      darker than the window, so it stands out of it as well. */
@@ -253,7 +255,7 @@ body,
   --separator: rgb(255 255 255 / 0.15);
   --update-edge: rgb(255 255 255 / 0.18);
   --update-card: color-mix(in oklab, var(--space) 10%, rgb(10 10 12));
-  --update-hairline: rgb(255 255 255 / 0.08);
+  --list-edge: rgb(255 255 255 / 0.08);
   --switch-off: rgb(255 255 255 / 0.25);
   /* Lighter than the window, in dark. */
   --switch-on: oklch(from var(--space) 0.72 calc(c * 1.3) h);
