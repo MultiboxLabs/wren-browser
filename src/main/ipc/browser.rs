@@ -86,7 +86,7 @@ struct Link {
 
 /// What the page moves, by one of its tabs: the tab, the split it is in, or
 /// its group.
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
 enum Movable {
     Tab(i32),
@@ -119,6 +119,17 @@ struct MoveTo {
     index: usize,
     /// For a tab: one of the tabs of the group it ends in, or none for no
     /// group. A split or a group stays as it is.
+    group: Option<i32>,
+}
+
+#[derive(Deserialize)]
+struct MoveToSpace {
+    unit: Movable,
+    space: SpaceId,
+    /// Where its first tab goes, among the space's list's tabs.
+    index: usize,
+    /// For a tab: one of the tabs of the space's group it ends in, or none
+    /// for no group. A split or a group stays as it is.
     group: Option<i32>,
 }
 
@@ -226,6 +237,41 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             }
             .map_err(failed)
         })
+    });
+
+    // A tab, or its split or its group, moved from the space it is in to
+    // another of the window's, of the same profile: dropped on the space's
+    // button, or on its list once the window has switched to it.
+    let weak = window.clone();
+    let _ = web_view.handle_call("tabs.moveToSpace", move |call| {
+        let found = call
+            .value::<MoveToSpace>()
+            .map_err(|error| error.to_string());
+        let found = found.and_then(|to| Ok((moving(mt, to.unit)?, to, weak.state()?)));
+        let ((tab, moving), to, state) = match found {
+            Ok(found) => found,
+            Err(error) => {
+                let _ = call.fail(&error);
+                return;
+            }
+        };
+        let (index, group) = (to.index, to.group);
+        // Answered once they are there, for what the page does with them next.
+        state.move_to_space(mt, weak.id, moving, to.space, index, move |moved| {
+            // A tab leaves its group behind, and goes in the one it was
+            // dropped in, if any.
+            let placed = moved.and_then(|browser| match to.unit {
+                Movable::Tab(_) => {
+                    let group = group_of(mt, &browser, group)?;
+                    tabs::move_tab(mt, &browser, tab, index, group).map_err(failed)
+                }
+                Movable::Split(_) | Movable::Group(_) => Ok(()),
+            });
+            let _ = match placed {
+                Ok(()) => call.answer(&()),
+                Err(error) => call.fail(&error),
+            };
+        });
     });
 
     // A web address or a file dropped on the list: a tab on it, where it was
@@ -428,6 +474,27 @@ pub(super) fn group_of(
     };
     let state = tab(mt, browser, member)?.state().map_err(failed)?;
     Ok(Some(state.group.ok_or("The tab is in no group.")?))
+}
+
+// The tab `unit` is named by, and the tabs that move with it: itself, its
+// split's or its group's.
+fn moving(mt: MainThread, unit: Movable) -> Result<(BrowserTab, Vec<BrowserTab>), String> {
+    let (Movable::Tab(id) | Movable::Split(id) | Movable::Group(id)) = unit;
+    let tab = BrowserTab::from_id(mt, id).ok_or("There is no such tab.")?;
+    let browser = tab.browser().ok_or("There is no such tab.")?;
+    let state = || tab.state().map_err(failed);
+    let moving = match unit {
+        Movable::Tab(_) => vec![tab],
+        Movable::Split(_) => {
+            let split = state()?.split.ok_or("The tab is in no split.")?;
+            tabs::in_split(split).map_err(failed)?
+        }
+        Movable::Group(_) => {
+            let group = state()?.group.ok_or("The tab is in no group.")?;
+            tabs::in_group(&browser, group)
+        }
+    };
+    Ok((tab, moving))
 }
 
 // The tab an ID from the page names, if it is the Browser's.

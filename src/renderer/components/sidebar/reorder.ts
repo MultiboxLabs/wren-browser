@@ -6,22 +6,21 @@
 //
 // What is dragged in from outside the list, like a link, is a tab that opens
 // where it is dropped; a pin or a favourite dropped there is an ordinary tab
-// there (pin-drop.ts).
+// there (pin-drop.ts). A unit of another space's list, carried here as the
+// window switched to this space (space-drop.ts), lands as one of this list's
+// would, once it has moved here.
 
 import { type DragEvent, type PointerEvent, useLayoutEffect, useRef, useState } from "react";
-import { browser, pins, type TabUnit } from "../../ipc";
+import { browser, pins } from "../../ipc";
 import { noteDrop } from "./arrival";
-import { holdForDrag, releaseDrag } from "./drag-hold";
+import { holdForDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
 import { useDropSide } from "./drop-side";
 import { useEdgeScroll } from "./edge-scroll";
 import { type DropMark, type Grabbed, type Held, type Landing, landingAt, OUTSIDE } from "./landing";
 import { carriesTabPin, droppedPin, isPinDrop } from "./pin-drop";
 import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
-import { carryUnit, draggableUnitOf, readUnit, type UnitKind } from "./units";
-
-const tabUnit = (kind: UnitKind, tab: number): TabUnit =>
-  kind === "split" ? { split: tab } : kind === "group" ? { group: tab } : { tab };
+import { carriedFromOther, carryUnit, draggableUnitOf, moveToSpace, readUnit, TOP_SCOPE, tabUnit } from "./units";
 
 // A tab on each of `urls`, in order from `index`, one at a time so each
 // lands after the last. A tab that fails to open ends it.
@@ -41,12 +40,13 @@ const sameMark = (a: DropMark | null, b: DropMark | null) =>
 /**
  * `order`: a key that changes with the Browser's tabs' order and their
  * groups and splits. A drag is over when it does: the move has been made, or
- * the list is no longer the one the drag measured.
+ * the list is no longer the one the drag measured. `space`: the space whose
+ * list it is.
  *
  * Returns the mark to draw, and the handlers to set on the list's scrolling
  * box.
  */
-export function useTabReorder(order: string) {
+export function useTabReorder(order: string, space: number) {
   const [mark, setMark] = useState<DropMark | null>(null);
   // The unit of the list being dragged, if it is one that is.
   const held = useRef<Grabbed | null>(null);
@@ -69,7 +69,6 @@ export function useTabReorder(order: string) {
     edge.stop();
     held.current = null;
     show(null);
-    releaseDrag();
   };
   useLayoutEffect(() => {
     end();
@@ -78,15 +77,29 @@ export function useTabReorder(order: string) {
   }, [order]);
   useLayoutEffect(() => end, []);
 
-  /**
-   * What is over the list: a unit of it, or from outside it a pin (not a
-   * folder), or a link if it has an address; each lands as a new tab would.
-   */
-  const dragged = (event: DragEvent) =>
-    held.current ?? (carriesTabPin(event.dataTransfer) || carriesAddress(event.dataTransfer) ? OUTSIDE : null);
+  /** The unit of a list being dragged: one of this list's, or of another space's. */
+  const grabbedIn = (event: DragEvent): Grabbed | null => {
+    if (held.current) return held.current;
+    const other = carriedFromOther(event.dataTransfer, space);
+    return other && { kind: other.kind, unit: null, tab: other.tab, scope: TOP_SCOPE, grab: other.grab };
+  };
 
-  const move = (scroller: HTMLElement, { unit, kind, tab }: Grabbed, place: Landing) => {
+  /**
+   * What is over the list: a unit of the list, or from outside it a pin
+   * (not a folder), or a link if it has an address; each lands as a new tab
+   * would.
+   */
+  const dragged = (event: DragEvent): Held | null =>
+    grabbedIn(event) ?? (carriesTabPin(event.dataTransfer) || carriesAddress(event.dataTransfer) ? OUTSIDE : null);
+
+  const move = (scroller: HTMLElement, grabbed: Grabbed, place: Landing) => {
     if (place?.kind !== "move") return;
+    const { unit, kind, tab } = grabbed;
+    // One of another space's list is new here: nothing slides for it.
+    if (!unit) {
+      moveToSpace(grabbed, space, place.index, place.group).catch(() => {});
+      return;
+    }
     // The Browser answers with its new order a moment later, which the rows
     // then slide to from here.
     const mine = takePlaces(scroller, unit);
@@ -116,7 +129,7 @@ export function useTabReorder(order: string) {
         held.current = { kind, unit, tab, scope, grab: event.clientX - box.left };
         settling.current = null;
         event.dataTransfer.effectAllowed = "move";
-        carryUnit(event.dataTransfer, kind, tab);
+        carryUnit(event.dataTransfer, { kind, tab, space, grab: event.clientX - box.left });
         // The row as it is, held where the pointer took it.
         event.dataTransfer.setDragImage(image, event.clientX - box.left, event.clientY - box.top);
       },
@@ -149,7 +162,7 @@ export function useTabReorder(order: string) {
       },
 
       onDrop: (event: DragEvent<HTMLElement>) => {
-        const own = held.current;
+        const own = grabbedIn(event);
         if (isPinDrop(event.target)) return end();
         const pin = own ? null : droppedPin(event.dataTransfer);
         if (!own && pin === null && !carriesAddress(event.dataTransfer)) return;
@@ -166,7 +179,9 @@ export function useTabReorder(order: string) {
           if (place.kind === "move") void openAll(urls, place.index, place.group);
         } else if (place.kind === "split") {
           const [first, second] = place.side === "left" ? [own.tab, place.targetTab] : [place.targetTab, own.tab];
-          browser.split(first, second).catch(() => {});
+          // One of another space's list comes here first, beside the tab.
+          const here = own.unit ? Promise.resolve(null) : moveToSpace(own, space, readUnit(place.target).start);
+          here.then(() => browser.split(first, second)).catch(() => {});
         } else {
           move(scroller, own, place);
         }

@@ -225,6 +225,24 @@ pub fn move_tab(
     move_alone(browser, tab, to)
 }
 
+/// Moves `moving`, tabs of another Browser of the same profile, to `to`
+/// among `browser`'s listed tabs, the first of them shown there. A split or
+/// a group that moves whole stays one. When they are all their Browser has,
+/// a placeholder stands in for them, and that Browser stays (`placeholder`).
+pub fn move_in(browser: &Browser, moving: &[BrowserTab], to: usize) -> Result<(), Error> {
+    let Some(from) = moving.first().and_then(|tab| tab.browser()) else {
+        return Err(Error::TabUnavailable);
+    };
+    placeholder::stand_in(&from, moving)?;
+    browser.move_tabs(moving, Some(at_list(browser, to)), true)
+}
+
+/// The tabs of `split`, in their order.
+pub fn in_split(split: TabSplit) -> Result<Vec<BrowserTab>, Error> {
+    let state = split.state()?;
+    Ok([state.first, state.second].into_iter().flatten().collect())
+}
+
 /// Moves a split's two tabs to `to`, the first's index among the listed
 /// tabs, keeping the split.
 pub fn move_split(browser: &Browser, split: TabSplit, to: usize) -> Result<(), Error> {

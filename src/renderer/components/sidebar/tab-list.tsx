@@ -90,7 +90,7 @@ export function TabList({
   const newTabOpen = omnibox.shown?.target === "new-tab";
   const groupKey = useGroupKeys(tabs, tabGroups);
   const rowKey = useRowKeys(rows(tabs, splits, 0).map((row) => inOrder(row).map((tab) => tab.id)));
-  const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join());
+  const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join(), space.id);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   useRevealActive(scroller, current?.id);

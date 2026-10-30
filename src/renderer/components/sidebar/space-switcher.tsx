@@ -7,6 +7,9 @@
 // A space is dragged along the row to another place: the others make way as
 // it passes, and letting it go asks the app to move it there. One that comes
 // or goes opens or closes its place in the row, which the others slide from.
+//
+// A tab of the list dragged onto a space moves there, and held over it, the
+// window switches to it (space-drop.ts).
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useLayoutEffect, useMemo, useRef } from "react";
@@ -15,6 +18,7 @@ import { SpaceIcon } from "../space-icon";
 import { useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 import { scaleTo } from "../../utils/motion";
+import { useSpaceDrop } from "./space-drop";
 import { useSpaceReorder } from "./space-reorder";
 
 // The room between two spaces.
@@ -32,6 +36,7 @@ export function SpaceSwitcher() {
   const listed = useMemo(() => spaces.map(({ id }) => id), [spaces]);
   const entries = useMemo(() => new Map(spaces.map((entry) => [entry.id, entry])), [spaces]);
   const reorder = useSpaceReorder(row, listed, moveSpace);
+  const drop = useSpaceDrop();
 
   if (profile) return null;
   // Before the app has said, the space shown alone.
@@ -59,6 +64,7 @@ export function SpaceSwitcher() {
                   data-space-slot={id}
                   style={reorder.styleOf(id)}
                   onPointerDown={reorder.onPointerDown(id)}
+                  {...drop.handlersOf(id)}
                   className="flex shrink-0"
                 >
                   <Button
@@ -66,6 +72,7 @@ export function SpaceSwitcher() {
                     iconTone={current ? "inherit" : "dim"}
                     label={entry.name}
                     data-current={current || undefined}
+                    pressed={drop.over === id}
                     className={cn(current && "text-accent")}
                     onClick={() => show(id)}
                   />

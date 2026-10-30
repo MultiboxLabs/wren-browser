@@ -20,7 +20,12 @@ export type DropMark = { kind: "line" | "upright" | "box"; top: number; left: nu
 /** A unit of the list, picked up. */
 export type Grabbed = {
   kind: UnitKind;
-  unit: HTMLElement;
+  /**
+   * Its element; null for one of another space's list, carried here as the
+   * window switched to this space (space-drop.ts), which is new to the list
+   * and out of any group, but lands as one of its own would.
+   */
+  unit: HTMLElement | null;
   tab: number;
   scope: string;
   /** How far into its row the pointer took it. */
@@ -137,11 +142,12 @@ export function splitSide(box: DOMRect, content: DOMRect, x: number) {
 export function landingAt(scroller: HTMLElement, held: Held, x: number, y: number): Landing {
   const items = itemsOf(scroller);
   if (!items) return null;
-  if (held.kind !== "outside" && !scroller.contains(held.unit)) return null;
+  if (held.kind !== "outside" && held.unit && !scroller.contains(held.unit)) return null;
   const content = (scroller.firstElementChild ?? scroller).getBoundingClientRect();
   if (!items.length) return firstLanding(scroller, content);
-  // What comes from outside is new: nothing in the list moves for it.
-  const mine = held.kind === "outside" ? null : readUnit(held.unit);
+  // What comes from outside, or from another space's list, is new: nothing
+  // in the list moves for it.
+  const mine = held.kind === "outside" || !held.unit ? null : readUnit(held.unit);
   const [from, size] = mine ? [mine.start, mine.size] : [Infinity, 0];
 
   if (held.kind === "tab") {

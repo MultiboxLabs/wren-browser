@@ -80,6 +80,14 @@ export const browser = {
    */
   move: (unit: TabUnit, index: number, group: number | null = null) =>
     wren.invoke<null>("tabs.move", { unit, index, group }),
+  /**
+   * Moves a unit of another of the window's spaces, of the same profile, to
+   * space `space`, its first tab at an index among that space's tabs, shown
+   * there. A tab also goes into the group of the tab `group` names, or out of
+   * any if it is null.
+   */
+  moveToSpace: (unit: TabUnit, space: number, index = 0, group: number | null = null) =>
+    wren.invoke<null>("tabs.moveToSpace", { unit, space, index, group }),
   /** A tab on a web or file address, shown, at an index among all the tabs and in the group of the tab `group` names, if any. */
   openAt: (url: string, index: number, group: number | null) => wren.invoke<null>("tabs.openAt", { url, index, group }),
   /** Puts two tabs in a split, the first on the left; both must be in none. */

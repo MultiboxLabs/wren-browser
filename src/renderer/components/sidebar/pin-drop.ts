@@ -4,7 +4,9 @@
 // - a pin, from either, which moves there; a folder only among the pins;
 // - a tab of the list, or its split (reorder.ts), which is pinned there and
 //   leaves the list; not a group. A lone tab on half of a tab pin's row
-//   makes the pin a split with it, as on a tab of the list (landing.ts);
+//   makes the pin a split with it, as on a tab of the list (landing.ts).
+//   One of another space's list, carried here as the window switched to
+//   this space (space-drop.ts), moves to this one's first;
 // - a link, or a file, which is a new pin there, unopened.
 // A pin or a favourite dragged onto the list of tabs becomes an ordinary tab
 // there (`droppedPin`, which reorder.ts reads); a folder does not.
@@ -12,12 +14,13 @@
 import type { DragEvent, PointerEvent } from "react";
 import { useState } from "react";
 import { type Pin, type PinTarget, pins } from "../../ipc";
+import { useSpace } from "../../state/space";
 import { noteDrop } from "./arrival";
-import { holdForDrag, releaseDrag } from "./drag-hold";
+import { holdForDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
 import { useDropSide } from "./drop-side";
 import type { Dragging, HeldPin, PinLanding } from "./pin-landing";
-import { carriesUnit, droppedUnit } from "./units";
+import { carriedFromOther, carriesUnit, droppedUnit, moveToSpace } from "./units";
 
 /** What a pin's drag carries: its ID. */
 const PIN_TYPE = "application/x-wren-pin";
@@ -74,7 +77,6 @@ export function pinDrag(pin: Pin, { favorite = false, renaming = false, peek = f
     },
     onDragEnd: () => {
       held = null;
-      releaseDrag();
     }
   };
 }
@@ -110,6 +112,7 @@ export function usePinDrop({
   folders?: boolean;
   enabled?: boolean;
 }) {
+  const { space } = useSpace();
   const [landing, setLanding] = useState<PinLanding | null>(null);
   // A tab pin's row a tab would split with makes room for it.
   const makeRoom = useDropSide();
@@ -157,13 +160,22 @@ export function usePinDrop({
         const unit = droppedUnit(event.dataTransfer);
         if (!place) return;
         noteDrop(event.clientX, event.clientY);
+        // A unit of another space's list moves to this one's first.
+        const other = carriedFromOther(event.dataTransfer, space.id);
+        const here = async () => other && (await moveToSpace(other, space.id));
         if (place.kind === "split") {
-          if (unit) pins.splitWith(place.pin, unit.tab, place.side).catch(() => {});
+          if (unit)
+            here()
+              .then(() => pins.splitWith(place.pin, unit.tab, place.side))
+              .catch(() => {});
           return;
         }
         const { to, index } = place;
         if (pin !== null) pins.move(pin, to, index).catch(() => {});
-        else if (unit) pins.pinTab(unit.tab, to, index).catch(() => {});
+        else if (unit)
+          here()
+            .then(() => pins.pinTab(unit.tab, to, index))
+            .catch(() => {});
         else void pinAll(addressesOf(event.dataTransfer), to, index);
       }
     }
