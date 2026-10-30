@@ -9,8 +9,7 @@
 pub mod archive;
 pub mod placeholder;
 
-use std::cell::Cell;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSplit};
 
@@ -18,25 +17,15 @@ use crate::clipboard;
 use crate::ipc::{self, OwnToast};
 use crate::menus;
 
-thread_local! {
-    static LAUNCHED: Cell<Option<SystemTime>> = const { Cell::new(None) };
-}
-
-/// Marks the app's launch, from which every tab counts as last shown
-/// (`last_active`).
-pub fn mark_launch() {
-    LAUNCHED.set(Some(SystemTime::now()));
-}
-
-/// When `tab` was last shown: what archiving counts from, and a pin's last
-/// use (pins/).
-// TODO: Wren's `TabState::last_active` once it has it, which Chromium keeps
-// across launches; it must be when the tab was last shown, so that one left
-// after a long while on it counts from then. Until then each tab counts from
-// the app's launch, as if it were shown then, and a tab left after the
-// setting's time since launch is archived at once.
-pub fn last_active(_tab: BrowserTab) -> SystemTime {
-    LAUNCHED.get().unwrap_or_else(SystemTime::now)
+/// When `tab` was last on screen: what archiving counts from, and a pin's
+/// last use (pins/). Now while it is shown; Chromium keeps it across
+/// launches, so a tab left a long while ago counts from then.
+pub fn last_active(tab: BrowserTab) -> SystemTime {
+    tab.state()
+        .ok()
+        .and_then(|state| u64::try_from(state.last_active_ms).ok())
+        .filter(|ms| *ms > 0)
+        .map_or_else(SystemTime::now, |ms| UNIX_EPOCH + Duration::from_millis(ms))
 }
 
 /// A tab on `url`, at the top of the list, as the sidebar shows new tabs.

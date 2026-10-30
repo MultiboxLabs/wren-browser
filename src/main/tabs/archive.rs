@@ -6,7 +6,7 @@
 use std::rc::{Rc, Weak};
 use std::time::{Duration, SystemTime};
 
-use wren::{Browser, BrowserTab};
+use wren::{Browser, BrowserTab, TabAlert, TabState};
 
 use super::placeholder;
 use crate::analytics::Event;
@@ -85,13 +85,7 @@ fn shown(browser: &Browser) -> Vec<BrowserTab> {
 }
 
 // Whether `tab` has gone unused for `after`, and nothing keeps it: it is not
-// `shown`, pinned or a placeholder.
-// TODO: keep, too, a tab that is in use without being shown, once Wren's
-// `TabState` says so, as Chrome's tab alerts do: one playing sound (unless
-// muted), using the camera or microphone, sharing the screen or being
-// captured, in picture-in-picture, or connected to a USB, HID, serial or
-// Bluetooth device; and maybe one whose page would ask before it closes
-// (beforeunload).
+// `shown`, pinned, a placeholder or in use.
 fn should_archive(tab: BrowserTab, shown: &[BrowserTab], now: SystemTime, after: Duration) -> bool {
     if shown.contains(&tab) || placeholder::is_placeholder(tab) {
         return false;
@@ -100,7 +94,21 @@ fn should_archive(tab: BrowserTab, shown: &[BrowserTab], now: SystemTime, after:
         return false;
     };
     !state.pinned
+        && !in_use(&state)
         && now
             .duration_since(super::last_active(tab))
             .is_ok_and(|unused| unused >= after)
+}
+
+// Whether the tab is in use without being shown, as Chrome's tab alerts say:
+// playing sound (unless muted), using the camera or microphone, sharing the
+// screen or being captured, in picture-in-picture, or connected to a USB,
+// HID, serial or Bluetooth device. Or its page would ask before it closes
+// (beforeunload): archiving it would lose what the user wrote there.
+fn in_use(state: &TabState) -> bool {
+    let mut alerts = state.alert_set().bits();
+    if state.muted {
+        alerts &= !TabAlert::AUDIBLE.bits();
+    }
+    alerts != 0 || state.may_ask_before_close
 }

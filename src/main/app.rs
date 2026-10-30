@@ -82,7 +82,6 @@ impl State {
     // the user's own Profile, the one Chromium starts with, and each profile
     // they wait for, with the tabs they had (windows/session.rs).
     fn start(self: &Rc<Self>, mt: MainThread) {
-        tabs::mark_launch();
         // The database has each profile, and the app a space, before anything
         // shows them. The list is read again once the first profile is open,
         // in case it was not filled yet.
