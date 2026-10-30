@@ -233,6 +233,9 @@ pub fn move_tab(
 /// Moves a split's two tabs to `to`, the first's index among the listed
 /// tabs. Chromium ends a split whose tab is moved alone, so it is made again
 /// from the same tabs, with the same layout and ratio.
+// TODO: move it with Wren 0.3.0's `TabSplit::move_to`, which keeps the split,
+// its ID and its pinning; its index counts the strip's tabs that do not move,
+// so `to` goes through `at_list` first.
 pub fn move_split(browser: &Browser, split: TabSplit, to: usize) -> Result<(), Error> {
     let state = split.state()?;
     let (Some(first), Some(second)) = (state.first, state.second) else {
@@ -283,6 +286,9 @@ pub fn new_group(
 /// Moves a group's tabs to `to`, the first's index among the listed tabs.
 /// Chromium keeps a group's tabs where they are, so they are taken out of it
 /// and put in a new group with the old one's title, colour and fold.
+// TODO: move it with Wren 0.3.0's `TabGroup::move_to`, which keeps the group,
+// its ID and its look; its index counts the strip's tabs that do not move,
+// so `to` goes through `at_list` first.
 pub fn move_group(
     mt: MainThread,
     browser: &Browser,

@@ -152,6 +152,8 @@ pub fn action(name: &str) -> Option<DownloadAction> {
 
 /// Whether the download may be taken off the list: it is over, done,
 /// cancelled or failed, as `chrome://downloads` has it.
+// TODO: whether the state's actions have Wren 0.3.0's `DownloadAction::REMOVE`,
+// which also leaves it out where policy keeps the download listed.
 pub fn removable(state: &DownloadState) -> bool {
     state.status != DownloadStatus::InProgress
 }
