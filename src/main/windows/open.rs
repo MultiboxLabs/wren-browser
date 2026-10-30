@@ -8,6 +8,7 @@ use wren::{Browser, MainThread, ProfileKind, RequestedBounds};
 
 use super::popup::POPUP_MIN_SIZE;
 use super::session::unkept_window_key;
+use crate::analytics::Event;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
@@ -114,6 +115,12 @@ impl State {
             }
             window.page.set_active(active);
             ipc::send_active(&window.page, active);
+        });
+        let state = Rc::downgrade(self);
+        page.watch_crash(move || {
+            if let Some(state) = state.upgrade() {
+                state.analytics.record(Event::PageCrashed);
+            }
         });
         let state = Rc::downgrade(self);
         page.watch_full_screen(move |full_screen| {

@@ -24,6 +24,15 @@ impl Channel {
         }
     }
 
+    /// Its name, as analytics reports it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Channel::Stable => "stable",
+            Channel::Beta => "beta",
+            Channel::Dev => "dev",
+        }
+    }
+
     /// The folder in the platform's folder for apps' data
     /// (`platform::data_dir`) that holds the app's data.
     pub fn data_folder(self) -> &'static str {

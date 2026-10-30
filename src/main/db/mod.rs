@@ -1,8 +1,10 @@
 // The app's database: what the browser keeps of its own, as opposed to what
 // Chromium keeps for a profile. For now that is spaces, their pins and the
-// profiles' favourites, the windows open at quit, and the user's settings.
+// profiles' favourites, the windows open at quit, the user's settings, and
+// what analytics keeps between runs.
 // It is used on the main thread only, and its methods take `&self`.
 
+mod analytics;
 mod migrations;
 mod pins;
 mod profiles;
@@ -18,6 +20,7 @@ use std::path::Path;
 
 use rusqlite::Connection;
 
+pub use analytics::record_crash;
 pub use pins::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow};
 pub use profiles::avatar;
 pub use settings::{Settings, SettingsChange};
@@ -25,6 +28,9 @@ pub use spaces::{NewSpace, SpaceChange, SpaceId, SpaceRow};
 pub use windows::{SavedWindow, WindowFrame};
 
 use migrations::MIGRATIONS;
+
+// The database's file, in the app's data folder.
+const FILE: &str = "wren.sqlite";
 
 pub struct Db {
     conn: Connection,
@@ -65,7 +71,7 @@ fn test_db() -> Db {
 
 fn open_file(data: &Path) -> Result<Connection, String> {
     fs::create_dir_all(data).map_err(|error| error.to_string())?;
-    let conn = Connection::open(data.join("wren.sqlite")).map_err(|error| error.to_string())?;
+    let conn = Connection::open(data.join(FILE)).map_err(|error| error.to_string())?;
     prepare(&conn)?;
     Ok(conn)
 }

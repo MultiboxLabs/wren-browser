@@ -3,7 +3,7 @@
 // What a browser window holds is shell/'s, and what the app does with its
 // windows is windows/'s.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use wren::{Browser, MainThread, RequestedBounds, TabCrash, WebView};
@@ -19,11 +19,15 @@ pub enum TitleBarKind {
     System,
 }
 
+type CrashWatch = Rc<RefCell<Option<Box<dyn Fn()>>>>;
+
 /// A window showing one page. Its web view drops first, which takes the page
 /// out of the window.
 pub struct PageWindow {
     pub web_view: Rc<WebView>,
     native: current::window::PageWindow,
+    // What `watch_crash` was given.
+    crash_watch: CrashWatch,
 }
 
 impl PageWindow {
@@ -52,6 +56,8 @@ impl PageWindow {
         // so it holds it weakly.
         let reloaded = Rc::downgrade(&web_view);
         let crashed = Cell::new(false);
+        let crash_watch: CrashWatch = Rc::default();
+        let watch = crash_watch.clone();
         web_view.set_changed(Some(Box::new(move |state| {
             let now_crashed = state.crash != TabCrash::None;
             if now_crashed
@@ -59,6 +65,9 @@ impl PageWindow {
                 && let Some(web_view) = reloaded.upgrade()
             {
                 let _ = web_view.reload();
+                if let Some(watch) = &*watch.borrow() {
+                    watch();
+                }
             }
             crashed.set(now_crashed);
             if state.load_error != 0 || state.crash != TabCrash::None {
@@ -67,7 +76,11 @@ impl PageWindow {
         })));
         let _ = web_view.focus();
 
-        PageWindow { web_view, native }
+        PageWindow {
+            web_view,
+            native,
+            crash_watch,
+        }
     }
 
     /// Shows the window, in front and in use, once; later calls do nothing.
@@ -135,6 +148,11 @@ impl PageWindow {
     /// has finished moving the focus between windows.
     pub fn watch_active(&self, mt: MainThread, changed: impl Fn(bool) + 'static) {
         self.native.watch_active(mt, changed);
+    }
+
+    /// Calls `crashed` each time the page crashes, as it is reloaded.
+    pub fn watch_crash(&self, crashed: impl Fn() + 'static) {
+        *self.crash_watch.borrow_mut() = Some(Box::new(crashed));
     }
 
     /// Brings the window to the front, and the app with it, as Chrome does

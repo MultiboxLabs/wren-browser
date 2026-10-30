@@ -7,10 +7,12 @@ use std::rc::Rc;
 
 use wren::{
     App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
-    PopoverRequest, PopoverTrigger, Profile, QuitPrompt,
+    PopoverRequest, PopoverTrigger, Profile, QuitPrompt, TabFields,
 };
 
+use crate::analytics::{self, Analytics, Event};
 use crate::changes;
+use crate::channel::Channel;
 use crate::db::Db;
 use crate::extensions::ad_block::AdBlock;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
@@ -33,6 +35,7 @@ pub struct State {
     pub sidebar: SidebarStore,
     /// What the app keeps of its own, spaces for now.
     pub db: Db,
+    pub analytics: Analytics,
     /// Profiles whose last session is being restored (windows/session.rs).
     pub(crate) restoring: Cell<u32>,
     /// The sidebar's performance run, if this is one.
@@ -61,13 +64,16 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(data: PathBuf, perf: Option<Perf>) -> State {
+    pub fn new(data: PathBuf, channel: Channel, perf: Option<Perf>) -> State {
+        let db = Db::open(&data);
+        let analytics = Analytics::start(&db, channel, perf.is_some());
         State {
             ui_profile: RefCell::default(),
             devtools: RefCell::default(),
             windows: Windows::default(),
             sidebar: SidebarStore::new(&data),
-            db: Db::open(&data),
+            db,
+            analytics,
             restoring: Cell::new(0),
             perf,
             quit_prompt: RefCell::default(),
@@ -312,6 +318,7 @@ impl App for Wren {
             state.update_menu(mt);
         }
         for change in changes {
+            record_tab_crash(state, change);
             let Some(browser) = &change.browser else {
                 continue;
             };
@@ -556,6 +563,7 @@ impl App for Wren {
         for window in self.state.windows.all() {
             self.state.save_frame(&window);
         }
+        self.state.analytics.quit();
     }
 
     // The Dock icon, with no window open: a new one.
@@ -600,5 +608,19 @@ impl App for Wren {
             ipc::send_no_browser(&window);
             self.state.update_title(&window);
         }
+    }
+}
+
+// A tab's page that has just crashed.
+fn record_tab_crash(state: &State, change: &Change) {
+    if change.kind != ChangeKind::Tab || !change.tab_fields.contains(TabFields::CRASHED) {
+        return;
+    }
+    let crash = change
+        .tab
+        .and_then(|tab| tab.state().ok())
+        .map(|tab| tab.crash);
+    if let Some(reason) = crash.and_then(analytics::Crash::of) {
+        state.analytics.record(Event::TabCrashed { reason });
     }
 }

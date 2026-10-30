@@ -1,3 +1,4 @@
+mod analytics;
 mod app;
 mod changes;
 mod channel;
@@ -32,6 +33,7 @@ fn main() {
         None => channel.data_folder(),
     };
     let data = platform::data_dir().join(folder);
+    analytics::catch_panics(data.clone(), channel, perf.is_some());
     let mut startup = Startup::new(data.to_string_lossy(), Keychain::Mock);
     channel.brand(&mut startup);
     startup.schemes = vec![Scheme::new(
@@ -45,7 +47,7 @@ fn main() {
     if perf.is_none() {
         extensions::ad_block::ship(&mut startup);
     }
-    let state = Rc::new(State::new(data, perf));
+    let state = Rc::new(State::new(data, channel, perf));
     let status = wren::run(
         startup,
         Wren {

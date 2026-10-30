@@ -81,7 +81,7 @@ impl Db {
     }
 
     // A setting's value, or none if it was never set or can't be read.
-    fn setting<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, String> {
+    pub(super) fn setting<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, String> {
         let json: Option<String> = self
             .conn
             .query_row("SELECT value FROM settings WHERE key = ?1", [key], |row| {
@@ -93,7 +93,11 @@ impl Db {
     }
 }
 
-fn set(conn: &rusqlite::Connection, key: &str, value: &impl Serialize) -> Result<(), String> {
+pub(super) fn set(
+    conn: &rusqlite::Connection,
+    key: &str,
+    value: &impl Serialize,
+) -> Result<(), String> {
     let json = serde_json::to_string(value).map_err(|error| error.to_string())?;
     conn.execute(
         "INSERT INTO settings (key, value) VALUES (?1, ?2)
