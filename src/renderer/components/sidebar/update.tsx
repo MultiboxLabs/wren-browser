@@ -4,10 +4,11 @@
 // says whether updates install by themselves. Closed, it is a pill, as round
 // as it is tall. Once installed, a card says so, open until it is closed,
 // with what is new in it and a way to send feedback. Both have a faint edge;
-// their colours are --update-* in index.css.
+// their colours are --update-* in index.css. Going, either folds into its
+// line as it fades, and the room it took closes.
 
 import { MessageSquare, Sparkles, X } from "lucide-react";
-import { AnimatePresence, type MotionValue, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, type MotionValue, motion, useIsPresent, useReducedMotion } from "motion/react";
 import { type ReactElement, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -35,9 +36,15 @@ const REPOSITORY = "https://github.com/MultiboxLabs/wren-browser";
  */
 export function UpdateCard({ cover }: { cover: MotionValue<number> }) {
   const update = useUpdate();
-  if (update.installed) return <Complete key="complete" update={update} cover={cover} />;
-  if (update.version) return <Available key="available" update={update} cover={cover} />;
-  return null;
+  return (
+    <AnimatePresence initial={false} mode="wait">
+      {update.installed ? (
+        <Complete key="complete" update={update} cover={cover} />
+      ) : update.version ? (
+        <Available key="available" update={update} cover={cover} />
+      ) : null}
+    </AnimatePresence>
+  );
 }
 
 function Available({ update, cover }: { update: Update; cover: MotionValue<number> }) {
@@ -50,17 +57,20 @@ function Available({ update, cover }: { update: Update; cover: MotionValue<numbe
   useEffect(() => () => clearTimeout(timer.current), []);
   // The floating sidebar stays out while it is open.
   useHoldWhile(open);
+  // Going, it folds.
+  const present = useIsPresent();
+  const shown = open && present;
   return (
     <Shell
       cover={cover}
-      open={open}
+      open={shown}
       onPointerEnter={() => after(OPEN_AFTER, true)}
       onPointerLeave={() => after(CLOSE_AFTER, false)}
     >
       <div className="flex h-6.5 items-center justify-center px-3 font-medium">
         <span className="truncate">New Version of Wren Available</span>
       </div>
-      <Unfold open={open}>
+      <Unfold open={shown}>
         <div className="flex flex-col items-center gap-2 border-t border-separator px-2 pt-2.5 pb-2">
           <Checkbox checked={update.automatic} onCheckedChange={update.setAutomatic}>
             Automatic Updates
@@ -87,23 +97,27 @@ function Available({ update, cover }: { update: Update; cover: MotionValue<numbe
 function Complete({ update, cover }: { update: Update; cover: MotionValue<number> }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(true), []);
+  const present = useIsPresent();
+  const shown = open && present;
   const go = (url: string) => {
     void browser.open(url);
     update.dismiss();
   };
   return (
-    <Shell cover={cover} open={open}>
+    <Shell cover={cover} open={shown}>
       <div className="relative flex h-6.5 items-center justify-center px-7 font-medium">
         <span className="truncate">Update Complete!</span>
+        {/* As far in from the card's top and right edges, with corners
+            that follow the card's, which are 3 points out from its own. */}
         <Button
           icon={X}
           iconSize={12}
           label="Close"
-          className="absolute right-1 size-5 rounded-[5px]"
+          className="absolute right-0.75 size-5 rounded-[8px]"
           onClick={update.dismiss}
         />
       </div>
-      <Unfold open={open}>
+      <Unfold open={shown}>
         <div className="flex flex-col border-t border-separator p-1">
           <Row
             icon={<Sparkles size={14} strokeWidth={1.75} fill="currentColor" />}
@@ -176,39 +190,49 @@ function Shell({
       cover.set(0);
     };
   }, []);
+  const still = useReducedMotion();
   return (
-    <div className="relative shrink-0 pt-2">
-      <div className="relative h-6.5">
-        <div
-          ref={box}
-          role="group"
-          aria-label="Update"
-          onPointerEnter={onPointerEnter}
-          onPointerLeave={onPointerLeave}
-          className={cn(
-            "no-drag absolute inset-x-0 bottom-0 text-subtitle transition-[border-radius] duration-200",
-            open ? "rounded-[11px]" : "rounded-[13px]"
-          )}
-        >
-          {/* The pill's fill and the card's, one fading into the other. Not a
-              transition of one fill: that would also ease from light to dark
-              as the space's scheme changes, where all else changes at once. */}
-          <motion.div
-            initial={false}
-            animate={{ opacity: open ? 0 : 1 }}
-            transition={ease}
-            className="absolute inset-0 rounded-[inherit] bg-fill shadow-[inset_0_0_0_1px_var(--update-edge)]"
-          />
-          <motion.div
-            initial={false}
-            animate={{ opacity: open ? 1 : 0 }}
-            transition={ease}
-            className="absolute inset-0 rounded-[inherit] bg-(--update-card) shadow-[inset_0_0_0_1px_var(--update-edge),0_6px_20px_rgb(0_0_0/0.18)]"
-          />
-          <div className="relative overflow-hidden rounded-[inherit]">{children}</div>
+    <motion.div
+      initial={{ height: still ? "auto" : 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: still ? "auto" : 0, opacity: 0 }}
+      transition={ease}
+      className="relative shrink-0"
+    >
+      {/* Its room, in here, so that it all closes. */}
+      <div className="pt-2">
+        <div className="relative h-6.5">
+          <div
+            ref={box}
+            role="group"
+            aria-label="Update"
+            onPointerEnter={onPointerEnter}
+            onPointerLeave={onPointerLeave}
+            className={cn(
+              "no-drag absolute inset-x-0 bottom-0 text-subtitle transition-[border-radius] duration-200",
+              open ? "rounded-[11px]" : "rounded-[13px]"
+            )}
+          >
+            {/* The pill's fill and the card's, one fading into the other. Not a
+                transition of one fill: that would also ease from light to dark
+                as the space's scheme changes, where all else changes at once. */}
+            <motion.div
+              initial={false}
+              animate={{ opacity: open ? 0 : 1 }}
+              transition={ease}
+              className="absolute inset-0 rounded-[inherit] bg-fill shadow-[inset_0_0_0_1px_var(--update-edge)]"
+            />
+            <motion.div
+              initial={false}
+              animate={{ opacity: open ? 1 : 0 }}
+              transition={ease}
+              className="absolute inset-0 rounded-[inherit] bg-(--update-card) shadow-[inset_0_0_0_1px_var(--update-edge),0_6px_20px_rgb(0_0_0/0.18)]"
+            />
+            <div className="relative overflow-hidden rounded-[inherit]">{children}</div>
+          </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
