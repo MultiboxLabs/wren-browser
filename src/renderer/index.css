@@ -336,8 +336,10 @@ body,
   }
 }
 
-/* The page is the title bar: its background moves the window, and what
-   takes clicks says so. (app-region is inherited.) */
+/* The page is the title bar: a press that moves on its background moves the
+   window, and a click there is still the page's (the app's web view lets it
+   through). What a press that moves must not take, a field, a button, a row
+   that drags, says so. (app-region is inherited.) */
 .drag {
   -webkit-app-region: drag;
 }

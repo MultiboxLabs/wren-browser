@@ -54,6 +54,7 @@ impl Page {
     /// A web view of the page in `profile`, for a window of the app's own
     /// (`platform::PageWindow`): the browser's UI, see-through where the
     /// page draws nothing, and dragging the window where the page lets it.
+    /// A click there, a press that does not move, is still the page's.
     pub fn web_view(&self, profile: &Profile) -> Option<WebView> {
         let options = WebViewOptions {
             kind: WebViewKind::BrowserUi,
@@ -63,6 +64,7 @@ impl Page {
             embeds_views: self.embeds_views,
             anchors: self.anchors,
             drags_window: true,
+            drag_area_clicks: true,
             transparent: true,
             ..Default::default()
         };
