@@ -7,14 +7,14 @@ use std::rc::Rc;
 
 use wren::{
     App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
-    PopoverRequest, PopoverTrigger, Profile, ProfileExtensionsRequest, QuitPrompt, TabFields,
+    PopoverRequest, PopoverTrigger, Profile, ProfileExtensionsRequest, ProfileKind, QuitPrompt,
+    TabFields,
 };
 
 use crate::analytics::{self, Analytics, Event};
 use crate::changes;
 use crate::channel::Channel;
 use crate::db::Db;
-use crate::extensions::ad_block::AdBlock;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
@@ -45,17 +45,6 @@ pub struct State {
     /// The window whose tab switcher is open, while ⌃ is held
     /// (ipc/tab_switcher.rs).
     pub tab_switcher: Cell<Option<WindowId>>,
-    /// While the pages' profile is being made: Chromium names it as it does
-    /// the user's (`Profile <n>`), so only this tells it apart as it loads.
-    // TODO: drop this for the kind Wren 0.3.0's `profile_extensions` passes
-    // (its roadmap's item 6): the pages' is the only ephemeral profile.
-    making_ui_profile: Cell<bool>,
-    /// Each profile's ad blocker, as every window's page was told it last
-    /// (ipc/ad_block.rs). A deleted profile's stays: Chromium never gives
-    /// its ID to another.
-    // TODO: drop this with Wren 0.3.0's `ChangeKind::Extensions` (see
-    // `ipc::broadcast_ad_block`).
-    pub(crate) ad_blocks: RefCell<HashMap<String, Option<AdBlock>>>,
     /// What the main menu has the window in front allow, as it was set last
     /// (windows/mod.rs).
     pub(crate) menu_front: Cell<menus::Front>,
@@ -81,8 +70,6 @@ impl State {
             perf,
             quit_prompt: RefCell::default(),
             tab_switcher: Cell::default(),
-            making_ui_profile: Cell::new(false),
-            ad_blocks: RefCell::default(),
             menu_front: Cell::new(menus::Front {
                 switching: true,
                 blocked: false,
@@ -260,10 +247,8 @@ impl App for Wren {
         // The pages get a Profile of their own, so their storage is not
         // among the user's sites'.
         let state = self.state.clone();
-        self.state.making_ui_profile.set(true);
         mt.create_ephemeral_profile(move |result| match result {
             Ok(profile) => {
-                state.making_ui_profile.set(false);
                 *state.ui_profile.borrow_mut() = Some(profile);
                 state.start(mt);
             }
@@ -272,9 +257,9 @@ impl App for Wren {
     }
 
     // The app's extensions (the ad blocker and Wren Components), in every
-    // profile but the pages'.
+    // profile but the pages', the one ephemeral profile.
     fn profile_extensions(&self, request: &mut ProfileExtensionsRequest) {
-        let gets = !self.state.making_ui_profile.get();
+        let gets = request.kind != ProfileKind::Ephemeral;
         for extension in &mut request.extensions {
             extension.gets = gets;
         }
@@ -328,6 +313,12 @@ impl App for Wren {
         }
         for change in changes {
             record_tab_crash(state, change);
+            // Its ad blocker may have been turned on or off.
+            if change.kind == ChangeKind::Extensions
+                && let Some(profile) = &change.profile
+            {
+                ipc::broadcast_ad_block(state, profile);
+            }
             let Some(browser) = &change.browser else {
                 continue;
             };
@@ -343,8 +334,6 @@ impl App for Wren {
                 ChangeKind::ForegroundRequest if !state.is_restoring() => {
                     state.bring_forward(browser)
                 }
-                // Its profile's ad blocker may have been turned on or off.
-                ChangeKind::ExtensionActions => ipc::broadcast_ad_block(state, browser),
                 // A placeholder goes, or stays, as the tabs change, and the
                 // pins' links follow them; undocked DevTools shows its
                 // active tab.

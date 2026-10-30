@@ -3,7 +3,7 @@
 // Library turns it on or off there. Only this file knows the extension.
 
 use serde::Serialize;
-use wren::{AppExtension, Browser, Error, MainThread, ManifestV2, Startup};
+use wren::{AppExtension, Error, MainThread, ManifestV2, Profile, Startup};
 
 use crate::platform;
 
@@ -12,16 +12,15 @@ use crate::platform;
 const ID: &str = "fkgkibajhfbepljeaefdnfnegdcjomkh";
 
 /// Lists it among the app's extensions, and lets it run, though it is
-/// Manifest V2. Its file is in the app's resources (`wren-app.json`).
-// TODO: allow it in incognito windows too, once Wren can say an app's
-// extension runs there (it has no call for it yet). Until then it blocks
-// nothing in them unless the user turns on "Allow in Incognito" on
-// chrome://extensions.
+/// Manifest V2, and in incognito windows too in a profile it is installed in
+/// from now on. One that has it already keeps what the user chose there, on
+/// chrome://extensions. Its file is in the app's resources (`wren-app.json`).
 pub fn ship(startup: &mut Startup) {
     let crx = platform::resources_dir().join("uBlock0.crx");
-    startup
-        .extensions
-        .push(AppExtension::bundled(crx.to_string_lossy(), true));
+    startup.extensions.push(AppExtension {
+        allowed_in_incognito_on_install: true,
+        ..AppExtension::bundled(crx.to_string_lossy(), true)
+    });
     startup.manifest_v2 = ManifestV2::Listed;
     startup.manifest_v2_ids.push(ID.to_owned());
 }
@@ -36,13 +35,16 @@ pub struct AdBlock {
     can_change: bool,
 }
 
-/// The profile's ad blocker, as `then` gets it.
+/// The profile's ad blocker, as `then` gets it. A profile with no window is
+/// loaded to be asked.
 pub fn read(
     mt: MainThread,
     profile_id: &str,
     then: impl FnOnce(Result<Option<AdBlock>, Error>) + 'static,
 ) {
-    with_profile_browser(mt, profile_id, |browser| then(browser.map(state)));
+    mt.open_profile(Some(profile_id), move |profile| {
+        then(profile.map(|profile| state(&profile)))
+    });
 }
 
 /// Turns the profile's ad blocker on or off; `then` gets it after.
@@ -52,55 +54,20 @@ pub fn set(
     enabled: bool,
     then: impl FnOnce(Result<Option<AdBlock>, Error>) + 'static,
 ) {
-    with_profile_browser(mt, profile_id, move |browser| {
-        then(browser.and_then(|browser| {
-            browser
-                .profile()
-                .ok_or(Error::Closed)?
-                .set_extension_enabled(ID, enabled)?;
-            Ok(state(browser))
+    mt.open_profile(Some(profile_id), move |profile| {
+        then(profile.and_then(|profile| {
+            profile.set_extension_enabled(ID, enabled)?;
+            Ok(state(&profile))
         }))
     });
 }
 
-/// The ad blocker in the Browser's profile; None while it has none, as
-/// Chromium installs it once the profile has loaded, or refused it.
-pub fn state(browser: &Browser) -> Option<AdBlock> {
-    let state = browser.profile()?.extension_state(ID).ok()?;
+/// The ad blocker in the profile; None while it has none, as Chromium
+/// installs it once the profile has loaded, or refused it.
+pub fn state(profile: &Profile) -> Option<AdBlock> {
+    let state = profile.extension_state(ID).ok()?;
     Some(AdBlock {
         enabled: state.enabled,
         can_change: state.can_change,
     })
-}
-
-// Runs `then` with a Browser of the profile, as Chromium has a profile's
-// extensions only through one: an open one, or with none, one made for
-// this and closed after it. No window holds that one, so
-// `App::browser_closed` passes it by.
-// TODO: drop this for Wren 0.3.0's extension calls on a Profile (its
-// roadmap's item 6); `read` and `set` then open the profile and ask it, and
-// no Browser is made.
-fn with_profile_browser(
-    mt: MainThread,
-    profile_id: &str,
-    then: impl FnOnce(Result<&Browser, Error>) + 'static,
-) {
-    let open = mt.browsers().into_iter().find(|browser| {
-        browser
-            .profile()
-            .is_some_and(|profile| profile.id() == profile_id)
-    });
-    if let Some(browser) = open {
-        return then(Ok(&browser));
-    }
-    mt.open_profile(Some(profile_id), move |result| match result {
-        Ok(profile) => profile.create_browser("", move |result| match result {
-            Ok(browser) => {
-                then(Ok(&browser));
-                let _ = browser.close();
-            }
-            Err(error) => then(Err(error)),
-        }),
-        Err(error) => then(Err(error)),
-    });
 }

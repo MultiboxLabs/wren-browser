@@ -4,7 +4,7 @@
 // either way.
 
 use serde::{Deserialize, Serialize};
-use wren::{Browser, MainThread, ProfileKind, WebView};
+use wren::{MainThread, Profile, ProfileKind, WebView};
 
 use super::{WindowRef, failed};
 use crate::app::State;
@@ -79,33 +79,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 }
 
-/// Tells every window's page the ad blocker of the Browser's profile, as the
-/// Browser's extensions changed: maybe only a badge, which `tell` passes by.
-// TODO: take the Profile of Wren 0.3.0's `ChangeKind::Extensions` (its
-// roadmap's item 6), which says once per profile, and for none of the
-// badges, that its extensions changed.
-pub fn broadcast_ad_block(state: &State, browser: &Browser) {
-    let Some(profile) = browser
-        .profile()
-        .filter(|profile| profile.kind() == ProfileKind::Persistent)
-    else {
-        return;
-    };
-    tell(state, &profile.id(), ad_block::state(browser));
+/// Tells every window's page the profile's ad blocker, as its extensions
+/// changed: maybe not the ad blocker, which the page passes by.
+pub fn broadcast_ad_block(state: &State, profile: &Profile) {
+    if profile.kind() == ProfileKind::Persistent {
+        tell(state, &profile.id(), ad_block::state(profile));
+    }
 }
 
-// Tells every window's page the profile's ad blocker, unless that is what
-// they were told last.
-// TODO: tell them every time once `broadcast_ad_block` hears only real
-// changes (Wren 0.3.0), and drop `State::ad_blocks`.
+// Tells every window's page the profile's ad blocker.
 fn tell(state: &State, profile_id: &str, ad_block: Option<AdBlock>) {
-    if state.ad_blocks.borrow().get(profile_id) == Some(&ad_block) {
-        return;
-    }
-    state
-        .ad_blocks
-        .borrow_mut()
-        .insert(profile_id.to_owned(), ad_block);
     let changed = Changed {
         profile_id,
         ad_block,
