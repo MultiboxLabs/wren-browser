@@ -7,6 +7,7 @@ use wren::{Browser, MainThread, PageCall, WebView};
 
 use super::browser::{group_of, tab};
 use super::{MenuAt, WindowRef, with_browser, with_window};
+use crate::analytics::{self, Event, SplitFrom};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
 use crate::menus::pin::{self as menu, PinMenu};
@@ -181,7 +182,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("pins.newFolder", move |new: NewFolder| {
         let state = weak.state()?;
-        pins::new_folder(&state, new.space, new.parent, new.index)
+        let folder = pins::new_folder(&state, new.space, new.parent, new.index)?;
+        let kind = analytics::PinKind::Folder;
+        state.analytics.record(Event::PinAdded { kind });
+        Ok::<_, String>(folder)
     });
 
     let weak = window.clone();
@@ -205,7 +209,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("pins.delete", move |id: PinId| {
         let state = weak.state()?;
-        pins::delete(&state, id)
+        pins::delete(&state, id)?;
+        state.analytics.record(Event::PinDeleted);
+        Ok::<_, String>(())
     });
 
     // Opens a pin in the window's place, or selects its tab if it is open.
@@ -239,7 +245,13 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |window, browser| {
             let tab = tab(mt, browser, pin.tab)?;
             let (target, index) = (pin.to.target(), pin.to.index);
-            pins::pin_tab(&state, browser, &place(window)?, tab, target, index)
+            let pin = pins::pin_tab(&state, browser, &place(window)?, tab, target, index)?;
+            let to = match target {
+                PinTarget::Favorites => analytics::PinTo::Favorites,
+                PinTarget::Space { .. } => analytics::PinTo::Space,
+            };
+            state.analytics.record(Event::TabPinned { to });
+            Ok(pin)
         })
     });
 
@@ -249,7 +261,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let state = weak.state()?;
         with_window(&weak, |window| {
             let (target, index) = (add.to.target(), add.to.index);
-            pins::add_address(&state, &place(window)?, &add.url, target, index)
+            let pin = pins::add_address(&state, &place(window)?, &add.url, target, index)?;
+            let kind = analytics::PinKind::Address;
+            state.analytics.record(Event::PinAdded { kind });
+            Ok(pin)
         })
     });
 
@@ -259,7 +274,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let state = weak.state()?;
         with_browser(&weak, |window, browser| {
             let tab = tab(mt, browser, split.tab)?;
-            pins::split_with(&state, browser, &place(window)?, split.id, tab, split.side)
+            pins::split_with(&state, browser, &place(window)?, split.id, tab, split.side)?;
+            let from = SplitFrom::Pin;
+            state.analytics.record(Event::SplitOpened { from });
+            Ok(())
         })
     });
 
@@ -280,7 +298,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let state = weak.state()?;
         with_browser(&weak, |window, browser| {
             let group = group_of(mt, browser, to.group)?;
-            pins::to_list(&state, mt, browser, &place(window)?, to.id, to.index, group)
+            pins::to_list(&state, mt, browser, &place(window)?, to.id, to.index, group)?;
+            state.analytics.record(Event::PinUnpinned);
+            Ok(())
         })
     });
 

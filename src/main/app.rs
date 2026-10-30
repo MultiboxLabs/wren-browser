@@ -193,7 +193,10 @@ impl State {
                     let _ = pins::close(&browser, pin);
                 }
                 None => {
-                    let _ = tabs::close(&browser, &[tab]);
+                    if tabs::close(&browser, &[tab]).is_ok() {
+                        let from = analytics::TabFrom::Command;
+                        self.analytics.record(Event::TabClosed { from });
+                    }
                 }
             },
             None => self.close_window(mt, window.id),
@@ -492,6 +495,9 @@ impl App for Wren {
         // A find the user opened takes the keyboard; one that comes back
         // with its tab does not.
         let focus = request.trigger != PopoverTrigger::Automatic;
+        if kind == PopoverKind::Find && focus {
+            self.state.analytics.record(Event::FindOpened);
+        }
         mt.later(move |_| {
             let Some(state) = state.upgrade() else { return };
             if let Some(window) = state.windows.of(&browser)

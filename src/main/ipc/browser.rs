@@ -5,6 +5,7 @@ use super::groups::Group;
 use super::splits::Split;
 use super::window::page_space;
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser, with_window};
+use crate::analytics::{Event, SplitFrom, TabFrom};
 use crate::app::State;
 use crate::db::{PinId, SpaceId};
 use crate::menus::{self, ADD_FAVORITE, Keeps, PIN_TAB};
@@ -140,7 +141,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("tabs.open", move |url: String| {
         with_browser(&weak, |_, browser| {
-            tabs::open(browser, &url).map_err(failed)
+            tabs::open(browser, &url).map_err(failed)?;
+            let from = TabFrom::Sidebar;
+            weak.state()?.analytics.record(Event::TabOpened { from });
+            Ok(())
         })
     });
 
@@ -164,7 +168,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("tabs.close", move |id: i32| {
         with_browser(&weak, |_, browser| {
-            tabs::close(browser, &[tab(mt, browser, id)?]).map_err(failed)
+            tabs::close(browser, &[tab(mt, browser, id)?]).map_err(failed)?;
+            let from = TabFrom::Sidebar;
+            weak.state()?.analytics.record(Event::TabClosed { from });
+            Ok(())
         })
     });
 
@@ -200,7 +207,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("tabs.openAt", move |at: OpenAt| {
         with_browser(&weak, |_, browser| {
             let group = group_of(mt, browser, at.group)?;
-            tabs::open_at(mt, browser, &at.url, at.index, group).map_err(failed)
+            tabs::open_at(mt, browser, &at.url, at.index, group).map_err(failed)?;
+            let from = TabFrom::Drop;
+            weak.state()?.analytics.record(Event::TabOpened { from });
+            Ok(())
         })
     });
 
@@ -210,7 +220,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("tabs.split", move |pair: Pair| {
         with_browser(&weak, |_, browser| {
             let first = tab(mt, browser, pair.first)?;
-            tabs::split(first, tab(mt, browser, pair.second)?).map_err(failed)
+            tabs::split(first, tab(mt, browser, pair.second)?).map_err(failed)?;
+            let from = SplitFrom::Tabs;
+            weak.state()?.analytics.record(Event::SplitOpened { from });
+            Ok(())
         })
     });
 

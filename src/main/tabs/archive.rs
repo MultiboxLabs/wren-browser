@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime};
 use wren::{Browser, BrowserTab};
 
 use super::placeholder;
+use crate::analytics::Event;
 use crate::app::State;
 use crate::platform;
 
@@ -36,18 +37,24 @@ pub fn archive_due(state: &State) {
         Err(error) => return eprintln!("Wren archived no tabs: {error}"),
     };
     let now = SystemTime::now();
+    let mut count = 0;
     for window in state.windows.all() {
         if window.is_popup() {
             continue;
         }
         for browser in window.browsers() {
             let due = due(&browser, now, after);
-            if !due.is_empty()
-                && let Err(error) = super::close(&browser, &due)
-            {
-                eprintln!("Wren archived no tabs: {error:?}");
+            if due.is_empty() {
+                continue;
+            }
+            match super::close(&browser, &due) {
+                Ok(()) => count += due.len(),
+                Err(error) => eprintln!("Wren archived no tabs: {error:?}"),
             }
         }
+    }
+    if count > 0 {
+        state.analytics.record(Event::TabsArchived { count });
     }
 }
 

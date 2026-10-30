@@ -1,6 +1,7 @@
 use wren::WebView;
 
 use super::WindowRef;
+use crate::analytics::Event;
 use crate::sidebar::SidebarState;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
@@ -15,9 +16,19 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
     let _ = web_view.handle("sidebar.save", move |saved: SidebarState| {
         let state = weak.state()?;
+        // It is saved as its width is dragged too.
+        let docked = saved.is_docked();
+        let toggled = state
+            .sidebar
+            .load()
+            .is_some_and(|last| last.is_docked() != docked);
         state
             .sidebar
             .save(&saved)
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        if toggled {
+            state.analytics.record(Event::SidebarToggled { docked });
+        }
+        Ok::<_, String>(())
     });
 }

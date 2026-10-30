@@ -1,10 +1,15 @@
 // The user's settings (db/settings.rs), which the Library shows and changes;
 // `settings.changed` tells every window of a change. A shorter time to
-// archive tabs after archives those it makes due at once.
+// archive tabs after archives those it makes due at once. Analytics hears of
+// each setting the user changes, once it may.
+
+use serde::Serialize;
+use serde_json::Value;
 
 use wren::WebView;
 
 use super::WindowRef;
+use crate::analytics::{Event, Setting};
 use crate::app::State;
 use crate::db::{Settings, SettingsChange};
 use crate::tabs::archive;
@@ -17,12 +22,37 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
     let _ = web_view.handle("settings.update", move |change: SettingsChange| {
         let state = weak.state()?;
+        let changed = changed(&change);
         let settings = state.db.update_settings(change)?;
         state.analytics.set_on(settings.share_usage_data);
+        for (setting, value) in changed {
+            state
+                .analytics
+                .record(Event::SettingChanged { setting, value });
+        }
         broadcast_settings(&state, &settings);
         archive::archive_due(&state);
         Ok::<Settings, String>(settings)
     });
+}
+
+// The settings the user changes in `change`, with what each is now. Not the
+// favourites' tip, which the user closes, not chooses.
+fn changed(change: &SettingsChange) -> Vec<(Setting, Value)> {
+    fn value(value: impl Serialize) -> Value {
+        serde_json::to_value(value).unwrap_or_default()
+    }
+    [
+        change
+            .archive_after
+            .map(|after| (Setting::ArchiveAfter, value(after))),
+        change
+            .share_usage_data
+            .map(|on| (Setting::ShareUsageData, value(on))),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 fn broadcast_settings(state: &State, settings: &Settings) {

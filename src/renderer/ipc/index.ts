@@ -2,6 +2,7 @@
 // part of the app, gathered here so pages import from "ipc" alone.
 
 export * from "./ad-block";
+export * from "./analytics";
 export * from "./anchors";
 export * from "./app";
 export * from "./browser";

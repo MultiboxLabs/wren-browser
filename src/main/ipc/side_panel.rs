@@ -2,6 +2,7 @@ use serde::Serialize;
 use wren::{Browser, WebView};
 
 use super::{WindowRef, failed, with_browser};
+use crate::analytics::Event;
 use crate::pages::icons;
 use crate::shell::BrowserWindow;
 
@@ -30,7 +31,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
     let _ = web_view.handle("sidePanel.show", move |id: String| {
         with_browser(&weak, |_, browser| {
-            browser.show_side_panel(&id).map_err(failed)
+            browser.show_side_panel(&id).map_err(failed)?;
+            weak.state()?.analytics.record(Event::SidePanelOpened);
+            Ok(())
         })
     });
 

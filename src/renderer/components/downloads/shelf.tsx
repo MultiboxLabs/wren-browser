@@ -8,7 +8,7 @@
 
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { downloads, hasApp } from "../../ipc";
+import { analytics, downloads, hasApp } from "../../ipc";
 import { useHoldWhile } from "../ui/hold";
 import { lastChanged, newestFirst, useDownloads } from "../../state/downloads";
 import { ago, useNow } from "../../utils/now";
@@ -84,6 +84,7 @@ export function useShelf(visible: boolean) {
   const wasShown = useRef(false);
   useEffect(() => {
     if (wasShown.current && !shown && hasApp) void downloads.shelfDone();
+    if (!wasShown.current && shown && hasApp) analytics.record({ event: "downloads_shelf_opened" }).catch(() => {});
     wasShown.current = shown;
   }, [shown]);
 

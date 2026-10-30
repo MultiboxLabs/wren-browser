@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use wren::{MainThread, WebView};
 
 use super::{self as ipc, WindowRef, failed};
+use crate::analytics::Event;
 use crate::db::avatar;
 
 /// A profile as the Library lists it.
@@ -72,7 +73,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         if !mt.profile_list().iter().any(|profile| profile.id == id) {
             return Err("That profile is gone.".to_owned());
         }
-        weak.state()?.open_window_for_profile(mt, id);
+        let state = weak.state()?;
+        state.open_window_for_profile(mt, id);
+        state.analytics.record(Event::ProfileWindowOpened);
         Ok(())
     });
 

@@ -12,7 +12,9 @@ import { cn } from "../../utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
 import { useProfiles, useSettings, useSpaces } from "../../state/library";
 import { useSpace } from "../../state/space";
+import { analytics } from "../../ipc/analytics";
 import { browser } from "../../ipc/browser";
+import { hasApp } from "../../ipc/app";
 import { type Section, SectionList } from "./sections";
 import { CreateDialog } from "./profile-dialogs";
 import { FilterBar, FilterButton, useDownloadsFilter } from "../downloads/filter";
@@ -62,6 +64,11 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
   const listX = useTransform(() => listShift(steps));
   // Out past the window's edge, it is hidden: its panel's edge would show.
   const railVisibility = useTransform(() => (steps.rail.get() === 0 ? "hidden" : "visible"));
+
+  // Each section shown while it is open.
+  useEffect(() => {
+    if (open && hasApp) analytics.record({ event: "library_opened", section }).catch(() => {});
+  }, [open, section]);
 
   // Escape closes it, as it does a sheet.
   useEffect(() => {

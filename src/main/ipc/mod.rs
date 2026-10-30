@@ -3,6 +3,7 @@
 // app. src/renderer/ipc/ is the page's side; keep the two together.
 
 mod ad_block;
+mod analytics;
 mod anchors;
 mod browser;
 mod downloads;
@@ -81,6 +82,7 @@ impl WindowRef {
 
 pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     window::handle(web_view, window);
+    analytics::handle(web_view, window);
     sidebar::handle(web_view, window);
     settings::handle(web_view, window);
     browser::handle(web_view, window, mt);

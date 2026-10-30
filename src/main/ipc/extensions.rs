@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use wren::{Browser, WebView};
 
 use super::{WindowRef, failed, with_browser};
+use crate::analytics::Event;
 use crate::pages::icons;
 use crate::shell::BrowserWindow;
 
@@ -51,7 +52,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         with_browser(&weak, |_, browser| {
             browser
                 .set_extension_action_pinned(&pin.id, pin.pinned)
-                .map_err(failed)
+                .map_err(failed)?;
+            let pinned = pin.pinned;
+            weak.state()?
+                .analytics
+                .record(Event::ExtensionPinned { pinned });
+            Ok(())
         })
     });
 

@@ -2,6 +2,7 @@ use serde::Serialize;
 use wren::WebView;
 
 use super::{WindowRef, failed, give_back_keyboard, with_window};
+use crate::analytics::Event;
 use crate::db::SpaceId;
 use crate::platform::PageWindow;
 use crate::shell::{BrowserWindow, Place};
@@ -120,7 +121,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     // Brings a space forward in the window; "window.space" follows.
     let weak = window.clone();
     let _ = web_view.handle("window.showSpace", move |space: SpaceId| {
-        weak.state()?.show_space(weak.id, space)
+        let state = weak.state()?;
+        state.show_space(weak.id, space)?;
+        state.analytics.record(Event::SpaceSwitched);
+        Ok::<_, String>(())
     });
 
     // Puts the window on no space, for the user to make one; "window.space"

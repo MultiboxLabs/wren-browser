@@ -6,6 +6,7 @@ use serde::Deserialize;
 use wren::{MainThread, WebView};
 
 use super::WindowRef;
+use crate::analytics::{Event, SpaceField};
 use crate::app::State;
 use crate::db::{NewSpace, SpaceChange, SpaceId, SpaceRow};
 
@@ -46,6 +47,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             return Err("That profile is gone.".to_owned());
         }
         let space = state.db.create_space(&create.profile, create.space)?;
+        let total = state.db.list_spaces()?.len();
+        state.analytics.record(Event::SpaceCreated { total });
         broadcast_spaces(&state);
         Ok::<SpaceRow, String>(space)
     });
@@ -54,7 +57,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("spaces.update", move |update: Update| {
         let state = weak.state()?;
+        let change = &update.change;
+        let fields = [
+            (change.name.is_some(), SpaceField::Name),
+            (change.icon.is_some(), SpaceField::Icon),
+            (change.theme.is_some(), SpaceField::Theme),
+        ];
         let space = state.db.update_space(update.id, update.change)?;
+        for (_, field) in fields.into_iter().filter(|(changed, _)| *changed) {
+            state.analytics.record(Event::SpaceCustomized { field });
+        }
         broadcast_spaces(&state);
         Ok::<SpaceRow, String>(space)
     });
@@ -76,6 +88,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let state = weak.state()?;
         let profile = state.db.space(id)?.ok_or("That space is gone.")?.profile;
         state.db.delete_space(id)?;
+        let total = state.db.list_spaces()?.len();
+        state.analytics.record(Event::SpaceDeleted { total });
         state.leave_gone_spaces(Some(&profile));
         broadcast_spaces(&state);
         Ok::<_, String>(())

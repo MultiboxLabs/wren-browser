@@ -10,6 +10,7 @@ use wren::{
 };
 
 use super::{WindowRef, failed, give_back_keyboard, with_browser, with_window};
+use crate::analytics::{Event, OmniboxPick, OpensIn};
 use crate::pages::icons;
 use crate::shell::BrowserWindow;
 use crate::tabs;
@@ -164,7 +165,13 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("omnibox.shown", move |shown: Option<OmniboxTarget>| {
         with_window(&weak, |window| {
-            window.set_new_tab_omnibox(matches!(shown, Some(OmniboxTarget::NewTab)));
+            let new_tab = matches!(shown, Some(OmniboxTarget::NewTab));
+            window.set_new_tab_omnibox(new_tab);
+            if shown.is_some() {
+                weak.state()?
+                    .analytics
+                    .record(Event::OmniboxOpened { new_tab });
+            }
             Ok(())
         })
     });
@@ -209,6 +216,17 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("omnibox.open", move |open: Open| {
         with_browser(&weak, |window, browser| {
             let (result, index) = (open.chosen.result()?, open.chosen.index);
+            // Read before it opens, which may stop the query.
+            let kind = browser
+                .suggestion(index)
+                .map_or(OmniboxPick::Other, |suggestion| suggestion.kind.into());
+            let opens_in = match open.disposition {
+                Disposition::Current => OpensIn::CurrentTab,
+                Disposition::NewTab => OpensIn::NewTab,
+                Disposition::BackgroundTab => OpensIn::BackgroundTab,
+                Disposition::NewWindow => OpensIn::NewWindow,
+                Disposition::Switch => OpensIn::OpenTab,
+            };
             let opened = match open.disposition {
                 Disposition::Current => {
                     browser.open_suggestion(result, index, OpenDisposition::CurrentTab)
@@ -226,6 +244,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                     browser.open_suggestion(result, index, OpenDisposition::SwitchToTab)
                 }
             };
+            if opened.is_ok() {
+                let chose = Event::OmniboxChose { kind, opens_in };
+                weak.state()?.analytics.record(chose);
+            }
             if matches!(open.disposition, Disposition::BackgroundTab) {
                 return opened.map_err(failed);
             }
@@ -249,6 +271,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             if !(url.starts_with("https://") || url.starts_with("http://")) {
                 return Err("Only a web address opens.".into());
             }
+            let opens_in = match disposition {
+                BangDisposition::Current => OpensIn::CurrentTab,
+                BangDisposition::NewTab => OpensIn::NewTab,
+                BangDisposition::BackgroundTab => OpensIn::BackgroundTab,
+            };
+            let kind = OmniboxPick::Bang;
+            let state = weak.state()?;
+            state
+                .analytics
+                .record(Event::OmniboxChose { kind, opens_in });
             if matches!(disposition, BangDisposition::BackgroundTab) {
                 return browser
                     .add_tab(&url, Some(0), false)

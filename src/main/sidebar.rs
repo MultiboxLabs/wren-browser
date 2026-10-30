@@ -17,6 +17,12 @@ pub struct SidebarState {
     width: f64,
 }
 
+impl SidebarState {
+    pub fn is_docked(&self) -> bool {
+        self.open
+    }
+}
+
 pub struct SidebarStore {
     file: PathBuf,
 }

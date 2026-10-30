@@ -19,7 +19,10 @@ use std::time::{Instant, SystemTime};
 
 use serde_json::{Map, Value, json};
 
-pub use event::{Crash, Event};
+pub use event::{
+    Crash, Event, LibrarySection, OmniboxPick, OpensIn, PinKind, PinTo, Setting, SpaceField,
+    SplitFrom, TabFrom,
+};
 
 use crate::channel::Channel;
 use crate::db::{self, Db};
