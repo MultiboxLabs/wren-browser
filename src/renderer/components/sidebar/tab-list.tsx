@@ -154,9 +154,7 @@ export function TabList({
           data-bounces=""
           className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2 scrollbar-none"
         >
-          {/* Room after the last tab, as the list scrolls to: it does not end at the
-          footer, and a tab can be dropped below the last. */}
-          <div ref={content} className="relative flex flex-col gap-1.25 pb-8">
+          <div ref={content} className="relative flex min-h-full flex-col gap-1.25">
             <PinnedSection pinned={pinned} selected={selected} actions={pinActions} open={pinnedOpen} drop={pinDrop} />
 
             {/* Only between the pins and the tabs: with no pins, the heading needs
@@ -229,6 +227,13 @@ export function TabList({
                 )}
               </AnimatePresence>
             </div>
+            {/* Room after the last tab, as the list scrolls to: it does not
+                end at the footer, and a tab can be dropped below the last.
+                From the last row's edge, over the gap before it, down to the
+                list's bottom while the list is shorter than its room; not a
+                handle for the window, as a double click on it opens a new
+                tab, as New Tab does. */}
+            <div className="no-drag -mt-1.25 min-h-31.25 flex-1" onDoubleClick={() => omnibox.toggle("new-tab")} />
             {mark && <DropMarkView mark={mark} />}
           </div>
         </div>
