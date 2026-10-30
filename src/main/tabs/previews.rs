@@ -1,7 +1,10 @@
 // Pictures of tabs' pages, for the page to draw a tab by where its icon is
 // too little, as the tab switcher does (pages/previews.rs keeps and serves
 // them). Each tab's is taken as it stops being shown, as the user leaves it
-// for another, so what draws them takes none. A tab not yet left has none,
+// for another, and is stale once its page changes after. What draws them
+// asks for one (`request`): a tab with none, a stale one, or the one shown
+// has its picture taken then, in the background too, and the old one stands
+// in until it comes. A tab Chromium has not loaded, or discarded, gives none,
 // and what draws it shows its icon.
 
 use std::cell::RefCell;
@@ -16,9 +19,14 @@ use crate::pages::previews;
 /// points at 2x, such as the tab switcher's, which a split's halves share.
 const SIZE: u32 = 320;
 
+type Taken = Box<dyn FnOnce(Option<String>)>;
+
 thread_local! {
     // Each Browser's active tab, as it was last seen.
     static ACTIVE: RefCell<HashMap<Browser, BrowserTab>> = RefCell::default();
+    // The tabs whose picture is being taken, each with what waits for it:
+    // one picture at a time for a tab, which all who asked get.
+    static TAKING: RefCell<HashMap<BrowserTab, Vec<Taken>>> = RefCell::default();
 }
 
 /// Takes a picture of the tabs `browser` stopped showing, if its active tab
@@ -36,21 +44,30 @@ pub fn follow_active(browser: &Browser) {
     if let Some(split) = split_of(before).and_then(|split| split.state().ok()) {
         left.extend([split.first, split.second].into_iter().flatten());
     }
-    let shown = split_of(now).and_then(|split| split.state().ok());
     for tab in left {
-        let still_shown = tab == now
-            || shown
-                .as_ref()
-                .is_some_and(|split| split.first == Some(tab) || split.second == Some(tab));
-        if !still_shown && tab.browser().as_ref() == Some(browser) {
-            capture(tab);
+        if !is_shown(tab) && tab.browser().as_ref() == Some(browser) {
+            take(tab, Box::new(drop));
         }
     }
 }
 
-/// The ID the tab's picture is served at, if it has one.
-pub fn of(tab: BrowserTab) -> Option<String> {
-    previews::of(tab.id())
+/// Notes that the tab's page changed, so its picture is stale: a new page,
+/// or one done loading.
+pub fn page_changed(tab: BrowserTab) {
+    previews::mark_stale(tab.id());
+}
+
+/// The ID the tab's picture is served at now, if it has one. If it has
+/// none, or it may not be the page as it is (stale, or the tab is shown),
+/// a new one is taken, and `then` gets its ID; or None if the tab gave
+/// none, and keeps the one it had.
+pub fn request(tab: BrowserTab, then: impl FnOnce(Option<String>) + 'static) -> Option<String> {
+    let kept = previews::of(tab.id());
+    let fresh = kept.as_ref().is_some_and(|(_, fresh)| *fresh) && !is_shown(tab);
+    if !fresh {
+        take(tab, Box::new(then));
+    }
+    kept.map(|(name, _)| name)
 }
 
 /// Forgets a Browser's active tab, as it closes.
@@ -58,10 +75,37 @@ pub fn forget(browser: &Browser) {
     ACTIVE.with_borrow_mut(|active| active.remove(browser));
 }
 
+// Whether the tab is on show in its Browser: its active tab, or the other
+// half of its split.
+fn is_shown(tab: BrowserTab) -> bool {
+    let Some(active) = tab.browser().and_then(|browser| browser.active_tab()) else {
+        return false;
+    };
+    tab == active
+        || split_of(active)
+            .and_then(|split| split.state().ok())
+            .is_some_and(|split| split.first == Some(tab) || split.second == Some(tab))
+}
+
 // Takes a picture of the tab's page and keeps it, in place of the one it
-// had. One with none to give (discarded, crashed) keeps the one it had.
-fn capture(tab: BrowserTab) {
+// had, and gives `then` its ID. One being taken already gives `then` that
+// one's. One with none to give (unloaded, discarded, crashed) keeps the one
+// it had.
+fn take(tab: BrowserTab, then: Taken) {
     if placeholder::is_placeholder(tab) {
+        return then(None);
+    }
+    let taking = TAKING.with_borrow_mut(|taking| match taking.get_mut(&tab) {
+        Some(waiting) => {
+            waiting.push(then);
+            true
+        }
+        None => {
+            taking.insert(tab, vec![then]);
+            false
+        }
+    });
+    if taking {
         return;
     }
     let options = CaptureOptions {
@@ -73,8 +117,10 @@ fn capture(tab: BrowserTab) {
         ..Default::default()
     };
     tab.capture(&options, move |image| {
-        if let Ok(image) = image {
-            previews::keep(tab.id(), image.data);
+        let name = image.ok().map(|image| previews::keep(tab.id(), image.data));
+        let waiting = TAKING.with_borrow_mut(|taking| taking.remove(&tab));
+        for then in waiting.unwrap_or_default() {
+            then(name.clone());
         }
     });
 }

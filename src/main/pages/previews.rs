@@ -19,6 +19,8 @@ struct Preview {
     tab: i32,
     name: String,
     jpeg: Vec<u8>,
+    /// The tab's page has changed since (`mark_stale`).
+    stale: bool,
 }
 
 thread_local! {
@@ -27,28 +29,44 @@ thread_local! {
     static NEXT_ID: Cell<u64> = const { Cell::new(0) };
 }
 
-/// Keeps `jpeg` as the picture of tab `tab`, in place of the one it had.
-pub fn keep(tab: i32, jpeg: Vec<u8>) {
+/// Keeps `jpeg` as the picture of tab `tab`, in place of the one it had,
+/// and answers the ID the page asks for it by, at `PATH`.
+pub fn keep(tab: i32, jpeg: Vec<u8>) -> String {
     let number = NEXT_ID.with(|next| next.replace(next.get() + 1));
     let name = format!("{tab}-{number}");
     PREVIEWS.with_borrow_mut(|previews| {
         previews.retain(|preview| preview.tab != tab);
-        previews.push_back(Preview { tab, name, jpeg });
+        previews.push_back(Preview {
+            tab,
+            name: name.clone(),
+            jpeg,
+            stale: false,
+        });
         while previews.len() > CAPACITY {
             previews.pop_front();
         }
     });
+    name
 }
 
 /// The ID the page asks for tab `tab`'s picture by, at `PATH`, if it has
-/// one.
-pub fn of(tab: i32) -> Option<String> {
+/// one, and whether it is still the page as it is.
+pub fn of(tab: i32) -> Option<(String, bool)> {
     PREVIEWS.with_borrow(|previews| {
         previews
             .iter()
             .find(|preview| preview.tab == tab)
-            .map(|preview| preview.name.clone())
+            .map(|preview| (preview.name.clone(), !preview.stale))
     })
+}
+
+/// Notes that tab `tab`'s page has changed since its picture was taken.
+pub fn mark_stale(tab: i32) {
+    PREVIEWS.with_borrow_mut(|previews| {
+        if let Some(preview) = previews.iter_mut().find(|preview| preview.tab == tab) {
+            preview.stale = true;
+        }
+    });
 }
 
 /// The answer to a request for the preview with ID `name`.

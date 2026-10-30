@@ -37,6 +37,14 @@ pub struct Tab {
     hidden: bool,
 }
 
+/// What "tabs.previewChanged" says: a new picture of a tab's page.
+#[derive(Serialize)]
+struct PreviewChanged {
+    tab: i32,
+    /// The ID it is served at (`previewUrl`).
+    preview: String,
+}
+
 /// The address of the link under the pointer in a tab's page, or of the
 /// link with the keyboard, which the page shows over it ("tab.status").
 #[derive(Serialize)]
@@ -158,13 +166,22 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
-    // The ID the tab's picture is served at (`previewUrl`), as it was when
-    // last left for another tab (tabs/previews.rs); null for one not left
-    // yet.
+    // The ID the tab's picture is served at now (`previewUrl`), or null for
+    // none (tabs/previews.rs). If it has none, or it may be out of date, a
+    // new one is taken, and "tabs.previewChanged" says so once it is.
     let weak = window.clone();
     let _ = web_view.handle("tabs.preview", move |id: i32| {
         with_browser(&weak, |_, browser| {
-            Ok(tabs::previews::of(tab(mt, browser, id)?))
+            let asking = weak.clone();
+            let taken = move |preview: Option<String>| {
+                let Some(preview) = preview else { return };
+                let _ = with_window(&asking, |window| {
+                    let changed = PreviewChanged { tab: id, preview };
+                    let _ = window.page.web_view.send("tabs.previewChanged", &changed);
+                    Ok(())
+                });
+            };
+            Ok(tabs::previews::request(tab(mt, browser, id)?, taken))
         })
     });
 

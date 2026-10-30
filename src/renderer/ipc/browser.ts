@@ -23,6 +23,9 @@ export type BrowserTab = {
 /** The address of the link under the pointer in a tab's page, or of the link with the keyboard; null for none. */
 export type TabStatus = { tab: number; link: string | null };
 
+/** A new picture of a tab's page: the ID it is served at (`previewUrl`). */
+export type TabPreviewChanged = { tab: number; preview: string };
+
 /** The tabs of the window's Browser in front, in its order, and which is active. */
 export type BrowserTabs = {
   /** The Browser's ID, which names its side panel's element; null while the window's space has no Browser. */
@@ -64,8 +67,11 @@ export const browser = {
   /** Puts the active tab's address on the clipboard. */
   copyLink: () => wren.invoke<null>("tabs.copyLink"),
   activate: (id: number) => wren.invoke<null>("tabs.activate", id),
-  /** A picture of the tab's page as it was when last left for another tab: the ID it is served at (`previewUrl`), or null for a tab not left yet. */
+  /** A picture of the tab's page as the app has it now: the ID it is served at (`previewUrl`), or null for none. One that may be out of date, or none, is taken again, and `onPreviewChanged` says once it is. */
   preview: (id: number) => wren.invoke<string | null>("tabs.preview", id),
+  /** A new picture of a tab's page, taken as `preview` asked. */
+  onPreviewChanged: (listener: (changed: TabPreviewChanged) => void) =>
+    wren.on<TabPreviewChanged>("tabs.previewChanged", listener),
   close: (id: number) => wren.invoke<null>("tabs.close", id),
   /**
    * Moves a unit so its first tab is at an index among all the tabs. A moved

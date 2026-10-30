@@ -194,18 +194,30 @@ function Card({
   );
 }
 
-/** A picture of the tab's page as it was last left: its icon for a tab with none, until the picture's ID comes, or if it fails to load. */
+/**
+ * A picture of the tab's page: the one the app has, until a new one it takes
+ * comes, as it does for one out of date or the tab shown. Its icon while
+ * there is none, or if it fails to load.
+ */
 function TabPreview({ tab, iconSize }: { tab: BrowserTabWithFavicon; iconSize: number }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!hasApp) return;
     let current = true;
+    // A new picture outranks the answer, should it come first.
+    let changed = false;
+    const off = browser.onPreviewChanged((change) => {
+      if (change.tab !== tab.id) return;
+      changed = true;
+      setUrl(previewUrl(change.preview));
+    });
     browser
       .preview(tab.id)
-      .then((id) => current && id !== null && setUrl(previewUrl(id)))
+      .then((id) => current && !changed && id !== null && setUrl(previewUrl(id)))
       .catch(() => {});
     return () => {
       current = false;
+      off();
     };
   }, [tab.id]);
   return (

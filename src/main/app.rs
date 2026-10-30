@@ -347,10 +347,17 @@ impl App for Wren {
                 // A placeholder goes, or stays, as the tabs change, and the
                 // pins' links follow them; undocked DevTools shows its
                 // active tab. A tab left for another has its picture taken,
-                // for the tab switcher.
+                // and one whose page changes has it go stale.
                 ChangeKind::Tabs | ChangeKind::Tab | ChangeKind::Split => {
                     placeholder::settle(browser);
                     tabs::previews::follow_active(browser);
+                    if let Some(tab) = change.tab
+                        && change
+                            .tab_fields
+                            .intersects(TabFields::URL | TabFields::LOADING)
+                    {
+                        tabs::previews::page_changed(tab);
+                    }
                     if pins::follow_tab_changes(state, browser)
                         && let Some(window) = state.windows.of(browser)
                         && window.browser().as_ref() == Some(browser)
