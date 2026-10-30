@@ -4,13 +4,13 @@
 // for another, and is stale once its page changes after. What draws them
 // asks for one (`request`): a tab with none, a stale one, or the one shown
 // has its picture taken then, in the background too, and the old one stands
-// in until it comes. A tab Chromium has not loaded, or discarded, gives none,
-// and what draws it shows its icon.
+// in until it comes. A discarded or crashed tab has no page, so none is
+// taken. What draws a tab with none shows its icon.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use wren::{Browser, BrowserTab, CaptureOptions, ImageFormat};
+use wren::{Browser, BrowserTab, CaptureOptions, ImageFormat, TabCrash};
 
 use super::{placeholder, split_of};
 use crate::pages::previews;
@@ -75,6 +75,15 @@ pub fn forget(browser: &Browser) {
     ACTIVE.with_borrow_mut(|active| active.remove(browser));
 }
 
+// Whether a picture of the tab may be taken: it has a page, not discarded
+// or crashed.
+fn can_take(tab: BrowserTab) -> bool {
+    !placeholder::is_placeholder(tab)
+        && tab
+            .state()
+            .is_ok_and(|state| !state.discarded && state.crash == TabCrash::None)
+}
+
 // Whether the tab is on show in its Browser: its active tab, or the other
 // half of its split.
 fn is_shown(tab: BrowserTab) -> bool {
@@ -89,10 +98,10 @@ fn is_shown(tab: BrowserTab) -> bool {
 
 // Takes a picture of the tab's page and keeps it, in place of the one it
 // had, and gives `then` its ID. One being taken already gives `then` that
-// one's. One with none to give (unloaded, discarded, crashed) keeps the one
-// it had.
+// one's. One that may not be taken (`can_take`), or gives none, keeps the
+// one it had.
 fn take(tab: BrowserTab, then: Taken) {
-    if placeholder::is_placeholder(tab) {
+    if !can_take(tab) {
         return then(None);
     }
     let taking = TAKING.with_borrow_mut(|taking| match taking.get_mut(&tab) {
