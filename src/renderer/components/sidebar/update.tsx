@@ -188,7 +188,7 @@ function Complete({ update, cover }: { update: Update; cover: MotionValue<number
           <Row
             icon={<Sparkles size={14} strokeWidth={1.75} fill="currentColor" />}
             className="text-(--update-accent)"
-            onClick={() => go(`${REPOSITORY}/releases/tag/v${update.installed}`)}
+            onClick={() => go(`https://wrenbrowser.com/releases/${update.installed}`)}
           >
             See What’s New
           </Row>

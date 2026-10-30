@@ -1,6 +1,6 @@
 # Publishing a release
 
-Wren updates itself with [Sparkle](https://sparkle-project.org) 2. A release goes on this repository's GitHub releases, and every Stable and Beta build finds it through the feed at `https://wrenbrowser.com/appcast.xml`. One command does all of it:
+Wren updates itself with [Sparkle](https://sparkle-project.org) 2. A release goes on this repository's GitHub releases, and every Stable and Beta build finds it through the feed at `https://wrenbrowser.com/appcast.xml`. One command makes the release, and adding it to the site offers it to people:
 
 ```sh
 bun run publish --version 1.2.0
@@ -10,7 +10,7 @@ bun run publish --version 1.2.0
 
 1. `bun run publish` builds `Wren.app`, signs it with the Developer ID, notarises it, zips it, and signs the zip with Sparkle's private key. The result is `Wren-<version>.zip` and `Wren-<version>.json`, which holds the signature.
 2. Both go on a GitHub release tagged `v<version>`. The release is a draft until both are uploaded, and is published after that.
-3. The site builds `appcast.xml` from the repository's releases, refreshed every five minutes. A release is listed once it is published and has both files. A draft is never listed.
+3. The site's `src/app/releases/releases.ts` lists the releases by hand, and builds `appcast.xml` and each release's notes page from that list. A release is offered once its entry is added and the site has deployed.
 4. Each copy of Wren checks the feed once a day, and when **Check for Updates…** is chosen or Settings opens. With **Automatic Updates** on, it downloads a new version out of sight and shows the sidebar's card once it is ready. With it off, the card offers the update first. Restarting from the card installs it. Quitting installs it too, without opening Wren again.
 
 Sparkle shows no window of its own at any point. The app draws all of it: see `src/main/updates.rs` and `src/main/platform/macos/updater/`.
@@ -69,6 +69,7 @@ Then it:
 3. Zips the app into `target/publish/Wren-<version>.zip`, signs it with `sign_update --account wren`, and writes `target/publish/Wren-<version>.json`.
 4. Commits `chore: release <version>`, tags `v<version>`, and pushes `main` and the tag.
 5. Creates the GitHub release as a draft, with generated notes, uploads the zip and the `.json`, and publishes it. A stable release becomes GitHub's latest release. A beta is a prerelease, and never the latest.
+6. Prints the entry for the site's `releases.ts`. Add it to the top of the list, write its notes, and push the site.
 
 If anything fails before the commit, the manifests are put back. A dry run stops before the commit too: it puts the manifests back and leaves the zip and the `.json` in `target/publish/` to inspect. Notarisation still happens, so a dry run is a full check of the signing setup.
 
@@ -83,7 +84,7 @@ Frameworks/bin/sign_update --account wren --verify target/publish/Wren-1.2.0.zip
 
 ## Versions and builds
 
-The version people see is `CFBundleShortVersionString`: `1.2.0`, or `1.2.0-beta.1` for a beta. The tag is `v` and the version, which the Update Complete! card's See What's New links to.
+The version people see is `CFBundleShortVersionString`: `1.2.0`, or `1.2.0-beta.1` for a beta. The tag is `v` and the version. The Update Complete! card's See What's New links to `https://wrenbrowser.com/releases/<version>`.
 
 Sparkle compares the build, `CFBundleVersion`. The script derives it from the version:
 
@@ -113,11 +114,11 @@ Dev builds have no feed, and so no updater, and Check for Updates… is greyed o
 
 ## Pulling a bad release
 
-Make the release a draft again on GitHub. The feed drops it within five minutes, and no copy is offered it any more. Copies that already installed it stay on it, so publish a fixed version with a higher number.
+Remove its entry from the site's `releases.ts` and push. Once the site has deployed, no copy is offered it any more. Its notes page goes too. Copies that already installed it stay on it, so publish a fixed version with a higher number.
 
 ## The feed
 
-The feed is built by the site (the wrenbrowser.com repository), not this one. For each published release with both assets, it writes one item from the `.json`:
+The feed is built by the site (the wrenbrowser.com repository), not this one. It writes one item for each entry in `releases.ts`, whose fields are copied from the `.json`, plus a `date` and `notes`:
 
 ```json
 {
@@ -138,8 +139,8 @@ The feed is built by the site (the wrenbrowser.com repository), not this one. Fo
 | `enclosure` `sparkle:edSignature`, `length` | `edSignature`, `length`                     |
 | `sparkle:minimumSystemVersion`              | `minimumSystemVersion`                      |
 | `sparkle:hardwareRequirements`              | `hardwareRequirements` (Apple silicon only) |
-| `<sparkle:channel>beta</sparkle:channel>`   | the release is a prerelease                 |
-| `sparkle:fullReleaseNotesLink`              | the release's GitHub page                   |
+| `<sparkle:channel>beta</sparkle:channel>`   | the version has `-beta` in it               |
+| `sparkle:fullReleaseNotesLink`              | the release's page on wrenbrowser.com       |
 
 ## Testing an update locally
 

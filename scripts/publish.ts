@@ -1,9 +1,8 @@
 // Publishes a release: builds Wren.app for its channel, signed with a
 // Developer ID and notarised, zips and signs it for Sparkle, and puts it on
-// GitHub Releases. wrenbrowser.com/appcast.xml, the feed every build checks,
-// lists each published release that has both the zip and its `.json`, which
-// holds Sparkle's signature: a draft never shows, so the release is
-// published last, once both are up.
+// GitHub Releases. Nobody is offered it yet: wrenbrowser.com/appcast.xml, the
+// feed every build checks, lists what is in the site's `releases.ts`, so this
+// ends by printing the entry to add there.
 //
 //   bun run publish --version 1.2.0           a stable release
 //   bun run publish --version 1.2.0-beta.1    a beta, a prerelease on GitHub
@@ -143,8 +142,8 @@ await $`git commit -m ${`chore: release ${shortVersion}`} -- ${MANIFESTS}`;
 await $`git tag ${tag}`;
 await $`git push origin main ${tag}`;
 
-// A draft first, with both files, then published: the feed lists it from
-// then on. Stable is GitHub's latest; a beta never is.
+// A draft first, with both files, then published, so that the release is never
+// out with a file missing. Stable is GitHub's latest; a beta never is.
 const prerelease = channel === "beta" ? ["--prerelease"] : [];
 await $`gh release create ${tag} -R ${REPOSITORY} --draft --verify-tag --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
 await $`gh release upload ${tag} -R ${REPOSITORY} ${zip} ${json}`;
@@ -152,4 +151,13 @@ const latest = channel === "stable" ? "--latest" : "--latest=false";
 await $`gh release edit ${tag} -R ${REPOSITORY} --draft=false ${latest}`;
 
 const url = (await $`gh release view ${tag} -R ${REPOSITORY} --json url --jq .url`.text()).trim();
-console.log(`\nPublished ${url}\nwrenbrowser.com/appcast.xml lists it within five minutes.`);
+const entry = {
+  ...JSON.parse(await Bun.file(json).text()),
+  date: new Date().toISOString().slice(0, 10),
+  notes: []
+};
+console.log(`\nPublished ${url}`);
+console.log(
+  `\nTo offer it, add this to the top of \`releases\` in the site's src/app/releases/releases.ts, write its notes, and push:\n`
+);
+console.log(`${JSON.stringify(entry, null, 2)},`);
