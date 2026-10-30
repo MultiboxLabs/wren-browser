@@ -14,5 +14,6 @@
     "SUScheduledCheckInterval": 86400,
     "SUFeedURL": "https://wrenbrowser.com/appcast.xml",
     "SUPublicEDKey": "kEZrQqbLLPVKtljsOUhqiv5nxePqryA63mGLClcYy10="
-  }
+  },
+  "build": "10099"
 }
