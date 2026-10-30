@@ -7,13 +7,15 @@
 // - open.rs: opening windows, and where each Browser goes;
 // - popup.rs: the windows of popups;
 // - switch.rs: switching a window between its spaces;
-// - session.rs: keeping the windows, so each comes back as it was.
+// - session.rs: keeping the windows, so each comes back as it was;
+// - request.rs: what Chromium asks of a window, done.
 //
 // What a window is, and holds, is shell/'s: `BrowserWindow`
 // (shell/browser.rs), and the platform's window round its page.
 
 mod open;
 mod popup;
+mod request;
 mod session;
 mod switch;
 

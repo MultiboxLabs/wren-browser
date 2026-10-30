@@ -343,7 +343,7 @@ impl State {
             let _ = browser.close();
             return false;
         };
-        self.host(&window, place, browser);
+        self.host_as_requested(&window, place, browser);
         true
     }
 
@@ -356,5 +356,17 @@ impl State {
             self.update_title(window);
         }
         self.save_window(window);
+    }
+
+    // Shows a Browser Chromium opened or restored, as `host` does, in the
+    // state Chromium wants its window in.
+    pub(super) fn host_as_requested(
+        &self,
+        window: &BrowserWindow,
+        place: Place,
+        browser: &Browser,
+    ) {
+        self.host(window, place, browser);
+        self.start_as_requested(window, browser);
     }
 }

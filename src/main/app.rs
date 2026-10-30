@@ -8,7 +8,7 @@ use std::rc::Rc;
 use wren::{
     App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
     PopoverRequest, PopoverTrigger, Profile, ProfileExtensionsRequest, ProfileKind, QuitPrompt,
-    TabFields,
+    TabFields, WindowRequest,
 };
 
 use crate::analytics::{self, Analytics, Event};
@@ -554,6 +554,12 @@ impl App for Wren {
             }
         });
         true
+    }
+
+    // Chromium asks for a Browser's window to move, resize, minimise, zoom
+    // or come back to normal (windows/request.rs).
+    fn window_request(&self, _: MainThread, browser: Browser, request: WindowRequest) {
+        self.state.answer_window_request(&browser, request);
     }
 
     // ⌘Q warns in the page of the window in front, in place of Chromium's

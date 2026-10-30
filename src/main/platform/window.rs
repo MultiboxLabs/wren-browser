@@ -6,7 +6,7 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use wren::{Browser, MainThread, RequestedBounds, TabCrash, WebView};
+use wren::{Browser, MainThread, RequestedBounds, TabCrash, WebView, WindowState};
 
 use super::current;
 
@@ -188,6 +188,13 @@ impl PageWindow {
     /// already or going to be.
     pub fn set_full_screen(&self, full_screen: bool) {
         self.native.set_full_screen(full_screen);
+    }
+
+    /// Minimises the window, zooms it to fill its screen as its zoom button
+    /// does, or brings it back to neither, out of full screen too. Zoomed,
+    /// a window in full screen stays so.
+    pub fn set_state(&self, state: WindowState) {
+        self.native.set_state(state);
     }
 
     /// Draws what shows through the page as in use or not, as the page

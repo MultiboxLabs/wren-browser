@@ -59,7 +59,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
     let _ = web_view.handle("window.show", move |()| {
         with_window(&weak, |window| {
-            window.page.show();
+            window.show();
             weak.state()?.analytics.window_shown();
             Ok(())
         })

@@ -15,7 +15,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use serde::Serialize;
-use wren::{Browser, BubbleAnchor};
+use wren::{Browser, BubbleAnchor, RequestedBounds, WindowState};
 
 use super::Place;
 use super::tag::Tag;
@@ -86,6 +86,14 @@ pub struct BrowserWindow {
     // Whether the window went full screen for a page, and comes back once
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
+    // Where Chromium asked the window to be while it was full screen, to go
+    // once it is back (windows/request.rs).
+    frame_after_full_screen: Cell<Option<RequestedBounds>>,
+    // Chromium wants the window minimised once it is shown: a Browser it
+    // opened or restored so (windows/request.rs).
+    minimized_when_shown: Cell<bool>,
+    // The page has drawn, and the window been shown (ipc/window.rs).
+    shown: Cell<bool>,
     // The downloads the page was told of last (ipc/downloads.rs), the
     // shelf's and the history, so the same list is not sent again; None
     // until it has been told any.
@@ -117,6 +125,9 @@ impl BrowserWindow {
             new_tab_omnibox: Cell::default(),
             omnibox_query: RefCell::default(),
             full_screen_for_page: Cell::default(),
+            frame_after_full_screen: Cell::default(),
+            minimized_when_shown: Cell::default(),
+            shown: Cell::default(),
             downloads_sent: RefCell::default(),
             history_sent: RefCell::default(),
             popup,
@@ -252,6 +263,37 @@ impl BrowserWindow {
         self.closing.set(true);
         for browser in self.browsers() {
             let _ = browser.close();
+        }
+    }
+
+    /// Moves and sizes the window to `frame`, as Chromium asked; in full
+    /// screen, once it has left it, as its frame is the screen's until then.
+    pub fn move_to(&self, frame: RequestedBounds) {
+        if self.page.is_full_screen() {
+            self.frame_after_full_screen.set(Some(frame));
+            self.page.set_full_screen(false);
+        } else {
+            self.page.restore_frame(frame);
+        }
+    }
+
+    /// Shows the window as the page has drawn it, the first time: minimised
+    /// if Chromium wants it so.
+    pub fn show(&self) {
+        self.page.show();
+        self.shown.set(true);
+        if self.minimized_when_shown.take() {
+            self.page.set_state(WindowState::Minimized);
+        }
+    }
+
+    /// Minimises the window as Chromium wants for a Browser it opened or
+    /// restored so: now if it is shown, else as it is.
+    pub fn minimize_when_shown(&self) {
+        if self.shown.get() {
+            self.page.set_state(WindowState::Minimized);
+        } else {
+            self.minimized_when_shown.set(true);
         }
     }
 
@@ -448,10 +490,14 @@ impl BrowserWindow {
     }
 
     /// Tells the Browsers the window has gone full screen or come back, once
-    /// it has. Coming back takes their pages out of it too.
+    /// it has. Coming back takes their pages out of it too, and puts the
+    /// window where Chromium asked it to be meanwhile (`move_to`).
     pub fn full_screen_finished(&self, full_screen: bool) {
         if !full_screen {
             self.full_screen_for_page.set(false);
+            if let Some(frame) = self.frame_after_full_screen.take() {
+                self.page.restore_frame(frame);
+            }
         }
         for slot in self.places.borrow().values() {
             if let Slot::Open(browser) = slot {

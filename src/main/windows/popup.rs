@@ -68,6 +68,6 @@ impl State {
             requested.and_then(|bounds| bounds.origin),
             near.as_ref().map(|near| &near.page),
         );
-        self.host(&window, place, &browser);
+        self.host_as_requested(&window, place, &browser);
     }
 }

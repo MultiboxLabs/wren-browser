@@ -3,6 +3,7 @@
 //
 // - frame.rs: where the window is and how large;
 // - full_screen.rs: going full screen and coming back;
+// - state.rs: minimised, zoomed or neither;
 // - delegate.rs: the window's delegate, which hears its close button;
 // - title_bar.rs: the close, minimise and zoom buttons, which the page places;
 // - devtools.rs: the window of Chromium's undocked DevTools;
@@ -13,6 +14,7 @@ mod devtools;
 mod frame;
 mod full_screen;
 mod key_window;
+mod state;
 mod title_bar;
 
 use std::cell::{Cell, RefCell};

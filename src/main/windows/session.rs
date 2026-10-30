@@ -138,7 +138,7 @@ impl State {
             return false;
         }
         placeholder::adopt(browser);
-        self.host(&window, place, browser);
+        self.host_as_requested(&window, place, browser);
         true
     }
 
