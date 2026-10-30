@@ -17,6 +17,13 @@ import { PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pins";
 
 type PagePin = Exclude<Pin, PinFolder>;
 
+/** A pin's row in the menu: its title and when it was used, one over the other. */
+const ROW_HEIGHT = 38;
+/** How many rows the menu shows before it scrolls. */
+const ROWS_SHOWN = 6;
+/** The list's padding (`p-1`), above and below its rows. */
+const LIST_PADDING = 4;
+
 // When a pin was last used, as the menu says it: "Just now", then "2
 // minutes ago", "1 week ago".
 const lastUsed = (time: number, now: number) => (now - time < 60_000 ? "Just now" : ago(time, now, true));
@@ -132,7 +139,13 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
       {shown.length === 0 ? (
         <div className="px-3 py-2.5 text-fg-3">No Pins</div>
       ) : (
-        <div ref={list} role="listbox" aria-label={folder.name} className="flex max-h-80 flex-col overflow-y-auto p-1">
+        <div
+          ref={list}
+          role="listbox"
+          aria-label={folder.name}
+          style={{ maxHeight: ROWS_SHOWN * ROW_HEIGHT + 2 * LIST_PADDING }}
+          className="flex flex-col overflow-y-auto p-1"
+        >
           {shown.map((pin, index) => (
             <MenuPin
               key={pin.id}
@@ -171,7 +184,8 @@ function MenuPin({
       aria-selected={highlighted}
       onPointerMove={onHover}
       onClick={onOpen}
-      className={cn("flex shrink-0 items-center gap-2.5 rounded-control px-2 py-1", highlighted && "bg-fg/8")}
+      style={{ height: ROW_HEIGHT }}
+      className={cn("flex shrink-0 items-center gap-2.5 rounded-control px-2", highlighted && "bg-fg/8")}
     >
       <PinPageIcon page={pinPages(pin)[0]} open={open[0]} />
       <div className="flex min-w-0 flex-col gap-0.5">
