@@ -199,6 +199,10 @@ impl PageWindow {
         show(&self.window);
     }
 
+    pub fn hide(&self) {
+        self.window.orderOut(None);
+    }
+
     // The Window menu, the Dock and Mission Control show the title.
     pub fn set_title(&self, title: &str) {
         self.window.setTitle(&NSString::from_str(title));

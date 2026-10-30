@@ -557,6 +557,15 @@ impl App for Wren {
         ipc::show_quit_prompt(&self.state, mt, prompt)
     }
 
+    // The quit can no longer be cancelled: every window goes off the screen
+    // now, before Chromium closes its Browsers, which would empty it one
+    // space at a time. Each is still kept, to come back at the next launch.
+    fn quit_committed(&self, _: MainThread) {
+        for window in self.state.windows.all() {
+            window.page.hide();
+        }
+    }
+
     // Each window open now comes back where it is.
     fn will_quit(&self, _: MainThread) {
         for window in self.state.windows.all() {

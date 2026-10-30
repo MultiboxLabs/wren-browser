@@ -88,6 +88,12 @@ impl PageWindow {
         self.native.show();
     }
 
+    /// Takes the window off the screen, as the app quits; it keeps its
+    /// frame.
+    pub fn hide(&self) {
+        self.native.hide();
+    }
+
     /// Names the window, as the platform's window lists show it; the title
     /// bar does not, as it is the page's.
     pub fn set_title(&self, title: &str) {
