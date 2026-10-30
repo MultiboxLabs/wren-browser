@@ -194,7 +194,7 @@ function Card({
   );
 }
 
-/** A picture of the tab's page, taken as the card shows: its icon until the picture comes, and for a tab with none. */
+/** A picture of the tab's page, taken as the card shows: its icon until the picture comes, and for a tab with none or one that fails to load. */
 function TabPreview({ tab, iconSize }: { tab: BrowserTabWithFavicon; iconSize: number }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -211,7 +211,7 @@ function TabPreview({ tab, iconSize }: { tab: BrowserTabWithFavicon; iconSize: n
   return (
     <span className="grid min-h-0 min-w-0 flex-1 place-items-center overflow-hidden bg-omnibox-tile">
       {url ? (
-        <img aria-hidden src={url} className="size-full object-cover object-top" />
+        <img aria-hidden src={url} onError={() => setUrl(null)} className="size-full object-cover object-top" />
       ) : (
         <Favicon url={tab.url} title={tab.title} icon={tab.favicon} size={iconSize} />
       )}
