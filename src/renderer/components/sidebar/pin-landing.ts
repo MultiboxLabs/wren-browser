@@ -29,6 +29,9 @@ export type PinLanding =
 const TOP: PinTarget = { parent: null };
 const FAVORITES: PinTarget = { favorites: true };
 
+/** First among the space's pins: where a drop on the space's heading lands, which lights it up. */
+export const pinsFirst = (): PinLanding => ({ kind: "place", to: TOP, index: 0 });
+
 /** The lines between spans along one axis, in order, and past the first and the last by half `gap`. */
 function linesBetween(spans: [start: number, end: number][], gap: number) {
   const between = spans.slice(1).map(([start], at) => (spans[at][1] + start) / 2);
@@ -65,11 +68,10 @@ function placedIn(section: HTMLElement, pins: Pin[], held: number | undefined, u
 
 /**
  * Where a drag at a point, in the page's coordinates, would land among the
- * space's pins in `section`. On the space's heading, or with no pins drawn,
- * it goes first. A lone tab on the middle of a tab pin's row makes a split
- * with it. On the middle of a folder's row it goes in, first if it is open
- * and last if not. Otherwise it goes in the nearest place between the
- * rows; past a folder's last, it stays in the folder or leaves it (and the
+ * space's pins in `section`. With no pins drawn, it goes first. A lone tab
+ * on the middle of a tab pin's row makes a split with it. On the middle of
+ * a folder's row it goes in, first if it is open and last if not. Otherwise
+ * it goes in the nearest place between the rows; past a folder's last, it stays in the folder or leaves it (and the
  * folders around) by how far in the held pin is, as they are indented; what
  * comes from elsewhere leaves them.
  */
@@ -80,9 +82,8 @@ export function pinsLandingAt(
   x: number,
   y: number
 ): PinLanding | null {
-  const heading = section.querySelector("[data-pin-heading]")?.getBoundingClientRect();
   const rows = placedIn(section, pins, held?.id);
-  if (!rows.length || (heading && y < heading.bottom)) return { kind: "place", to: TOP, index: 0 };
+  if (!rows.length) return pinsFirst();
   const content = section.getBoundingClientRect();
   const mine = held && rows.find((row) => row.pin.id === held.id);
 
