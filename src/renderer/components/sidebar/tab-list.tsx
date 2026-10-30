@@ -151,6 +151,7 @@ export function TabList({
           ref={scroller}
           // Scrolled by the performance run (perf/run.ts).
           data-tab-list=""
+          data-bounces=""
           className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2 scrollbar-none"
         >
           {/* Room after the last tab, as the list scrolls to: it does not end at the

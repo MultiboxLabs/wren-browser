@@ -342,6 +342,21 @@ body,
   overscroll-behavior: none;
 }
 
+/* A list that rubber-bands at its ends, as the system's do
+   (`data-bounces`). Chromium takes a list's rubber banding from the root's
+   overscroll-behavior, not the list's own, so the root allows it while the
+   pointer is over one. The list keeps every scroll that starts on it
+   (`contain`), so none reaches the root then, which would bounce the
+   window. One that starts with the list already at its end does not
+   bounce, as Chromium takes a list that keeps it there for one that
+   allows none. */
+:root[data-scheme] [data-bounces] {
+  overscroll-behavior-y: contain;
+}
+:root[data-scheme]:has([data-bounces]:hover) {
+  overscroll-behavior-y: auto;
+}
+
 /* The platform's own text smoothing, as native apps get: on macOS the
    system's font smoothing, which thickens strokes slightly. "antialiased"
    would draw every word thinner than the apps around it. */
