@@ -203,6 +203,8 @@ body,
      card it opens into. */
   --update-edge: rgb(0 0 0 / 0.08);
   --update-card: color-mix(in oklab, var(--space) 3%, white);
+  /* What stands out of the card: what is new in an installed version. */
+  --update-accent: oklch(from var(--space) 0.58 calc(c * 1.5) h);
   /* The hairline where the sidebar's list is cut off, while it goes on
      below (sidebar/list-edge.ts). */
   --list-edge: rgb(0 0 0 / 0.06);
@@ -255,6 +257,7 @@ body,
   --separator: rgb(255 255 255 / 0.15);
   --update-edge: rgb(255 255 255 / 0.18);
   --update-card: color-mix(in oklab, var(--space) 10%, rgb(10 10 12));
+  --update-accent: oklch(from var(--space) 0.74 calc(c * 1.4) h);
   --list-edge: rgb(255 255 255 / 0.08);
   --switch-off: rgb(255 255 255 / 0.25);
   /* Lighter than the window, in dark. */
