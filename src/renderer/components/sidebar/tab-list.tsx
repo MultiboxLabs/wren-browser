@@ -15,7 +15,7 @@ import { type Tab, useSpace } from "../../state/space";
 import { cn } from "../../utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { useGroupKeys, useRowKeys } from "./keys";
-import { useListBelow } from "./list-edge";
+import { useListEdges } from "./list-edge";
 import { useTabReorder } from "./reorder";
 import { useRevealActive } from "./reveal";
 import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
@@ -94,7 +94,7 @@ export function TabList({
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   useRevealActive(scroller, current?.id);
-  useListBelow(scroller, content);
+  const { above } = useListEdges(scroller, content);
   const selected = newTabOpen ? undefined : current?.id;
   const actions: ListActions = {
     splits,
@@ -117,91 +117,105 @@ export function TabList({
   const props: ListProps = { ...actions, selected };
 
   return (
-    <div
-      {...handlers}
-      ref={scroller}
-      // Scrolled by the performance run (perf/run.ts).
-      data-tab-list=""
-      className="-mr-2 mt-1.75 min-h-0 flex-1 overflow-y-auto pr-2 scrollbar-none"
-    >
-      {/* Room after the last tab, as the list scrolls to: it does not end at the
+    // Over the list's top, where it is cut off, a hairline while any of it is
+    // scrolled away above, as wide as the one at its bottom (sidebar.tsx).
+    <div className="relative mt-1.75 flex min-h-0 flex-1 flex-col">
+      <div
+        className={cn(
+          "pointer-events-none absolute -inset-x-[7px] top-0 z-10 h-px bg-(--list-edge) transition-opacity duration-150",
+          above ? "opacity-100" : "opacity-0"
+        )}
+      />
+      <div
+        {...handlers}
+        ref={scroller}
+        // Scrolled by the performance run (perf/run.ts).
+        data-tab-list=""
+        className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2 scrollbar-none"
+      >
+        {/* Room after the last tab, as the list scrolls to: it does not end at the
           footer, and a tab can be dropped below the last. */}
-      <div ref={content} className="relative flex flex-col gap-1.25 pb-8">
-        <PinnedSection
-          pinned={pinned}
-          selected={selected}
-          actions={pinActions}
-          open={pinnedOpen}
-          onToggle={togglePinned}
-        />
+        <div ref={content} className="relative flex flex-col gap-1.25 pb-8">
+          <PinnedSection
+            pinned={pinned}
+            selected={selected}
+            actions={pinActions}
+            open={pinnedOpen}
+            onToggle={togglePinned}
+          />
 
-        {/* Only between the pins and the tabs: with no pins, the heading needs
+          {/* Only between the pins and the tabs: with no pins, the heading needs
             none. It comes and goes as a row does, from nothing: as it does,
             it takes back the list's gap after it, which its own room makes
             up once it is in. */}
-        <AnimatePresence initial={false}>
-          {pinned.length > 0 && (
-            <Appear key="separator" className="-mb-1.25">
-              <div className="px-2.5 pt-1.75 pb-3">
-                <div className="h-px bg-separator" />
-              </div>
-            </Appear>
-          )}
-        </AnimatePresence>
-
-        <Row selected={newTabOpen} className={cn(!newTabOpen && "text-fg-3")} onPress={() => omnibox.toggle("new-tab")}>
-          <Plus size={14} strokeWidth={2} className={cn("mx-px", newTabOpen ? "glyph-1" : "glyph-3")} />
-          New Tab
-        </Row>
-
-        {/* Each tab brings its gap with it, so the list's gap goes from
-            under the first. */}
-        <div data-tab-rows="" className="-mt-1.25 flex flex-col">
-          {/* No row's layout is motion's to animate, so a row coming or going
-              need not draw every other row again. */}
-          <AnimatePresence initial={false} presenceAffectsLayout={false}>
-            {entries(tabs, tabGroups).map((entry) =>
-              entry.group ? (
-                <Appear key={`group-${groupKey(entry.group.id)}`}>
-                  <div
-                    {...reorderUnit({
-                      kind: "group",
-                      tab: Number(entry.tabs[0].id),
-                      scope: TOP_SCOPE,
-                      start: entry.start,
-                      size: entry.tabs.length,
-                      group: entry.group.id,
-                      // Not while its title is edited, which a drag would take.
-                      draggable: renaming !== entry.group.id
-                    })}
-                    className="pt-1.25"
-                  >
-                    <GroupRows
-                      rowKey={rowKey}
-                      actions={actions}
-                      selected={selected}
-                      group={entry.group}
-                      members={entry.tabs}
-                      start={entry.start}
-                    />
-                  </div>
-                </Appear>
-              ) : (
-                rows(entry.tabs, splits, entry.start).map((row) => (
-                  <UnitRow
-                    key={rowKey(inOrder(row)[0].id)}
-                    actions={actions}
-                    row={row}
-                    scope={TOP_SCOPE}
-                    selected={selectedIn(row, selected)}
-                    className="pt-1.25"
-                  />
-                ))
-              )
+          <AnimatePresence initial={false}>
+            {pinned.length > 0 && (
+              <Appear key="separator" className="-mb-1.25">
+                <div className="px-2.5 pt-1.75 pb-3">
+                  <div className="h-px bg-separator" />
+                </div>
+              </Appear>
             )}
           </AnimatePresence>
+
+          <Row
+            selected={newTabOpen}
+            className={cn(!newTabOpen && "text-fg-3")}
+            onPress={() => omnibox.toggle("new-tab")}
+          >
+            <Plus size={14} strokeWidth={2} className={cn("mx-px", newTabOpen ? "glyph-1" : "glyph-3")} />
+            New Tab
+          </Row>
+
+          {/* Each tab brings its gap with it, so the list's gap goes from
+            under the first. */}
+          <div data-tab-rows="" className="-mt-1.25 flex flex-col">
+            {/* No row's layout is motion's to animate, so a row coming or going
+              need not draw every other row again. */}
+            <AnimatePresence initial={false} presenceAffectsLayout={false}>
+              {entries(tabs, tabGroups).map((entry) =>
+                entry.group ? (
+                  <Appear key={`group-${groupKey(entry.group.id)}`}>
+                    <div
+                      {...reorderUnit({
+                        kind: "group",
+                        tab: Number(entry.tabs[0].id),
+                        scope: TOP_SCOPE,
+                        start: entry.start,
+                        size: entry.tabs.length,
+                        group: entry.group.id,
+                        // Not while its title is edited, which a drag would take.
+                        draggable: renaming !== entry.group.id
+                      })}
+                      className="pt-1.25"
+                    >
+                      <GroupRows
+                        rowKey={rowKey}
+                        actions={actions}
+                        selected={selected}
+                        group={entry.group}
+                        members={entry.tabs}
+                        start={entry.start}
+                      />
+                    </div>
+                  </Appear>
+                ) : (
+                  rows(entry.tabs, splits, entry.start).map((row) => (
+                    <UnitRow
+                      key={rowKey(inOrder(row)[0].id)}
+                      actions={actions}
+                      row={row}
+                      scope={TOP_SCOPE}
+                      selected={selectedIn(row, selected)}
+                      className="pt-1.25"
+                    />
+                  ))
+                )
+              )}
+            </AnimatePresence>
+          </div>
+          {mark && <DropMarkView mark={mark} />}
         </div>
-        {mark && <DropMarkView mark={mark} />}
       </div>
     </div>
   );
