@@ -9,7 +9,6 @@ import { useSyncExternalStore } from "react";
 import { hasApp, type UpdateShown, updates } from "../ipc";
 import { useSettings } from "./library";
 
-
 export type Update = UpdateShown & {
   /** Check for Updates… asked the card to open, and it has not yet. */
   asked: boolean;
