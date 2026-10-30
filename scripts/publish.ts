@@ -17,7 +17,7 @@ import { parseArgs } from "util";
 import { app } from "./channel";
 import { sparkle } from "./sparkle";
 
-const REPOSITORY = "MultiboxLabs/wren-browser";
+const REPOSITORY = "MultiboxLabs/wren-browser-releases";
 // The manifests a release sets the version of: Stable's and Beta's, which
 // are the same app (Dev's has nothing to update to).
 const MANIFESTS = ["wren-app.json", "wren-app.beta.json"];
@@ -145,7 +145,7 @@ await $`git push origin main ${tag}`;
 // A draft first, with both files, then published, so that the release is never
 // out with a file missing. Stable is GitHub's latest; a beta never is.
 const prerelease = channel === "beta" ? ["--prerelease"] : [];
-await $`gh release create ${tag} -R ${REPOSITORY} --draft --verify-tag --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
+await $`gh release create ${tag} -R ${REPOSITORY} --draft --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
 await $`gh release upload ${tag} -R ${REPOSITORY} ${zip} ${json}`;
 const latest = channel === "stable" ? "--latest" : "--latest=false";
 await $`gh release edit ${tag} -R ${REPOSITORY} --draft=false ${latest}`;
