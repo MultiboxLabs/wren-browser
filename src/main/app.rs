@@ -19,6 +19,7 @@ use crate::extensions::ad_block;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
+use crate::password_manager;
 use crate::perf::Perf;
 use crate::pins;
 use crate::platform::{DevToolsWindow, KeyWatch, QUITS_WITH_LAST_WINDOW, close_other_key_window};
@@ -56,9 +57,9 @@ pub struct State {
 impl State {
     pub fn new(data: PathBuf, channel: Channel, perf: Option<Perf>) -> State {
         let db = Db::open(&data);
-        let on = db
-            .settings()
-            .is_ok_and(|settings| settings.share_usage_data);
+        let settings = db.settings().unwrap_or_default();
+        password_manager::start(settings.password_manager);
+        let on = settings.share_usage_data;
         let analytics = Analytics::start(&db, &data, channel, perf.is_some(), on);
         State {
             ui_profile: RefCell::default(),
@@ -238,6 +239,7 @@ impl Wren {
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
         self.state.update_menu(mt);
+        password_manager::ready(mt);
         *self.state.tab_switcher_keys.borrow_mut() = ipc::watch_tab_switcher_keys(&self.state);
         let source = self.source.clone();
         let _ = mt.set_scheme_handler(
@@ -267,6 +269,8 @@ impl App for Wren {
         let settings = self.state.db.settings();
         let block_ads = settings.map_or(true, |settings| settings.block_ads_in_new_profiles);
         ad_block::on_install(request, block_ads);
+        // Wren's one word that a profile is loading.
+        password_manager::loading(&request.profile_id, request.kind);
     }
 
     // Required: Chromium opened a Browser of its own. A normal one, a
@@ -317,6 +321,11 @@ impl App for Wren {
         }
         for change in changes {
             record_tab_crash(state, change);
+            if change.kind == ChangeKind::ProfileClosed
+                && let Some(profile) = &change.profile
+            {
+                password_manager::closed(&profile.id());
+            }
             // Its ad blocker may have been turned on or off.
             if change.kind == ChangeKind::Extensions
                 && let Some(profile) = &change.profile

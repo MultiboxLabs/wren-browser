@@ -46,6 +46,16 @@ export function Settings({ query, settings }: { query: string; settings: Library
       )
     },
     {
+      name: "Password Manager",
+      about: "Offer to save passwords, and fill them in, in every profile. Off, passwords already saved stay saved.",
+      control: (
+        <OnOff
+          on={settings.values.passwordManager}
+          onChange={(passwordManager) => settings.update({ passwordManager })}
+        />
+      )
+    },
+    {
       name: "Help Improve Wren",
       about: "Send anonymous counts of which features you use, and crash reports. Never what you browse.",
       control: (

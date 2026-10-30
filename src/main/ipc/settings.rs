@@ -6,12 +6,13 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use wren::WebView;
+use wren::{MainThread, WebView};
 
 use super::WindowRef;
 use crate::analytics::{Event, Setting};
 use crate::app::State;
 use crate::db::{Settings, SettingsChange};
+use crate::password_manager;
 use crate::tabs::archive;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
@@ -23,7 +24,11 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let _ = web_view.handle("settings.update", move |change: SettingsChange| {
         let state = weak.state()?;
         let changed = changed(&change);
+        let password_manager = change.password_manager;
         let settings = state.db.update_settings(change)?;
+        if let (Some(on), Some(mt)) = (password_manager, MainThread::get()) {
+            password_manager::set(mt, on);
+        }
         state.analytics.set_on(settings.share_usage_data);
         for (setting, value) in changed {
             state

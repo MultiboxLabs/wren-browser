@@ -10,6 +10,8 @@ export type Settings = {
   shareUsageData: boolean;
   /** The ad blocker starts on in a profile made from now on; each profile's is turned on or off in Profiles after. */
   blockAdsInNewProfiles: boolean;
+  /** Chromium's password manager, in every profile: off, it saves, fills and suggests no password; what is saved stays. */
+  passwordManager: boolean;
 };
 
 export const settings = {

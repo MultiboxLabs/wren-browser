@@ -180,7 +180,8 @@ export function useSettings(open: boolean) {
     archiveAfter: DEFAULT_ARCHIVE_AFTER,
     favoritesTipDismissed: false,
     shareUsageData: true,
-    blockAdsInNewProfiles: true
+    blockAdsInNewProfiles: true,
+    passwordManager: true
   });
   const [read, setRead] = useState(false);
   const refresh = () =>

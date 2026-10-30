@@ -9,6 +9,7 @@ mod extensions;
 mod ipc;
 mod menus;
 mod pages;
+mod password_manager;
 mod perf;
 mod pins;
 mod platform;

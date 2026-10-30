@@ -25,6 +25,9 @@ pub struct Settings {
     /// profile's is the user's to turn on or off after
     /// (extensions/ad_block.rs).
     pub block_ads_in_new_profiles: bool,
+    /// Chromium's password manager is on in every profile; off, it saves,
+    /// fills and suggests no password (password_manager.rs).
+    pub password_manager: bool,
 }
 
 impl Default for Settings {
@@ -34,6 +37,7 @@ impl Default for Settings {
             favorites_tip_dismissed: false,
             share_usage_data: true,
             block_ads_in_new_profiles: true,
+            password_manager: true,
         }
     }
 }
@@ -46,6 +50,7 @@ pub struct SettingsChange {
     pub favorites_tip_dismissed: Option<bool>,
     pub share_usage_data: Option<bool>,
     pub block_ads_in_new_profiles: Option<bool>,
+    pub password_manager: Option<bool>,
 }
 
 /// How long a tab goes unused before it is archived.
@@ -90,6 +95,9 @@ impl Db {
             block_ads_in_new_profiles: self
                 .setting("blockAdsInNewProfiles")?
                 .unwrap_or(defaults.block_ads_in_new_profiles),
+            password_manager: self
+                .setting("passwordManager")?
+                .unwrap_or(defaults.password_manager),
         })
     }
 
@@ -107,6 +115,9 @@ impl Db {
         }
         if let Some(block) = change.block_ads_in_new_profiles {
             set(&transaction, "blockAdsInNewProfiles", &block)?;
+        }
+        if let Some(on) = change.password_manager {
+            set(&transaction, "passwordManager", &on)?;
         }
         transaction.commit().map_err(sql)?;
         self.settings()
@@ -179,6 +190,13 @@ mod tests {
                 .unwrap()
                 .block_ads_in_new_profiles
         );
+        // The password manager is on until turned off.
+        assert!(settings.password_manager);
+        let change = SettingsChange {
+            password_manager: Some(false),
+            ..SettingsChange::default()
+        };
+        assert!(!db.update_settings(change).unwrap().password_manager);
         // A change that sets nothing changes nothing.
         let settings = db.update_settings(SettingsChange::default()).unwrap();
         assert_eq!(settings.archive_after, ArchiveAfter::SevenDays);
