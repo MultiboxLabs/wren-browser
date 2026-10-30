@@ -138,8 +138,10 @@ body,
      components/space-background.tsx). To calm a saturated one, lower its
      chroma here: oklch(from var(--space) l calc(c * 0.8) h). */
   --space-shown: oklch(from var(--space) l calc(c * 0.92) h);
-  /* Room the window's own buttons take at the top left. */
+  /* Room the window's own buttons take at the top left, and how round its
+     corners are. */
   --window-buttons: 0px;
+  --window-corner: 0px;
 }
 
 :root[data-space-picked] {
@@ -155,11 +157,14 @@ body,
 
 :root[data-platform="mac"] {
   --window-buttons: 72px;
+  /* The window's own corners, as the system draws them. */
+  --window-corner: 16px;
 }
 /* Full screen, the buttons are in a title bar of the system's, shown over
-   the page from the top of the screen. */
+   the page from the top of the screen; and the screen has no corners. */
 :root[data-platform="mac"][data-full-screen] {
   --window-buttons: 0px;
+  --window-corner: 0px;
 }
 
 /* Text and fills (the named colours, and each space's title colour), in
@@ -851,4 +856,40 @@ body,
   background: linear-gradient(rgb(255 255 255 / 0.65), rgb(255 255 255 / 0.58));
   font-size: var(--text-subtitle);
   box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.2);
+}
+
+/* The window opening on a new version of Wren (components/updated.tsx): a
+   sheen that sweeps up over it, soft at both ends, and a ring of light
+   inside the window's edge, brightest level with the sheen's middle
+   (--middle), and faint away from it. Both add light to what is under them. */
+.updated-sheen,
+.updated-edge {
+  position: fixed;
+  pointer-events: none;
+  mix-blend-mode: plus-lighter;
+}
+.updated-sheen {
+  inset-inline: 0;
+  top: 0;
+  background: linear-gradient(
+    rgb(255 255 255 / 0),
+    rgb(255 255 255 / 0.06) 30%,
+    rgb(255 255 255 / 0.16) 50%,
+    rgb(255 255 255 / 0.06) 70%,
+    rgb(255 255 255 / 0)
+  );
+}
+.updated-edge {
+  inset: 0;
+  border-radius: var(--window-corner);
+  padding: 1.5px;
+  background: radial-gradient(
+    130% 45% at 50% var(--middle),
+    rgb(255 255 255 / 0.85),
+    rgb(255 255 255 / 0.25) 55%,
+    rgb(255 255 255 / 0) 80%
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
 }

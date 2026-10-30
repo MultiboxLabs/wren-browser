@@ -21,6 +21,7 @@ import { Perf } from "../../perf/mount";
 import { BrowserToast } from "../../components/toast";
 import { QuitDialog } from "../../components/quit-dialog";
 import { TabSwitcher } from "../../components/tab-switcher/tab-switcher";
+import { Updated } from "../../components/updated";
 import { cn } from "../../utils/cn";
 import { PopupWindow } from "./popup";
 
@@ -164,6 +165,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
             />
           )}
         </AnimatePresence>
+        {/* Over all else, the window's own. */}
+        <Updated />
       </div>
     </DownloadsProvider>
   );
