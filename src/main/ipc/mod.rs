@@ -32,8 +32,8 @@ use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
-use crate::tabs;
 use crate::shell::{BrowserWindow, WindowId};
+use crate::tabs;
 
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;

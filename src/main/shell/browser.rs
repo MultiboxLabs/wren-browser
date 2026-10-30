@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use serde::Serialize;
 use wren::{Browser, BubbleAnchor};
 
-use super::tag::Tag;
 use super::Place;
+use super::tag::Tag;
 use crate::db::SpaceId;
 use crate::downloads;
 use crate::platform::PageWindow;

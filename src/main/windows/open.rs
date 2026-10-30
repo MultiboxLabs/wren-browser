@@ -13,9 +13,9 @@ use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::pins;
-use crate::tabs::placeholder;
 use crate::platform::{PageWindow, TitleBarKind};
 use crate::shell::{BrowserWindow, Place, Popup, WindowId};
+use crate::tabs::placeholder;
 
 /// A browser window's size when nothing gives it one.
 const WINDOW_SIZE: (f64, f64) = (1280.0, 800.0);
