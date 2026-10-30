@@ -52,9 +52,12 @@ export type DownloadStarted = {
 };
 
 export const downloads = {
-  /** The downloads the window lists: on the record every open profile's, off it its own; each profile's in progress first, then paused, then the rest, newest first. */
+  /** The downloads the shelf lists, Chrome's bubble's (the last 24 hours, at most 30): on the record every open profile's, off it its own; each profile's in progress first, then paused, then the rest, newest first. */
   list: () => wren.invoke<Download[]>("downloads.list"),
   onList: (listener: (list: Download[]) => void) => wren.on<Download[]>("downloads.list", listener),
+  /** The downloads the Library lists: the same profiles' whole history, as chrome://downloads has it, each profile's newest first. */
+  history: () => wren.invoke<Download[]>("downloads.history"),
+  onHistory: (listener: (history: Download[]) => void) => wren.on<Download[]>("downloads.history", listener),
   /** Null while no download runs. */
   indicator: () => wren.invoke<DownloadIndicator | null>("downloads.indicator"),
   onIndicator: (listener: (indicator: DownloadIndicator | null) => void) =>

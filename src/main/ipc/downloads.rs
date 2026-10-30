@@ -54,6 +54,17 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
+    // The whole history, which the Library lists; "downloads.history" says
+    // when it changes.
+    let weak = window.clone();
+    let _ = web_view.handle("downloads.history", move |()| {
+        with_browser(&weak, |found, browser| {
+            let history = downloads::history(browser);
+            found.note_history(&history);
+            Ok(history)
+        })
+    });
+
     // The indicator, or null while none is drawn; "downloads.indicator"
     // says when it changes.
     let weak = window.clone();
@@ -97,14 +108,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle_call("downloads.menu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<String>, done| {
             let download = downloads::find(browser, &at.id)?;
-            let state = weak.state()?;
-            let done = move |chosen: Option<String>| {
-                // Taken off the list, which every window on the profile shows.
-                if chosen.as_deref() == Some("remove") {
-                    send_all_downloads(&state);
-                }
-                done(chosen);
-            };
             menus::show_download_menu(mt, view, download, (at.x, at.y), done).map_err(failed)
         })
     });
@@ -122,12 +125,19 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 }
 
-/// Tells `window`'s page of the downloads it lists, unless they are as it
-/// was told last: as they change, and as another Browser comes in front.
-/// Each that has started since, the window the user is in hears of too,
-/// after the list that has it: it was started there, by what the pointer
-/// did, most likely.
+/// Tells `window`'s page of the downloads it lists, the shelf's and the
+/// Library's history, each unless it is as it was told last: as they
+/// change, and as another Browser comes in front. Each that has started
+/// since, the window the user is in hears of too, after the shelf's list
+/// that has it: it was started there, by what the pointer did, most likely.
 pub fn send_downloads(window: &BrowserWindow, browser: &Browser) {
+    // A popup's window has no Library.
+    if !window.is_popup() {
+        let history = downloads::history(browser);
+        if window.note_history(&history) {
+            let _ = window.page.web_view.send("downloads.history", &history);
+        }
+    }
     let list = downloads::list(browser);
     let Some(started) = window.note_downloads(&list) else {
         return;
@@ -218,16 +228,6 @@ pub fn show_downloads_bubble(
         PopoverAnswer::App
     } else {
         PopoverAnswer::None
-    }
-}
-
-// Tells every window's page of its downloads, as some are taken off the list.
-// TODO: drop once Wren removes them, as its change tells the windows then.
-fn send_all_downloads(state: &State) {
-    for window in state.windows.all() {
-        if let Some(browser) = window.browser() {
-            send_downloads(&window, &browser);
-        }
     }
 }
 

@@ -49,10 +49,7 @@ pub fn show_download_menu(
             Some("show") => download.perform(DownloadAction::SHOW_IN_FINDER),
             Some("open-when-done") => download.perform(DownloadAction::OPEN_WHEN_DONE),
             Some("copy-link") => clipboard::copy_link(&download.url(), None, state.off_the_record),
-            Some("remove") => {
-                downloads::remove(download);
-                Ok(())
-            }
+            Some("remove") => downloads::remove(download),
             _ => Ok(()),
         };
         done(chosen);

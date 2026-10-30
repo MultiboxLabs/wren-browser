@@ -86,9 +86,11 @@ pub struct BrowserWindow {
     // Whether the window went full screen for a page, and comes back once
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
-    // The downloads the page was told of last (ipc/downloads.rs), so the
-    // same list is not sent again; None until it has been told any.
+    // The downloads the page was told of last (ipc/downloads.rs), the
+    // shelf's and the history, so the same list is not sent again; None
+    // until it has been told any.
     downloads_sent: RefCell<Option<Vec<downloads::Item>>>,
+    history_sent: RefCell<Option<Vec<downloads::Item>>>,
     popup: Option<Popup>,
 }
 
@@ -116,6 +118,7 @@ impl BrowserWindow {
             omnibox_query: RefCell::default(),
             full_screen_for_page: Cell::default(),
             downloads_sent: RefCell::default(),
+            history_sent: RefCell::default(),
             popup,
         }
     }
@@ -303,6 +306,17 @@ impl BrowserWindow {
             .map_or_else(Vec::new, |before| downloads::started(before, list));
         *sent = Some(list.to_vec());
         Some(started)
+    }
+
+    /// Notes `history` as the download history the page is told of. False
+    /// if it was told the same last, and need not be again.
+    pub fn note_history(&self, history: &[downloads::Item]) -> bool {
+        let mut sent = self.history_sent.borrow_mut();
+        if sent.as_deref() == Some(history) {
+            return false;
+        }
+        *sent = Some(history.to_vec());
+        true
     }
 
     /// Whether the page's omnibox asks `browser` for suggestions.

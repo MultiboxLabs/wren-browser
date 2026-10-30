@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Download } from "../../ipc";
 import { Empty, matches } from "../library/rows";
-import { isRunning, lastChanged, newestFirst, useDownloads } from "../../state/downloads";
+import { isRunning, lastChanged, newestFirst, useDownloadHistory } from "../../state/downloads";
 import { useNow } from "../../utils/now";
 import { ageHeading, origin, siteOf, statusLine } from "./format";
 import { DownloadRow } from "./row";
@@ -24,7 +24,7 @@ export function DownloadsSection({
   profile: string | null;
   revealed: string | null;
 }) {
-  const list = useDownloads();
+  const list = useDownloadHistory();
   const now = useNow();
   const spans = useMemo(() => {
     const bySpan = new Map<string, Download[]>();
