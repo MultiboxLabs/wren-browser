@@ -9,6 +9,7 @@
 import { Search } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { appWindow, type Pin, type PinFolder, pins as pinsIpc } from "../../ipc";
+import { useBrowser } from "../../state/browser";
 import { cn } from "../../utils/cn";
 import { ago, useNow } from "../../utils/now";
 import { HoverCard } from "../ui/hover-card";
@@ -20,11 +21,11 @@ type PagePin = Exclude<Pin, PinFolder>;
 // minutes ago", "1 week ago".
 const lastUsed = (time: number, now: number) => (now - time < 60_000 ? "Just now" : ago(time, now, true));
 
-// Every pin in `items`, at any depth, most recently used first; those used
-// at once, in the folder's order.
-function pinsIn(items: Pin[]): PagePin[] {
+// Every pin in `items`, at any depth, most recently used first by `usedAt`;
+// those used at once, in the folder's order.
+function pinsIn(items: Pin[], usedAt: (pin: PagePin) => number): PagePin[] {
   const flat = (items: Pin[]): PagePin[] => items.flatMap((pin) => (pin.kind === "folder" ? flat(pin.items) : [pin]));
-  return flat(items).sort((a, b) => b.lastActive - a.lastActive);
+  return flat(items).sort((a, b) => usedAt(b) - usedAt(a));
 }
 
 // Whether `pin`'s title or one of its addresses has `words` in it, which
@@ -63,6 +64,11 @@ export function FolderMenu({
 // The menu, made as it opens, so each opening starts with no search.
 function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => void }) {
   const now = useNow();
+  // The pin whose tab the window shows is in use now, whenever its last
+  // use was kept.
+  const { links, current } = useBrowser();
+  const active = links.find((link) => current && link.tabs.includes(current.id))?.pin;
+  const usedAt = (pin: PagePin) => (pin.id === active ? now : pin.lastActive);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const list = useRef<HTMLDivElement>(null);
@@ -84,7 +90,7 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
   }, [before]);
 
   const words = query.trim().toLocaleLowerCase();
-  const shown = pinsIn(folder.items).filter((pin) => !words || matches(pin, words));
+  const shown = pinsIn(folder.items, usedAt).filter((pin) => !words || matches(pin, words));
   const at = Math.min(highlight, shown.length - 1);
   const open = (pin: PagePin) => {
     void pinsIpc.open(pin.id);
@@ -131,7 +137,7 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
             <MenuPin
               key={pin.id}
               pin={pin}
-              now={now}
+              used={lastUsed(usedAt(pin), now)}
               highlighted={index === at}
               onHover={() => setHighlight(index)}
               onOpen={() => open(pin)}
@@ -144,16 +150,16 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
 }
 
 // A pin in the menu: its icon and title, as its row shows them, and when it
-// was last used.
+// was last used (`used`).
 function MenuPin({
   pin,
-  now,
+  used,
   highlighted,
   onHover,
   onOpen
 }: {
   pin: PagePin;
-  now: number;
+  used: string;
   highlighted: boolean;
   onHover: () => void;
   onOpen: () => void;
@@ -170,7 +176,7 @@ function MenuPin({
       <PinPageIcon page={pinPages(pin)[0]} open={open[0]} />
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="truncate text-[12px]">{pinTitle(pin, open)}</span>
-        <span className="truncate text-caption text-fg-3">{lastUsed(pin.lastActive, now)}</span>
+        <span className="truncate text-caption text-fg-3">{used}</span>
       </div>
     </div>
   );
