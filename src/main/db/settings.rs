@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use super::{Db, sql};
+use crate::channel::Channel;
 
 /// Every setting, as the page has them.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -18,8 +19,14 @@ pub struct Settings {
     /// The user closed the box that shows where favourites go while there
     /// are none.
     pub favorites_tip_dismissed: bool,
-    /// New versions of Wren install by themselves.
+    /// New versions of Wren download by themselves, to install as it
+    /// restarts or quits.
     pub automatic_updates: bool,
+    /// Wren takes beta versions too. On by default in a Beta build.
+    pub beta_updates: bool,
+    /// The build's channel: not a setting, but what the page needs to show
+    /// Beta Updates, and what to say of it.
+    pub channel: Channel,
     /// Wren sends which of its features are used, and its crashes
     /// (analytics/).
     pub share_usage_data: bool,
@@ -38,6 +45,8 @@ impl Default for Settings {
             archive_after: ArchiveAfter::default(),
             favorites_tip_dismissed: false,
             automatic_updates: true,
+            beta_updates: Channel::current() == Channel::Beta,
+            channel: Channel::current(),
             share_usage_data: true,
             block_ads_in_new_profiles: true,
             password_manager: true,
@@ -52,6 +61,7 @@ pub struct SettingsChange {
     pub archive_after: Option<ArchiveAfter>,
     pub favorites_tip_dismissed: Option<bool>,
     pub automatic_updates: Option<bool>,
+    pub beta_updates: Option<bool>,
     pub share_usage_data: Option<bool>,
     pub block_ads_in_new_profiles: Option<bool>,
     pub password_manager: Option<bool>,
@@ -96,6 +106,10 @@ impl Db {
             automatic_updates: self
                 .setting("automaticUpdates")?
                 .unwrap_or(defaults.automatic_updates),
+            beta_updates: self
+                .setting("betaUpdates")?
+                .unwrap_or(defaults.beta_updates),
+            channel: defaults.channel,
             share_usage_data: self
                 .setting("shareUsageData")?
                 .unwrap_or(defaults.share_usage_data),
@@ -119,6 +133,9 @@ impl Db {
         }
         if let Some(automatic) = change.automatic_updates {
             set(&transaction, "automaticUpdates", &automatic)?;
+        }
+        if let Some(beta) = change.beta_updates {
+            set(&transaction, "betaUpdates", &beta)?;
         }
         if let Some(share) = change.share_usage_data {
             set(&transaction, "shareUsageData", &share)?;
@@ -189,6 +206,13 @@ mod tests {
             ..SettingsChange::default()
         };
         assert!(!db.update_settings(change).unwrap().automatic_updates);
+        // Beta updates are off in a build that is not a beta, until turned on.
+        assert!(!settings.beta_updates);
+        let change = SettingsChange {
+            beta_updates: Some(true),
+            ..SettingsChange::default()
+        };
+        assert!(db.update_settings(change).unwrap().beta_updates);
         // Usage data is shared until turned off.
         assert!(settings.share_usage_data);
         let change = SettingsChange {

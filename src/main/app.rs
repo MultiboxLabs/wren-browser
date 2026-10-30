@@ -398,6 +398,15 @@ impl App for Wren {
             }
             return;
         }
+        // The window the user browses in answers, with its update card or a
+        // toast: a popup's has neither.
+        if id == menus::CHECK_FOR_UPDATES {
+            if let Some(front) = windows.front() {
+                front.page.bring_forward();
+                ipc::send_check_for_updates(&front);
+            }
+            return;
+        }
         // A window of the system's or a plain one, such as the About
         // panel, closes as it would in any app.
         if (id == menus::CLOSE_TAB || id == menus::CLOSE_WINDOW)

@@ -180,6 +180,9 @@ export function useSettings(open: boolean) {
     archiveAfter: DEFAULT_ARCHIVE_AFTER,
     favoritesTipDismissed: false,
     automaticUpdates: true,
+    betaUpdates: false,
+    // Until read: Beta Updates shows once the app says it may.
+    channel: "dev",
     shareUsageData: true,
     blockAdsInNewProfiles: true,
     passwordManager: true
@@ -197,7 +200,7 @@ export function useSettings(open: boolean) {
     if (open && hasApp) refresh();
   }, [open]);
   useEffect(() => (hasApp ? settings.onChanged(setShown) : undefined), []);
-  const update = (change: Partial<Settings>) => {
+  const update = (change: Partial<Omit<Settings, "channel">>) => {
     setShown((shown) => ({ ...shown, ...change }));
     if (hasApp) settings.update(change).then(setShown, refresh);
   };

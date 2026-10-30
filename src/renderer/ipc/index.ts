@@ -26,4 +26,5 @@ export * from "./spaces";
 export * from "./splits";
 export * from "./tab-switcher";
 export * from "./toast";
+export * from "./update";
 export * from "./window";

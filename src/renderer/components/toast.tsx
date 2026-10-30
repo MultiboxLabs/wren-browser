@@ -3,7 +3,7 @@
 // of Chromium's. Chromium decides when each goes. The zoom level's ("110%")
 // is bare: text alone.
 
-import { Glasses, Image, Link, LoaderCircle } from "lucide-react";
+import { CircleAlert, CircleCheck, Glasses, Image, Link, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Icon } from "./ui/button";
 import { Toast as ToastView } from "./ui/toast";
@@ -16,7 +16,9 @@ const icons: Record<string, Icon> = {
   LinkCopied: Link,
   LinkToHighlightCopied: Link,
   ImageCopied: Image,
-  AddedToReadingList: Glasses
+  AddedToReadingList: Glasses,
+  UpToDate: CircleCheck,
+  UpdateCheckFailed: CircleAlert
 };
 
 export function BrowserToast() {

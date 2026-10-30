@@ -210,6 +210,7 @@ pub enum OpensIn {
 pub enum Setting {
     ArchiveAfter,
     AutomaticUpdates,
+    BetaUpdates,
     ShareUsageData,
 }
 

@@ -6,9 +6,11 @@
 // Dev keeps its own. The build script names the channel (WREN_CHANNEL, at
 // compile time), and a build that is not told is Dev.
 
+use serde::Serialize;
 use wren::Startup;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Channel {
     Stable,
     Beta,

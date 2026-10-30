@@ -1,11 +1,13 @@
 // The update, at the bottom of the sidebar, above its buttons. A new version
-// of Wren, ready to install, is a line that says so; a rest of the pointer
-// on it opens it upward, over the content, into a card that installs it and
-// says whether updates install by themselves. Closed, it is a pill, as round
-// as it is tall. Once installed, a card says so, open until it is closed,
-// with what is new in it and a way to send feedback. Both have a faint edge;
-// their colours are --update-* in index.css. Going, either folds into its
-// line as it fades, and the room it took closes.
+// of Wren is a line that says so, and fills as it downloads. A rest of the
+// pointer on it, or Check for Updates…, opens it upward, over the content,
+// into a card that takes the next step (download, then restart and install)
+// and says whether updates download by themselves; its button changes in
+// place from step to step. Closed, it is a pill, as round as it is tall.
+// Once installed, a card says so, open until it is closed, with what is new
+// in it and a way to send feedback. Both have a faint edge; their colours
+// are --update-* in index.css. Going, either folds into its line as it
+// fades, and the room it took closes.
 
 import { MessageSquare, Sparkles, X } from "lucide-react";
 import { AnimatePresence, type MotionValue, motion, useIsPresent, useReducedMotion } from "motion/react";
@@ -19,9 +21,11 @@ import { cn } from "../../utils/cn";
 
 // How long the pointer rests on it before it opens, and how long after it
 // leaves that it closes, in milliseconds: passing over it on the way to the
-// buttons below does not open it.
+// buttons below does not open it. Opened by Check for Updates…, it closes by
+// itself if the pointer never comes.
 const OPEN_AFTER = 120;
 const CLOSE_AFTER = 300;
+const ASKED_FOR = 6000;
 
 const ease = { duration: 0.24, ease: [0.23, 1, 0.32, 1] } as const;
 
@@ -40,12 +44,20 @@ export function UpdateCard({ cover }: { cover: MotionValue<number> }) {
     <AnimatePresence initial={false} mode="wait">
       {update.installed ? (
         <Complete key="complete" update={update} cover={cover} />
-      ) : update.version ? (
+      ) : update.phase !== "none" ? (
         <Available key="available" update={update} cover={cover} />
       ) : null}
     </AnimatePresence>
   );
 }
+
+// What the button says at each step. "none" only as the card goes, once
+// installed, and then it says it is ready.
+const ACTIONS = {
+  available: "Download Update",
+  downloading: "Downloading…",
+  ready: "Restart and Update"
+};
 
 function Available({ update, cover }: { update: Update; cover: MotionValue<number> }) {
   const [open, setOpen] = useState(false);
@@ -55,40 +67,94 @@ function Available({ update, cover }: { update: Update; cover: MotionValue<numbe
     timer.current = setTimeout(() => setOpen(open), wait);
   };
   useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    if (!update.asked) return;
+    update.answered();
+    setOpen(true);
+    after(ASKED_FOR, false);
+  }, [update.asked]);
   // The floating sidebar stays out while it is open.
   useHoldWhile(open);
   // Going, it folds.
   const present = useIsPresent();
   const shown = open && present;
+  const phase = update.phase === "none" ? "ready" : update.phase;
+  const downloading = phase === "downloading";
   return (
     <Shell
       cover={cover}
       open={shown}
       onPointerEnter={() => after(OPEN_AFTER, true)}
       onPointerLeave={() => after(CLOSE_AFTER, false)}
+      onPressOutside={() => after(0, false)}
     >
-      <div className="flex h-6.5 items-center justify-center px-3 font-medium">
-        <span className="truncate">New Version of Wren Available</span>
+      <div className="relative flex h-6.5 items-center justify-center px-3 font-medium">
+        {/* The download's progress, filling the line from its start, closed;
+            open, the button shows it. */}
+        <motion.div
+          role={downloading ? "progressbar" : undefined}
+          aria-label="Download"
+          aria-valuenow={downloading && update.progress !== null ? Math.round(update.progress * 100) : undefined}
+          initial={false}
+          animate={{
+            width: `${(downloading ? (update.progress ?? 0) : 1) * 100}%`,
+            opacity: downloading && update.progress !== null && !shown ? 1 : 0
+          }}
+          transition={{ width: { duration: 0.2, ease: "linear" }, opacity: ease }}
+          className="absolute inset-y-0 left-0 bg-[color-mix(in_oklab,var(--update-accent)_22%,transparent)]"
+        />
+        <span className="relative truncate">New Version of Wren Available</span>
       </div>
       <Unfold open={shown}>
         <div className="flex flex-col items-center gap-2 border-t border-separator px-2 pt-2.5 pb-2">
           <Checkbox checked={update.automatic} onCheckedChange={update.setAutomatic}>
             Automatic Updates
           </Checkbox>
-          {/* Lit from above, as the platform's default button is. */}
+          {/* Lit from above, as the platform's default button is. While it
+              downloads, it is the progress: what is left of it pales. */}
           <Button
             variant="prominent"
             shape="none"
-            scale={0.98}
+            scale={downloading ? 1 : 0.98}
+            aria-disabled={downloading}
             style={{ backgroundImage: "linear-gradient(rgb(255 255 255 / 0.12), transparent)" }}
-            className="h-6 w-full rounded-[7px] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.12),0_1px_2px_rgb(0_0_0/0.2)]"
-            onClick={update.install}
+            className="relative h-6 w-full overflow-hidden rounded-[7px] shadow-[inset_0_0_0_1px_rgb(255_255_255/0.12),0_1px_2px_rgb(0_0_0/0.2)]"
+            onClick={downloading ? undefined : phase === "available" ? update.download : update.restart}
           >
-            Restart and Update
+            <motion.span
+              aria-hidden
+              initial={false}
+              animate={{ left: `${(downloading ? (update.progress ?? 0) : 1) * 100}%` }}
+              transition={{ duration: downloading ? 0.2 : 0, ease: "linear" }}
+              className="absolute inset-y-0 right-0 bg-white/40"
+            />
+            <span className="relative">
+              <Swap text={ACTIONS[phase]} />
+            </span>
           </Button>
         </div>
       </Unfold>
     </Shell>
+  );
+}
+
+// A line of text that fades into the next, in place, as it changes.
+function Swap({ text }: { text: string }) {
+  return (
+    <span className="grid">
+      <AnimatePresence initial={false}>
+        <motion.span
+          key={text}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={ease}
+          className="truncate [grid-area:1/1]"
+        >
+          {text}
+        </motion.span>
+      </AnimatePresence>
+    </span>
   );
 }
 
@@ -170,12 +236,15 @@ function Shell({
   open,
   onPointerEnter,
   onPointerLeave,
+  onPressOutside,
   children
 }: {
   cover: MotionValue<number>;
   open: boolean;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  /** Open, a press anywhere else in the page. */
+  onPressOutside?: () => void;
   children: ReactNode;
 }) {
   // How far it reaches, each frame as it grows and shrinks.
@@ -190,6 +259,14 @@ function Shell({
       cover.set(0);
     };
   }, []);
+  useEffect(() => {
+    if (!open || !onPressOutside) return;
+    const press = (event: PointerEvent) => {
+      if (!box.current?.contains(event.target as Node)) onPressOutside();
+    };
+    document.addEventListener("pointerdown", press, true);
+    return () => document.removeEventListener("pointerdown", press, true);
+  }, [open]);
   const still = useReducedMotion();
   return (
     <motion.div

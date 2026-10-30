@@ -31,6 +31,7 @@ pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const SHOW_DOWNLOADS: &str = "show-downloads";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
+pub const CHECK_FOR_UPDATES: &str = "check-for-updates";
 /// A space's item is this and the space's ID.
 pub const SPACE: &str = "space:";
 /// The items for ⌘1 to ⌘9 are this and the favourite's number, from 1.
@@ -85,6 +86,8 @@ fn main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) -> Vec<
             "Wren",
             vec![
                 MenuItem::role(MenuRole::About),
+                // Below About, as the platform's apps have it.
+                MenuItem::item(CHECK_FOR_UPDATES, "Check for Updates…"),
                 MenuItem::Separator,
                 system(MenuRole::Services, None, vec![]),
                 MenuItem::Separator,

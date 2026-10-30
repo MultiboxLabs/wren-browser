@@ -18,6 +18,10 @@ pub enum OwnToast {
     /// The active tab's zoom level, as Chrome shows it ("110%"): one for
     /// each change, in place of Chromium's zoom bubble.
     Zoom(i32),
+    /// Check for Updates… found nothing new.
+    UpToDate,
+    /// Check for Updates… could not reach the updates.
+    UpdateCheckFailed,
 }
 
 impl OwnToast {
@@ -25,6 +29,8 @@ impl OwnToast {
         match self {
             OwnToast::UrlCopied => "Copied Current URL".into(),
             OwnToast::Zoom(percent) => format!("{percent}%"),
+            OwnToast::UpToDate => "Wren Is Up to Date".into(),
+            OwnToast::UpdateCheckFailed => "Couldn’t Check for Updates".into(),
         }
     }
 
@@ -34,6 +40,8 @@ impl OwnToast {
         match self {
             OwnToast::UrlCopied => "UrlCopied",
             OwnToast::Zoom(_) => "Zoom",
+            OwnToast::UpToDate => "UpToDate",
+            OwnToast::UpdateCheckFailed => "UpdateCheckFailed",
         }
     }
 }

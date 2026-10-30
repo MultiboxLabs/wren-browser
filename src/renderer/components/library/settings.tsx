@@ -59,7 +59,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
     },
     {
       name: "Automatic Updates",
-      about: "Install new versions of Wren by themselves, as it quits.",
+      about: "Download new versions of Wren by themselves, and install them as it restarts or quits.",
       control: (
         <Switch
           label="Automatic Updates"
@@ -68,6 +68,26 @@ export function Settings({ query, settings }: { query: string; settings: Library
         />
       )
     },
+    // A Dev build has nothing to update to.
+    ...(settings.values.channel === "dev"
+      ? []
+      : [
+          {
+            name: "Beta Updates",
+            // Never back to an older version: off, a beta stays until a release passes it.
+            about:
+              settings.values.channel === "beta"
+                ? "Get new versions of Wren before they are released to everyone. Turned off, Wren stays on this beta until the next release."
+                : "Get new versions of Wren before they are released to everyone.",
+            control: (
+              <Switch
+                label="Beta Updates"
+                checked={settings.values.betaUpdates}
+                onCheckedChange={(betaUpdates) => settings.update({ betaUpdates })}
+              />
+            )
+          }
+        ]),
     {
       name: "Help Improve Wren",
       about: "Send anonymous counts of which features you use, and crash reports. Never what you browse.",

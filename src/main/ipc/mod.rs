@@ -24,6 +24,7 @@ mod spaces;
 mod splits;
 mod tab_switcher;
 mod toast;
+mod update;
 mod window;
 
 use std::rc::{Rc, Weak};
@@ -55,6 +56,7 @@ pub use site::send_site;
 pub use spaces::broadcast_spaces;
 pub use tab_switcher::watch_tab_switcher_keys;
 pub use toast::{OwnToast, send_toast, show_toast};
+pub use update::send_check_for_updates;
 pub use window::{send_active, send_blocked, send_choose_space, send_full_screen};
 use window::{send_profile, send_space};
 
@@ -95,6 +97,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     omnibox::handle(web_view, window, mt);
     find::handle(web_view, window);
     toast::handle(web_view, window);
+    update::handle(web_view, window);
     quit::handle(web_view, window, mt);
     perf::handle(web_view, window, mt);
     profiles::handle(web_view, window, mt);
