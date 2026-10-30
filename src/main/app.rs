@@ -324,9 +324,8 @@ impl App for Wren {
             match change.kind {
                 // A restore asks for the Browser Chromium had active to come
                 // forward, which would take the window off the space it was
-                // kept on: its request is forgotten, so the window does not
-                // switch to it later (`BrowserWindow::wanting_foreground`),
-                // and Chromium's next is reported.
+                // kept on: its request is forgotten, and Chromium's next is
+                // reported.
                 ChangeKind::ForegroundRequest if state.is_restoring() => {
                     let _ = browser.clear_foreground_request();
                 }

@@ -74,27 +74,27 @@ impl State {
 
     /// Chromium asked for `browser`, in the background, to come forward (a
     /// notification clicked, an extension): its window switches to its
-    /// space, if it is a space's, and comes to the front. While a page has
-    /// the window in full screen, it waits until the page is done
-    /// (`wanting_foreground`).
+    /// space at once, if it is a space's, and comes to the front. A page
+    /// that has the window in full screen leaves it as its Browser goes
+    /// (`leave_front`). A request not acted on, for a Browser no window
+    /// shows or a switch that failed, is forgotten at once, so nothing
+    /// acts on it later.
     pub fn bring_forward(&self, browser: &Browser) {
-        let Some(window) = self.windows.of(browser) else {
+        let shown = self.windows.of(browser).and_then(|window| {
+            let place = window.place_of(browser)?;
+            Some((window, place))
+        });
+        let Some((window, place)) = shown else {
+            let _ = browser.clear_foreground_request();
             return;
         };
-        let Some(place) = window.place_of(browser) else {
-            return;
-        };
-        let in_full_screen = window
-            .browser()
-            .is_some_and(|front| front.fullscreen_tab().is_some());
-        if in_full_screen {
-            return;
-        }
         // A window on a profile has only the one Browser, in front already.
         if let Some(space) = place.space()
             && let Err(error) = self.show_space(window.id, space)
         {
             eprintln!("Wren could not switch spaces: {error}");
+            let _ = browser.clear_foreground_request();
+            return;
         }
         window.page.bring_forward();
     }

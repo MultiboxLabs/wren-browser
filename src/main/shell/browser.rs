@@ -260,19 +260,6 @@ impl BrowserWindow {
         self.closing.get()
     }
 
-    /// A Browser in the background that Chromium has asked to come forward.
-    pub fn wanting_foreground(&self) -> Option<Browser> {
-        let front = self.browser();
-        self.places.borrow().values().find_map(|slot| match slot {
-            Slot::Open(browser)
-                if Some(browser) != front.as_ref() && browser.wants_foreground() =>
-            {
-                Some(browser.clone())
-            }
-            _ => None,
-        })
-    }
-
     /// Notes whether the page shows the omnibox for a new tab.
     pub fn set_new_tab_omnibox(&self, shown: bool) {
         self.new_tab_omnibox.set(shown);

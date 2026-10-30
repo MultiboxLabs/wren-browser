@@ -133,10 +133,6 @@ impl State {
             let Some(state) = state.upgrade() else { return };
             if let Some(window) = state.windows.get(id) {
                 window.full_screen_finished(full_screen);
-                // A Browser that asked to come forward meanwhile does now.
-                if !full_screen && let Some(browser) = window.wanting_foreground() {
-                    state.bring_forward(&browser);
-                }
             }
         });
         self.windows
