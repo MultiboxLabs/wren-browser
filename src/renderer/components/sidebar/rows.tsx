@@ -4,7 +4,7 @@
 // folding.tsx's.
 
 import { X } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion, useIsPresent, useReducedMotion } from "motion/react";
 import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import { Button, type Icon } from "../ui/button";
 import { press } from "../ui/press";
@@ -199,6 +199,8 @@ export function SplitHalf({
  * arrival.ts) does not fade in, as it slides here whole. With `reorders`, a
  * row that changes place in its list slides there: Motion measures it each
  * time it is drawn, so only for a short list (the pins'), not the tabs'.
+ * Going, it no longer takes the pointer: a second click, as a tab closed by a
+ * middle click is shrinking out, is the row's sliding up in its place.
  */
 export function Appear({
   identities = [],
@@ -213,6 +215,7 @@ export function Appear({
 }) {
   const still = useReducedMotion();
   const moving = useMoving(identities);
+  const present = useIsPresent();
   return (
     <motion.div
       layout={reorders && !still ? "position" : undefined}
@@ -220,7 +223,7 @@ export function Appear({
       animate={{ height: "auto", opacity: 1, transition: ROW_IN }}
       exit={{ height: still ? "auto" : 0, opacity: 0, transition: ROW_OUT }}
       transition={{ layout: REORDER }}
-      className={cn("shrink-0", className)}
+      className={cn("shrink-0", !present && "pointer-events-none", className)}
     >
       {children}
     </motion.div>
