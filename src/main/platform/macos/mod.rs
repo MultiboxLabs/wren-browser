@@ -5,6 +5,7 @@ pub mod keyboard;
 pub mod main_thread;
 pub mod paths;
 pub mod system;
+pub mod updater;
 pub mod window;
 
 // A Mac app keeps running with no window, as Chrome does, until the user

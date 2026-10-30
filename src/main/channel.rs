@@ -9,6 +9,8 @@
 use serde::Serialize;
 use wren::Startup;
 
+use crate::platform;
+
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Channel {
@@ -52,8 +54,8 @@ impl Channel {
         }
     }
 
-    /// Puts the app's name and logo in Chromium's own UI (Settings, About,
-    /// dialogs) in place of "Chromium".
+    /// Puts the app's name, logo and version in Chromium's own UI (Settings,
+    /// About, dialogs) in place of Chromium's.
     pub fn brand(self, startup: &mut Startup) {
         startup.product_name = Some("Wren".into());
         startup.product_icon_png = Some(self.logo().to_vec());
@@ -64,5 +66,8 @@ impl Channel {
         startup.company_name = Some("Multibox Labs".into());
         startup.copyright = Some("Copyright 2026 Multibox Labs. All rights reserved.".into());
         startup.help_url = Some("https://github.com/MultiboxLabs/wren-browser".into());
+        // The bundle's, from the manifest's `version`: the one updates.rs
+        // keeps, to know a new version as it starts.
+        startup.app_version = platform::app_version();
     }
 }

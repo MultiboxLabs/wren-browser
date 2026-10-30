@@ -59,10 +59,11 @@ const BLOCKED: [&str; 6] = [
 ];
 
 /// Sets the main menu, whose Spaces menu lists `spaces`, each by its ID and
-/// name, in the Library's order, with what `front` allows. Set again as the
-/// spaces change, and as Warn Before Quitting does.
-pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) {
-    if let Err(error) = mt.set_main_menu(&main_menu(mt, spaces, front)) {
+/// name, in the Library's order, with what `front` allows, and Check for
+/// Updates… if `updates`. Set again as the spaces change, as Warn Before
+/// Quitting does, and once the updater starts.
+pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front, updates: bool) {
+    if let Err(error) = mt.set_main_menu(&main_menu(mt, spaces, front, updates)) {
         eprintln!("Wren took no main menu: {error:?}");
     }
 }
@@ -71,7 +72,7 @@ pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front)
 /// back, in place, as it changes.
 pub fn enable_front(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) {
     let mut items = Vec::new();
-    take_front_items(main_menu(mt, spaces, front), &mut items);
+    take_front_items(main_menu(mt, spaces, front, true), &mut items);
     for item in items {
         if let Err(error) = mt.update_main_menu_item(&item) {
             eprintln!("Wren could not change a menu item: {error:?}");
@@ -79,7 +80,14 @@ pub fn enable_front(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) 
     }
 }
 
-fn main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) -> Vec<MenuItem> {
+// `updates`: the app has an updater (updates.rs); without one, Check for
+// Updates… is greyed out.
+fn main_menu(
+    mt: MainThread,
+    spaces: &[(SpaceId, String)],
+    front: Front,
+    updates: bool,
+) -> Vec<MenuItem> {
     let warning = mt.quit_warning();
     let mut menu = vec![
         MenuItem::submenu(
@@ -87,7 +95,10 @@ fn main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) -> Vec<
             vec![
                 MenuItem::role(MenuRole::About),
                 // Below About, as the platform's apps have it.
-                MenuItem::item(CHECK_FOR_UPDATES, "Check for Updates…"),
+                enabled(
+                    MenuItem::item(CHECK_FOR_UPDATES, "Check for Updates…"),
+                    updates,
+                ),
                 MenuItem::Separator,
                 system(MenuRole::Services, None, vec![]),
                 MenuItem::Separator,

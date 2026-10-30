@@ -56,7 +56,7 @@ pub use site::send_site;
 pub use spaces::broadcast_spaces;
 pub use tab_switcher::watch_tab_switcher_keys;
 pub use toast::{OwnToast, send_toast, show_toast};
-pub use update::send_check_for_updates;
+pub use update::{broadcast_update, send_open_update};
 pub use window::{send_active, send_blocked, send_choose_space, send_full_screen};
 use window::{send_profile, send_space};
 

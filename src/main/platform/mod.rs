@@ -14,13 +14,15 @@ mod keyboard;
 mod main_thread;
 mod paths;
 mod system;
+mod updater;
 mod window;
 
 pub use files::{file_kind, file_thumbnail, file_type_icon};
 pub use keyboard::{Key, KeyWatch};
 pub use main_thread::after;
 pub use paths::{data_dir, resources_dir};
-pub use system::{OS_NAME, os_version};
+pub use system::{OS_NAME, app_version, os_version};
+pub use updater::{Updater, UpdaterOptions, UpdaterState};
 pub use window::{DevToolsWindow, PageWindow, TitleBarKind, close_other_key_window};
 
 /// Whether closing the last window quits the app, as the platform's apps

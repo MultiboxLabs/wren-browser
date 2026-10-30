@@ -9,3 +9,9 @@ pub const OS_NAME: &str = current::system::OS_NAME;
 pub fn os_version() -> String {
     current::system::os_version()
 }
+
+/// The app's own version, as people see it (`"1.2.0"`): the manifest's
+/// `version`.
+pub fn app_version() -> Option<String> {
+    current::system::app_version()
+}

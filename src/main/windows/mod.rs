@@ -105,7 +105,8 @@ impl State {
     pub fn update_menu(&self, mt: MainThread) {
         let front = self.front_menu();
         self.menu_front.set(front);
-        menus::set_main_menu(mt, &self.ordered_spaces(mt), front);
+        let updates = self.updates.available();
+        menus::set_main_menu(mt, &self.ordered_spaces(mt), front, updates);
     }
 
     /// Greys out the main menu's items the window in front does not allow,

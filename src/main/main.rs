@@ -16,6 +16,7 @@ mod platform;
 mod shell;
 mod sidebar;
 mod tabs;
+mod updates;
 mod windows;
 
 use std::rc::Rc;

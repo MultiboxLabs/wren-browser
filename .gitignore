@@ -1,6 +1,8 @@
 node_modules/
 target/
 dist/
+# Sparkle, downloaded (scripts/sparkle.ts).
+Frameworks/
 *.app
 .DS_Store
 # Compiled by `cn` (scripts/cn-tables.ts).

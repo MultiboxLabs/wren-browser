@@ -5,6 +5,7 @@
 import { $ } from "bun";
 import { realpath, stat } from "node:fs/promises";
 import { app, executable, manifestOf } from "./channel";
+import { sparkle } from "./sparkle";
 
 const manifest = manifestOf("dev");
 const executablePath = "target/debug/wren-browser";
@@ -29,18 +30,24 @@ async function statsOf(path: string) {
  * What the bundle was made from: when this is the same as the last bundle's,
  * and Wren.app has not been replaced since (by `bun run build`, which makes
  * the same app), bundling again would only make the same app. The manifest
- * names the icon and the resources it copies in.
+ * names the icon, the resources and the frameworks it copies in.
  */
 async function bundleInputs() {
-  const { icon, resources = [] } = JSON.parse(await Bun.file(manifest).text()) as {
+  const {
+    icon,
+    resources = [],
+    frameworks = []
+  } = JSON.parse(await Bun.file(manifest).text()) as {
     icon: string;
     resources?: string[];
+    frameworks?: string[];
   };
   return JSON.stringify({
     executable: await statOf(executablePath),
     manifest: await Bun.file(manifest).text(),
     branding: await statsOf(icon),
     resources: await Promise.all(resources.map(statsOf)),
+    frameworks: await Promise.all(frameworks.map(statsOf)),
     runtime: await realpath(".wren/runtime").catch(() => null),
     wren: (await $`wren --version`.text()).trim(),
     app: await statOf(`${app}/Contents/Info.plist`).catch(() => null)
@@ -59,6 +66,7 @@ const vite = Bun.spawn(["bunx", "vite"], { stdout: "inherit", stderr: "inherit" 
 
 try {
   await $`wren install --manifest ${manifest}`;
+  await sparkle();
   await $`WREN_CHANNEL=dev cargo build`;
   // Nothing in the bundle changes with the pages, which are fetched from the
   // server: only with the executable, the manifest, the icon, the resources

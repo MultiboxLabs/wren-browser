@@ -150,6 +150,16 @@ impl Db {
         self.settings()
     }
 
+    /// The app's version at its last run, which the page never sees: none
+    /// before the first (updates.rs).
+    pub fn last_version(&self) -> Result<Option<String>, String> {
+        self.setting("lastVersion")
+    }
+
+    pub fn set_last_version(&self, version: &str) -> Result<(), String> {
+        set(&self.conn, "lastVersion", &version)
+    }
+
     // A setting's value, or none if it was never set or can't be read.
     pub(super) fn setting<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, String> {
         let json: Option<String> = self
@@ -242,6 +252,14 @@ mod tests {
         let settings = db.update_settings(SettingsChange::default()).unwrap();
         assert_eq!(settings.archive_after, ArchiveAfter::SevenDays);
         assert!(settings.favorites_tip_dismissed);
+    }
+
+    #[test]
+    fn keeps_the_last_version() {
+        let db = db();
+        assert_eq!(db.last_version().unwrap(), None);
+        db.set_last_version("1.2.0").unwrap();
+        assert_eq!(db.last_version().unwrap().as_deref(), Some("1.2.0"));
     }
 
     #[test]

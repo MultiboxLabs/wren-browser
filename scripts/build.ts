@@ -3,6 +3,7 @@
 // --debug builds without optimisation, and --run starts the app afterwards.
 import { $ } from "bun";
 import { app, channelOf, executable, manifestOf } from "./channel";
+import { sparkle } from "./sparkle";
 
 const args = process.argv.slice(2);
 const channel = channelOf(args);
@@ -12,6 +13,7 @@ const release = debug ? [] : ["--release"];
 const profile = debug ? "debug" : "release";
 
 await $`wren install --manifest ${manifest}`;
+await sparkle();
 await $`bunx vite build`;
 await $`WREN_CHANNEL=${channel} cargo build ${release}`;
 await $`wren bundle --executable target/${profile}/wren-browser --manifest ${manifest} --output ${app}`;

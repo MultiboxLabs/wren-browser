@@ -6,5 +6,12 @@
   "icon": "branding/dev.icon",
   "copyright": "Copyright 2026 Multibox Labs. All rights reserved.",
   "resources": ["extensions/uBlock0.crx", "extensions/wren-components"],
-  "wren": "0.3.0"
+  "wren": "0.3.0",
+  "frameworks": ["Frameworks/Sparkle.framework"],
+  "infoPlist": {
+    "SUEnableAutomaticChecks": true,
+    "SUAutomaticallyUpdate": false,
+    "SUScheduledCheckInterval": 86400,
+    "SUPublicEDKey": "kEZrQqbLLPVKtljsOUhqiv5nxePqryA63mGLClcYy10="
+  }
 }

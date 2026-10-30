@@ -1,7 +1,8 @@
 // The user's settings (db/settings.rs), which the Library shows and changes;
 // `settings.changed` tells every window of a change. A shorter time to
-// archive tabs after archives those it makes due at once. Analytics hears of
-// each setting the user changes, once it may.
+// archive tabs after archives those it makes due at once, and the updater
+// follows Automatic Updates and Beta Updates. Analytics hears of each
+// setting the user changes, once it may.
 
 use serde::Serialize;
 use serde_json::Value;
@@ -25,7 +26,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         let state = weak.state()?;
         let changed = changed(&change);
         let password_manager = change.password_manager;
+        let updates = change.automatic_updates.is_some() || change.beta_updates.is_some();
+        let beta_was = state.db.settings()?.beta_updates;
         let settings = state.db.update_settings(change)?;
+        if updates {
+            state.updates.settings_changed(&settings, beta_was);
+        }
         if let (Some(on), Some(mt)) = (password_manager, MainThread::get()) {
             password_manager::set(mt, on);
         }

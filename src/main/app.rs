@@ -26,6 +26,7 @@ use crate::platform::{DevToolsWindow, KeyWatch, QUITS_WITH_LAST_WINDOW, close_ot
 use crate::shell::{BrowserWindow, WindowId, Windows};
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
+use crate::updates::Updates;
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -52,6 +53,8 @@ pub struct State {
     pub(crate) menu_front: Cell<menus::Front>,
     // Hears the tab switcher's keys while it is kept.
     tab_switcher_keys: RefCell<Option<KeyWatch>>,
+    /// The app's own updates (updates.rs).
+    pub updates: Updates,
 }
 
 impl State {
@@ -77,6 +80,7 @@ impl State {
                 blocked: false,
             }),
             tab_switcher_keys: RefCell::default(),
+            updates: Updates::default(),
         }
     }
 
@@ -95,6 +99,7 @@ impl State {
             eprintln!("Wren made no web view.");
             return mt.quit();
         }
+        self.updates.start(self, mt);
         tabs::archive::start(self);
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
@@ -403,7 +408,7 @@ impl App for Wren {
         if id == menus::CHECK_FOR_UPDATES {
             if let Some(front) = windows.front() {
                 front.page.bring_forward();
-                ipc::send_check_for_updates(&front);
+                self.state.updates.check(&self.state, front.id);
             }
             return;
         }
@@ -596,10 +601,17 @@ impl App for Wren {
     // The quit can no longer be cancelled: every window goes off the screen
     // now, before Chromium closes its Browsers, which would empty it one
     // space at a time. Each is still kept, to come back at the next launch.
-    fn quit_committed(&self, _: MainThread) {
+    // A relaunch with an update ready installs it first (updates.rs).
+    fn quit_committed(&self, mt: MainThread) {
         for window in self.state.windows.all() {
             window.page.hide();
         }
+        self.state.updates.quit_committed(mt);
+    }
+
+    // Chromium's Settings, About among its pages, as it opens.
+    fn update_check(&self, _: MainThread) {
+        self.state.updates.about_asked();
     }
 
     // Each window open now comes back where it is.
