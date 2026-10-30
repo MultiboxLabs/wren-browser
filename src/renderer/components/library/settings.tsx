@@ -9,7 +9,6 @@ import { Button } from "../ui/button";
 import { Menu } from "../ui/menu";
 import { Switch } from "../ui/switch";
 import { Tooltip } from "../ui/tooltip";
-import { cn } from "../../utils/cn";
 import { Empty, matches } from "./rows";
 
 export function Settings({ query, settings }: { query: string; settings: LibrarySettings }) {
@@ -78,8 +77,8 @@ export function Settings({ query, settings }: { query: string; settings: Library
   if (rows.length === 0) return <Empty>No Settings Found</Empty>;
   return (
     <div className="no-drag flex flex-col px-3">
-      {rows.map((row, index) => (
-        <SettingRow key={row.name} {...row} separated={index > 0} />
+      {rows.map((row) => (
+        <SettingRow key={row.name} {...row} />
       ))}
     </div>
   );
@@ -106,20 +105,9 @@ function OnOff({ on, onChange }: { on: boolean; onChange: (on: boolean) => void 
   );
 }
 
-function SettingRow({
-  name,
-  about,
-  control,
-  separated
-}: {
-  name: string;
-  about: string;
-  control: ReactNode;
-  /** Under another row, with a line between them. */
-  separated: boolean;
-}) {
+function SettingRow({ name, about, control }: { name: string; about: string; control: ReactNode }) {
   return (
-    <div className={cn("flex min-h-11 items-center gap-2 py-1.5", separated && "border-t border-separator")}>
+    <div className="flex min-h-11 items-center gap-2 py-1.5">
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
         <span className="truncate">{name}</span>
         <Tooltip label={about}>
