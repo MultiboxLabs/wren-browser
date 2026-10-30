@@ -5,11 +5,12 @@
 // is folded. The peek stays, active or not, until its tab closes, another
 // row's tab takes its place, or the rows unfold again. One row at a time.
 //
-// The rows fold as if the peek were not there, and the peek is drawn over
-// them where its row is, but never above their top: as they fold up, it
-// rides up with its row, then stays at the top as the rest go up under it;
-// as they unfold, it stays there until its row comes down to it, and goes on
-// with it. The rows are hidden under it. A row further in than the peek (in
+// The rows fold down to the peek's height, where the container rests, and
+// unfold from it: they settle into it as they would into nothing, rather than
+// stop short of where they were going. The peek is drawn over them where its
+// row is, but never above their top: as they fold up, it rides up with its
+// row, then stays at the top as the rest go up under it; as they unfold, it
+// stays there until its row comes down to it, and goes on with it. The rows are hidden under it. A row further in than the peek (in
 // a folder in a folded section) comes out early in the fold and goes back in
 // late. A peek that comes while the rows are folded (its tab made active),
 // or goes while they are (its tab closed), grows in or shrinks out as a row
@@ -18,8 +19,8 @@
 // A row is found by its key (`foldRow`), as `pinIdentity` names a pin's
 // (arrival.ts).
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AnimatePresence, frame, motion, useReducedMotion } from "motion/react";
+import { type CSSProperties, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrivalScope } from "./arrival";
 import { ROW_IN, ROW_OUT } from "./row-motion";
 import { ROW_GAP } from "./rows";
@@ -123,18 +124,24 @@ export function FoldingRows({
 }) {
   const box = useRef<HTMLDivElement>(null);
   const rows = useRef<HTMLDivElement>(null);
+  const peekLayer = useRef<HTMLDivElement>(null);
+  // How tall the rows are folded: as tall as the peek, if there is one.
+  const [rest] = useState(() => () => peekLayer.current?.offsetHeight ?? 0);
   // Puts the peek where its row is, at the top if the row is above it or
   // not drawn, and as far in as the row is while they are nearly unfolded.
   const place = useRef(() => {});
   place.current = () => {
     const element = box.current;
     if (!element || !peek) return;
-    const [x, y] = peekPlace(element, rows.current, peek.key, indent);
+    const [x, y] = peekPlace(element, rows.current, peek.key, indent, rest());
     element.style.setProperty("--peek-x", `${x}px`);
     element.style.setProperty("--peek-y", `${y}px`);
   };
-  // The same each time, as `Disclosed` keeps the first it is given.
-  const [onFrame] = useState(() => () => place.current());
+  // The same each time, as `Disclosed` keeps the first it is given. Once
+  // the frame is drawn: as a fold starts, Motion lets the rows take their
+  // full height for a moment to measure them, and the peek placed then
+  // would be a frame out of place.
+  const [onFrame] = useState(() => () => void frame.postRender(() => place.current()));
   useLayoutEffect(() => place.current());
   // The rows are hidden under the peek until it has gone, not only until it
   // is told to: going over its row, it would otherwise be drawn on it.
@@ -143,20 +150,26 @@ export function FoldingRows({
   return (
     // Takes back the gap before it, which the first row brings. Its column
     // is as wide as it is (`grid-cols-1`), not as a long title in it would
-    // have it.
+    // have it. The peek comes before the rows, drawn over them all the same
+    // (`z-1`): as they start to fold, the peek that comes with them is then
+    // there to measure (`rest`).
     <div ref={box} className="-mt-1.25 grid grid-cols-1 *:col-start-1 *:row-start-1">
-      <div ref={rows} className="flex flex-col" style={peeked ? UNDER_PEEK : undefined}>
-        <Disclosed open={open} onFrame={onFrame}>
-          {children}
-        </Disclosed>
-      </div>
       <AnimatePresence initial={false} custom={open} onExitComplete={() => setPeeked(false)}>
         {peek && (
-          <PeekLayer key={peek.key} overRow={() => !!rows.current?.querySelector(`[data-fold-row="${peek.key}"]`)}>
+          <PeekLayer
+            key={peek.key}
+            ref={peekLayer}
+            overRow={() => !!rows.current?.querySelector(`[data-fold-row="${peek.key}"]`)}
+          >
             {peek.row}
           </PeekLayer>
         )}
       </AnimatePresence>
+      <div ref={rows} className="flex flex-col" style={peeked ? UNDER_PEEK : undefined}>
+        <Disclosed open={open} rest={rest} onFrame={onFrame}>
+          {children}
+        </Disclosed>
+      </div>
     </div>
   );
 }
@@ -169,11 +182,20 @@ export function FoldingRows({
  * presence's `custom` is whether they are open), it is over its row, the
  * same as it, and is simply gone.
  */
-function PeekLayer({ overRow, children }: { overRow: () => boolean; children: ReactNode }) {
+function PeekLayer({
+  ref,
+  overRow,
+  children
+}: {
+  ref: Ref<HTMLDivElement>;
+  overRow: () => boolean;
+  children: ReactNode;
+}) {
   const still = useReducedMotion();
   const [grows] = useState(() => !overRow());
   return (
     <motion.div
+      ref={ref}
       initial={grows ? { height: still ? "auto" : 0, opacity: 0 } : false}
       animate={{ height: "auto", opacity: 1, transition: ROW_IN }}
       variants={{
@@ -183,22 +205,33 @@ function PeekLayer({ overRow, children }: { overRow: () => boolean; children: Re
             : { height: still ? "auto" : 0, opacity: 0, transition: ROW_OUT }
       }}
       exit="gone"
-      className="relative flex translate-y-(--peek-y) flex-col self-start pl-(--peek-x)"
+      className="relative z-1 flex translate-y-(--peek-y) flex-col self-start pl-(--peek-x)"
     >
       <ArrivalScope>{children}</ArrivalScope>
     </motion.div>
   );
 }
 
-/** Where the peek of `key` is drawn over the rows in `rows`, from `box`'s corner: how far in past `indent`, and down. */
-function peekPlace(box: HTMLElement, rows: HTMLElement | null, key: string, indent: number) {
+/**
+ * Where the peek of `key` is drawn over the rows in `rows`, from `box`'s
+ * corner: how far in past `indent`, and down. Folded, the rows are `rest`
+ * tall.
+ */
+function peekPlace(box: HTMLElement, rows: HTMLElement | null, key: string, indent: number, rest: number) {
   const holder = rows?.querySelector(`[data-fold-row="${key}"]`);
   const folding = rows?.firstElementChild;
   const all = folding?.firstElementChild;
   if (!holder || !folding || !all) return [0, 0];
   const at = box.getBoundingClientRect();
   const row = (holder.firstElementChild ?? holder).getBoundingClientRect();
-  const unfolded = folding.getBoundingClientRect().height / all.getBoundingClientRect().height;
+  // How far they have unfolded, from folded (0) to open (1): by their height,
+  // or, where folding takes none of it (one row, as tall as the peek), by
+  // how far they have faded, which keeps time with it.
+  const height = all.getBoundingClientRect().height;
+  const unfolded =
+    height - rest >= 1
+      ? (folding.getBoundingClientRect().height - rest) / (height - rest)
+      : Number(getComputedStyle(folding).opacity);
   const indented = smoothstep(Math.min(1, Math.max(0, (unfolded - 1) / INDENT_SPAN + 1)));
   return [Math.max(0, (row.left - at.left - indent) * indented), Math.max(0, row.top - at.top - ROW_GAP)];
 }
@@ -206,18 +239,36 @@ function peekPlace(box: HTMLElement, rows: HTMLElement | null, key: string, inde
 /**
  * The rows, folding up into the heading and down out of it: they sit on its
  * bottom edge, so they move up with it as it shrinks, and are taken in at
- * the heading. With Reduced Motion they only fade. `onFrame` is called on
- * each frame as they do; the first given is kept for as long as they fold.
+ * the heading, down to `rest` (read as they start to fold), and grow from
+ * it. With Reduced Motion they only fade. `onFrame` is called on each frame
+ * as they do; the first given is kept for as long as they fold.
  */
-function Disclosed({ open, onFrame, children }: { open: boolean; onFrame: () => void; children: ReactNode }) {
+function Disclosed({
+  open,
+  rest,
+  onFrame,
+  children
+}: {
+  open: boolean;
+  rest: () => number;
+  onFrame: () => void;
+  children: ReactNode;
+}) {
   const still = useReducedMotion();
+  // Folded, read as the fold starts, not as it was drawn: the rows that go
+  // are drawn as they last were, before the peek that rests with them came.
+  const variants = {
+    folded: () => ({ height: still ? "auto" : rest(), opacity: 0 }),
+    open: { height: "auto", opacity: 1 }
+  };
   return (
     <AnimatePresence initial={false}>
       {open && (
         <motion.div
-          initial={{ height: still ? "auto" : 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: still ? "auto" : 0, opacity: 0 }}
+          variants={variants}
+          initial="folded"
+          animate="open"
+          exit="folded"
           transition={FOLD}
           onUpdate={onFrame}
           // Clipped, not hidden: a field focused in a row growing in (a new
