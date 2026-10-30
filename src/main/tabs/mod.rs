@@ -12,7 +12,7 @@ pub mod previews;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSplit};
+use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSplit, TabState};
 
 use crate::clipboard;
 use crate::ipc::{self, OwnToast};
@@ -23,8 +23,13 @@ use crate::menus;
 /// launches, so a tab left a long while ago counts from then.
 pub fn last_active(tab: BrowserTab) -> SystemTime {
     tab.state()
+        .map_or_else(|_| SystemTime::now(), |state| last_active_in(&state))
+}
+
+/// `last_active`, from a tab's state already read.
+pub fn last_active_in(state: &TabState) -> SystemTime {
+    u64::try_from(state.last_active_ms)
         .ok()
-        .and_then(|state| u64::try_from(state.last_active_ms).ok())
         .filter(|ms| *ms > 0)
         .map_or_else(SystemTime::now, |ms| UNIX_EPOCH + Duration::from_millis(ms))
 }

@@ -74,14 +74,10 @@ fn shown(browser: &Browser) -> Vec<BrowserTab> {
     let Some(active) = browser.active_tab() else {
         return Vec::new();
     };
-    let Some(split) = super::split_of(active) else {
-        return vec![active];
-    };
-    browser
-        .tabs()
-        .into_iter()
-        .filter(|tab| tab.state().is_ok_and(|state| state.split == Some(split)))
-        .collect()
+    match super::split_of(active).and_then(|split| split.state().ok()) {
+        Some(split) => [split.first, split.second].into_iter().flatten().collect(),
+        None => vec![active],
+    }
 }
 
 // Whether `tab` has gone unused for `after`, and nothing keeps it: it is not
@@ -96,7 +92,7 @@ fn should_archive(tab: BrowserTab, shown: &[BrowserTab], now: SystemTime, after:
     !state.pinned
         && !in_use(&state)
         && now
-            .duration_since(super::last_active(tab))
+            .duration_since(super::last_active_in(&state))
             .is_ok_and(|unused| unused >= after)
 }
 
