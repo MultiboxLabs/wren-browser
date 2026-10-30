@@ -6,6 +6,8 @@ export type Settings = {
   archiveAfter: ArchiveAfter;
   /** The user closed the box that shows where favourites go while there are none. */
   favoritesTipDismissed: boolean;
+  /** Wren sends which of its features are used, and its crashes. */
+  shareUsageData: boolean;
 };
 
 export const settings = {

@@ -2,7 +2,8 @@
 // keep using Wren, how it holds up, and which of its own features they use.
 // Only what `Event` names is sent, never what is browsed: no address, title,
 // text typed or name of the user's. Stable and Beta send; Dev builds and
-// performance runs do not.
+// performance runs do not, nor any while the user has turned it off
+// (Share Usage Data).
 //
 // Events go to a thread of their own (sender.rs), which sends them in
 // batches, so recording one never waits on the network.
@@ -38,6 +39,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Analytics {
     /// None where this build never sends.
     sending: Option<Sending>,
+    /// The user shares usage data (`Settings::share_usage_data`).
+    on: Cell<bool>,
     /// When the app started, which `AppOpened` and `AppQuit` count from.
     started: Instant,
     /// `AppOpened` was recorded.
@@ -59,8 +62,8 @@ fn sends(channel: Channel, perf: bool) -> bool {
 
 impl Analytics {
     /// Starts sending, where this build does, and records an update since
-    /// the last run and a crash in it.
-    pub fn start(db: &Db, channel: Channel, perf: bool) -> Analytics {
+    /// the last run and a crash in it. `on`: the user shares usage data.
+    pub fn start(db: &Db, channel: Channel, perf: bool, on: bool) -> Analytics {
         let started = Instant::now();
         let sending = sends(channel, perf).then(|| {
             let id = db.analytics_id(new_id).unwrap_or_else(|error| {
@@ -88,6 +91,7 @@ impl Analytics {
         });
         let analytics = Analytics {
             sending,
+            on: Cell::new(on),
             started,
             opened: Cell::new(false),
         };
@@ -105,7 +109,9 @@ impl Analytics {
     }
 
     pub fn record(&self, event: Event) {
-        let Some(sending) = &self.sending else { return };
+        let Some(sending) = self.sending.as_ref().filter(|_| self.on.get()) else {
+            return;
+        };
         let Ok(Value::Object(mut properties)) = serde_json::to_value(&event) else {
             return;
         };
@@ -117,6 +123,17 @@ impl Analytics {
             "timestamp": time::rfc3339(SystemTime::now()),
             "properties": properties,
         }));
+    }
+
+    /// The user turned sharing usage data on or off. Off, what is queued is
+    /// dropped, unsent.
+    pub fn set_on(&self, on: bool) {
+        if self.on.replace(on)
+            && !on
+            && let Some(sending) = &self.sending
+        {
+            sending.sender.clear();
+        }
     }
 
     /// A window was shown: the first records how long the app took to open.
@@ -132,7 +149,7 @@ impl Analytics {
     pub fn quit(&self) {
         let session_minutes = self.started.elapsed().as_secs() / 60;
         self.record(Event::AppQuit { session_minutes });
-        if let Some(sending) = &self.sending {
+        if let Some(sending) = self.sending.as_ref().filter(|_| self.on.get()) {
             sending.sender.flush();
         }
     }

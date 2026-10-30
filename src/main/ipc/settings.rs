@@ -18,6 +18,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let _ = web_view.handle("settings.update", move |change: SettingsChange| {
         let state = weak.state()?;
         let settings = state.db.update_settings(change)?;
+        state.analytics.set_on(settings.share_usage_data);
         broadcast_settings(&state, &settings);
         archive::archive_due(&state);
         Ok::<Settings, String>(settings)

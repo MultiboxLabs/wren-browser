@@ -66,7 +66,10 @@ pub struct State {
 impl State {
     pub fn new(data: PathBuf, channel: Channel, perf: Option<Perf>) -> State {
         let db = Db::open(&data);
-        let analytics = Analytics::start(&db, channel, perf.is_some());
+        let on = db
+            .settings()
+            .is_ok_and(|settings| settings.share_usage_data);
+        let analytics = Analytics::start(&db, channel, perf.is_some(), on);
         State {
             ui_profile: RefCell::default(),
             devtools: RefCell::default(),

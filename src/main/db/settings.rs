@@ -11,13 +11,26 @@ use serde::{Deserialize, Serialize};
 use super::{Db, sql};
 
 /// Every setting, as the page has them.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub archive_after: ArchiveAfter,
     /// The user closed the box that shows where favourites go while there
     /// are none.
     pub favorites_tip_dismissed: bool,
+    /// Wren sends which of its features are used, and its crashes
+    /// (analytics/).
+    pub share_usage_data: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            archive_after: ArchiveAfter::default(),
+            favorites_tip_dismissed: false,
+            share_usage_data: true,
+        }
+    }
 }
 
 /// What a change sets; each it leaves out stays as it is.
@@ -26,6 +39,7 @@ pub struct Settings {
 pub struct SettingsChange {
     pub archive_after: Option<ArchiveAfter>,
     pub favorites_tip_dismissed: Option<bool>,
+    pub share_usage_data: Option<bool>,
 }
 
 /// How long a tab goes unused before it is archived.
@@ -64,6 +78,9 @@ impl Db {
             favorites_tip_dismissed: self
                 .setting("favoritesTipDismissed")?
                 .unwrap_or(defaults.favorites_tip_dismissed),
+            share_usage_data: self
+                .setting("shareUsageData")?
+                .unwrap_or(defaults.share_usage_data),
         })
     }
 
@@ -75,6 +92,9 @@ impl Db {
         }
         if let Some(dismissed) = change.favorites_tip_dismissed {
             set(&transaction, "favoritesTipDismissed", &dismissed)?;
+        }
+        if let Some(share) = change.share_usage_data {
+            set(&transaction, "shareUsageData", &share)?;
         }
         transaction.commit().map_err(sql)?;
         self.settings()
@@ -129,6 +149,13 @@ mod tests {
             ..SettingsChange::default()
         };
         assert!(db.update_settings(change).unwrap().favorites_tip_dismissed);
+        // Usage data is shared until turned off.
+        assert!(settings.share_usage_data);
+        let change = SettingsChange {
+            share_usage_data: Some(false),
+            ..SettingsChange::default()
+        };
+        assert!(!db.update_settings(change).unwrap().share_usage_data);
         // A change that sets nothing changes nothing.
         let settings = db.update_settings(SettingsChange::default()).unwrap();
         assert_eq!(settings.archive_after, ArchiveAfter::SevenDays);

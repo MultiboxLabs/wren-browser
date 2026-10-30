@@ -178,7 +178,8 @@ export type LibrarySettings = ReturnType<typeof useSettings>;
 export function useSettings(open: boolean) {
   const [shown, setShown] = useState<Settings>({
     archiveAfter: DEFAULT_ARCHIVE_AFTER,
-    favoritesTipDismissed: false
+    favoritesTipDismissed: false,
+    shareUsageData: true
   });
   const [read, setRead] = useState(false);
   const refresh = () =>

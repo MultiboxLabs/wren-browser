@@ -33,6 +33,26 @@ export function Settings({ query, settings }: { query: string; settings: Library
           }
         />
       )
+    },
+    {
+      name: "Share Usage Data",
+      about: "Send Wren which of its features you use, and when it crashes. Never what you browse.",
+      control: (
+        <Menu
+          checked={settings.values.shareUsageData ? "on" : "off"}
+          onSelect={(shared) => settings.update({ shareUsageData: shared === "on" })}
+          items={[
+            { id: "on", label: "On (default)" },
+            { id: "off", label: "Off" }
+          ]}
+          trigger={
+            <Button variant="filled" className="gap-1 pr-1.5 font-medium">
+              {settings.values.shareUsageData ? "On" : "Off"}
+              <ChevronsUpDown size={13} strokeWidth={2} className="shrink-0 glyph-2" />
+            </Button>
+          }
+        />
+      )
     }
   ].filter(({ name, about }) => matches(query, name, about));
   if (rows.length === 0) return <Empty>No Settings Found</Empty>;

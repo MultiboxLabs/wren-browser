@@ -18,6 +18,8 @@ const FLUSH_WAIT: Duration = Duration::from_secs(2);
 
 enum Message {
     Event(Value),
+    /// Drops what is queued.
+    Clear,
     /// Sends now, then answers.
     Flush(mpsc::Sender<()>),
 }
@@ -41,6 +43,10 @@ impl Sender {
 
     pub fn send(&self, event: Value) {
         let _ = self.messages.send(Message::Event(event));
+    }
+
+    pub fn clear(&self) {
+        let _ = self.messages.send(Message::Clear);
     }
 
     /// Sends what is queued, waiting `FLUSH_WAIT` at most.
@@ -77,6 +83,7 @@ fn run(messages: mpsc::Receiver<Message>, url: &str, key: &str) {
                     next = Instant::now() + INTERVAL;
                 }
             }
+            Ok(Message::Clear) => queue.clear(),
             Ok(Message::Flush(done)) => {
                 send(&mut queue, post);
                 let _ = done.send(());
