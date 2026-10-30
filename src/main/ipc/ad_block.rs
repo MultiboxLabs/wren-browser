@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use wren::{MainThread, Profile, ProfileKind, WebView};
 
-use super::{WindowRef, failed};
+use super::failed;
 use crate::app::State;
 use crate::extensions::ad_block::{self, AdBlock};
 
@@ -26,7 +26,7 @@ struct Changed<'a> {
     ad_block: Option<AdBlock>,
 }
 
-pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
+pub fn handle(web_view: &WebView, mt: MainThread) {
     // The profile's ad blocker, or null while it has none. A profile with
     // no window is loaded to be asked.
     let _ = web_view.handle_call("adBlock.get", move |call| {
@@ -46,17 +46,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         });
     });
 
-    // Turns it on or off, and answers with it after, as every window is
-    // told.
-    let weak = window.clone();
+    // Turns it on or off, and answers with it after. Every window is told
+    // by the change that follows (`broadcast_ad_block`).
     let _ = web_view.handle_call("adBlock.set", move |call| {
-        let state = match weak.state() {
-            Ok(state) => state,
-            Err(error) => {
-                let _ = call.fail(error);
-                return;
-            }
-        };
         let Set {
             profile_id,
             enabled,
@@ -67,12 +59,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 return;
             }
         };
-        ad_block::set(mt, &profile_id.clone(), enabled, move |result| {
+        ad_block::set(mt, &profile_id, enabled, move |result| {
             let _ = match result {
-                Ok(ad_block) => {
-                    tell(&state, &profile_id, ad_block);
-                    call.answer(&ad_block)
-                }
+                Ok(ad_block) => call.answer(&ad_block),
                 Err(error) => call.fail(&failed(error)),
             };
         });
@@ -82,16 +71,12 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
 /// Tells every window's page the profile's ad blocker, as its extensions
 /// changed: maybe not the ad blocker, which the page passes by.
 pub fn broadcast_ad_block(state: &State, profile: &Profile) {
-    if profile.kind() == ProfileKind::Persistent {
-        tell(state, &profile.id(), ad_block::state(profile));
+    if profile.kind() != ProfileKind::Persistent {
+        return;
     }
-}
-
-// Tells every window's page the profile's ad blocker.
-fn tell(state: &State, profile_id: &str, ad_block: Option<AdBlock>) {
     let changed = Changed {
-        profile_id,
-        ad_block,
+        profile_id: &profile.id(),
+        ad_block: ad_block::state(profile),
     };
     for window in state.windows.all() {
         let _ = window.page.web_view.send("adBlock.changed", &changed);

@@ -98,7 +98,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     quit::handle(web_view, window, mt);
     perf::handle(web_view, window, mt);
     profiles::handle(web_view, window, mt);
-    ad_block::handle(web_view, window, mt);
+    ad_block::handle(web_view, mt);
     spaces::handle(web_view, window, mt);
     pins::handle(web_view, window, mt);
     tab_switcher::handle(web_view, window);
