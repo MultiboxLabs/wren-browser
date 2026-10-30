@@ -372,10 +372,31 @@
     });
   }
 
+  // Icons a page draws that CSS cannot change, by the host whose shadow
+  // root holds them: a selector and the icon it gets instead. Each is set
+  // as it renders; the page sets its own once, from its template.
+  const icons = {
+    // About Wren, in the settings' sidebar: an info mark, not Chromium's
+    // product logo.
+    "settings-menu": [["#about-menu cr-icon", "cr:info"]]
+  };
+
+  function replaceIcons(root, replacements) {
+    const apply = () => {
+      for (const [selector, icon] of replacements) {
+        const element = root.querySelector(selector);
+        if (element && element.getAttribute("icon") !== icon) element.setAttribute("icon", icon);
+      }
+    };
+    new MutationObserver(apply).observe(root, { childList: true, subtree: true });
+  }
+
   const attachShadow = Element.prototype.attachShadow;
   Element.prototype.attachShadow = function (init) {
     const root = attachShadow.call(this, init);
     adopt(root);
+    const replacements = icons[this.localName];
+    if (replacements) replaceIcons(root, replacements);
     return root;
   };
 
