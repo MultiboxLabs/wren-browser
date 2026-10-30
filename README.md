@@ -57,26 +57,7 @@ Each manifest selects the app's display name and icon. The build script sets `WR
 
 ## Publishing a release
 
-Wren updates itself with Sparkle. Every Stable and Beta build checks `https://wrenbrowser.com/appcast.xml`, which the site builds from this repository's GitHub releases. A release is in the feed once it is published and has both its zip and its `.json` (Sparkle's signature).
-
-Once, on the Mac you publish from:
-
-1. Have the Developer ID Application certificate in your keychain.
-2. Store notarisation credentials: `xcrun notarytool store-credentials <profile>`.
-3. Have Sparkle's private key in your login keychain under the account `wren`. `Frameworks/bin/generate_keys --account wren` makes one; its public key is `SUPublicEDKey` in the manifests. Keep it safe: whoever has it can sign updates.
-4. Sign in to GitHub: `gh auth login`.
-
-Then, from a clean `main`:
-
-```sh
-export WREN_IDENTITY="Developer ID Application: …"   # codesign's name for it
-export WREN_NOTARY_PROFILE=<profile>
-bun run publish --version 1.2.0           # Stable
-bun run publish --version 1.2.0-beta.1    # Beta, a prerelease
-bun run publish --version 1.2.0 --dry-run # builds, notarises and signs; publishes nothing
-```
-
-The script sets the version in the Stable and Beta manifests, builds, notarises and staples the app, zips and signs it, commits `chore: release <version>`, tags `v<version>` and pushes both, then creates the GitHub release as a draft, uploads the zip and its `.json`, and publishes it. The build number Sparkle compares comes from the version (`1.2.0-beta.1` is 1020001, `1.2.0` is 1020099), so it always sorts as the versions do. Beta Updates in Settings takes betas as well as stable releases. To pull a bad release, make it a draft again: the feed drops it within five minutes.
+Wren updates itself with Sparkle, from GitHub releases. `bun run publish --version 1.2.0` builds, notarises, signs and publishes a release; [docs/publishing.md](docs/publishing.md) has the one-time setup, versions and channels, and how to test an update locally.
 
 ## Working on Wren
 
