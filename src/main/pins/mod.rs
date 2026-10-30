@@ -14,11 +14,11 @@ mod open_tabs;
 mod tab_changes;
 
 pub use open_tabs::{forget, pin_of};
-pub use tab_changes::{drop_restored, follow_tab_changes};
+pub use tab_changes::follow_tab_changes;
 
 use std::rc::Rc;
 
-use wren::{Browser, BrowserTab, MainThread, SplitLayout, SplitState, TabGroup, TabSplit};
+use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, SplitState, TabGroup, TabSplit};
 
 use crate::app::State;
 use crate::db::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
@@ -105,7 +105,7 @@ pub fn pin_tab(
         }
         _ => {
             let id = state.db.create_pin(&to, index, NewPin::Tab(page_of(tab)))?;
-            tab.set_pinned(true).map_err(failed)?;
+            set_pinned(tab, true).map_err(failed)?;
             open_tabs::add(browser, link_now(id, &[tab]));
             id
         }
@@ -166,7 +166,7 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
     match pin.kind {
         PinKind::Tab(page) => {
             let tab = browser.add_tab(&page.url, None, true).map_err(failed)?;
-            tab.set_pinned(true).map_err(failed)?;
+            set_pinned(tab, true).map_err(failed)?;
             open_tabs::add(browser, link_to(id, [(tab, page)]));
         }
         PinKind::Split {
@@ -440,7 +440,7 @@ pub fn to_list(
         .unwrap_or_default();
     match (pin.kind, open.as_slice()) {
         (PinKind::Tab(_), [tab]) => {
-            tab.set_pinned(false).map_err(failed)?;
+            set_pinned(*tab, false).map_err(failed)?;
             tabs::move_tab(mt, browser, *tab, index, group).map_err(failed)?;
         }
         (PinKind::Tab(page), _) => {
@@ -515,6 +515,13 @@ fn same_page(url: &str) -> String {
     format!("https://{host}{slash}{path}")
 }
 
+// Pins `tab` for a pin, keeping it out of the session, as a pin's tab never
+// lasts; or unpins it, back in the session, as an ordinary tab of the list.
+fn set_pinned(tab: BrowserTab, pinned: bool) -> Result<(), Error> {
+    tab.set_pinned(pinned)?;
+    tab.set_session_excluded(pinned)
+}
+
 // Pins two tabs, or unpins them, and makes them a split, side by side or
 // stacked. Chromium ends a split one side of which is pinned or unpinned
 // alone, so tabs in a split are taken out of it first (`unsplit`).
@@ -525,8 +532,8 @@ fn split_pinned(
     ratio: f64,
     pinned: bool,
 ) -> Result<TabSplit, String> {
-    first.set_pinned(pinned).map_err(failed)?;
-    second.set_pinned(pinned).map_err(failed)?;
+    set_pinned(first, pinned).map_err(failed)?;
+    set_pinned(second, pinned).map_err(failed)?;
     let split = first.split_with(second, layout).map_err(failed)?;
     split.set_ratio(ratio, false).map_err(failed)?;
     Ok(split)

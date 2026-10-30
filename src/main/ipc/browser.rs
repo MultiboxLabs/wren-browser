@@ -194,7 +194,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 }
                 Movable::Group(_) => {
                     let group = state()?.group.ok_or("The tab is in no group.")?;
-                    tabs::move_group(mt, browser, group, to.index)
+                    tabs::move_group(browser, group, to.index)
                 }
             }
             .map_err(failed)

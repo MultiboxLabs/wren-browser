@@ -8,7 +8,7 @@ use std::time::UNIX_EPOCH;
 use wren::{Browser, BrowserTab, Error, SplitLayout, TabSplit};
 
 use super::open_tabs::{self, Link, Side};
-use super::{is_away, link_to, pin_layout, tab_with};
+use super::{is_away, link_to, pin_layout, set_pinned, tab_with};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinRow};
 use crate::tabs;
@@ -82,19 +82,6 @@ pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
     changed
 }
 
-/// Closes the pinned tabs of a Browser Chromium brings back (a restore,
-/// Reopen Closed Window), before it is shown: a pin's tab never lasts.
-// TODO: drop this once Wren can keep a tab out of the session; see the
-// "Runtime request" in .agent/plans/pins.md.
-pub fn drop_restored(browser: &Browser) {
-    let pinned = tabs::pinned(browser);
-    if !pinned.is_empty()
-        && let Err(error) = tabs::close(browser, &pinned)
-    {
-        eprintln!("Wren could not close a restored pin's tabs: {error:?}");
-    }
-}
-
 // Whether a link's tabs are all open and pinned, and a split pin's two are
 // still one split.
 fn is_whole(found: &[Option<BrowserTab>]) -> bool {
@@ -149,7 +136,7 @@ fn keep_side(
         if index != kept
             && let Some(tab) = tab
         {
-            let _ = tab.set_pinned(false);
+            let _ = set_pinned(*tab, false);
         }
     }
     let side = link.sides[kept].clone();
@@ -296,7 +283,7 @@ fn relink(state: &State, browser: &Browser, id: &str, tab: BrowserTab) {
             },
         )) => open_tabs::add(browser, link_to(pin, [(tab, page)])),
         _ => {
-            let _ = tab.set_pinned(false);
+            let _ = set_pinned(tab, false);
         }
     }
 }

@@ -227,29 +227,13 @@ pub fn move_tab(
             None => BrowserTab::ungroup(mt, &[tab])?,
         }
     }
-    move_run(browser, &[tab], to)
+    move_alone(browser, tab, to)
 }
 
 /// Moves a split's two tabs to `to`, the first's index among the listed
-/// tabs. Chromium ends a split whose tab is moved alone, so it is made again
-/// from the same tabs, with the same layout and ratio.
-// TODO: move it with Wren 0.3.0's `TabSplit::move_to`, which keeps the split,
-// its ID and its pinning; its index counts the strip's tabs that do not move,
-// so `to` goes through `at_list` first.
+/// tabs, keeping the split.
 pub fn move_split(browser: &Browser, split: TabSplit, to: usize) -> Result<(), Error> {
-    let state = split.state()?;
-    let (Some(first), Some(second)) = (state.first, state.second) else {
-        return Ok(());
-    };
-    // In the list's order, which is not always the split's.
-    let mut run = [first, second];
-    run.sort_by_key(|tab| tab.index());
-    split.unsplit()?;
-    let moved = move_run(browser, &run, to);
-    let joined = first
-        .split_with(second, state.layout)
-        .and_then(|split| split.set_ratio(state.ratio, false));
-    moved.and(joined)
+    split.move_to(at_list(browser, to))
 }
 
 /// Puts `tabs` in a new group, which is named "Group 1", "Group 2" and so on
@@ -283,51 +267,16 @@ pub fn new_group(
     Ok(group)
 }
 
-/// Moves a group's tabs to `to`, the first's index among the listed tabs.
-/// Chromium keeps a group's tabs where they are, so they are taken out of it
-/// and put in a new group with the old one's title, colour and fold.
-// TODO: move it with Wren 0.3.0's `TabGroup::move_to`, which keeps the group,
-// its ID and its look; its index counts the strip's tabs that do not move,
-// so `to` goes through `at_list` first.
-pub fn move_group(
-    mt: MainThread,
-    browser: &Browser,
-    group: TabGroup,
-    to: usize,
-) -> Result<(), Error> {
-    let (title, (color, collapsed)) = (group.title(), group.visuals()?);
-    let run = in_group(browser, group);
-    BrowserTab::ungroup(mt, &run)?;
-    let moved = move_run(browser, &run, to);
-    let regrouped =
-        BrowserTab::group(mt, &run).and_then(|group| group.set_visuals(&title, color, collapsed));
-    moved.and(regrouped)
+/// Moves a group's tabs to `to`, the first's index among the listed tabs,
+/// keeping the group.
+pub fn move_group(browser: &Browser, group: TabGroup, to: usize) -> Result<(), Error> {
+    group.move_to(at_list(browser, to))
 }
 
-/// Moves tabs that are together, in order, so the first is at `to` among the
-/// listed tabs. Each goes straight to its place, the last first when they
-/// move down the list, so no tab stops between the tabs of a group it is not
-/// to join.
-fn move_run(browser: &Browser, run: &[BrowserTab], to: usize) -> Result<(), Error> {
-    let all = listed(browser);
-    let Some(from) = run
-        .first()
-        .and_then(|first| all.iter().position(|tab| tab == first))
-    else {
-        return Ok(());
-    };
-    let to = to.min(all.len().saturating_sub(run.len()));
-    let to_browser = at_list(browser, to);
-    if to > from {
-        for (offset, tab) in run.iter().enumerate().rev() {
-            tab.move_to(to_browser + offset)?;
-        }
-    } else if to < from {
-        for (offset, tab) in run.iter().enumerate() {
-            tab.move_to(to_browser + offset)?;
-        }
-    }
-    Ok(())
+// Moves `tab` so it is at `to` among the listed tabs.
+fn move_alone(browser: &Browser, tab: BrowserTab, to: usize) -> Result<(), Error> {
+    let last = listed(browser).len().saturating_sub(1);
+    tab.move_to(at_list(browser, to.min(last)))
 }
 
 /// Puts the active tab's address on the clipboard, and says so in a toast.
