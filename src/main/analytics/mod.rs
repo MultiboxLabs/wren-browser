@@ -3,7 +3,7 @@
 // Only what `Event` names is sent, never what is browsed: no address, title,
 // text typed or name of the user's. Stable and Beta send; Dev builds and
 // performance runs do not, nor any while the user has turned it off
-// (Share Usage Data).
+// (Help Improve Wren).
 //
 // Events go to a thread of their own (sender.rs), which sends them in
 // batches, so recording one never waits on the network.

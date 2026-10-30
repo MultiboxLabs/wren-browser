@@ -35,8 +35,8 @@ export function Settings({ query, settings }: { query: string; settings: Library
       )
     },
     {
-      name: "Share Usage Data",
-      about: "Send Wren which of its features you use, and when it crashes. Never what you browse.",
+      name: "Help Improve Wren",
+      about: "Send anonymous counts of which features you use, and crash reports. Never what you browse.",
       control: (
         <Menu
           checked={settings.values.shareUsageData ? "on" : "off"}
