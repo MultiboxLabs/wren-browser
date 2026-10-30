@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use wren::{Browser, MainThread, PageCall, WebView};
 
 use super::browser::{group_of, tab};
-use super::{MenuAt, WindowRef, with_browser, with_window};
+use super::{MenuAt, WindowRef, failed, with_browser, with_window};
 use crate::analytics::{self, Event, SplitFrom};
 use crate::app::State;
+use crate::clipboard;
 use crate::db::{PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
 use crate::menus::pin::{self as menu, PinMenu};
 use crate::pages::icons;
 use crate::pins::{self, PinTarget};
-use crate::platform;
 use crate::shell::{BrowserWindow, Place};
 
 /// A pin as the page draws it.
@@ -397,7 +397,9 @@ fn act(
         Some(menu::UPDATE_URL) => pins::update_url(state, browser()?, id)?,
         Some(menu::COPY_LINK) => {
             if let PinKind::Tab(page) = &pin.kind {
-                platform::copy_text(&page.url);
+                let off_the_record = place.is_off_the_record();
+                clipboard::copy_link(&page.url, Some(page.title.clone()), off_the_record)
+                    .map_err(failed)?;
             }
         }
         Some(menu::TO_FAVORITES) => {

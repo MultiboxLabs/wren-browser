@@ -6,7 +6,7 @@ use wren::{
 
 use super::enabled;
 use super::group::group_name;
-use crate::platform;
+use crate::clipboard;
 use crate::tabs;
 
 /// Where a tab's menu can keep it, as the window it is in allows.
@@ -114,10 +114,11 @@ pub fn show_tab_menu(
             Some("reload") => tab.reload(),
             Some("move-up") => tabs::move_by(mt, &browser, tab, -1),
             Some("move-down") => tabs::move_by(mt, &browser, tab, 1),
-            Some("copy-link") => {
-                platform::copy_text(&tab.url());
-                Ok(())
-            }
+            Some("copy-link") => clipboard::copy_link(
+                &tab.url(),
+                Some(tab.title()),
+                clipboard::is_off_the_record(&browser),
+            ),
             Some("new-group") => tabs::new_group(mt, &browser, &[tab]).map(drop),
             Some("ungroup") => BrowserTab::ungroup(mt, &[tab]),
             Some("split") => match active {

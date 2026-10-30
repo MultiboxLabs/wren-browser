@@ -2,6 +2,7 @@ mod analytics;
 mod app;
 mod changes;
 mod channel;
+mod clipboard;
 mod db;
 mod downloads;
 mod extensions;

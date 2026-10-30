@@ -7,11 +7,11 @@ use super::window::page_space;
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser, with_window};
 use crate::analytics::{Event, SplitFrom, TabFrom};
 use crate::app::State;
+use crate::clipboard;
 use crate::db::{PinId, SpaceId};
 use crate::menus::{self, ADD_FAVORITE, Keeps, PIN_TAB};
 use crate::pages::icons;
 use crate::pins::{self, PinTarget};
-use crate::platform;
 use crate::shell::{BrowserWindow, Place};
 use crate::tabs::{self, placeholder};
 
@@ -153,8 +153,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("tabs.copyLink", move |()| {
         with_browser(&weak, |_, browser| {
             let tab = browser.active_tab().ok_or("There is no tab.")?;
-            platform::copy_text(&tab.url());
-            Ok(())
+            let off_the_record = clipboard::is_off_the_record(browser);
+            clipboard::copy_link(&tab.url(), Some(tab.title()), off_the_record).map_err(failed)
         })
     });
 

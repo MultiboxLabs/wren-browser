@@ -14,9 +14,9 @@ use std::time::SystemTime;
 
 use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSplit};
 
+use crate::clipboard;
 use crate::ipc::{self, OwnToast};
 use crate::menus;
-use crate::platform;
 
 thread_local! {
     static LAUNCHED: Cell<Option<SystemTime>> = const { Cell::new(None) };
@@ -334,13 +334,15 @@ fn move_run(browser: &Browser, run: &[BrowserTab], to: usize) -> Result<(), Erro
 /// Chromium's New Tab page has none to copy (as `isNewTab` in
 /// pages/ui/address.ts).
 pub fn copy_url(browser: &Browser) -> Result<(), Error> {
-    let Some(url) = browser.active_tab().map(|tab| tab.url()) else {
+    let Some(tab) = browser.active_tab() else {
         return Ok(());
     };
+    let url = tab.url();
     if is_new_tab(&url) {
         return Ok(());
     }
-    platform::copy_text(&url);
+    let off_the_record = clipboard::is_off_the_record(browser);
+    clipboard::copy_link(&url, Some(tab.title()), off_the_record)?;
     ipc::show_toast(browser, OwnToast::UrlCopied)
 }
 

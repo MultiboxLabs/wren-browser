@@ -2,8 +2,8 @@
 
 use wren::{Download, DownloadAction, Error, MainThread, MenuItem, NativeView};
 
+use crate::clipboard;
 use crate::downloads;
-use crate::platform;
 
 /// Shows a download's menu at `point` in the page's `view`, as
 /// `show_tab_menu` does a tab's, and does what is chosen.
@@ -48,10 +48,7 @@ pub fn show_download_menu(
             Some("open") => download.perform(DownloadAction::OPEN),
             Some("show") => download.perform(DownloadAction::SHOW_IN_FINDER),
             Some("open-when-done") => download.perform(DownloadAction::OPEN_WHEN_DONE),
-            Some("copy-link") => {
-                platform::copy_text(&download.url());
-                Ok(())
-            }
+            Some("copy-link") => clipboard::copy_link(&download.url(), None, state.off_the_record),
             Some("remove") => {
                 downloads::remove(download);
                 Ok(())
