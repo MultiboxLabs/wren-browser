@@ -9,6 +9,10 @@
 //   bun run publish --version … --dry-run     all but the commit, the push
 //                                             and the release
 //
+// Run again after it stops partway through, it resumes: once the tag is made,
+// it pushes and releases what it built, in target/publish, without building
+// again.
+//
 // It needs, on this Mac: the Developer ID (WREN_IDENTITY, codesign's name
 // for it), a notarytool profile (WREN_NOTARY_PROFILE), Sparkle's private
 // key in the login Keychain (account "wren"), and `gh` signed in.
@@ -68,8 +72,26 @@ const notaryProfile = process.env.WREN_NOTARY_PROFILE ?? fail("Set WREN_NOTARY_P
 if ((await $`git status --porcelain`.text()).trim()) fail("Commit or stash what is changed first.");
 if ((await $`git rev-parse --abbrev-ref HEAD`.text()).trim() !== "main") fail("Publish from main.");
 if ((await $`gh auth status`.nothrow().quiet()).exitCode !== 0) fail("Sign in with `gh auth login` first.");
-if ((await $`git rev-parse -q --verify refs/tags/${tag}`.nothrow().quiet()).exitCode === 0)
-  fail(`The tag ${tag} is there already.`);
+// The tag is made only after the zip and its .json, so with the tag there,
+// a run stopped after its commit: what is left is to push and release them.
+const resuming = (await $`git rev-parse -q --verify refs/tags/${tag}`.nothrow().quiet()).exitCode === 0;
+const zip = `${OUT}/Wren-${shortVersion}.zip`;
+const json = `${OUT}/Wren-${shortVersion}.json`;
+if (resuming) {
+  if (dryRun) fail(`The tag ${tag} is there already: ${shortVersion} is committed, so there is nothing to try.`);
+  const tagged = JSON.parse(await $`git show ${`${tag}:${MANIFESTS[0]}`}`.text());
+  if (tagged.version !== shortVersion) fail(`The tag ${tag} is there already, but not on ${shortVersion}'s commit.`);
+  if (!(await Bun.file(zip).exists()) || !(await Bun.file(json).exists()))
+    fail(`The tag ${tag} is there already, but ${zip} and ${json}, which it was made with, are not.`);
+  await sparkle();
+  const { edSignature } = JSON.parse(await Bun.file(json).text());
+  if (
+    (await $`Frameworks/bin/sign_update --account ${KEY_ACCOUNT} --verify ${zip} ${edSignature}`.nothrow().quiet())
+      .exitCode !== 0
+  )
+    fail(`${zip} does not match the signature in ${json}.`);
+  console.log(`The tag ${tag} is there already; resuming with ${zip}.`);
+}
 
 // Newer than what is out: a stable release than the last stable one, and a
 // beta than any, as Beta takes both.
@@ -77,87 +99,108 @@ const published = (await $`gh release list -R ${REPOSITORY} --exclude-drafts --l
   tagName: string;
 }[];
 const newest = published
+  .filter(({ tagName }) => tagName !== tag)
   .map(({ tagName }) => parseVersion(tagName.replace(/^v/, "")))
   .filter((out): out is Version => out !== null && (channel === "beta" || out.beta === null))
   .map(buildOf)
   .reduce((a, b) => Math.max(a, b), 0);
 if (build <= newest) fail(`${shortVersion} is not newer than what ${channel} has out already.`);
 
-await sparkle();
-
-// The version, in each manifest; kept only once it is published.
-for (const path of MANIFESTS) {
-  const manifest = JSON.parse(await Bun.file(path).text());
-  await Bun.write(path, JSON.stringify({ ...manifest, version: shortVersion, build: String(build) }, null, 2) + "\n");
+if (!resuming) {
+  await make();
+  if (dryRun) {
+    await $`git checkout -- ${MANIFESTS}`;
+    console.log(`\nDry run: ${zip} and ${json} are made; nothing is committed, pushed or released.`);
+    console.log(await Bun.file(json).text());
+    process.exit(0);
+  }
+  await $`git commit -m ${`chore: release ${shortVersion}`} -- ${MANIFESTS}`;
+  await $`git tag ${tag}`;
 }
-await $`bunx prettier --write ${MANIFESTS}`.quiet();
-
-const zip = `${OUT}/Wren-${shortVersion}.zip`;
-const json = `${OUT}/Wren-${shortVersion}.json`;
-try {
-  await $`bun run scripts/build.ts --channel ${channel} --identity ${identity}`;
-  await $`wren notarize ${app} --keychain-profile ${notaryProfile}`;
-  await $`xcrun stapler staple ${app}`;
-
-  await $`rm -rf ${OUT} && mkdir -p ${OUT}`;
-  await $`ditto -c -k --keepParent ${app} ${zip}`;
-  // Prints `sparkle:edSignature="…" length="…"`.
-  const signed = await $`Frameworks/bin/sign_update --account ${KEY_ACCOUNT} ${zip}`.text();
-  const edSignature = /sparkle:edSignature="([^"]+)"/.exec(signed)?.[1];
-  const length = /length="(\d+)"/.exec(signed)?.[1];
-  if (!edSignature || !length) throw new Error(`sign_update said: ${signed}`);
-  const plist = `${app}/Contents/Info.plist`;
-  const minimumSystemVersion = (
-    await $`/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" ${plist}`.text()
-  ).trim();
-  // What the site writes the feed's item from.
-  await Bun.write(
-    json,
-    JSON.stringify(
-      {
-        version: String(build),
-        shortVersion,
-        edSignature,
-        length: Number(length),
-        minimumSystemVersion,
-        hardwareRequirements: "arm64"
-      },
-      null,
-      2
-    ) + "\n"
-  );
-} catch (error) {
-  await $`git checkout -- ${MANIFESTS}`;
-  throw error;
-}
-
-if (dryRun) {
-  await $`git checkout -- ${MANIFESTS}`;
-  console.log(`\nDry run: ${zip} and ${json} are made; nothing is committed, pushed or released.`);
-  console.log(await Bun.file(json).text());
-  process.exit(0);
-}
-
-await $`git commit -m ${`chore: release ${shortVersion}`} -- ${MANIFESTS}`;
-await $`git tag ${tag}`;
+// Pushing again what is pushed already does nothing.
 await $`git push origin main ${tag}`;
 
 // A draft first, with both files, then published, so that the release is never
-// out with a file missing. Stable is GitHub's latest; a beta never is.
-const prerelease = channel === "beta" ? ["--prerelease"] : [];
-await $`gh release create ${tag} -R ${REPOSITORY} --draft --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
-await $`gh release upload ${tag} -R ${REPOSITORY} ${zip} ${json}`;
-const latest = channel === "stable" ? "--latest" : "--latest=false";
-await $`gh release edit ${tag} -R ${REPOSITORY} --draft=false ${latest}`;
+// out with a file missing. Stable is GitHub's latest; a beta never is. A
+// resumed run finds its draft, and uploads both files again over what of them
+// is there; once published, the release is left as it is.
+const releases = (await $`gh release list -R ${REPOSITORY} --limit 1000 --json tagName,isDraft`.json()) as {
+  tagName: string;
+  isDraft: boolean;
+}[];
+const isDraft = releases.find(({ tagName }) => tagName === tag)?.isDraft ?? null;
+if (isDraft === null) {
+  const prerelease = channel === "beta" ? ["--prerelease"] : [];
+  // TODO: add back --verify-tag once REPOSITORY is wren-browser again; the
+  // tag is pushed there, not to the releases repository.
+  await $`gh release create ${tag} -R ${REPOSITORY} --draft --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
+}
+if (isDraft !== false) {
+  await $`gh release upload ${tag} -R ${REPOSITORY} --clobber ${zip} ${json}`;
+  const latest = channel === "stable" ? "--latest" : "--latest=false";
+  await $`gh release edit ${tag} -R ${REPOSITORY} --draft=false ${latest}`;
+}
 
 const url = (await $`gh release view ${tag} -R ${REPOSITORY} --json url --jq .url`.text()).trim();
 const entry = {
   ...JSON.parse(await Bun.file(json).text()),
-  date: new Date().toISOString().slice(0, 10),
-  notes: []
+  date: new Date().toISOString().slice(0, 10)
 };
 console.log(`\nPublished ${url}`);
 console.log(
   `\nTo offer it, add this to the top of \`releases\` in the site's src/app/releases/releases.ts, write its notes, and push:\n`
 );
 console.log(`${JSON.stringify(entry, null, 2)},`);
+
+/**
+ * Writes the version into the manifests, and builds, notarises, zips and
+ * signs the app into `zip`, with `json` beside it. If it fails, the
+ * manifests are put back.
+ */
+async function make() {
+  await sparkle();
+
+  // The version, in each manifest; kept only once it is published.
+  for (const path of MANIFESTS) {
+    const manifest = JSON.parse(await Bun.file(path).text());
+    await Bun.write(path, JSON.stringify({ ...manifest, version: shortVersion, build: String(build) }, null, 2) + "\n");
+  }
+  await $`bunx prettier --write ${MANIFESTS}`.quiet();
+
+  try {
+    await $`bun run scripts/build.ts --channel ${channel} --identity ${identity}`;
+    await $`wren notarize ${app} --keychain-profile ${notaryProfile}`;
+    await $`xcrun stapler staple ${app}`;
+
+    await $`rm -rf ${OUT} && mkdir -p ${OUT}`;
+    await $`ditto -c -k --keepParent ${app} ${zip}`;
+    // Prints `sparkle:edSignature="…" length="…"`.
+    const signed = await $`Frameworks/bin/sign_update --account ${KEY_ACCOUNT} ${zip}`.text();
+    const edSignature = /sparkle:edSignature="([^"]+)"/.exec(signed)?.[1];
+    const length = /length="(\d+)"/.exec(signed)?.[1];
+    if (!edSignature || !length) throw new Error(`sign_update said: ${signed}`);
+    const plist = `${app}/Contents/Info.plist`;
+    const minimumSystemVersion = (
+      await $`/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" ${plist}`.text()
+    ).trim();
+    // What the site writes the feed's item from.
+    await Bun.write(
+      json,
+      JSON.stringify(
+        {
+          version: String(build),
+          shortVersion,
+          edSignature,
+          length: Number(length),
+          minimumSystemVersion,
+          hardwareRequirements: "arm64"
+        },
+        null,
+        2
+      ) + "\n"
+    );
+  } catch (error) {
+    await $`git checkout -- ${MANIFESTS}`;
+    throw error;
+  }
+}

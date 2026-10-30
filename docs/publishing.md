@@ -59,7 +59,7 @@ The script refuses to start unless:
 - `WREN_IDENTITY` and `WREN_NOTARY_PROFILE` are set;
 - the working tree is clean, and the branch is `main`;
 - `gh` is signed in;
-- the tag `v<version>` does not exist;
+- the tag `v<version>` does not exist, or it resumes (below);
 - the version is newer than every published release its channel takes. A stable release is compared with the stable ones, and a beta with all of them.
 
 Then it:
@@ -71,7 +71,9 @@ Then it:
 5. Creates the GitHub release as a draft, with generated notes, uploads the zip and the `.json`, and publishes it. A stable release becomes GitHub's latest release. A beta is a prerelease, and never the latest.
 6. Prints the entry for the site's `releases.ts`. Add it to the top of the list, write its notes, and push the site.
 
-If anything fails before the commit, the manifests are put back. A dry run stops before the commit too: it puts the manifests back and leaves the zip and the `.json` in `target/publish/` to inspect. Notarisation still happens, so a dry run is a full check of the signing setup.
+If anything fails before the commit, the manifests are put back. If it fails after the tag is made, for example while uploading, run the same command again. With the tag there already, it resumes: it checks that the tag's commit has the version and that `target/publish/` still has the zip, signed as its `.json` says, and then pushes again, finds the draft or creates it, uploads both files over any that are there, and publishes it. It builds nothing again, and leaves a release that is published already as it is.
+
+A dry run stops before the commit too: it puts the manifests back and leaves the zip and the `.json` in `target/publish/` to inspect. Notarisation still happens, so a dry run is a full check of the signing setup.
 
 To check a dry run's zip:
 
