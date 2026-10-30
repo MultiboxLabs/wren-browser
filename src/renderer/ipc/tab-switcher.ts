@@ -7,5 +7,10 @@ export const tabSwitcher = {
   /** Escape: it closes, and the active tab stays. */
   onCancel: (listener: () => void) => wren.on<null>("tabSwitcher.cancel", listener),
   /** The page closed it itself, before Control was let go: the keys are the page's and Chromium's again. */
-  closed: () => wren.invoke<null>("tabSwitcher.closed")
+  closed: () => wren.invoke<null>("tabSwitcher.closed"),
+  /** A picture of the tab's page as it draws it now: the ID it is served at (`previewUrl`), or null for a tab with none (discarded, crashed). */
+  preview: (tab: number) => wren.invoke<string | null>("tabSwitcher.preview", tab)
 };
+
+/** Where the app serves a tab's picture it names by ID, on the page's own origin (`PATH`, in main/pages/previews.rs). */
+export const previewUrl = (id: string) => `/previews/${id}`;

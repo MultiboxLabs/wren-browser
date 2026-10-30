@@ -101,7 +101,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     ad_block::handle(web_view, window, mt);
     spaces::handle(web_view, window, mt);
     pins::handle(web_view, window, mt);
-    tab_switcher::handle(web_view, window);
+    tab_switcher::handle(web_view, window, mt);
     downloads::handle(web_view, window, mt);
 }
 

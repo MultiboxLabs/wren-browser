@@ -10,7 +10,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { browser, hasApp, tabSwitcher } from "../../ipc";
+import { browser, hasApp, previewUrl, tabSwitcher } from "../../ipc";
 import type { TabSplit } from "../../ipc";
 import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
 import { useWindowActive } from "../../state/window";
@@ -172,10 +172,6 @@ function Card({
         selected ? "bg-tab-switcher-selected text-white" : "text-omnibox-fg hover:bg-omnibox-hover"
       )}
     >
-      {/* Where a picture of the page goes, once Wren gives one: its icon until then.
-          TODO: the page's thumbnail. Wren has no call that captures a tab
-          (WrenTabs.h gives only its favicon); it needs one, such as
-          Wren_CopyTabThumbnail, as Chromium's CopyFromSurface gives its hover cards'. */}
       <span
         className={cn(
           "flex aspect-3/2 w-full gap-0.5 overflow-hidden rounded-tab-switcher-preview",
@@ -183,9 +179,7 @@ function Card({
         )}
       >
         {tabs.map((tab) => (
-          <span key={tab.id} className="grid min-h-0 min-w-0 flex-1 place-items-center bg-omnibox-tile">
-            <Favicon url={tab.url} title={tab.title} icon={tab.favicon} size={tabs.length > 1 ? 24 : 32} />
-          </span>
+          <TabPreview key={tab.id} tab={tab} iconSize={tabs.length > 1 ? 24 : 32} />
         ))}
       </span>
       <span className="flex min-w-0 items-center gap-2 px-0.5">
@@ -197,6 +191,31 @@ function Card({
         ))}
       </span>
     </div>
+  );
+}
+
+/** A picture of the tab's page, taken as the card shows: its icon until the picture comes, and for a tab with none. */
+function TabPreview({ tab, iconSize }: { tab: BrowserTabWithFavicon; iconSize: number }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!hasApp) return;
+    let current = true;
+    tabSwitcher
+      .preview(tab.id)
+      .then((id) => current && id !== null && setUrl(previewUrl(id)))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [tab.id]);
+  return (
+    <span className="grid min-h-0 min-w-0 flex-1 place-items-center overflow-hidden bg-omnibox-tile">
+      {url ? (
+        <img aria-hidden src={url} className="size-full object-cover object-top" />
+      ) : (
+        <Favicon url={tab.url} title={tab.title} icon={tab.favicon} size={iconSize} />
+      )}
+    </span>
   );
 }
 

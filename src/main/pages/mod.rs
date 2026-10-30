@@ -4,6 +4,7 @@
 mod dev_server;
 mod embedded;
 pub mod icons;
+pub mod previews;
 
 use wren::{
     Profile, SchemeFailure, SchemeRequest, SchemeResponse, WebView, WebViewKind, WebViewOptions,
@@ -144,11 +145,18 @@ pub fn serve_page(request: SchemeRequest, source: &Source) {
     } else {
         path
     };
-    // The UI's icons come from the app, whatever serves its files.
+    // The UI's icons and tabs' previews come from the app, whatever serves
+    // its files.
     if page.host == UI.host
         && let Some(name) = path.strip_prefix(icons::PATH)
     {
         let _ = request.respond(icons::serve(name));
+        return;
+    }
+    if page.host == UI.host
+        && let Some(name) = path.strip_prefix(previews::PATH)
+    {
+        let _ = request.respond(previews::serve(name));
         return;
     }
     match source {
