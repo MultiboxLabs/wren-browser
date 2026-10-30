@@ -24,8 +24,3 @@ pub fn after(delay: Duration, f: impl FnOnce() + 'static) {
         }
     });
 }
-
-#[cfg(debug_assertions)]
-pub fn on_main_thread(f: impl FnOnce() + Send + 'static) {
-    DispatchQueue::main().exec_async(f);
-}

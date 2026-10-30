@@ -7,7 +7,6 @@ use std::path::Path;
 use std::ptr::NonNull;
 
 use block2::RcBlock;
-use dispatch2::DispatchQueue;
 use objc2::AllocAnyThread;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSImage, NSWorkspace};
@@ -54,7 +53,7 @@ pub fn file_thumbnail(path: &str, size: f64, done: impl FnOnce(Option<Vec<u8>>) 
         move |representation: *mut QLThumbnailRepresentation, _: *mut NSError| {
             let png = NonNull::new(representation)
                 .and_then(|representation| png(&*unsafe { representation.as_ref().CGImage() }));
-            DispatchQueue::main().exec_async(move || {
+            let _ = wren::post_to_main_thread(move |_| {
                 if let Some(done) = WAITING.with_borrow_mut(|waiting| waiting.remove(&id)) {
                     done(png);
                 }

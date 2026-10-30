@@ -7,8 +7,6 @@ use std::thread;
 
 use wren::{SchemeFailure, SchemeRequest, SchemeResponse};
 
-use crate::platform;
-
 thread_local! {
     // Requests waiting for the server, by ID. A request stays on the main
     // thread; only its ID goes to the thread that fetches it.
@@ -23,7 +21,7 @@ pub fn proxy(request: SchemeRequest, url: String) {
     WAITING.with(|waiting| waiting.borrow_mut().insert(id, request));
     thread::spawn(move || {
         let response = fetch(&url);
-        platform::on_main_thread(move || {
+        let _ = wren::post_to_main_thread(move |_| {
             if let Some(request) = WAITING.with(|waiting| waiting.borrow_mut().remove(&id)) {
                 let _ = request.respond(response);
             }
