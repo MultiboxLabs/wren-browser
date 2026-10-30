@@ -144,9 +144,10 @@ pub fn send_downloads(window: &BrowserWindow, browser: &Browser) {
     }
 }
 
-/// Whether `change` is to downloads `browser`'s window lists.
+/// Whether `change` is to downloads `browser`'s window lists: to its lists,
+/// or to one download's progress or state.
 pub fn downloads_changed(change: &Change, browser: &Browser) -> bool {
-    change.kind == ChangeKind::Downloads
+    matches!(change.kind, ChangeKind::Downloads | ChangeKind::Download)
         && change
             .profile
             .as_ref()

@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use wren::unstable_ui::UIText;
-use wren::{Browser, Error, Popover, PopoverKind, WebView};
+use wren::{Browser, Error, Popover, PopoverKind, ToastOptions, WebView};
 
 use super::{WindowRef, failed, with_browser};
 use crate::pages::icons;
@@ -113,7 +113,10 @@ impl Named {
 
 /// Shows one of the app's toasts, as Chromium shows its own.
 pub fn show_toast(browser: &Browser, toast: OwnToast) -> Result<(), Error> {
-    browser.show_toast(&toast.text(), None)
+    browser.show_toast(&ToastOptions {
+        text: toast.text(),
+        ..Default::default()
+    })
 }
 
 /// Tells the page a toast came or went.

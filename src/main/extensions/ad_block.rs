@@ -54,7 +54,10 @@ pub fn set(
 ) {
     with_profile_browser(mt, profile_id, move |browser| {
         then(browser.and_then(|browser| {
-            browser.set_extension_enabled(ID, enabled)?;
+            browser
+                .profile()
+                .ok_or(Error::Closed)?
+                .set_extension_enabled(ID, enabled)?;
             Ok(state(browser))
         }))
     });
@@ -63,7 +66,8 @@ pub fn set(
 /// The ad blocker in the Browser's profile; None while it has none, as
 /// Chromium installs it once the profile has loaded, or refused it.
 pub fn state(browser: &Browser) -> Option<AdBlock> {
-    browser.extension_state(ID).ok().map(|state| AdBlock {
+    let state = browser.profile()?.extension_state(ID).ok()?;
+    Some(AdBlock {
         enabled: state.enabled,
         can_change: state.can_change,
     })

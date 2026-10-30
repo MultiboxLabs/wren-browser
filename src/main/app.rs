@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use wren::{
     App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
-    PopoverRequest, PopoverTrigger, Profile, QuitPrompt, TabFields,
+    PopoverRequest, PopoverTrigger, Profile, ProfileExtensionsRequest, QuitPrompt, TabFields,
 };
 
 use crate::analytics::{self, Analytics, Event};
@@ -273,8 +273,11 @@ impl App for Wren {
 
     // The app's extensions (the ad blocker and Wren Components), in every
     // profile but the pages'.
-    fn profile_extensions(&self, _profile_id: &str, gets: &mut [bool]) {
-        gets.fill(!self.state.making_ui_profile.get());
+    fn profile_extensions(&self, request: &mut ProfileExtensionsRequest) {
+        let gets = !self.state.making_ui_profile.get();
+        for extension in &mut request.extensions {
+            extension.gets = gets;
+        }
     }
 
     // Required: Chromium opened a Browser of its own. A normal one, a
