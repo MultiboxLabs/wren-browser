@@ -63,10 +63,10 @@ impl State {
         let weak = Rc::downgrade(&page);
         page.watch_active(mt, move |active| {
             if let Some(page) = weak.upgrade() {
-                page.set_active(active);
-                ipc::send_active(&page, active);
+                ipc::show_active(&page, active);
             }
         });
+        self.count_crashes(&page);
         *self.onboarding.borrow_mut() = Some(page);
         self.update_menu(mt);
         true

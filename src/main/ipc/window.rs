@@ -1,8 +1,11 @@
+use std::rc::Rc;
+
 use serde::Serialize;
 use wren::WebView;
 
 use super::{WindowRef, failed, give_back_keyboard, with_window};
 use crate::analytics::Event;
+use crate::app::State;
 use crate::db::SpaceId;
 use crate::platform::PageWindow;
 use crate::shell::{BrowserWindow, Place};
@@ -130,6 +133,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
 /// How a page's handlers find its window again, which they cannot own: a
 /// browser window's, or the onboarding's.
 pub trait PageRef: Clone + 'static {
+    /// The app, or why it is gone.
+    fn app(&self) -> Result<Rc<State>, String>;
+
     /// Runs `run` with the page's window, or fails once it is gone.
     fn with_page<A>(&self, run: impl FnOnce(&PageWindow) -> Result<A, String>)
     -> Result<A, String>;
@@ -144,6 +150,10 @@ pub trait PageRef: Clone + 'static {
 }
 
 impl PageRef for WindowRef {
+    fn app(&self) -> Result<Rc<State>, String> {
+        Ok(self.state()?)
+    }
+
     fn with_page<A>(
         &self,
         run: impl FnOnce(&PageWindow) -> Result<A, String>,
@@ -151,12 +161,10 @@ impl PageRef for WindowRef {
         with_window(self, |window| run(&window.page))
     }
 
-    // A browser window minimises, if it was asked to, once shown, and
-    // analytics counts it.
+    // A browser window minimises, if it was asked to, once shown.
     fn show(&self) -> Result<(), String> {
         with_window(self, |window| {
             window.show();
-            self.state()?.analytics.window_shown();
             Ok(())
         })
     }
@@ -164,9 +172,14 @@ impl PageRef for WindowRef {
 
 /// The calls any page's window answers, of the window alone.
 pub fn handle_page(web_view: &WebView, page: &impl PageRef) {
-    // The page has drawn what it shows: the window is shown, the first time.
+    // The page has drawn what it shows: the window is shown, the first time,
+    // and the first of the app's says how long it took to open.
     let weak = page.clone();
-    let _ = web_view.handle("window.show", move |()| weak.show());
+    let _ = web_view.handle("window.show", move |()| {
+        weak.show()?;
+        weak.app()?.analytics.window_shown();
+        Ok::<(), String>(())
+    });
 
     // Whether the window is in use; "window.active" says when it changes.
     let weak = page.clone();
@@ -199,8 +212,9 @@ pub fn handle_page(web_view: &WebView, page: &impl PageRef) {
     });
 }
 
-/// Tells the page the window became active or inactive.
-pub fn send_active(window: &PageWindow, active: bool) {
+/// The window became active or inactive: it and its page are drawn so.
+pub fn show_active(window: &PageWindow, active: bool) {
+    window.set_active(active);
     // Fails only while the page is loading; it asks first once it is there.
     let _ = window.web_view.send("window.active", &active);
 }

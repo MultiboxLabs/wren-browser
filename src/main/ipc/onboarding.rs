@@ -18,12 +18,15 @@ use crate::platform::PageWindow;
 struct OnboardingRef(Weak<State>);
 
 impl PageRef for OnboardingRef {
+    fn app(&self) -> Result<Rc<State>, String> {
+        Ok(self.0.upgrade().ok_or("The app is closing.")?)
+    }
+
     fn with_page<A>(
         &self,
         run: impl FnOnce(&PageWindow) -> Result<A, String>,
     ) -> Result<A, String> {
-        let state = self.0.upgrade().ok_or("The app is closing.")?;
-        let page = state.onboarding().ok_or("Onboarding is over.")?;
+        let page = self.app()?.onboarding().ok_or("Onboarding is over.")?;
         run(&page)
     }
 }

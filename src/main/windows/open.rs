@@ -62,6 +62,16 @@ impl State {
     /// whose page draws its own. Its page is the UI's, in a Profile of its
     /// own. `framed`: the caller places the window, and its first Browser's
     /// frame does not move it (`BrowserWindow::add`).
+    /// Analytics hears of it if the UI's page in `page` crashes.
+    pub(crate) fn count_crashes(self: &Rc<Self>, page: &PageWindow) {
+        let state = Rc::downgrade(self);
+        page.watch_crash(move || {
+            if let Some(state) = state.upgrade() {
+                state.analytics.record(Event::PageCrashed);
+            }
+        });
+    }
+
     pub(super) fn open_page_window(
         self: &Rc<Self>,
         mt: MainThread,
@@ -114,8 +124,7 @@ impl State {
                     state.touch_space(space);
                 }
             }
-            window.page.set_active(active);
-            ipc::send_active(&window.page, active);
+            ipc::show_active(&window.page, active);
         });
         // Whether the pointer is over the sidebar, as it moves, and as the
         // window comes into use or goes out of it.
@@ -126,12 +135,7 @@ impl State {
                 ipc::check_sidebar_hover(&window);
             }
         });
-        let state = Rc::downgrade(self);
-        page.watch_crash(move || {
-            if let Some(state) = state.upgrade() {
-                state.analytics.record(Event::PageCrashed);
-            }
-        });
+        self.count_crashes(&page);
         let state = Rc::downgrade(self);
         page.watch_full_screen(move |full_screen| {
             let Some(state) = state.upgrade() else { return };
