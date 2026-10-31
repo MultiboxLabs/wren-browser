@@ -17,6 +17,7 @@ import { browser } from "../../ipc/browser";
 import { hasApp } from "../../ipc/app";
 import { type Section, SectionList } from "./sections";
 import { CreateDialog } from "./profile-dialogs";
+import { DefaultBrowserCard } from "./default-browser";
 import { FilterBar, FilterButton, useDownloadsFilter } from "../downloads/filter";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
@@ -177,6 +178,14 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
           downloadsProfile={filter.profile?.id ?? null}
           settings={settings}
         />
+
+        {/* Under the list, not in it, once macOS has said, so it does not
+            change as it is read. */}
+        {section === "settings" && settings.defaultBrowser.state && (
+          <div className="shrink-0 pt-2">
+            <DefaultBrowserCard state={settings.defaultBrowser.state} onSet={settings.defaultBrowser.set} />
+          </div>
+        )}
 
         <div className="flex h-12.5 shrink-0 items-center justify-end">
           {/* Chromium's settings hold the rest of what can be set. */}

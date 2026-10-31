@@ -6,6 +6,7 @@ export * from "./analytics";
 export * from "./anchors";
 export * from "./app";
 export * from "./browser";
+export * from "./default-browser";
 export * from "./downloads";
 export * from "./extensions";
 export * from "./find";

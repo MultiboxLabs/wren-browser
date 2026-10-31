@@ -6,6 +6,7 @@ mod ad_block;
 mod analytics;
 mod anchors;
 mod browser;
+mod default_browser;
 mod downloads;
 mod extensions;
 mod find;
@@ -40,6 +41,7 @@ use crate::tabs;
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;
 pub use browser::{send_favicon, send_status, send_tabs};
+pub use default_browser::broadcast_default_browser;
 pub use downloads::{
     downloads_changed, send_downloads, send_indicator, send_reveal, show_downloads_bubble,
 };
@@ -102,6 +104,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     perf::handle(web_view, window, mt);
     profiles::handle(web_view, window, mt);
     ad_block::handle(web_view, mt);
+    default_browser::handle(web_view, mt);
     spaces::handle(web_view, window, mt);
     pins::handle(web_view, window, mt);
     tab_switcher::handle(web_view, window);

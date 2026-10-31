@@ -16,9 +16,10 @@ export type Icon = ComponentType<{ size?: number; strokeWidth?: number; classNam
  * pointer (a toolbar's); `filled`, a fill of its own (the favourites);
  * `faint`, a fainter one, for items of a grid that are many (extensions);
  * `raised`, a bezel standing on a popover; `prominent`, the space's colour,
- * for the default button of a dialog.
+ * for the default button of a dialog; `bright`, white, for what a card on
+ * the window asks to be done.
  */
-export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent";
+export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent" | "bright";
 
 /**
  * Its size and corners: `square`, a toolbar's 28 points; `text`, as tall,
@@ -38,8 +39,8 @@ type ButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
   iconSize?: number;
   /**
    * The icon's tone: the variant's (`plain` dim, as a toolbar's;
-   * `prominent` its text's; the rest full), or the text's colour, for a
-   * coloured button.
+   * `prominent` and `bright` their text's; the rest full), or the text's
+   * colour, for a coloured button.
    */
   iconTone?: "dim" | "full" | "inherit";
   /** Its tooltip; and its name, unless its text names it. */
@@ -79,6 +80,13 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
   prominent: {
     off: "bg-prominent text-white shadow-raised enabled:active:brightness-90 disabled:text-white disabled:opacity-45",
     on: "bg-prominent text-white shadow-raised brightness-90"
+  },
+  // White, in light and dark, with its text in the space's colour: on a card
+  // drawn on the window, a fill of the space's colour would sit too close to
+  // the window's.
+  bright: {
+    off: "bg-white text-bright-fg shadow-[0_1px_2px_rgb(0_0_0/0.15),0_0_0_0.5px_rgb(0_0_0/0.06)] enabled:active:brightness-95 disabled:text-bright-fg disabled:opacity-45",
+    on: "bg-white text-bright-fg shadow-[0_1px_2px_rgb(0_0_0/0.15),0_0_0_0.5px_rgb(0_0_0/0.06)] brightness-95"
   }
 };
 
@@ -115,7 +123,8 @@ export function Button({
   // scales, but reports the box it rests in: what hangs off it must not move
   // as it scales.
   const opens = rest["aria-haspopup"] !== undefined;
-  const tone = tones[iconTone ?? (variant === "plain" ? "dim" : variant === "prominent" ? "inherit" : "full")];
+  const coloured = variant === "prominent" || variant === "bright";
+  const tone = tones[iconTone ?? (variant === "plain" ? "dim" : coloured ? "inherit" : "full")];
   return (
     <Tooltip label={label}>
       <motion.button

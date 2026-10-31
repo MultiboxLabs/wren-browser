@@ -331,6 +331,13 @@ impl App for Wren {
         {
             state.update_menu(mt);
         }
+        // Here, in System Settings, or on Chromium's settings page.
+        if changes
+            .iter()
+            .any(|change| change.kind == ChangeKind::DefaultBrowser)
+        {
+            ipc::broadcast_default_browser(state, mt);
+        }
         for change in changes {
             record_tab_crash(state, change);
             if change.kind == ChangeKind::ProfileClosed

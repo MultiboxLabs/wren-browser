@@ -7,6 +7,8 @@ import {
   type AdBlock,
   adBlock,
   type ArchiveAfter,
+  type DefaultBrowser,
+  defaultBrowser,
   hasApp,
   type NewSpace,
   type ProfileEntry,
@@ -204,5 +206,22 @@ export function useSettings(open: boolean) {
     setShown((shown) => ({ ...shown, ...change }));
     if (hasApp) settings.update(change).then(setShown, refresh);
   };
-  return { values: shown, read, update };
+  return { values: shown, read, update, defaultBrowser: useDefaultBrowser(open) };
+}
+
+/**
+ * Whether Wren is the default browser, asked each time the Library opens and
+ * followed as it changes; null until macOS says. `set` asks the user to make
+ * it so.
+ */
+function useDefaultBrowser(open: boolean) {
+  const [shown, setShown] = useState<DefaultBrowser | null>(null);
+  useEffect(() => {
+    if (open && hasApp) defaultBrowser.get().then(setShown, () => {});
+  }, [open]);
+  useEffect(() => (hasApp ? defaultBrowser.onChanged(setShown) : undefined), []);
+  const set = () => {
+    if (hasApp) defaultBrowser.set().then(setShown, () => {});
+  };
+  return { state: shown, set };
 }

@@ -93,6 +93,7 @@ body,
   --color-raised: var(--raised);
   --color-raised-hover: var(--raised-hover);
   --color-prominent: var(--prominent);
+  --color-bright-fg: var(--bright-fg);
   --shadow-raised: var(--raised-edge);
   --color-field: var(--field);
   --shadow-field: var(--field-edge);
@@ -287,6 +288,9 @@ body,
   /* A default button (Button's prominent): the space's colour, deep enough
      for white text on it. */
   --prominent: oklch(from var(--space) 0.55 c h);
+  /* The text of Button's bright, which is white: the space's colour, deep
+     enough to read on it. */
+  --bright-fg: oklch(from var(--space) 0.42 calc(c * 1.4) h);
   --fg-2: rgb(from var(--glyph) r g b / var(--glyph-2));
   --fg-3: rgb(from var(--glyph) r g b / var(--glyph-3));
   --fg-4: rgb(from var(--glyph) r g b / var(--glyph-4));
