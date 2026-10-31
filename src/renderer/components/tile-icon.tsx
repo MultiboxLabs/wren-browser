@@ -5,6 +5,7 @@
 // in the square's 100 units; .claude/skills/tile-icons says how to draw one.
 
 import { type ReactNode, useId } from "react";
+import { WrenMark } from "@/components/icons";
 
 // The square, as a superellipse, as the system rounds an app's icon.
 const SQUIRCLE =
@@ -59,6 +60,21 @@ export function TileIcon({
       />
       {children?.(id)}
     </svg>
+  );
+}
+
+/** Wren's mark on its warm tile; `children` are laid over it, as a badge. */
+export function WrenTile({ size, children }: { size: number; children?: ReactNode }) {
+  return (
+    <span className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
+      <span className="absolute inset-0">
+        <TileIcon tone="wren" size={size} />
+      </span>
+      <span className="relative text-white">
+        <WrenMark size={size * 0.575} />
+      </span>
+      {children}
+    </span>
   );
 }
 

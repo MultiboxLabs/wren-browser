@@ -2,7 +2,6 @@
 // yes-or-no steps'), as tile icons (components/tile-icon.tsx): a glyph of its
 // own in white on a square of colour, each drawn here in its 100 units.
 
-import { WrenMark } from "@/components/icons";
 import { CUT, TileIcon } from "@/components/tile-icon";
 
 /** Starting fresh: sparkles, a large one and two small. */
@@ -60,20 +59,6 @@ export function AdsIcon({ size = 44 }: { size?: number }) {
         </>
       )}
     </TileIcon>
-  );
-}
-
-/** Making Wren the default: its mark, on its warm colour. */
-export function WrenIcon({ size = 44 }: { size?: number }) {
-  return (
-    <span className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
-      <span className="absolute inset-0">
-        <TileIcon tone="wren" size={size} />
-      </span>
-      <span className="relative translate-x-[1px] text-white">
-        <WrenMark size={size * 0.58} />
-      </span>
-    </span>
   );
 }
 

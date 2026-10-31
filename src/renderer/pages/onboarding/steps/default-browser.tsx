@@ -8,8 +8,9 @@ import { Building2, CircleCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { defaultBrowser, type DefaultBrowser as State, hasApp } from "@/ipc";
 import { defaultBrowserText } from "@/components/library/default-browser";
+import { WrenTile } from "@/components/tile-icon";
 import { Choice } from "@/pages/onboarding/choice";
-import { LaterIcon, WrenIcon } from "@/pages/onboarding/option-icons";
+import { LaterIcon } from "@/pages/onboarding/option-icons";
 import { Split } from "@/pages/onboarding/split";
 import type { StepProps } from "@/pages/onboarding/step";
 
@@ -59,7 +60,7 @@ export function DefaultBrowser({ next, back, finishing, last }: StepProps) {
       ) : (
         <div role="radiogroup" aria-label="Default Browser" className="flex flex-col gap-3">
           <Choice
-            icon={<WrenIcon />}
+            icon={<WrenTile size={44} />}
             title="Make Wren my default"
             body="Links from Mail, Messages and your other apps open in Wren. macOS asks you to confirm."
             chosen={make}

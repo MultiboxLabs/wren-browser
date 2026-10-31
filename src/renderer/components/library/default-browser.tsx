@@ -7,8 +7,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useId } from "react";
 import type { DefaultBrowser } from "@/ipc";
-import { WrenMark } from "@/components/icons";
-import { TileIcon, TONES } from "@/components/tile-icon";
+import { TONES, WrenTile } from "@/components/tile-icon";
 import { Button } from "@/components/ui/button";
 
 // Its lines, by whether Wren is the default and may be made so.
@@ -27,13 +26,7 @@ export function DefaultBrowserCard({ state, onSet }: { state: DefaultBrowser; on
   return (
     <div className="flex flex-col rounded-[16px] bg-fill p-3.5 shadow-[inset_0_0.5px_0_rgb(255_255_255/0.12)]">
       <div className="flex items-center gap-3">
-        <span className="relative grid size-10 shrink-0 place-items-center">
-          <span className="absolute inset-0">
-            <TileIcon tone="wren" size={40} />
-          </span>
-          <span className="relative text-white">
-            <WrenMark size={23} />
-          </span>
+        <WrenTile size={40}>
           <AnimatePresence initial={false}>
             {isDefault && (
               <motion.span
@@ -48,7 +41,7 @@ export function DefaultBrowserCard({ state, onSet }: { state: DefaultBrowser; on
               </motion.span>
             )}
           </AnimatePresence>
-        </span>
+        </WrenTile>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="font-medium text-balance">{title}</span>
           <span className="text-subtitle text-pretty text-fg-2">{about}</span>
