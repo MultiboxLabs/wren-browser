@@ -28,6 +28,14 @@ pub struct Tab {
     can_go_back: bool,
     can_go_forward: bool,
     crashed: bool,
+    /// Its page captures a window or a screen.
+    capturing_screen: bool,
+    /// Something captures its page, such as a call it is shared to.
+    being_captured: bool,
+    /// Its page records from the camera.
+    camera: bool,
+    /// Its page records from the microphone.
+    microphone: bool,
     /// Its page plays sound, or just did, muted or not.
     audible: bool,
     /// Its sound is muted.
@@ -424,6 +432,7 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
             if let Some(split) = split.filter(|split| !splits.contains(split)) {
                 splits.push(split);
             }
+            let alert = |alert| state.is_some_and(|state| state.alert_set().contains(alert));
             Tab {
                 id: tab.id(),
                 title: tab.title(),
@@ -432,7 +441,11 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
                 can_go_back: state.is_some_and(|state| state.can_go_back),
                 can_go_forward: state.is_some_and(|state| state.can_go_forward),
                 crashed: state.is_some_and(|state| state.crash != TabCrash::None),
-                audible: state.is_some_and(|state| state.alert_set().contains(TabAlert::AUDIBLE)),
+                capturing_screen: alert(TabAlert::CAPTURING_SCREEN),
+                being_captured: alert(TabAlert::BEING_CAPTURED),
+                camera: alert(TabAlert::CAMERA),
+                microphone: alert(TabAlert::MICROPHONE),
+                audible: alert(TabAlert::AUDIBLE),
                 muted: state.is_some_and(|state| state.muted),
                 group: group.map(|group| group.to_string()),
                 split: split.map(|split| split.to_string()),

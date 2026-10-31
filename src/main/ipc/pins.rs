@@ -3,7 +3,7 @@
 // any window changes any.
 
 use serde::{Deserialize, Serialize};
-use wren::{Browser, MainThread, PageCall, WebView};
+use wren::{Browser, BrowserTab, MainThread, PageCall, WebView};
 
 use super::browser::{group_of, tab};
 use super::{MenuAt, WindowRef, failed, with_browser, with_window};
@@ -321,6 +321,20 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 }
 
+// The tabs of a pin open in the Browser: its one, or a split pin's two.
+fn open_tabs(browser: &Browser, pin: PinId) -> Vec<BrowserTab> {
+    pins::open_pins(browser)
+        .into_iter()
+        .find(|open| open.pin == pin)
+        .map_or_else(Vec::new, |open| open.tabs)
+}
+
+// Whether all of `tabs` are muted, which unmutes them; or else mutes them.
+fn all_muted(tabs: &[BrowserTab]) -> bool {
+    tabs.iter()
+        .all(|tab| tab.state().is_ok_and(|state| state.muted))
+}
+
 // Shows a pin's menu, or a folder's, where the page asks, acts on what is
 // chosen, and answers with it (`MenuChoice`). A menu that is not shown
 // drops the call, which fails it.
@@ -354,6 +368,10 @@ fn show_menu(mt: MainThread, weak: &WindowRef, call: PageCall) {
             open: browser
                 .as_ref()
                 .is_some_and(|browser| pins::is_open(browser, pin.id)),
+            muted: browser.as_ref().and_then(|browser| {
+                let tabs = open_tabs(browser, pin.id);
+                (!tabs.is_empty()).then(|| all_muted(&tabs))
+            }),
             away: browser
                 .as_ref()
                 .is_some_and(|browser| !pins::away_sides(browser, pin.id).is_empty()),
@@ -400,6 +418,13 @@ fn act(
                 let off_the_record = place.is_off_the_record();
                 clipboard::copy_link(&page.url, Some(page.title.clone()), off_the_record)
                     .map_err(failed)?;
+            }
+        }
+        Some(menu::MUTE) => {
+            let tabs = open_tabs(browser()?, id);
+            let muted = !all_muted(&tabs);
+            for tab in tabs {
+                tab.set_muted(muted).map_err(failed)?;
             }
         }
         Some(menu::TO_FAVORITES) => {

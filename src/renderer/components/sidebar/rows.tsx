@@ -1,19 +1,16 @@
 // What the sidebar's rows are made of, whichever list they are in: the row
-// itself, a split's row and its halves, its icon's column, its sound and close
-// buttons, and the field that renames it. Rows that fold up under a heading are
+// itself, a split's row and its halves, its icon's column, its close button,
+// and the field that renames it. Rows that fold up under a heading are
 // folding.tsx's.
 
 import { X } from "lucide-react";
-import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/react";
+import { motion, useIsPresent, useReducedMotion } from "motion/react";
 import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
-import { SoundIcon } from "@/components/icons";
 import { Button, type Icon } from "@/components/ui/button";
 import { press } from "@/components/ui/press";
-import { browser } from "@/ipc";
-import type { Tab } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { useArrival, useMoving } from "./arrival";
-import { CONTROL_IN, CONTROL_OUT, REORDER, ROW_IN, ROW_OUT } from "./row-motion";
+import { REORDER, ROW_IN, ROW_OUT } from "./row-motion";
 
 /** How far in a folder's or a group's rows are from its own. */
 export const NESTED_INDENT = 16;
@@ -238,47 +235,6 @@ export function IconSlot({ children }: { children: ReactNode }) {
   // Flex, not grid: grid would align an icon wider than the slot to its
   // start and let it overflow only to the right.
   return <span className="relative flex size-4 shrink-0 items-center justify-center">{children}</span>;
-}
-
-/** The row's gap (`gap-2.75`), which a control's room takes as it opens. */
-const ROW_CONTENT_GAP = 11;
-
-/**
- * A speaker on the row of a tab playing sound, muted or not, that mutes or
- * unmutes it. It takes room as it comes, the title sliding over, and gives it
- * back as it goes; a row drawn with one already has it. It reaches well into
- * the row's gaps either side of it, so it stays close to the favicon and the
- * title and adds little to the row.
- */
-export function SoundButton({ tab }: { tab?: Tab }) {
-  const still = useReducedMotion();
-  const closed = still ? { opacity: 0 } : { width: 0, marginRight: -ROW_CONTENT_GAP, opacity: 0 };
-  const open = still ? { opacity: 1 } : { width: 8, marginRight: 0, opacity: 1 };
-  return (
-    <AnimatePresence initial={false}>
-      {tab?.audible && (
-        <motion.span
-          key="sound"
-          initial={closed}
-          animate={{ ...open, transition: CONTROL_IN }}
-          exit={{ ...closed, transition: CONTROL_OUT }}
-          className="flex w-2 shrink-0"
-        >
-          <Button
-            icon={<SoundIcon muted={!!tab.muted} />}
-            shape="none"
-            label={tab.muted ? "Unmute Tab" : "Mute Tab"}
-            scale={0.9}
-            // Pressed alone, without the row around it.
-            propagate={{ tap: false }}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => void browser.setMuted(tab.id, !tab.muted)}
-            className="-mx-1.75 grid size-5.5 place-items-center rounded-control"
-          />
-        </motion.span>
-      )}
-    </AnimatePresence>
-  );
 }
 
 // Shown over a tab's row while it is hovered: by default a cross that

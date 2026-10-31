@@ -36,6 +36,14 @@ export type Tab = {
   group?: string | null;
   /** A tab of the Browser's split's ID. */
   split?: string | null;
+  /** Its page captures a window or a screen. */
+  capturingScreen?: boolean;
+  /** Something captures its page, such as a call it is shared to. */
+  beingCaptured?: boolean;
+  /** Its page records from the camera. */
+  camera?: boolean;
+  /** Its page records from the microphone. */
+  microphone?: boolean;
   /** Its page plays sound, or just did, muted or not. */
   audible?: boolean;
   /** Its sound is muted. */

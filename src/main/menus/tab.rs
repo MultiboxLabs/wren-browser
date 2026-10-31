@@ -49,6 +49,14 @@ pub fn show_tab_menu(
     let mut items = vec![
         MenuItem::item("reload", "Reload"),
         MenuItem::item("copy-link", "Copy Link"),
+        MenuItem::item(
+            "mute",
+            if state.muted {
+                "Unmute Tab"
+            } else {
+                "Mute Tab"
+            },
+        ),
         MenuItem::Separator,
         enabled(MenuItem::item(PIN_TAB, "Pin Tab"), keeps.pins),
         enabled(
@@ -112,6 +120,7 @@ pub fn show_tab_menu(
     mt.show_context_menu(&items, view, point, move |chosen| {
         let _ = match chosen.as_deref() {
             Some("reload") => tab.reload(),
+            Some("mute") => tab.set_muted(!state.muted),
             Some("move-up") => tabs::move_by(mt, &browser, tab, -1),
             Some("move-down") => tabs::move_by(mt, &browser, tab, 1),
             Some("copy-link") => clipboard::copy_link(

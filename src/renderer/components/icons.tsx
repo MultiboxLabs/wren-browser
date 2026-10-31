@@ -183,3 +183,54 @@ export function SoundIcon({ muted, size = 17 }: { muted: boolean; size?: number 
     </svg>
   );
 }
+
+/** Sharing a screen: a screen capture's corners, around a dot. */
+export function ScreenShareIcon({ size = 17 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path
+        d="M1.4 6.4V5a2 2 0 0 1 2-2h2M12.6 3h2a2 2 0 0 1 2 2v1.4M16.6 11.6V13a2 2 0 0 1-2 2h-2M5.4 15h-2a2 2 0 0 1-2-2v-1.4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="9" cy="9" r="2.9" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Being captured: a ring around a dot, as a recording's mark. */
+export function CaptureIcon({ size = 17 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden>
+      <circle cx="9" cy="9" r="7.7" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="9" cy="9" r="3.9" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** The camera in use: a filled video camera, its lens's flap apart. */
+export function CameraIcon({ size = 17 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="currentColor" aria-hidden>
+      <rect x="1" y="4.2" width="11" height="9.6" rx="2.7" />
+      <path d="M13.2 8.1 15.6 6.3C16.2 5.85 17 6.3 17 7V11C17 11.7 16.2 12.15 15.6 11.7L13.2 9.9Z" />
+    </svg>
+  );
+}
+
+/** The microphone in use: a filled capsule on its stand. */
+export function MicrophoneIcon({ size = 17 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="5.7" y="1" width="6.6" height="10.4" rx="3.3" fill="currentColor" />
+      <path
+        d="M3.2 8.3v.5a5.8 5.8 0 0 0 11.6 0v-.5M9 14.7V17"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

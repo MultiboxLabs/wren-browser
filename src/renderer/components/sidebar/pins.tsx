@@ -29,12 +29,12 @@ import {
   IconSlot,
   NESTED_INDENT,
   Row,
-  SoundButton,
   SplitFrame,
   SplitHalf,
   TitleField,
   useRenameClick
 } from "./rows";
+import { TabAlert } from "./tab-alert";
 
 type PinProps = {
   indent?: number;
@@ -195,7 +195,7 @@ function PinLabel({
   return (
     <>
       <PinPageIcon page={page} open={open} />
-      <SoundButton tab={open?.tab} />
+      <TabAlert tab={open?.tab} />
       <Tooltip label={title}>
         <span className="min-w-0 flex-1 truncate" onClick={renameClick}>
           {title}
@@ -265,7 +265,7 @@ const BACK_INSET = { row: "-ml-2.5 -mr-1 px-2.5", half: "-ml-1.5 px-1.5" };
  * the left edge of the row (or the half) as its corners are, and the title
  * says what it does under it; pressing it takes the tab back to the pin's
  * page (`onBack`), without selecting the row first. A double click on the
- * title renames the pin (`onRename`). The tab's sound button comes after the
+ * title renames the pin (`onRename`). The tab's alert comes after the
  * title, as the icon and the slash stay together.
  */
 function AwayTitle({
@@ -313,7 +313,7 @@ function AwayTitle({
         </Tooltip>
         <span className="hidden truncate text-caption text-fg-3 peer-hover/back:block">Back to Pinned URL</span>
       </span>
-      <SoundButton tab={tab} />
+      <TabAlert tab={tab} />
     </>
   );
 }

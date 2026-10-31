@@ -11,6 +11,7 @@ pub const CLOSE_TAB: &str = "close-tab";
 pub const GO_BACK: &str = "go-back";
 pub const UPDATE_URL: &str = "update-url";
 pub const COPY_LINK: &str = "copy-link";
+pub const MUTE: &str = "mute";
 pub const RENAME: &str = "rename";
 pub const TO_FAVORITES: &str = "to-favorites";
 pub const TO_SPACE: &str = "to-space";
@@ -26,6 +27,8 @@ pub enum PinMenu {
         favorite: bool,
         /// Its tab is open in the window.
         open: bool,
+        /// While it is open, whether all its tabs are muted.
+        muted: Option<bool>,
         /// A tab of it is away from its page.
         away: bool,
         /// It has one page, whose link it copies: a tab pin, not a split.
@@ -40,6 +43,7 @@ pub fn pin_menu(menu: &PinMenu) -> Vec<MenuItem> {
     let PinMenu::Pin {
         favorite,
         open,
+        muted,
         away,
         single,
         in_space,
@@ -63,6 +67,12 @@ pub fn pin_menu(menu: &PinMenu) -> Vec<MenuItem> {
     items.push(MenuItem::Separator);
     if single {
         items.push(MenuItem::item(COPY_LINK, "Copy Link"));
+    }
+    if let Some(muted) = muted {
+        items.push(MenuItem::item(
+            MUTE,
+            if muted { "Unmute Tab" } else { "Mute Tab" },
+        ));
     }
     items.push(MenuItem::item(RENAME, "Rename…"));
     items.push(MenuItem::Separator);

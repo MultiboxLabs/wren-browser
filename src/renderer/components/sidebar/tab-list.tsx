@@ -32,12 +32,12 @@ import {
   IconSlot,
   NESTED_INDENT,
   Row,
-  SoundButton,
   SplitFrame,
   SplitHalf,
   TitleField,
   useRenameClick
 } from "./rows";
+import { TabAlert } from "./tab-alert";
 
 // The app makes each change, and the page hears it back as new tabs.
 const selectTab = (tab: Tab) => browser.activate(tab.id);
@@ -343,7 +343,7 @@ function TabRow({
       identities={[tabIdentity(tab.id)]}
     >
       <Favicon url={tab.url} icon={tab.favicon} />
-      <SoundButton tab={tab} />
+      <TabAlert tab={tab} />
       <Tooltip label={tab.title}>
         <span className="min-w-0 flex-1 truncate">{tab.title}</span>
       </Tooltip>
@@ -431,7 +431,7 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
           identities={[tabIdentity(tab.id)]}
         >
           <Favicon url={tab.url} icon={tab.favicon} />
-          <SoundButton tab={tab} />
+          <TabAlert tab={tab} />
           <Tooltip label={tab.title}>
             <span className="min-w-0 flex-1 truncate">{tab.title}</span>
           </Tooltip>

@@ -94,6 +94,10 @@ body,
   --color-raised-hover: var(--raised-hover);
   --color-prominent: var(--prominent);
   --color-bright-fg: var(--bright-fg);
+  --color-alert-screen: var(--alert-screen);
+  --color-alert-captured: var(--alert-captured);
+  --color-alert-camera: var(--alert-camera);
+  --color-alert-microphone: var(--alert-microphone);
   --shadow-raised: var(--raised-edge);
   --color-field: var(--field);
   --shadow-field: var(--field-edge);
@@ -218,6 +222,12 @@ body,
   --accent: oklch(from var(--space) 0.5 calc(c * 1.4) h);
   /* A site that is not secure. */
   --danger: oklch(0.52 0.2 27);
+  /* What a tab's page is capturing: a hue each, deep enough for any light
+     space, as a saturated colour of its own would be lost on some. */
+  --alert-screen: oklch(0.5 0.2 255);
+  --alert-captured: oklch(0.52 0.21 25);
+  --alert-camera: oklch(0.5 0.15 150);
+  --alert-microphone: oklch(0.56 0.15 70);
   --card-edge: rgb(0 0 0 / 0.08);
   --menu: rgb(246 246 246 / 0.92);
   /* Text in menus, tooltips and popovers: neutral, not the space's. */
@@ -266,6 +276,12 @@ body,
   --card: color-mix(in oklab, var(--space) 6%, rgb(22 22 24));
   --accent: var(--ink);
   --danger: oklch(0.78 0.15 27);
+  /* What a tab's page is capturing: a hue each, pale enough for any dark
+     space, as a saturated colour of its own would be lost on some. */
+  --alert-screen: oklch(0.84 0.11 255);
+  --alert-captured: oklch(0.82 0.12 25);
+  --alert-camera: oklch(0.87 0.17 150);
+  --alert-microphone: oklch(0.87 0.15 70);
   --card-edge: rgb(0 0 0 / 0.25);
   --menu: rgb(40 40 42 / 0.92);
   --menu-fg: rgb(255 255 255 / 0.9);
