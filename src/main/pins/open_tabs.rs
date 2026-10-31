@@ -3,8 +3,9 @@
 // IDs. Links last while the app runs, and are never kept: at the next launch
 // every pin is unopened. A tab's link that ended as the tab closed is
 // remembered, so Reopen Closed Tab, which brings the tab back with its ID,
-// links it again (`relink` in tab_changes.rs). A link ended to close its
-// tabs keeps them as closing until they have gone (`end_closing`).
+// links it again (`relink` in tab_changes.rs). A pin that is going from the
+// Browser has its link ended before its tabs have closed, and keeps them as
+// closing until they have gone (`end_closing`).
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -24,6 +25,10 @@ pub struct Link {
     /// When its tabs were last active, as the pin keeps it; None until it
     /// is first kept (`keep_active` in tab_changes.rs).
     pub last_active: Option<i64>,
+    /// A split pin asked to close (`close` in pins/mod.rs): if one of its
+    /// tabs goes, the other goes too, rather than staying as the pin's. A
+    /// page that keeps its tab leaves this set, and the split whole.
+    pub asked_to_close: bool,
 }
 
 /// A tab open for one of a pin's pages.

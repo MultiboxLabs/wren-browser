@@ -376,20 +376,26 @@ pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), Str
     Ok(())
 }
 
-/// Closes the open pin's tabs, all of them, leaving the pin unopened. The
-/// link ends first (`end_closing`): a split pin's first tab closing would
-/// otherwise leave it a split broken, and `follow_tab_changes` would keep
-/// the other side alone. Each tab is remembered as the pin's, for Reopen
-/// Closed Tab (`relink`).
+/// Asks the open pin's tabs to close, all of them, leaving the pin unopened.
+/// A page may keep its tab, and Chromium does not say when it does, so the
+/// link stays until the tabs have gone (`end_broken` in tab_changes.rs).
+///
+/// A split pin's link is marked as asked to close, so its first tab to go
+/// takes the other with it (`close_rest` in tab_changes.rs). A tab whose page
+/// may ask is asked first, by itself, so a split the user keeps stays whole.
 pub fn close(browser: &Browser, id: PinId) -> Result<(), String> {
-    let Some(link) = open_tabs::end_closing(browser, id) else {
+    let Some(link) = open_tabs::find(browser, id) else {
         return Ok(());
     };
+    open_tabs::update(browser, id, |link| {
+        link.asked_to_close = link.sides.len() == 2;
+    });
     let open: Vec<BrowserTab> = tabs_of(browser, &link).collect();
-    for side in &link.sides {
-        open_tabs::closed(side.tab.clone(), id);
+    match open.iter().find(|tab| tabs::may_ask_before_close(**tab)) {
+        Some(asking) => tabs::close(browser, &[*asking]),
+        None => tabs::close(browser, &open),
     }
-    tabs::close(browser, &open).map_err(failed)
+    .map_err(failed)
 }
 
 /// Deletes pin `id`, and what is in it, closing their tabs in every window.
@@ -473,7 +479,8 @@ pub fn to_list(
 }
 
 // Ends the links of `pins` in every Browser `closes` picks, and closes their
-// tabs there.
+// tabs there. No pin is left there for a tab whose page may ask before it
+// closes, so that tab is unpinned first: kept, it is an ordinary tab.
 fn close_where(state: &State, pins: &[PinId], closes: impl Fn(&BrowserWindow, &Browser) -> bool) {
     for window in state.windows.all() {
         for browser in window.browsers() {
@@ -485,6 +492,9 @@ fn close_where(state: &State, pins: &[PinId], closes: impl Fn(&BrowserWindow, &B
                 .filter_map(|pin| open_tabs::end_closing(&browser, *pin))
                 .flat_map(|link| tabs_of(&browser, &link).collect::<Vec<_>>())
                 .collect();
+            for tab in open.iter().filter(|tab| tabs::may_ask_before_close(**tab)) {
+                let _ = set_pinned(*tab, false);
+            }
             if !open.is_empty()
                 && let Err(error) = tabs::close(&browser, &open)
             {
@@ -593,6 +603,7 @@ fn link_to(id: PinId, sides: impl IntoIterator<Item = (BrowserTab, PinPage)>) ->
             .collect(),
         split: None,
         last_active: None,
+        asked_to_close: false,
     }
 }
 

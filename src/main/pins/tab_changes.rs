@@ -19,7 +19,7 @@ use crate::tabs;
 ///   tab that closed is remembered, for Reopen Closed Tab;
 /// - a split pin whose tabs are no longer a split becomes a tab pin of the
 ///   one it keeps (its first, while both are open), and the other is left an
-///   ordinary tab;
+///   ordinary tab, unless the pin was asked to close (`close_rest`);
 /// - a pinned tab no pin links is linked again, if it was a pin's tab before
 ///   it closed, or else unpinned, unless it is closing for a pin
 ///   (`open_tabs::end_closing`);
@@ -97,7 +97,8 @@ fn is_whole(found: &[Option<BrowserTab>]) -> bool {
 
 // Ends a link whose tabs are no longer whole, remembering each that closed
 // (not one that is `still_open`, but unpinned) for Reopen Closed Tab. A split
-// pin with a tab left keeps that one.
+// pin with a tab left keeps that one, unless it was asked to close and a tab
+// has closed: then the one left closes too.
 fn end_broken(
     state: &State,
     browser: &Browser,
@@ -105,16 +106,37 @@ fn end_broken(
     found: &[Option<BrowserTab>],
     still_open: impl Fn(&str) -> bool,
 ) {
+    let mut gone = false;
     for (side, tab) in link.sides.iter().zip(found) {
         if tab.is_none() && !still_open(&side.tab) {
+            gone = true;
             open_tabs::closed(side.tab.clone(), link.pin);
         }
     }
     match found.iter().position(Option::is_some) {
+        Some(kept) if link.asked_to_close && gone => close_rest(state, browser, link, kept, found),
         Some(kept) if found.len() == 2 => keep_side(state, browser, link, kept, found),
         _ => {
             open_tabs::remove(browser, link.pin);
         }
+    }
+}
+
+// A split pin asked to close has lost a tab: the one on `kept` closes too. If
+// its page may keep it, the pin is first left that tab alone, as it would be
+// were the user to keep it; the pin's other page is lost even if they leave.
+fn close_rest(
+    state: &State,
+    browser: &Browser,
+    link: &Link,
+    kept: usize,
+    found: &[Option<BrowserTab>],
+) {
+    if found[kept].is_some_and(tabs::may_ask_before_close) {
+        keep_side(state, browser, link, kept, found);
+    }
+    if let Err(error) = super::close(browser, link.pin) {
+        eprintln!("Wren could not close a split pin's other tab: {error}");
     }
 }
 

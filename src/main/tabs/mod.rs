@@ -70,6 +70,12 @@ pub fn is_pinned(tab: BrowserTab) -> bool {
     tab.state().is_ok_and(|state| state.pinned)
 }
 
+/// Whether closing `tab` may show its page's "Leave site?" prompt, where the
+/// user can keep the tab. Otherwise a tab asked to close does close.
+pub fn may_ask_before_close(tab: BrowserTab) -> bool {
+    tab.state().is_ok_and(|state| state.may_ask_before_close)
+}
+
 // The Browser's index of `index` among the listed tabs: Chromium keeps its
 // pinned tabs first.
 fn at_list(browser: &Browser, index: usize) -> usize {
