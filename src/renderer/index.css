@@ -204,9 +204,11 @@ body,
   --pressed: color(display-p3 0.055 0.059 0.063 / 0.14);
   --selected: rgb(255 255 255 / 0.75);
   --separator: rgb(0 0 0 / 0.15);
-  /* A pinned folder (sidebar/folder-icon.tsx): how light its back is, and its
-     front. In dark, the front is unset, and is a darker shade of the back. */
-  --folder-back-lightness: 0.75;
+  /* A pinned folder (sidebar/folder-icon.tsx): how light and vivid its back
+     is, and its front. In dark, the front is unset, and is a deep shade of the
+     space's colour. */
+  --folder-back-lightness: 0.79;
+  --folder-back-chroma: 0.95;
   --folder-front: rgb(255 255 255);
   /* The update, in the sidebar (sidebar/update.tsx): its edge, and the
      card it opens into. */
@@ -270,8 +272,9 @@ body,
   --pressed: color(display-p3 0.98 0.984 1 / 0.2);
   --selected: rgb(255 255 255 / 0.2);
   --separator: rgb(255 255 255 / 0.15);
-  /* How light a pinned folder's back is (sidebar/folder-icon.tsx). */
-  --folder-back-lightness: 0.72;
+  /* How light and vivid a pinned folder's back is (sidebar/folder-icon.tsx). */
+  --folder-back-lightness: 0.74;
+  --folder-back-chroma: 0.8;
   --update-edge: rgb(255 255 255 / 0.18);
   --update-card: color-mix(in oklab, var(--space) 10%, rgb(10 10 12));
   --update-accent: oklch(from var(--space) 0.74 calc(c * 1.4) h);
