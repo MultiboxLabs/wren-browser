@@ -49,9 +49,9 @@ export function DefaultBrowser({ next, back, finishing, last }: StepProps) {
       {already || !state.canSet ? (
         <div className="flex flex-col items-center gap-3 text-center">
           {already ? (
-            <CircleCheck size={40} strokeWidth={1.5} className="text-fg-2" />
+            <CircleCheck size={40} strokeWidth={1.5} className="glyph-2" />
           ) : (
-            <Building2 size={40} strokeWidth={1.5} className="text-fg-2" />
+            <Building2 size={40} strokeWidth={1.5} className="glyph-2" />
           )}
           <p className="text-onboarding-body text-fg-2">
             {already ? "Wren is your default browser." : defaultBrowserText(state).about}

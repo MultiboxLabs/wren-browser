@@ -30,10 +30,10 @@ export function Choice({
       <span className="mt-0.5">{icon}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="flex items-baseline gap-2">
-          <span className="text-[17px] font-semibold tracking-[-0.01em]">{title}</span>
-          {note && <span className="text-[12px] font-medium text-fg-3">{note}</span>}
+          <span className="text-onboarding-option font-semibold tracking-[-0.01em]">{title}</span>
+          {note && <span className="text-subtitle font-medium text-fg-3">{note}</span>}
         </span>
-        <span className="text-[14px] leading-relaxed text-pretty text-fg-2">{body}</span>
+        <span className="text-onboarding-option-body leading-relaxed text-pretty text-fg-2">{body}</span>
       </span>
       <RadioMark chosen={chosen} size={22} className="mt-0.5" />
     </Option>

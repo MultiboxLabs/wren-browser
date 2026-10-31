@@ -28,7 +28,7 @@ export function Row({
     >
       {icon}
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[15px] font-medium">{name}</span>
+        <span className="truncate text-onboarding-body font-medium">{name}</span>
         {detail && <span className="text-subtitle text-fg-3">{detail}</span>}
       </span>
       <RadioMark chosen={chosen} size={20} />

@@ -51,8 +51,8 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
   return (
     <div className="flex h-96 w-80 flex-col">
       <div className="flex flex-col gap-2 px-3 pt-3 pb-1.5">
-        <label className="flex h-7 items-center gap-1.5 rounded-[8px] bg-fill px-2 text-fg-3">
-          <Search size={13} strokeWidth={2.25} className="shrink-0" />
+        <label className="flex h-7 items-center gap-1.5 rounded-[8px] bg-fill px-2">
+          <Search size={13} strokeWidth={2.25} className="shrink-0 glyph-3" />
           <input
             autoFocus
             value={query}
@@ -69,7 +69,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
             }}
             placeholder="Search"
             aria-label="Search icons and emoji"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-fg outline-none placeholder:text-fg-3"
+            className="min-w-0 flex-1 bg-transparent text-menu-item text-fg outline-none placeholder:text-fg-3"
           />
           {query && (
             <button
@@ -92,7 +92,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
                 aria-selected={kind === each}
                 onClick={() => setKind(each)}
                 className={cn(
-                  "relative text-[12px] font-medium",
+                  "relative text-subtitle font-medium",
                   kind === each ? "text-fg" : "text-fg-2 hover:text-fg"
                 )}
               >
@@ -123,8 +123,8 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
             </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-1 pb-6 text-center">
-              <span className="text-[13px] font-medium text-fg-2">No Results</span>
-              <span className="text-[12px] text-fg-3">Nothing matches “{query.trim()}”.</span>
+              <span className="text-menu-item font-medium text-fg-2">No Results</span>
+              <span className="text-subtitle text-fg-3">Nothing matches “{query.trim()}”.</span>
             </div>
           )
         ) : (
@@ -149,12 +149,13 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
                 aria-label={label}
                 aria-current={index === inView}
                 onClick={() => jump(index)}
-                className={cn(
-                  "grid size-7 place-items-center rounded-[7px]",
-                  index === inView ? "bg-pressed text-fg" : "text-fg-3 hover:text-fg-2"
-                )}
+                className={cn("group grid size-7 place-items-center rounded-[7px]", index === inView && "bg-pressed")}
               >
-                <Glyph size={14} strokeWidth={2} />
+                <Glyph
+                  size={14}
+                  strokeWidth={2}
+                  className={index === inView ? "glyph-1" : "glyph-3 group-hover:glyph-2"}
+                />
               </button>
             </Tooltip>
           ))}
@@ -179,7 +180,7 @@ function Section({
   if (!choices.length) return null;
   return (
     <section>
-      <h3 data-section className="px-2.5 pt-2.5 pb-1 text-[11px] font-semibold text-fg-3">
+      <h3 data-section className="px-2.5 pt-2.5 pb-1 text-caption font-semibold text-fg-3">
         {label}
       </h3>
       <div className="grid grid-cols-8">
