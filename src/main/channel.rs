@@ -7,9 +7,14 @@
 // compile time), and a build that is not told is Dev.
 
 use serde::Serialize;
-use wren::Startup;
+use wren::{Keychain, Startup};
 
 use crate::platform;
+
+/// The name of the key's Keychain item, "Wren Safe Storage". Never change
+/// it: a new name is a new key, and the cookies and passwords already saved
+/// could no longer be read.
+pub const KEYCHAIN_NAME: &str = "Wren";
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -43,6 +48,18 @@ impl Channel {
         match self {
             Channel::Stable | Channel::Beta => "Wren",
             Channel::Dev => "Wren Dev",
+        }
+    }
+
+    /// Where Chromium keeps the key it encrypts cookies and passwords with.
+    /// It follows the data folder, as what one key wrote the other cannot
+    /// read: Stable and Beta keep theirs in the login Keychain (under
+    /// `KEYCHAIN_NAME`); Dev keeps a fixed one in memory, as macOS asks an
+    /// ad hoc build for the Keychain again after every rebuild.
+    pub fn keychain(self) -> Keychain {
+        match self {
+            Channel::Stable | Channel::Beta => Keychain::System,
+            Channel::Dev => Keychain::Mock,
         }
     }
 

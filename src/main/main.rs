@@ -21,7 +21,7 @@ mod windows;
 
 use std::rc::Rc;
 
-use wren::{ExitStatus, Keychain, Scheme, SchemePrivileges, Startup};
+use wren::{ExitStatus, Scheme, SchemePrivileges, Startup};
 
 use crate::app::{State, Wren};
 use crate::channel::Channel;
@@ -37,7 +37,9 @@ fn main() {
     };
     let data = platform::data_dir().join(folder);
     analytics::catch_panics(data.clone(), channel, perf.is_some());
-    let mut startup = Startup::new(data.to_string_lossy(), Keychain::Mock);
+    // A performance run is a Dev build's, so its key is in memory too.
+    let mut startup = Startup::new(data.to_string_lossy(), channel.keychain());
+    startup.keychain_name = Some(channel::KEYCHAIN_NAME.into());
     channel.brand(&mut startup);
     startup.schemes = vec![Scheme::new(
         SCHEME,

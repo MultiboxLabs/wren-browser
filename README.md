@@ -53,7 +53,9 @@ bun run start --channel beta --debug
 
 Every channel writes `Wren.app` and uses the bundle ID `dev.multibox.wren`. Building another channel replaces that bundle. Stable and Beta share browsing data, while Dev keeps its own.
 
-Each manifest selects the app's display name and icon. The build script sets `WREN_CHANNEL` at compile time, and `src/main/channel.rs` selects the data folder and Chromium branding. Icons live in `branding/<channel>.icon`, with matching PNG logos for Chromium. Regenerate the PNG at 256 pixels or larger when changing an icon.
+Stable and Beta keep the key that encrypts cookies and saved passwords in the login Keychain, as "Wren Safe Storage". Dev keeps a fixed key in memory instead. A local build is signed ad hoc, and its signature changes with every build, so a local Stable or Beta build asks for access to the Keychain each time it is rebuilt.
+
+Each manifest selects the app's display name and icon. The build script sets `WREN_CHANNEL` at compile time, and `src/main/channel.rs` selects the data folder, the keychain and Chromium branding. Icons live in `branding/<channel>.icon`, with matching PNG logos for Chromium. Regenerate the PNG at 256 pixels or larger when changing an icon.
 
 ## Publishing a release
 
