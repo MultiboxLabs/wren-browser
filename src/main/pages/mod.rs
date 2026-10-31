@@ -26,6 +26,9 @@ pub struct Page {
     /// A tab may load it (a typed address); otherwise only the app's own web
     /// views get it.
     pub in_tabs: bool,
+    /// Its page's `wheel` events say where a trackpad scroll is: the fingers
+    /// landing, moving and lifting, and its glide after (`wrenPhase`).
+    pub wheel_phases: bool,
 }
 
 pub const UI: Page = Page {
@@ -34,6 +37,7 @@ pub const UI: Page = Page {
     embeds_views: true,
     anchors: true,
     in_tabs: false,
+    wheel_phases: true,
 };
 
 pub const GAME: Page = Page {
@@ -42,6 +46,7 @@ pub const GAME: Page = Page {
     embeds_views: false,
     anchors: false,
     in_tabs: true,
+    wheel_phases: false,
 };
 
 const PAGES: [&Page; 2] = [&UI, &GAME];
@@ -63,6 +68,7 @@ impl Page {
             messages: self.messages,
             embeds_views: self.embeds_views,
             anchors: self.anchors,
+            wheel_phases: self.wheel_phases,
             drags_window: true,
             drag_area_clicks: true,
             transparent: true,

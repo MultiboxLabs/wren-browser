@@ -1,48 +1,121 @@
-// A two-finger swipe across the sidebar switches spaces, as Arc's does: to
-// the next one swiping left, and the previous one swiping right. It is the
-// page's own, from wheel events, so it works wherever the page does. The
-// sidebar's content follows the fingers, and the new space's slides in as
-// any switch's does (state/space-slide.ts); with Reduced Motion nothing
-// moves.
+// A two-finger swipe across the sidebar switches spaces: to the next one
+// swiping left, and the previous one swiping right. It is the page's own,
+// from wheel events, so it works wherever the page does.
 //
-// A gesture is the wheel events until none comes for a moment, its momentum
-// too. Its first events decide its axis: a horizontal one is the swipe's,
-// and kept from the list and from history; a vertical one scrolls the list.
-// The page is told nothing of the fingers. Once a gesture has done what it
-// can (switched, or pushed against the first or last space), the rest of it
-// is ignored, however it speeds up or slows down, until a pause: a momentum
-// comes every frame, and stops as fingers touch the trackpad again, so a
-// pause is a new swipe.
+// The content follows the fingers at half their pace, as if the spaces lay
+// side by side, a sidebar's width apart, and gives less and less past the
+// first and the last (state/space-slide.ts draws it). As the fingers lift it
+// goes on to a space: the one it was heading for, if it was still moving at
+// all, or else the nearer one; never further than the next along. If that is
+// another space, the window switches to it at once, as the content glides
+// there. With Reduced Motion nothing moves, and a swipe switches as it would.
+//
+// The runtime tells the page where a trackpad's fingers are (`wrenPhase`),
+// so a swipe is from their landing to their lifting. Its first move decides
+// its axis: a horizontal one is the swipe's, and kept from the list and from
+// history; a vertical one scrolls the list. The glide after a swipe
+// (`wrenMomentumPhase`) is the swipe's too, and goes nowhere. A mouse's
+// wheel, which has no phases, steps a space at a time as it turns sideways.
 
 import { type RefObject, useEffect, useRef } from "react";
 import type { SpaceSlide } from "../../state/space-slide";
 import { prefersReducedMotion } from "../../utils/motion";
 
-// How long after its last event a gesture is over.
-const GESTURE_END = 150;
-// How long a pause starts a new gesture after one that is spent, in ms.
-const PAUSE = 50;
-// How far across the sidebar a swipe goes before it switches.
-const SWITCH_AT = 1 / 3;
-// How far the content gives past the first or last space, at most.
-const GIVE = 0.08;
-// Past the first or last space, the content springs back once the events
-// fall below this share of the fastest: the fingers have let go, and what
-// comes is the momentum.
-const LET_GO = 0.7;
+// How far the content moves for the fingers' scroll.
+const PACE = 0.5;
+// Past the first or last space, the content gives this share of the way the
+// fingers take it at first, less and less after, and never this many points.
+const GIVE = 0.15;
+const GIVE_MOST = 255;
+// The fingers' speed as they lift is how far they took the content over
+// their last this many ms. Under this many points a second, it was still.
+const RECENT = 100;
+const STILL = 5;
+// The lift comes up to this many ms after the fingers leave, while Chromium
+// waits to see whether a glide follows; when one does, just before it.
+const LATE_LIFT = 100;
+// A mouse's wheel steps once it has turned more than a point; a turn after a
+// pause starts anew, and after a step the wheel is left alone a while, in ms.
+const NOTCH = 1;
+const NOTCH_PAUSE = 50;
+const NOTCH_REST = 250;
 
-type Gesture = {
-  axis: "x" | "y" | null;
-  offset: number;
-  /** It switched, or pushed against an end and sprang back: the rest is ignored. */
-  spent: boolean;
-  /** The fastest event pushing against an end. */
-  peak: number;
-  /** When its last event came. */
-  last: number;
+/** How far the content goes past an end, for how far the fingers took it past. */
+const give = (past: number) => (1 - 1 / ((past * GIVE) / GIVE_MOST + 1)) * GIVE_MOST;
+/** How far the fingers took the content past an end, for how far it went. */
+const given = (shown: number) => {
+  const past = Math.min(shown, GIVE_MOST - 1);
+  return (GIVE_MOST * past) / (GIVE * (GIVE_MOST - past));
 };
 
-const newGesture = (at: number): Gesture => ({ axis: null, offset: 0, spent: false, peak: 0, last: at });
+type Page = -1 | 0 | 1;
+
+/** Where the spaces are, in points toward the next: the window's at 0. */
+type Strip = { pages: Page[]; width: number };
+
+const clampTo = ({ pages, width }: Strip, at: number) =>
+  Math.min(Math.max(at, pages[0] * width), pages[pages.length - 1] * width);
+/** Where the content shows for a place the fingers took it to. */
+const shownAt = (strip: Strip, place: number) => {
+  const end = clampTo(strip, place);
+  return end + Math.sign(place - end) * give(Math.abs(place - end));
+};
+/** The place the fingers took the content to, for where it shows. */
+const placeOf = (strip: Strip, shown: number) => {
+  const end = clampTo(strip, shown);
+  return end + Math.sign(shown - end) * given(Math.abs(shown - end));
+};
+
+/**
+ * The space the content goes to as the fingers lift from `at`, moving at
+ * `speed`: the one ahead of it if it moves, or else the nearer. A swipe that
+ * caught the content moving throws it again, to the space beyond it either
+ * way.
+ */
+function landing({ pages, width }: Strip, at: number, speed: number, caught: boolean): Page {
+  const away = pages.map((page) => page * width - at);
+  const behind = Math.max(
+    0,
+    away.findLastIndex((distance) => distance <= 0)
+  );
+  const nearest = away.reduce((best, distance, index) => (Math.abs(distance) < Math.abs(away[best]) ? index : best), 0);
+  let index = nearest;
+  if (Math.abs(speed) >= STILL) index = caught ? behind + Math.sign(speed) : behind + (speed > 0 ? 1 : 0);
+  // Never further than a space either side of the one behind it.
+  index = Math.min(Math.max(index, behind - 1, 0), behind + 1, pages.length - 1);
+  return pages[index];
+}
+
+type Trail = { at: number; place: number }[];
+
+/** How fast the content went, in points a second, over its last moves before the lift `at`. */
+function speedOf(trail: Trail, at: number) {
+  const last = trail.at(-1);
+  if (!last) return 0;
+  const end = Math.max(last.at, at - LATE_LIFT);
+  const first = trail.find((point) => point.at >= end - RECENT);
+  if (!first || first.at >= last.at) return 0;
+  return ((last.place - first.place) * 1000) / (last.at - first.at);
+}
+
+type Swipe = {
+  /** Its first move's: "x" is the swipe's; null until it moves. */
+  axis: "x" | "y" | null;
+  /** Reduced Motion, as it was then: the content stays where it is. */
+  still: boolean;
+  /** It caught the content moving. */
+  caught: boolean;
+  /** Where the fingers have taken the content, in points toward the next space. */
+  place: number;
+  trail: Trail;
+};
+
+const newSwipe = (): Swipe => ({ axis: null, still: false, caught: false, place: 0, trail: [] });
+
+const hasPhases = "wrenPhase" in WheelEvent.prototype;
+
+// A pinch zooms, and a field scrolls its own text.
+const isTheirs = (event: WheelEvent) => event.ctrlKey || event.target instanceof HTMLInputElement;
 
 /**
  * Swipes over `area` move `slide`'s content. `canStep` says whether there is
@@ -54,7 +127,6 @@ export function useSpaceSwipe(
   canStep: (by: 1 | -1) => boolean,
   step: (by: 1 | -1) => void
 ) {
-  const { x } = slide;
   // Read by the listener as they are now.
   const latest = useRef({ canStep, step });
   latest.current = { canStep, step };
@@ -62,65 +134,114 @@ export function useSpaceSwipe(
   useEffect(() => {
     const element = area.current;
     if (!element) return;
-    let gesture: Gesture | null = null;
-    let timer = 0;
+    const { x } = slide;
+    // The fingers on the trackpad, from their landing to their lifting.
+    let swipe: Swipe | null = null;
+    // A swipe's fingers have lifted, and its glide goes nowhere.
+    let thrown = false;
+    const notch = { turned: 0, last: -Infinity, stepped: -Infinity };
 
-    // Springs back unless it is spent, its content coming in or back already.
-    const end = () => {
-      if (gesture?.axis === "x" && !gesture.spent) slide.settle();
-      gesture = null;
+    const strip = (): Strip => ({
+      pages: ([-1, 0, 1] as const).filter((page) => page === 0 || latest.current.canStep(page)),
+      width: element.clientWidth
+    });
+    // Takes the place from where the content is now: the window may have
+    // switched to the space it was gliding to meanwhile, a width over.
+    const rebase = (moving: Swipe, now: Strip) => {
+      if (moving.still) return;
+      const place = placeOf(now, -x.get());
+      const moved = place - moving.place;
+      if (Math.abs(moved) < 1) return;
+      moving.place = place;
+      for (const point of moving.trail) point.place += moved;
+    };
+
+    const lift = (at: number) => {
+      const lifted = swipe;
+      swipe = null;
+      if (lifted?.axis !== "x") return;
+      thrown = true;
+      const now = strip();
+      rebase(lifted, now);
+      const shown = shownAt(now, lifted.place);
+      const speed = speedOf(lifted.trail, at);
+      const to = landing(now, shown, speed, lifted.caught);
+      // It keeps its speed only going that way.
+      const toward = Math.sign(to * now.width - shown) === Math.sign(speed);
+      slide.release(to, now.width, toward ? -speed : 0);
+      if (to !== 0) latest.current.step(to);
+    };
+
+    const move = (event: WheelEvent) => {
+      swipe ??= newSwipe();
+      if (swipe.axis === null) {
+        if (event.deltaX === 0 && event.deltaY === 0) return;
+        const across = !isTheirs(event) && Math.abs(event.deltaY) <= Math.abs(event.deltaX);
+        swipe.axis = across ? "x" : "y";
+        if (across) {
+          // The fingers take the content where it is, if it is still gliding.
+          swipe.still = prefersReducedMotion();
+          swipe.caught = slide.hold();
+          swipe.place = swipe.still ? 0 : placeOf(strip(), -x.get());
+        }
+      }
+      if (swipe.axis !== "x") return;
+      if (event.cancelable) event.preventDefault();
+      const now = strip();
+      rebase(swipe, now);
+      // The content goes the way the fingers do; deltaX is the scroll's.
+      swipe.place += PACE * event.deltaX;
+      swipe.trail.push({ at: event.timeStamp, place: swipe.place });
+      while (swipe.trail[0].at < event.timeStamp - RECENT - LATE_LIFT) swipe.trail.shift();
+      if (!swipe.still) x.set(-shownAt(now, swipe.place));
+    };
+
+    // A mouse's wheel turned sideways steps a space, once a turn.
+    const turn = (event: WheelEvent) => {
+      if (isTheirs(event) || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      const at = event.timeStamp;
+      if (at - notch.stepped <= NOTCH_REST) return;
+      if (at - notch.last > NOTCH_PAUSE) notch.turned = 0;
+      notch.last = at;
+      notch.turned += event.deltaX;
+      if (Math.abs(notch.turned) <= NOTCH) return;
+      const by = notch.turned > 0 ? 1 : -1;
+      notch.turned = 0;
+      notch.stepped = at;
+      if (latest.current.canStep(by)) slide.leave(by, () => latest.current.step(by));
     };
 
     const onWheel = (event: WheelEvent) => {
-      // A pinch zooms, and a field scrolls its own text.
-      if (event.ctrlKey || event.target instanceof HTMLInputElement) return;
-      const at = event.timeStamp;
-      // A vertical scroll's momentum can be followed by a swipe at once.
-      const fresh = gesture && (gesture.spent || gesture.axis === "y") && at - gesture.last > PAUSE;
-      if (!gesture || fresh) gesture = newGesture(at);
-      gesture.last = at;
-      clearTimeout(timer);
-      timer = window.setTimeout(end, GESTURE_END);
-      if (gesture.axis === null) {
-        if (event.deltaX === 0 && event.deltaY === 0) return;
-        gesture.axis = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? "x" : "y";
-      }
-      if (gesture.axis !== "x") return;
-      event.preventDefault();
-      if (gesture.spent) return;
-
-      // The content goes the way the fingers do; deltaX is the scroll's.
-      gesture.offset -= event.deltaX;
-      const by = gesture.offset < 0 ? 1 : -1;
-      const width = element.clientWidth;
-      const still = prefersReducedMotion();
-      if (!latest.current.canStep(by)) {
-        // Nothing that way: the content gives a little, and no more, and
-        // comes back as the fingers let go.
-        const speed = Math.abs(event.deltaX);
-        gesture.peak = Math.max(gesture.peak, speed);
-        if (speed < gesture.peak * LET_GO) {
-          gesture.spent = true;
-          return slide.settle();
-        }
-        const give = Math.min(Math.abs(gesture.offset) * 0.2, width * GIVE);
-        if (!still) x.set(Math.sign(gesture.offset) * give);
+      if (!hasPhases) return turn(event);
+      if (event.wrenMomentumPhase !== "none") {
+        if (thrown && event.cancelable) event.preventDefault();
+        if (event.wrenMomentumPhase === "ended" || event.wrenMomentumPhase === "cancelled") thrown = false;
         return;
       }
-      gesture.peak = 0;
-      if (Math.abs(gesture.offset) < width * SWITCH_AT) {
-        if (!still) x.set(gesture.offset);
-        return;
+      switch (event.wrenPhase) {
+        case "none":
+          return turn(event);
+        // Fingers that land, or move without the page hearing them land,
+        // start a swipe, lifting any the page did not hear lift.
+        case "may-begin":
+          lift(event.timeStamp);
+          thrown = false;
+          swipe = newSwipe();
+          return;
+        case "began":
+          if (swipe?.axis) lift(event.timeStamp);
+          thrown = false;
+          return move(event);
+        case "changed":
+          return move(event);
+        case "ended":
+        case "cancelled":
+          return lift(event.timeStamp);
       }
-      // The new space's content slides in as the window switches.
-      gesture.spent = true;
-      latest.current.step(by);
     };
 
     element.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      element.removeEventListener("wheel", onWheel);
-      clearTimeout(timer);
-    };
+    return () => element.removeEventListener("wheel", onWheel);
   }, []);
 }
