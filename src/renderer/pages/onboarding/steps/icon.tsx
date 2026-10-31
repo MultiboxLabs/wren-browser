@@ -5,14 +5,14 @@ import { IconPicker } from "@/components/icon-picker/icon-picker";
 import { Card, Split } from "@/pages/onboarding/split";
 import type { StepProps } from "@/pages/onboarding/step";
 
-export function Icon({ choices: { icon }, choose, next, back, finishing }: StepProps) {
+export function Icon({ choices: { icon }, choose, next, back, finishing, last }: StepProps) {
   return (
     <Split
       title="Give your space an icon"
       body="Spaces keep what you do apart. Pick something that says what your first one is for."
       back={back}
       go={() => next()}
-      goLabel="Continue"
+      last={last}
       finishing={finishing}
       panelClassName="items-center"
     >

@@ -13,7 +13,7 @@ export function Colour({ choices: { theme }, choose, next, back, finishing, last
       body="Pick one for your first space, and its window takes it on. You can change it any time."
       back={back}
       go={() => next()}
-      goLabel={last ? "Start Browsing" : "Continue"}
+      last={last}
       finishing={finishing}
       panelClassName="items-center"
     >

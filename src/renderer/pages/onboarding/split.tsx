@@ -16,6 +16,7 @@ export function Split({
   back,
   go,
   goLabel,
+  last,
   finishing,
   panelClassName,
   children
@@ -25,7 +26,9 @@ export function Split({
   back?: () => void;
   /** The default button, which Return presses too. */
   go: () => void;
-  goLabel: string;
+  /** What it says, if not what a step's says by whether it is the last. */
+  goLabel?: string;
+  last: boolean;
   finishing: boolean;
   /** For the right half's box. */
   panelClassName?: string;
@@ -51,7 +54,7 @@ export function Split({
             </Button>
           )}
           <GoButton className="w-full" disabled={finishing} onClick={go}>
-            {goLabel}
+            {goLabel ?? (last ? "Start Browsing" : "Continue")}
           </GoButton>
         </motion.div>
       </div>

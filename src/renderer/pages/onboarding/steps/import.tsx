@@ -18,7 +18,7 @@ const FITS = 9;
 // Start Fresh's row, among the browsers'.
 const FRESH = "fresh";
 
-export function Import({ choices, browsers, next, back, finishing }: StepProps) {
+export function Import({ choices, browsers, next, back, finishing, last }: StepProps) {
   const list = browsers ?? [];
   // The row the user chose, here or before; or else, as the list comes, the
   // first browser that keeps spaces, or the first.
@@ -34,7 +34,8 @@ export function Import({ choices, browsers, next, back, finishing }: StepProps) 
       body="Your spaces, bookmarks and history, from the browser you use now."
       back={back}
       go={() => next({ importFrom: source ?? null })}
-      goLabel={source ? `Import from ${source.name}` : "Continue"}
+      goLabel={source && `Import from ${source.name}`}
+      last={last}
       finishing={finishing}
     >
       <div

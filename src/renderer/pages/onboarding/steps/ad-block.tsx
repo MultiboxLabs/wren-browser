@@ -17,7 +17,7 @@ export function AdBlock({ choices, next, back, finishing, last }: StepProps) {
       body="Wren blocks ads and the trackers that follow you from site to site, so pages load faster and what you do stays yours."
       back={back}
       go={() => next({ adBlock: on })}
-      goLabel={last ? "Start Browsing" : "Continue"}
+      last={last}
       finishing={finishing}
     >
       <div role="radiogroup" aria-label="Ad Blocker" className="flex flex-col gap-3">

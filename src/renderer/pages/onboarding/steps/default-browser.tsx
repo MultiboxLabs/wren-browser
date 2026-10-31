@@ -43,7 +43,7 @@ export function DefaultBrowser({ next, back, finishing, last }: StepProps) {
       body="Links you open from mail, messages and other apps open here, in the space you were in."
       back={back}
       go={go}
-      goLabel={last ? "Start Browsing" : "Continue"}
+      last={last}
       finishing={finishing || asking}
     >
       {already || !state.canSet ? (
