@@ -34,7 +34,7 @@ import { TabList } from "./tab-list";
 import { UpdateCard } from "./update";
 import { BrowserOfSpace, useBrowser } from "../../state/browser";
 import { useDownloadIndicator } from "../../state/downloads";
-import { useSettings } from "../../state/library";
+import { type LibrarySettings, useSettings } from "../../state/library";
 import { usePins } from "../../state/pins";
 import { useSpace } from "../../state/space";
 import { SLIDE } from "../../state/space-slide";
@@ -107,6 +107,8 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   // The content fades as it slides away.
   const fade = useTransform(swipe, (x) => 1 - Math.min(Math.abs(x) / SLIDE, 1) * 0.85);
   const { current: active } = useBrowser();
+  // Read once for every space's content, not again as each comes in.
+  const settings = useSettings(true);
   const indicator = useDownloadIndicator();
   // The latest downloads, over the bottom of the content, which fades out under them.
   const shelf = useShelf(visible && !newSpace);
@@ -187,7 +189,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
             // Each space's own, so one's tabs never leave or arrive in another's.
             <BrowserOfSpace key={space.id} space={space.id}>
               <ListBelowContext value={below}>
-                <SpaceContent omnibox={omnibox} address={address} />
+                <SpaceContent omnibox={omnibox} address={address} settings={settings} />
               </ListBelowContext>
             </BrowserOfSpace>
           )}
@@ -236,20 +238,22 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   );
 }
 
+type SpaceContentProps = Pick<SidebarProps, "omnibox" | "address"> & { settings: LibrarySettings };
+
 /** What the sidebar shows of the space, below its toolbar: the address, the favourites, the pins and the tabs. */
-function SpaceContent({ omnibox, address }: Pick<SidebarProps, "omnibox" | "address">) {
+function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
   const { space, profile } = useSpace();
   const { current, ready } = useBrowser();
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
-  const settings = useSettings(true);
   const { actions, dialog } = usePinActions(pins.toggleFolder);
   // The tab drawn selected, as a pin's or a favourite's too; none while the
   // omnibox for a new tab is open.
   const selected = omnibox.shown?.target === "new-tab" ? undefined : current?.id;
-  // The space's tabs, pins and settings are read after it is shown, as it
-  // comes in. Once they are, what shows them is made anew, so what is there
-  // from the start is simply there, rather than coming in as if it were new
+  // The space's pins and the settings are mostly read before it is shown
+  // (state/pins.tsx, and the sidebar's), but may not be yet, nor its tabs,
+  // as it comes in. Once they are, what shows them is made anew, so what is
+  // there from the start is simply there, rather than coming in as if new
   // (rows growing in, the pins unfolding); only what changes after moves.
   // Where its tabs and pins were is made anew with them (arrival.ts): the
   // rows made anew are not ones moving from where they were drawn before,

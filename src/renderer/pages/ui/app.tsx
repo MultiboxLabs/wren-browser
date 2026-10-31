@@ -6,6 +6,7 @@ import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
 import { BrowserProvider, useBrowser } from "../../state/browser";
 import { DownloadsProvider } from "../../state/downloads";
+import { PinsProvider } from "../../state/pins";
 import { SpaceProvider, useSpace } from "../../state/space";
 import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "../../state/window";
 import { Omnibox } from "../../components/omnibox/omnibox";
@@ -42,7 +43,10 @@ export function App() {
             {popup ? (
               <PopupWindow popup={popup} />
             ) : (
-              popup === null && saved !== undefined && <BrowserWindow saved={saved} />
+              popup === null && (
+                // Its spaces' pins are read while the sidebar's state is.
+                <PinsProvider>{saved !== undefined && <BrowserWindow saved={saved} />}</PinsProvider>
+              )
             )}
           </TooltipProvider>
         </SpaceProvider>
