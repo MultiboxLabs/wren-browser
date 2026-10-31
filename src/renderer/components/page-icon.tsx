@@ -3,7 +3,8 @@
 // details cut out of them, in the text's colour. Lucide's stroked glyphs
 // read as web beside the sites' own icons. Drawn in 100 units with the
 // rules of a tile icon's glyph (.claude/skills/tile-icons), but bare, with
-// no tile round them, so nearly to the edge of the box.
+// no tile round them, so nearly to the edge of the box. A site with no icon
+// has a globe from here too, in lines.
 
 import { type ReactNode, useId } from "react";
 import { CUT } from "./tile-icon";
@@ -113,6 +114,22 @@ export const PAGE_GLYPHS: Record<string, Glyph> = {
   settings,
   version: about
 };
+
+/** A site with no icon of its own: a globe. The one glyph here in lines, as a
+    disc with them cut out looked wrong. They are a mask over one fill, so that
+    where they cross does not show darker in a translucent text colour. */
+export const SITE_GLYPH: Glyph = (id) => (
+  <>
+    <mask id={`${id}-lines`}>
+      <g fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="50" cy="50" r="40" strokeWidth="10" />
+        <ellipse cx="50" cy="50" rx="17" ry="40" strokeWidth="8" />
+        <path d="M10 50h80" strokeWidth="8" />
+      </g>
+    </mask>
+    <rect mask={`url(#${id}-lines)`} width="100" height="100" />
+  </>
+);
 
 /** A page's glyph, in the text's colour, as large as a favicon would be. */
 export function PageIcon({ glyph, size }: { glyph: Glyph; size: number }) {

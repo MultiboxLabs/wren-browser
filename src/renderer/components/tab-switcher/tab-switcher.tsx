@@ -185,7 +185,7 @@ function Card({
       <span className="flex min-w-0 items-center gap-2 px-0.5">
         {tabs.map((tab) => (
           <span key={tab.id} className="flex min-w-0 flex-1 items-center gap-2">
-            <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />
+            <Favicon url={tab.url} icon={tab.favicon} />
             <span className="truncate text-omnibox-row font-medium">{tab.title || host(tab.url)}</span>
           </span>
         ))}
@@ -225,7 +225,7 @@ function TabPreview({ tab, iconSize }: { tab: BrowserTabWithFavicon; iconSize: n
       {url ? (
         <img aria-hidden src={url} onError={() => setUrl(null)} className="size-full object-cover object-top" />
       ) : (
-        <Favicon url={tab.url} title={tab.title} icon={tab.favicon} size={iconSize} />
+        <Favicon url={tab.url} icon={tab.favicon} size={iconSize} />
       )}
     </span>
   );

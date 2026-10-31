@@ -63,8 +63,8 @@ export function usePinTabs(pin: Pin): PinTab[] {
  * none).
  */
 export function PinPageIcon({ page, open }: { page: PinPage; open?: PinTab }) {
-  if (!open || open.away) return <Favicon url={page.url} title={page.title} icon={page.favicon} />;
-  return <Favicon url={open.tab.url} title={open.tab.title} icon={open.tab.favicon ?? page.favicon} />;
+  if (!open || open.away) return <Favicon url={page.url} icon={page.favicon} />;
+  return <Favicon url={open.tab.url} icon={open.tab.favicon ?? page.favicon} />;
 }
 
 /**

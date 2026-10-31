@@ -341,7 +341,7 @@ function TabRow({
       onMiddlePress={closable ? () => onClose(tab) : undefined}
       identities={[tabIdentity(tab.id)]}
     >
-      <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />
+      <Favicon url={tab.url} icon={tab.favicon} />
       <Tooltip label={tab.title}>
         <span className="min-w-0 flex-1 truncate">{tab.title}</span>
       </Tooltip>
@@ -428,7 +428,7 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
           onMenu={(x, y) => props.onTabMenu(tab, x, y)}
           identities={[tabIdentity(tab.id)]}
         >
-          <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />
+          <Favicon url={tab.url} icon={tab.favicon} />
           <Tooltip label={tab.title}>
             <span className="min-w-0 flex-1 truncate">{tab.title}</span>
           </Tooltip>

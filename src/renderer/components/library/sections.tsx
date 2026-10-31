@@ -116,11 +116,11 @@ function BoostTile({ boost }: { boost: Boost }) {
     <span
       className={cn(
         "relative grid size-9 place-items-center rounded-[9px] shadow-[0_0_0_1.5px_rgb(255_255_255/0.35)]",
-        boost.on ? "bg-[rgb(246_246_246)]" : "bg-white/30"
+        boost.on ? "bg-[rgb(246_246_246)] text-black/75" : "bg-white/30"
       )}
     >
       <span className={cn("grid", !boost.on && "opacity-40")}>
-        <Favicon url={`https://${boost.host}/`} title={boost.host.replace(/^www\./, "")} size={20} />
+        <Favicon url={`https://${boost.host}/`} size={20} />
       </span>
       {!boost.on && (
         <svg aria-hidden viewBox="0 0 36 36" className="absolute -inset-0.5 size-10">

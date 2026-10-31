@@ -129,7 +129,7 @@ export function Omnibox({
         >
           <span className="grid size-6 shrink-0 place-items-center">
             {tab ? (
-              <Favicon url={tab.url} title={tab.title} icon={tab.favicon} />
+              <Favicon url={tab.url} icon={tab.favicon} />
             ) : chosen ? (
               <OmniboxIcon item={chosen} glyph="text-omnibox-typed" />
             ) : (
