@@ -4,10 +4,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::Db;
 use super::settings::set;
 use super::spaces::{SpaceChange, checked_icon};
 use super::theme::SpaceTheme;
-use super::{Db, sql};
 
 const ONBOARDED: &str = "onboarded";
 const FIRST_SPACE: &str = "firstSpace";
@@ -88,13 +88,6 @@ impl Db {
         }
         chosen.unwrap_or_default()
     }
-
-    fn forget(&self, key: &str) -> Result<(), String> {
-        self.conn
-            .execute("DELETE FROM settings WHERE key = ?1", [key])
-            .map(drop)
-            .map_err(sql)
-    }
 }
 
 #[cfg(test)]
@@ -141,7 +134,8 @@ mod tests {
     fn a_space_there_already_takes_what_was_chosen_at_once() {
         let db = db();
         db.sync_profiles(&[entry()]);
-        let theme = SpaceTheme::default_for("#ff375f");
+        // One whose hue comes back from the database to the last bit.
+        let theme = SpaceTheme::default_for("#0a84ff");
         let chosen = FirstSpace {
             icon: None,
             theme: Some(theme.clone()),

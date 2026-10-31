@@ -46,9 +46,7 @@ impl Db {
     pub fn take_crash(&self) -> Result<Option<String>, String> {
         let crash = self.setting(PENDING_CRASH)?;
         if crash.is_some() {
-            self.conn
-                .execute("DELETE FROM settings WHERE key = ?1", [PENDING_CRASH])
-                .map_err(super::sql)?;
+            self.forget(PENDING_CRASH)?;
         }
         Ok(crash)
     }

@@ -174,6 +174,14 @@ impl Db {
             .map_err(sql)?;
         Ok(json.and_then(|json| serde_json::from_str(&json).ok()))
     }
+
+    // Takes a setting back to never having been set.
+    pub(super) fn forget(&self, key: &str) -> Result<(), String> {
+        self.conn
+            .execute("DELETE FROM settings WHERE key = ?1", [key])
+            .map(drop)
+            .map_err(sql)
+    }
 }
 
 pub(super) fn set(
