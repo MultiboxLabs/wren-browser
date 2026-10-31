@@ -4,7 +4,7 @@
 // places the rows had are taken at the drop and the rows slide from them once
 // the list is drawn in the new order.
 
-import { prefersReducedMotion } from "../../utils/motion";
+import { prefersReducedMotion } from "@/utils/motion";
 import { unitsIn } from "./units";
 
 /** How long the rows take to slide. */

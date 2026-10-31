@@ -17,7 +17,7 @@ import {
   settings,
   type SpaceEntry,
   spaces
-} from "../ipc";
+} from "@/ipc";
 
 /**
  * The user's profiles, as the app lists them, read again each time the

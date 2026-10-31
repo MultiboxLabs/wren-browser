@@ -6,9 +6,9 @@
 import { X } from "lucide-react";
 import { motion, useIsPresent, useReducedMotion } from "motion/react";
 import { type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
-import { Button, type Icon } from "../ui/button";
-import { press } from "../ui/press";
-import { cn } from "../../utils/cn";
+import { Button, type Icon } from "@/components/ui/button";
+import { press } from "@/components/ui/press";
+import { cn } from "@/utils/cn";
 import { useArrival, useMoving } from "./arrival";
 import { REORDER, ROW_IN, ROW_OUT } from "./row-motion";
 

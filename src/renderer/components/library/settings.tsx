@@ -4,11 +4,11 @@
 
 import { ChevronsUpDown, Info } from "lucide-react";
 import type { ReactNode } from "react";
-import { archiveAfterOptions, DEFAULT_ARCHIVE_AFTER, type LibrarySettings } from "../../state/library";
-import { Button } from "../ui/button";
-import { Menu } from "../ui/menu";
-import { Switch } from "../ui/switch";
-import { Tooltip } from "../ui/tooltip";
+import { archiveAfterOptions, DEFAULT_ARCHIVE_AFTER, type LibrarySettings } from "@/state/library";
+import { Button } from "@/components/ui/button";
+import { Menu } from "@/components/ui/menu";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip } from "@/components/ui/tooltip";
 import { Empty, matches } from "./rows";
 
 export function Settings({ query, settings }: { query: string; settings: LibrarySettings }) {

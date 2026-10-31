@@ -1,7 +1,7 @@
 // A web address dragged to the tab list from outside it, like a link, or a
 // file dropped from Finder, which opens on its `file://` address as in Chrome.
 
-import { hasApp } from "../../ipc";
+import { hasApp } from "@/ipc";
 
 /** Whether a drag carries an address. What it is only shows once it is dropped. */
 export const carriesAddress = (data: DataTransfer) =>

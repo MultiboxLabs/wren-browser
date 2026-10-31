@@ -6,11 +6,11 @@
 
 import { Check, File, Play, RotateCw, Trash2, X } from "lucide-react";
 import { motion } from "motion/react";
-import { type Download, type DownloadAction, downloads } from "../../ipc";
-import { Button, type Icon } from "../ui/button";
-import { press } from "../ui/press";
-import { isRunning, useDownloadThumbnail } from "../../state/downloads";
-import { cn } from "../../utils/cn";
+import { type Download, type DownloadAction, downloads } from "@/ipc";
+import { Button, type Icon } from "@/components/ui/button";
+import { press } from "@/components/ui/press";
+import { isRunning, useDownloadThumbnail } from "@/state/downloads";
+import { cn } from "@/utils/cn";
 import { ProgressRing } from "./progress-ring";
 
 export function DownloadRow({

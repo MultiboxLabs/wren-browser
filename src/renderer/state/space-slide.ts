@@ -12,7 +12,7 @@
 
 import { animate, type MotionValue, useMotionValue } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
-import { prefersReducedMotion } from "../utils/motion";
+import { prefersReducedMotion } from "@/utils/motion";
 
 /** How far the content is from its place as it starts to slide in, or once it has slid out, in points. */
 export const SLIDE = 96;

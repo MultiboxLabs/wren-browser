@@ -3,7 +3,7 @@
 // it has the keyboard. Its other attributes are an <input>'s.
 
 import type { ComponentProps } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 export function TextField({ className, ...props }: ComponentProps<"input">) {
   return (

@@ -6,7 +6,7 @@
 // there: to a place in its list, or to another space's button.
 
 import { type DragEvent, useEffect, useRef, useState } from "react";
-import { useSpace } from "../../state/space";
+import { useSpace } from "@/state/space";
 import { whenDragEnds } from "./drag-hold";
 import { carriedIn, moveToSpace } from "./units";
 

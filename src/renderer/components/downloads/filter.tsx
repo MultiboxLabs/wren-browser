@@ -7,9 +7,9 @@
 import { CircleX, ListFilter } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useState } from "react";
-import type { ProfileEntry } from "../../ipc";
-import { Button } from "../ui/button";
-import { cn } from "../../utils/cn";
+import type { ProfileEntry } from "@/ipc";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/utils/cn";
 
 export type DownloadsFilter = ReturnType<typeof useDownloadsFilter>;
 

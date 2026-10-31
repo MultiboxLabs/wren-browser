@@ -5,12 +5,12 @@
 // and whether the Library is open in its place.
 
 import { useEffect, useRef, useState } from "react";
-import { downloads, hasApp, menu, type SidebarState } from "../../ipc";
-import { useBrowser } from "../../state/browser";
-import { useSpace } from "../../state/space";
-import { useHolds } from "../ui/hold";
-import type { LibraryReveal } from "../library/library";
-import { LIBRARY_RAIL, useLibraryMotion } from "../library/motion";
+import { downloads, hasApp, menu, type SidebarState } from "@/ipc";
+import { useBrowser } from "@/state/browser";
+import { useSpace } from "@/state/space";
+import { useHolds } from "@/components/ui/hold";
+import type { LibraryReveal } from "@/components/library/library";
+import { LIBRARY_RAIL, useLibraryMotion } from "@/components/library/motion";
 import { useSidebarHover } from "./hover";
 import { type Presentation, useSidebarMotion, useWindowButtons } from "./motion";
 import { useSaveSidebar } from "./state";

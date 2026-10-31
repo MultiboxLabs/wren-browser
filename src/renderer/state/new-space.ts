@@ -2,9 +2,9 @@
 // far, which the window is drawn with, and making it.
 
 import { useMemo, useState } from "react";
-import { appWindow, type ProfileEntry, type SpaceTheme, spaces } from "../ipc";
-import { DEFAULT_ICON } from "../components/space-icon";
-import { defaultTheme } from "../utils/theme";
+import { appWindow, type ProfileEntry, type SpaceTheme, spaces } from "@/ipc";
+import { DEFAULT_ICON } from "@/components/space-icon";
+import { defaultTheme } from "@/utils/theme";
 import type { SpaceSlide } from "./space-slide";
 
 /** What is coloured by a profile while its colour is not known: the profiles are not read yet. */

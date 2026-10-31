@@ -2,7 +2,7 @@
 // with its Profile, so the app keeps it (src/main/sidebar.rs).
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { hasApp, sidebar, type SidebarState } from "../../ipc";
+import { hasApp, sidebar, type SidebarState } from "@/ipc";
 
 /**
  * What the app saved: null if nothing, or outside the app (Vite in a

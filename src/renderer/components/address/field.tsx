@@ -8,13 +8,13 @@
 
 import { Search } from "lucide-react";
 import type { Ref } from "react";
-import { type ExtensionAction, extensions } from "../../ipc";
-import { Anchor } from "../ui/anchor";
-import { Button } from "../ui/button";
-import { address, isNewTab } from "../../utils/url";
-import { useBrowser, useExtensionActions } from "../../state/browser";
+import { type ExtensionAction, extensions } from "@/ipc";
+import { Anchor } from "@/components/ui/anchor";
+import { Button } from "@/components/ui/button";
+import { address, isNewTab } from "@/utils/url";
+import { useBrowser, useExtensionActions } from "@/state/browser";
 import { ExtensionIcon, PageInfoButton } from "./page-info";
-import type { Tab } from "../../state/space";
+import type { Tab } from "@/state/space";
 
 /** What an empty address field says, and the omnibox's. */
 export const SEARCH_PLACEHOLDER = "Search or Enter URL…";

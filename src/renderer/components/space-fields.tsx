@@ -3,9 +3,9 @@
 // by a control of the editor's own.
 
 import { type ReactNode, useState } from "react";
-import type { SpaceTheme } from "../ipc";
-import { useWindowAspect } from "../utils/aspect";
-import { arrowFill } from "../utils/theme";
+import type { SpaceTheme } from "@/ipc";
+import { useWindowAspect } from "@/utils/aspect";
+import { arrowFill } from "@/utils/theme";
 import { isEmoji, SPACE_ICONS } from "./space-icon";
 import { ThemePicker } from "./theme-picker/theme-picker";
 import { Button } from "./ui/button";

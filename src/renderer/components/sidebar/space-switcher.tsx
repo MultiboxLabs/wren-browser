@@ -13,11 +13,11 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useLayoutEffect, useMemo, useRef } from "react";
-import { Button } from "../ui/button";
-import { SpaceIcon } from "../space-icon";
-import { useSpace } from "../../state/space";
-import { cn } from "../../utils/cn";
-import { scaleTo } from "../../utils/motion";
+import { Button } from "@/components/ui/button";
+import { SpaceIcon } from "@/components/space-icon";
+import { useSpace } from "@/state/space";
+import { cn } from "@/utils/cn";
+import { scaleTo } from "@/utils/motion";
 import { useSpaceDrop } from "./space-drop";
 import { useSpaceReorder } from "./space-reorder";
 

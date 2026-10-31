@@ -17,10 +17,10 @@ import {
   Zap
 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
-import { iconUrl, type OmniboxTarget, Suggestion, SuggestionKind } from "../../ipc";
-import { Favicon } from "../favicon";
+import { iconUrl, type OmniboxTarget, Suggestion, SuggestionKind } from "@/ipc";
+import { Favicon } from "@/components/favicon";
 import { isOpenTab, type OmniboxItem, type OpenHow, openHowOf, switchesToTab } from "./items";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 export function OmniboxRow({
   item,

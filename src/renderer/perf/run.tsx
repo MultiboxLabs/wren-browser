@@ -9,8 +9,8 @@
 // of their input instead.
 
 import { useEffect, useLayoutEffect } from "react";
-import { browser, perf, type PerfConfig } from "../ipc";
-import { useBrowser } from "../state/browser";
+import { browser, perf, type PerfConfig } from "@/ipc";
+import { useBrowser } from "@/state/browser";
 import type { PerfResults, Stats } from "./budgets";
 import { observeFrames, startMeasuring, takeLongestFrame, takeUpdates } from "./measure";
 

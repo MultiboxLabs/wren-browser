@@ -2,7 +2,7 @@
 // is out of view: by a shortcut, a link, or a tab opened below the fold.
 
 import { type RefObject, useEffect, useRef } from "react";
-import { prefersReducedMotion } from "../../utils/motion";
+import { prefersReducedMotion } from "@/utils/motion";
 
 /**
  * Keeps the active tab's row (marked `data-active-tab`) in view in `scroller` as the active tab changes.

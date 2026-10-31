@@ -1,4 +1,4 @@
-import type { Doc } from "../../utils/theme-pad";
+import type { Doc } from "@/utils/theme-pad";
 
 /** What each control of the picker is given to change what it edits. */
 export type EditProps = {

@@ -3,10 +3,10 @@
 // profile each is of (filter.tsx).
 
 import { useEffect, useMemo, useRef } from "react";
-import type { Download } from "../../ipc";
-import { Empty, matches } from "../library/rows";
-import { isRunning, lastChanged, newestFirst, useDownloadHistory } from "../../state/downloads";
-import { useNow } from "../../utils/now";
+import type { Download } from "@/ipc";
+import { Empty, matches } from "@/components/library/rows";
+import { isRunning, lastChanged, newestFirst, useDownloadHistory } from "@/state/downloads";
+import { useNow } from "@/utils/now";
 import { ageHeading, origin, siteOf, statusLine } from "./format";
 import { DownloadRow } from "./row";
 

@@ -9,8 +9,8 @@ import { LinkStatus } from "./link-status";
 import { LoadingBar } from "./loading-bar";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
-import { browser, type BrowserTab, splits, type TabSplit } from "../ipc";
-import { cn } from "../utils/cn";
+import { browser, type BrowserTab, splits, type TabSplit } from "@/ipc";
+import { cn } from "@/utils/cn";
 
 // The divider's thickness, as the gap beside the side panel.
 const DIVIDER = 10;

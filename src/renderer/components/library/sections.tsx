@@ -3,11 +3,11 @@
 
 import { Power } from "lucide-react";
 import { useState } from "react";
-import { Button } from "../ui/button";
-import { Favicon } from "../favicon";
-import { type Boost, boosts as allBoosts, type LibrarySettings } from "../../state/library";
-import { cn } from "../../utils/cn";
-import { DownloadsSection } from "../downloads/section";
+import { Button } from "@/components/ui/button";
+import { Favicon } from "@/components/favicon";
+import { type Boost, boosts as allBoosts, type LibrarySettings } from "@/state/library";
+import { cn } from "@/utils/cn";
+import { DownloadsSection } from "@/components/downloads/section";
 import { Profiles, type ProfilesProps } from "./profiles";
 import { Empty, type ListProps, matches, Row } from "./rows";
 import { Settings } from "./settings";

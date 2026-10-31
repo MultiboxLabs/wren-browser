@@ -13,16 +13,16 @@ import {
   useTransform
 } from "motion/react";
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
-import { browser } from "../../ipc";
-import { Button } from "../ui/button";
-import { AddressField } from "../address/field";
-import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "../icons";
-import type { OmniboxState } from "../omnibox/shown";
-import { cn } from "../../utils/cn";
-import { scaleTo } from "../../utils/motion";
-import { DownloadFlights } from "../downloads/flight";
-import { Indicator } from "../downloads/indicator";
-import { Shelf, useShelf } from "../downloads/shelf";
+import { browser } from "@/ipc";
+import { Button } from "@/components/ui/button";
+import { AddressField } from "@/components/address/field";
+import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "@/components/icons";
+import type { OmniboxState } from "@/components/omnibox/shown";
+import { cn } from "@/utils/cn";
+import { scaleTo } from "@/utils/motion";
+import { DownloadFlights } from "@/components/downloads/flight";
+import { Indicator } from "@/components/downloads/indicator";
+import { Shelf, useShelf } from "@/components/downloads/shelf";
 import { ArrivalScope } from "./arrival";
 import { Favorites } from "./favorites";
 import { usePinActions } from "./pin-actions";
@@ -32,12 +32,12 @@ import { SpaceSwitcher } from "./space-switcher";
 import { ListBelowContext } from "./list-edge";
 import { TabList } from "./tab-list";
 import { UpdateCard } from "./update";
-import { BrowserOfSpace, useBrowser } from "../../state/browser";
-import { useDownloadIndicator } from "../../state/downloads";
-import { type LibrarySettings, useSettings } from "../../state/library";
-import { usePins } from "../../state/pins";
-import { useSpace } from "../../state/space";
-import { SLIDE } from "../../state/space-slide";
+import { BrowserOfSpace, useBrowser } from "@/state/browser";
+import { useDownloadIndicator } from "@/state/downloads";
+import { type LibrarySettings, useSettings } from "@/state/library";
+import { usePins } from "@/state/pins";
+import { useSpace } from "@/state/space";
+import { SLIDE } from "@/state/space-slide";
 
 export type SidebarProps = {
   /** Docked beside the page: its button hides it, rather than keeps it. */

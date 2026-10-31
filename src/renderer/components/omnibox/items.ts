@@ -11,9 +11,9 @@ import {
   omnibox,
   type Suggestion,
   type Suggestions
-} from "../../ipc";
-import type { Tab } from "../../state/space";
-import type { BangMatch } from "../../utils/bangs";
+} from "@/ipc";
+import type { Tab } from "@/state/space";
+import type { BangMatch } from "@/utils/bangs";
 
 /** A row of the list: the bang typed, one of the window's tabs, or one of Chromium's suggestions, by its index in them. */
 export type OmniboxItem =

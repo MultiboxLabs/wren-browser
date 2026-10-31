@@ -10,14 +10,14 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { browser, hasApp, previewUrl, tabSwitcher } from "../../ipc";
-import type { TabSplit } from "../../ipc";
-import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
-import { useWindowActive } from "../../state/window";
-import { cn } from "../../utils/cn";
-import { scaleTo } from "../../utils/motion";
-import { host } from "../../utils/url";
-import { Favicon } from "../favicon";
+import { browser, hasApp, previewUrl, tabSwitcher } from "@/ipc";
+import type { TabSplit } from "@/ipc";
+import { type BrowserTabWithFavicon, useBrowser } from "@/state/browser";
+import { useWindowActive } from "@/state/window";
+import { cn } from "@/utils/cn";
+import { scaleTo } from "@/utils/motion";
+import { host } from "@/utils/url";
+import { Favicon } from "@/components/favicon";
 import { useRecentTabs } from "./recent";
 
 // How long Control is held before the switcher shows.

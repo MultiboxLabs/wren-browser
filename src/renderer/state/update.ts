@@ -6,7 +6,7 @@
 // it, whether its card shows or not.
 
 import { useSyncExternalStore } from "react";
-import { hasApp, type UpdateShown, updates } from "../ipc";
+import { hasApp, type UpdateShown, updates } from "@/ipc";
 import { useSettings } from "./library";
 
 export type Update = UpdateShown & {

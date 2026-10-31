@@ -4,8 +4,8 @@
 // scroll wheel and the arrow keys set it, in steps of 0.1.
 
 import { type KeyboardEvent, type PointerEvent, useEffect, useRef } from "react";
-import { TEXTURES } from "../../utils/theme";
-import { Tooltip } from "../ui/tooltip";
+import { TEXTURES } from "@/utils/theme";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { EditProps } from "./edit";
 
 const SIZE = 80;

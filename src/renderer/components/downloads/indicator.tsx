@@ -6,8 +6,8 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
-import type { DownloadIndicator } from "../../ipc";
-import { scaleTo } from "../../utils/motion";
+import type { DownloadIndicator } from "@/ipc";
+import { scaleTo } from "@/utils/motion";
 import { ProgressRing } from "./progress-ring";
 
 // How long the filled ring shows before it goes, in milliseconds.

@@ -14,8 +14,8 @@ import {
   useRef,
   useState
 } from "react";
-import { type OmniboxTarget, omnibox, type Suggestion, type Suggestions } from "../../ipc";
-import { type BangMatch, findBang, loadBangs } from "../../utils/bangs";
+import { type OmniboxTarget, omnibox, type Suggestion, type Suggestions } from "@/ipc";
+import { type BangMatch, findBang, loadBangs } from "@/utils/bangs";
 import { defaultIndex, fillOf, itemsOf, type OmniboxTabs, type OpenHow, openHowOf, openItem } from "./items";
 
 /** The search engine whose chip the field shows: Chromium's keyword for it, and its name. */

@@ -48,18 +48,18 @@ import {
   sidePanel,
   site,
   type SitePermission
-} from "../../ipc";
-import { Anchor } from "../ui/anchor";
-import { Button, type Icon } from "../ui/button";
-import { Popover } from "../ui/popover";
-import { press } from "../ui/press";
-import { Tooltip } from "../ui/tooltip";
-import { isNewTab } from "../../utils/url";
-import { InsecureIcon, PageInfoIcon } from "../icons";
-import { type SidePanelId, sidePanels } from "../side-panel";
-import { useBrowser, useSite } from "../../state/browser";
-import type { Tab } from "../../state/space";
-import { cn } from "../../utils/cn";
+} from "@/ipc";
+import { Anchor } from "@/components/ui/anchor";
+import { Button, type Icon } from "@/components/ui/button";
+import { Popover } from "@/components/ui/popover";
+import { press } from "@/components/ui/press";
+import { Tooltip } from "@/components/ui/tooltip";
+import { isNewTab } from "@/utils/url";
+import { InsecureIcon, PageInfoIcon } from "@/components/icons";
+import { type SidePanelId, sidePanels } from "@/components/side-panel";
+import { useBrowser, useSite } from "@/state/browser";
+import type { Tab } from "@/state/space";
+import { cn } from "@/utils/cn";
 
 /** Where the Extensions section's add button goes. */
 const STORE = "https://chromewebstore.google.com";

@@ -10,11 +10,11 @@
 
 import { Minus, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { Favicon } from "../favicon";
-import { Tooltip } from "../ui/tooltip";
-import { browser, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from "../../ipc";
-import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
-import { cn } from "../../utils/cn";
+import { Favicon } from "@/components/favicon";
+import { Tooltip } from "@/components/ui/tooltip";
+import { browser, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from "@/ipc";
+import { type BrowserTabWithFavicon, useBrowser } from "@/state/browser";
+import { cn } from "@/utils/cn";
 import { FolderIcon } from "./folder-icon";
 import { FolderMenu } from "./folder-menu";
 import { pinIdentity, tabIdentity } from "./arrival";

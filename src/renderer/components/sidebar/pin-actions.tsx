@@ -5,9 +5,9 @@
 // folder and all in it are deleted.
 
 import { type ReactNode, useRef, useState } from "react";
-import { Dialog } from "../ui/dialog";
-import { useHoldUntil } from "../ui/hold";
-import { type Pin, type PinFolder, pins } from "../../ipc";
+import { Dialog } from "@/components/ui/dialog";
+import { useHoldUntil } from "@/components/ui/hold";
+import { type Pin, type PinFolder, pins } from "@/ipc";
 
 export type PinActions = {
   onToggleFolder: (folder: PinFolder) => void;

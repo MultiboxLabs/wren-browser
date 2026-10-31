@@ -6,7 +6,7 @@
 // five used last are given.
 
 import { useLayoutEffect, useRef } from "react";
-import { useBrowser } from "../../state/browser";
+import { useBrowser } from "@/state/browser";
 
 /** How many of them the switcher shows. */
 const MOST_RECENT = 5;

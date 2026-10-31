@@ -5,9 +5,9 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState } from "react";
-import type { NewSpace, ProfileEntry, SpaceEntry } from "../../ipc";
-import { SpaceIcon } from "../space-icon";
-import { ThemeSwatch } from "../theme-swatch";
+import type { NewSpace, ProfileEntry, SpaceEntry } from "@/ipc";
+import { SpaceIcon } from "@/components/space-icon";
+import { ThemeSwatch } from "@/components/theme-swatch";
 import { Empty, type ListProps, Loading, LoadFailed, matches, Row, RowActions } from "./rows";
 import { CannotDeleteSpaceAlert, DeleteSpaceDialog, EditSpaceDialog } from "./space-dialogs";
 

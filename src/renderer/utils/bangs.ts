@@ -23,7 +23,7 @@ let loading: Promise<void> | null = null;
 
 /** Loads the list; the same promise every time. */
 export function loadBangs() {
-  loading ??= import("../data/bangs.json").then(({ default: rows }) => {
+  loading ??= import("@/data/bangs.json").then(({ default: rows }) => {
     bangs = new Map(
       (rows as string[][]).flatMap(([name, url, ...triggers]) =>
         triggers.map((trigger) => [trigger, { name, url }] as const)

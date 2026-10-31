@@ -11,13 +11,13 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, type Ref, useId, useRef } from "react";
-import { Button } from "../ui/button";
-import { Popover } from "../ui/popover";
-import { TextField } from "../ui/text-field";
-import { type Pin, type PinFolder, pins } from "../../ipc";
-import { cn } from "../../utils/cn";
-import { scaleTo } from "../../utils/motion";
-import { host } from "../../utils/url";
+import { Button } from "@/components/ui/button";
+import { Popover } from "@/components/ui/popover";
+import { TextField } from "@/components/ui/text-field";
+import { type Pin, type PinFolder, pins } from "@/ipc";
+import { cn } from "@/utils/cn";
+import { scaleTo } from "@/utils/motion";
+import { host } from "@/utils/url";
 import { useArrival, useMoving } from "./arrival";
 import type { PinActions } from "./pin-actions";
 import { REORDER, TILE_IN, TILE_OUT, useStrike } from "./row-motion";

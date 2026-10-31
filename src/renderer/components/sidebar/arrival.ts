@@ -26,7 +26,7 @@ import {
   useRef,
   useState
 } from "react";
-import { prefersReducedMotion } from "../../utils/motion";
+import { prefersReducedMotion } from "@/utils/motion";
 import { EASE_OUT_CSS } from "./row-motion";
 
 /** As long as the place an identity left is kept, for what draws it next. */

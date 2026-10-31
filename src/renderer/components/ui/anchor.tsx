@@ -4,7 +4,7 @@
 // anchors (BrowserWindow::name_anchors); nothing here measures anything.
 
 import type { ReactNode } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 export function Anchor({ name, className, children }: { name: string; className?: string; children: ReactNode }) {
   return (

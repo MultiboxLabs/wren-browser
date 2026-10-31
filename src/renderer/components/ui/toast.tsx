@@ -7,8 +7,8 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Key, ReactNode } from "react";
 import { press } from "./press";
-import { cn } from "../../utils/cn";
-import { scaleTo } from "../../utils/motion";
+import { cn } from "@/utils/cn";
+import { scaleTo } from "@/utils/motion";
 
 /** What a toast shows. Another `key` replaces it, and comes in afresh. */
 export type ToastContent = {

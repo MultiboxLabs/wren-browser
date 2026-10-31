@@ -10,8 +10,8 @@ import {
   useTransform
 } from "motion/react";
 import { useEffect, useLayoutEffect } from "react";
-import { appWindow, hasApp } from "../../ipc";
-import { LIBRARY_RAIL, type LibraryMotion, windowButtonsShift } from "../library/motion";
+import { appWindow, hasApp } from "@/ipc";
+import { LIBRARY_RAIL, type LibraryMotion, windowButtonsShift } from "@/components/library/motion";
 
 /**
  * How the sidebar is shown: docked beside the page (anchored), or, as it

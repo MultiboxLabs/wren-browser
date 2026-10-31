@@ -6,8 +6,8 @@
 // around it is folded.
 
 import { createContext, useContext } from "react";
-import type { Pin } from "../../ipc";
-import { useBrowser } from "../../state/browser";
+import type { Pin } from "@/ipc";
+import { useBrowser } from "@/state/browser";
 import { pinIdentity } from "./arrival";
 import { nextPeeking, type Peeking, usePeekings } from "./folding";
 

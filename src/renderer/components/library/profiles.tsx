@@ -5,9 +5,9 @@
 import { AppWindow, Pencil, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useRef, useState } from "react";
-import type { AdBlock, ProfileEntry, SpaceEntry } from "../../ipc";
-import { useAdBlock } from "../../state/library";
-import { cssColor } from "../../utils/color";
+import type { AdBlock, ProfileEntry, SpaceEntry } from "@/ipc";
+import { useAdBlock } from "@/state/library";
+import { cssColor } from "@/utils/color";
 import { DeleteDialog, RenameDialog } from "./profile-dialogs";
 import { Empty, type ListProps, Loading, LoadFailed, matches, Row, type RowAction, RowActions, Trailing } from "./rows";
 

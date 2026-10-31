@@ -21,7 +21,7 @@
 
 import { AnimatePresence, frame, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 import { ArrivalScope } from "./arrival";
 import { ROW_IN, ROW_OUT } from "./row-motion";
 import { ROW_GAP } from "./rows";

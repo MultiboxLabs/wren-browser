@@ -6,7 +6,7 @@
 // events over the edge and the sidebar do it.
 
 import { useEffect, useState } from "react";
-import { hasApp, type HoverRegion, sidebar } from "../../ipc";
+import { hasApp, type HoverRegion, sidebar } from "@/ipc";
 import { floatingRight, PAGE_INSET, WINDOW_BUTTONS } from "./motion";
 
 // How far beyond the window's left edge the pointer counts, while the

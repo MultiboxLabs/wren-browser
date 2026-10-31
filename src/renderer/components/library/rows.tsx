@@ -5,9 +5,9 @@
 import { LoaderCircle } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useState } from "react";
-import { Button, type Icon as IconType } from "../ui/button";
-import { press } from "../ui/press";
-import { cn } from "../../utils/cn";
+import { Button, type Icon as IconType } from "@/components/ui/button";
+import { press } from "@/components/ui/press";
+import { cn } from "@/utils/cn";
 
 /** Whether `query`, already lowercased, is in any of `texts`. */
 export const matches = (query: string, ...texts: (string | undefined)[]) =>

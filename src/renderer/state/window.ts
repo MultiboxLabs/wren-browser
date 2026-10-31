@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { appWindow, follow, hasApp, type WindowPopup } from "../ipc";
-import { cssColor } from "../utils/color";
+import { appWindow, follow, hasApp, type WindowPopup } from "@/ipc";
+import { cssColor } from "@/utils/color";
 import { type Space, themeKey } from "./space";
 
 /**

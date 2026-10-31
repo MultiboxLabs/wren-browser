@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Menu } from "./ui/menu";
 import { ResizeHandle } from "./ui/resize-handle";
-import { iconUrl, sidePanel, type SidePanelState } from "../ipc";
+import { iconUrl, sidePanel, type SidePanelState } from "@/ipc";
 
 /** The panels the menu offers, by Chromium's names for them. */
 export const sidePanels = [

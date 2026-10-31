@@ -4,9 +4,9 @@
 // dialog stays up, and says so in place of its description.
 
 import { useState } from "react";
-import { Dialog } from "../ui/dialog";
-import { TextField } from "../ui/text-field";
-import type { ProfileEntry } from "../../ipc";
+import { Dialog } from "@/components/ui/dialog";
+import { TextField } from "@/components/ui/text-field";
+import type { ProfileEntry } from "@/ipc";
 
 type ProfileDialogProps = {
   profile: ProfileEntry;

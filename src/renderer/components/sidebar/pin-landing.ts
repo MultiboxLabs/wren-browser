@@ -4,7 +4,7 @@
 // which takes it in, or half of a tab pin's row, where a tab of the list
 // makes a split with it; or a place between the favourites' tiles.
 
-import type { Pin, PinTarget } from "../../ipc";
+import type { Pin, PinTarget } from "@/ipc";
 import { boxMark, type DropMark, indexAt, onMiddle, splitSide } from "./landing";
 import { NESTED_INDENT, ROW_GAP } from "./rows";
 

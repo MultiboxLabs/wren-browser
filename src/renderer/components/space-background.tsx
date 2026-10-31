@@ -14,10 +14,10 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useRef } from "react";
-import { type Space, themeKey } from "../state/space";
-import { useWindowActive } from "../state/window";
-import { useAspect } from "../utils/aspect";
-import { cn } from "../utils/cn";
+import { type Space, themeKey } from "@/state/space";
+import { useWindowActive } from "@/state/window";
+import { useAspect } from "@/utils/aspect";
+import { cn } from "@/utils/cn";
 import { ThemeLayers } from "./theme-swatch";
 
 // How much the stand-in for the window's blur shows: clear enough that what

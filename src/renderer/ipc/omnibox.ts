@@ -1,4 +1,4 @@
-import { engineUrl, shownUrl } from "../utils/url";
+import { engineUrl, shownUrl } from "@/utils/url";
 
 /** What a suggestion is, as Chromium sorts them; each without a favicon draws its own icon. */
 export type SuggestionKind =

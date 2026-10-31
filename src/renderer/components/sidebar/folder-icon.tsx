@@ -4,7 +4,7 @@
 // it while it still shows one of its pins (peeks.ts); open, its front leans
 // out over its back. Drawn in 100 units.
 
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 /** The rim, 6 of the icon's 100 units wide, and the closed folder's line. */
 const RIM = { stroke: "currentColor", strokeWidth: 6, strokeLinejoin: "round", strokeLinecap: "round" } as const;

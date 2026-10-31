@@ -7,11 +7,11 @@
 // and ⇧⌘Z, a gesture being one step.
 
 import { useEffect, useRef, useState } from "react";
-import type { SpaceTheme } from "../../ipc";
-import { cn } from "../../utils/cn";
-import { PRESET_PAGES } from "../../utils/theme";
-import { type Doc, editorFor, withAppearance } from "../../utils/theme-pad";
-import { ThemeSwatch } from "../theme-swatch";
+import type { SpaceTheme } from "@/ipc";
+import { cn } from "@/utils/cn";
+import { PRESET_PAGES } from "@/utils/theme";
+import { type Doc, editorFor, withAppearance } from "@/utils/theme-pad";
+import { ThemeSwatch } from "@/components/theme-swatch";
 import { AppearanceButtons } from "./appearance-buttons";
 import { ColorPad } from "./color-pad";
 import { IntensitySlider } from "./intensity-slider";

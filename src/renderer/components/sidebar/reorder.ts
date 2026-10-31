@@ -11,7 +11,7 @@
 // would, once it has moved here.
 
 import { type DragEvent, type PointerEvent, useLayoutEffect, useRef, useState } from "react";
-import { browser, pins } from "../../ipc";
+import { browser, pins } from "@/ipc";
 import { noteDrop } from "./arrival";
 import { holdForDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";

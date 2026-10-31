@@ -15,6 +15,8 @@ export default defineConfig({
   // React Compiler memoizes the components and hooks it can prove pure.
   // `cn` compiles its class-merging tables (scripts/cn-tables.ts).
   plugins: [react({ compiler: true }), tailwindcss(), cn(cnTables)],
+  // `@/` is src/renderer/, as tsconfig.json's `paths` has it.
+  resolve: { alias: { "@": fileURLToPath(new URL("src/renderer", import.meta.url)) } },
   build: {
     outDir: "../../dist/renderer",
     emptyOutDir: true,

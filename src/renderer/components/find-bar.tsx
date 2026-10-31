@@ -8,9 +8,9 @@ import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
-import { find } from "../ipc";
-import { type FindState, useBrowser } from "../state/browser";
-import { scaleTo } from "../utils/motion";
+import { find } from "@/ipc";
+import { type FindState, useBrowser } from "@/state/browser";
+import { scaleTo } from "@/utils/motion";
 
 /** The bar of the find open on `tab`, if one is: with that tab alone, as Chrome's is. */
 export function FindBar({ tab }: { tab: number }) {

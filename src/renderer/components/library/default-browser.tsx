@@ -6,10 +6,10 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useId } from "react";
-import type { DefaultBrowser } from "../../ipc";
-import { WrenMark } from "../icons";
-import { TileIcon, TONES } from "../tile-icon";
-import { Button } from "../ui/button";
+import type { DefaultBrowser } from "@/ipc";
+import { WrenMark } from "@/components/icons";
+import { TileIcon, TONES } from "@/components/tile-icon";
+import { Button } from "@/components/ui/button";
 
 // Its lines, by whether Wren is the default and may be made so.
 function defaultBrowserText({ isDefault, canSet }: DefaultBrowser) {

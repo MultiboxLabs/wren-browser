@@ -8,7 +8,7 @@
 import { Check } from "lucide-react";
 import { Checkbox as Radix } from "radix-ui";
 import { type ReactNode, useId } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 export function Checkbox({
   checked,

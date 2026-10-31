@@ -18,8 +18,8 @@
 // wheel, which has no phases, steps a space at a time as it turns sideways.
 
 import { type RefObject, useEffect, useRef } from "react";
-import type { SpaceSlide } from "../../state/space-slide";
-import { prefersReducedMotion } from "../../utils/motion";
+import type { SpaceSlide } from "@/state/space-slide";
+import { prefersReducedMotion } from "@/utils/motion";
 
 // How far the content moves for the fingers' scroll.
 const PACE = 0.5;

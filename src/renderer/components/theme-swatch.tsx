@@ -6,10 +6,10 @@
 // as.
 
 import { type ReactNode, useRef } from "react";
-import type { SpaceTheme } from "../ipc";
-import { useAspect, useWindowAspect } from "../utils/aspect";
-import { cn } from "../utils/cn";
-import { contentScheme, type ThemeLayout, themeStyle } from "../utils/theme";
+import type { SpaceTheme } from "@/ipc";
+import { useAspect, useWindowAspect } from "@/utils/aspect";
+import { cn } from "@/utils/cn";
+import { contentScheme, type ThemeLayout, themeStyle } from "@/utils/theme";
 
 export type ThemeSwatchProps = {
   theme: SpaceTheme;

@@ -5,7 +5,7 @@
 
 import { animate, motion, type MotionStyle, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useState } from "react";
-import { useUpdated } from "../state/update";
+import { useUpdated } from "@/state/update";
 
 // How long it sweeps, after how long, in seconds.
 const DURATION = 1.1;

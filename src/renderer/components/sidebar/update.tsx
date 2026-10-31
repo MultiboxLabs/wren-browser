@@ -12,12 +12,12 @@
 import { MessageSquare, Sparkles, X } from "lucide-react";
 import { AnimatePresence, type MotionValue, motion, useIsPresent, useReducedMotion } from "motion/react";
 import { type ReactElement, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Button } from "../ui/button";
-import { Checkbox } from "../ui/checkbox";
-import { useHoldWhile } from "../ui/hold";
-import { browser } from "../../ipc";
-import { type Update, useUpdate } from "../../state/update";
-import { cn } from "../../utils/cn";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useHoldWhile } from "@/components/ui/hold";
+import { browser } from "@/ipc";
+import { type Update, useUpdate } from "@/state/update";
+import { cn } from "@/utils/cn";
 
 // How long the pointer rests on it before it opens, and how long after it
 // leaves that it closes, in milliseconds: passing over it on the way to the

@@ -2,10 +2,10 @@
 // faint rounded square.
 
 import { MoonStar, Sparkles, Sun } from "lucide-react";
-import type { SpaceTheme } from "../../ipc";
-import { Tooltip } from "../ui/tooltip";
-import type { Icon } from "../ui/button";
-import { cn } from "../../utils/cn";
+import type { SpaceTheme } from "@/ipc";
+import { Tooltip } from "@/components/ui/tooltip";
+import type { Icon } from "@/components/ui/button";
+import { cn } from "@/utils/cn";
 
 const APPEARANCES: { value: SpaceTheme["appearance"]; label: string; icon: Icon }[] = [
   { value: "auto", label: "Automatic Appearance", icon: Sparkles },

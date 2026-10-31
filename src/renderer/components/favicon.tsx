@@ -1,5 +1,5 @@
-import { iconUrl } from "../ipc";
-import { enginePage } from "../utils/url";
+import { iconUrl } from "@/ipc";
+import { enginePage } from "@/utils/url";
 import { PAGE_GLYPHS, PageIcon, SITE_GLYPH } from "./page-icon";
 
 /** A site's icon: the tab's own, or else a globe. A Chromium page's is a glyph of ours (page-icon.tsx), in place of the stock one Chromium gives it. */

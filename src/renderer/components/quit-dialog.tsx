@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WrenMark } from "./icons";
 import { Dialog } from "./ui/dialog";
-import { hasApp, quit, type QuitAnswer, type QuitShown } from "../ipc";
+import { hasApp, quit, type QuitAnswer, type QuitShown } from "@/ipc";
 
 export function QuitDialog() {
   const [shown, setShown] = useState<QuitShown | null>(null);

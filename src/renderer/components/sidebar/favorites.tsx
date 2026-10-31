@@ -8,11 +8,11 @@
 import { Star, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
-import { Button } from "../ui/button";
-import type { Pin } from "../../ipc";
-import type { LibrarySettings } from "../../state/library";
-import { useSpace } from "../../state/space";
-import { cn } from "../../utils/cn";
+import { Button } from "@/components/ui/button";
+import type { Pin } from "@/ipc";
+import type { LibrarySettings } from "@/state/library";
+import { useSpace } from "@/state/space";
+import { cn } from "@/utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { Favorite } from "./favorite";
 import type { PinActions } from "./pin-actions";

@@ -4,7 +4,7 @@
 // and all are read again whenever any window changes any.
 
 import { createContext, type ReactNode, useContext, useEffect, useState, useSyncExternalStore } from "react";
-import { hasApp, type Pin, type PinFolder, type Pins, pins as pinsIpc } from "../ipc";
+import { hasApp, type Pin, type PinFolder, type Pins, pins as pinsIpc } from "@/ipc";
 import { useSpace } from "./space";
 
 const NONE: Pins = { favorites: [], pinned: [] };

@@ -3,7 +3,7 @@
 // once for the whole window.
 
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
-import { type Download, type DownloadIndicator, downloads, follow, hasApp, iconUrl } from "../ipc";
+import { type Download, type DownloadIndicator, downloads, follow, hasApp, iconUrl } from "@/ipc";
 
 type DownloadsState = {
   /** The shelf's, as the app lists them; empty until it has said. */

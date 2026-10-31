@@ -2,7 +2,7 @@
 // part of the day begins, and the cards before, between and after games.
 import { AnimatePresence, motion } from "motion/react";
 import { type ReactNode, useEffect, useRef } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 import { disc } from "./scene";
 import { drawHailstone, drawMaterial } from "./sprites";
 import type { Stats } from "./state";

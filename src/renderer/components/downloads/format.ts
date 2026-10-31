@@ -2,8 +2,8 @@
 // has come ("1.50/10.74 GB · 7m 20s"), what stopped it, and what it is and
 // where it came from ("PDF document from example.com").
 
-import type { Download } from "../../ipc";
-import { isRunning, lastChanged } from "../../state/downloads";
+import type { Download } from "@/ipc";
+import { isRunning, lastChanged } from "@/state/downloads";
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const counted = new Intl.RelativeTimeFormat(undefined, { numeric: "always" });

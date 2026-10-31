@@ -8,7 +8,7 @@
 // had when the picker opened or a preset was chosen. The appearance does not
 // change the colour: it is how the window draws it (utils/theme.ts).
 
-import type { Hsb, SpaceTheme } from "../ipc";
+import type { Hsb, SpaceTheme } from "@/ipc";
 import { hueOffsets, rotate } from "./theme";
 
 export type Point = { x: number; y: number };

@@ -8,10 +8,10 @@
 
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { analytics, downloads, hasApp } from "../../ipc";
-import { useHoldWhile } from "../ui/hold";
-import { lastChanged, newestFirst, useDownloads } from "../../state/downloads";
-import { ago, useNow } from "../../utils/now";
+import { analytics, downloads, hasApp } from "@/ipc";
+import { useHoldWhile } from "@/components/ui/hold";
+import { lastChanged, newestFirst, useDownloads } from "@/state/downloads";
+import { ago, useNow } from "@/utils/now";
 import { statusLine } from "./format";
 import { DownloadRow } from "./row";
 

@@ -9,15 +9,15 @@
 import { Search } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import type { OmniboxTarget } from "../../ipc";
-import { SEARCH_PLACEHOLDER } from "../address/field";
-import { Favicon } from "../favicon";
+import type { OmniboxTarget } from "@/ipc";
+import { SEARCH_PLACEHOLDER } from "@/components/address/field";
+import { Favicon } from "@/components/favicon";
 import { useOmniboxField } from "./field";
 import type { OmniboxTabs } from "./items";
 import { OmniboxIcon, OmniboxRow } from "./row";
-import { useBrowser } from "../../state/browser";
-import { cn } from "../../utils/cn";
-import { scaleTo } from "../../utils/motion";
+import { useBrowser } from "@/state/browser";
+import { cn } from "@/utils/cn";
+import { scaleTo } from "@/utils/motion";
 
 /** Where the omnibox is: at the address field's top left, or, without it in view, in the middle of the window. */
 export type OmniboxPlace = { left: number; top: number } | "center";

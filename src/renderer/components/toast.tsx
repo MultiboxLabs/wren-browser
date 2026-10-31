@@ -7,8 +7,8 @@ import { CircleAlert, CircleCheck, Glasses, Image, Link, LoaderCircle } from "lu
 import type { ReactNode } from "react";
 import type { Icon } from "./ui/button";
 import { Toast as ToastView } from "./ui/toast";
-import { iconUrl, type Toast, toast as toasts } from "../ipc";
-import { useToastShown } from "../state/browser";
+import { iconUrl, type Toast, toast as toasts } from "@/ipc";
+import { useToastShown } from "@/state/browser";
 
 // Our own icons, by the toast's name. Any other has Chromium's.
 const icons: Record<string, Icon> = {

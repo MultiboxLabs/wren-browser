@@ -10,15 +10,15 @@
 
 import { ChevronRight, ChevronsUpDown } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useRef, useState } from "react";
-import { useProfiles } from "../../state/library";
-import type { NewSpaceState, SpaceDraft } from "../../state/new-space";
-import { CreateDialog } from "../library/profile-dialogs";
-import { IconPopover, ThemePopover } from "../space-fields";
-import { SpaceIcon } from "../space-icon";
-import { ThemeSwatch } from "../theme-swatch";
-import { Button } from "../ui/button";
-import { Menu } from "../ui/menu";
-import { TextField } from "../ui/text-field";
+import { useProfiles } from "@/state/library";
+import type { NewSpaceState, SpaceDraft } from "@/state/new-space";
+import { CreateDialog } from "@/components/library/profile-dialogs";
+import { IconPopover, ThemePopover } from "@/components/space-fields";
+import { SpaceIcon } from "@/components/space-icon";
+import { ThemeSwatch } from "@/components/theme-swatch";
+import { Button } from "@/components/ui/button";
+import { Menu } from "@/components/ui/menu";
+import { TextField } from "@/components/ui/text-field";
 
 export function NewSpaceForm({ state }: { state: NewSpaceState }) {
   const { draft, change, ready } = state;

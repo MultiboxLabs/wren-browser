@@ -7,15 +7,15 @@
 // the system is, as its title bar is.
 
 import { LoaderCircle } from "lucide-react";
-import type { WindowPopup } from "../../ipc";
-import { PageInfoButton } from "../../components/address/page-info";
-import { QuitDialog } from "../../components/quit-dialog";
-import { TabView } from "../../components/tab-view";
-import { BrowserToast } from "../../components/toast";
-import { type BrowserTabWithFavicon, useBrowser } from "../../state/browser";
-import { useSpace } from "../../state/space";
-import { usePopupTheme, useShowWindow, useWindowBlocked } from "../../state/window";
-import { addressParts, isNewTab } from "../../utils/url";
+import type { WindowPopup } from "@/ipc";
+import { PageInfoButton } from "@/components/address/page-info";
+import { QuitDialog } from "@/components/quit-dialog";
+import { TabView } from "@/components/tab-view";
+import { BrowserToast } from "@/components/toast";
+import { type BrowserTabWithFavicon, useBrowser } from "@/state/browser";
+import { useSpace } from "@/state/space";
+import { usePopupTheme, useShowWindow, useWindowBlocked } from "@/state/window";
+import { addressParts, isNewTab } from "@/utils/url";
 
 export function PopupWindow({ popup }: { popup: WindowPopup }) {
   const { space } = useSpace();

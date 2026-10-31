@@ -12,8 +12,8 @@ import { animate, easeInOut, easeOut, motion, useMotionValue, useTransform } fro
 import { ArrowDown } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { downloads, hasApp } from "../../ipc";
-import { prefersReducedMotion } from "../../utils/motion";
+import { downloads, hasApp } from "@/ipc";
+import { prefersReducedMotion } from "@/utils/motion";
 
 // The pop: how long, in seconds, and its curve, which goes a little past
 // its size and back.

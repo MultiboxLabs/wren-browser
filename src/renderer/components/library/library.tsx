@@ -6,19 +6,19 @@
 import { ArrowDownToLine, CircleUserRound, Orbit, Paintbrush, Plus, Search, Settings } from "lucide-react";
 import { motion, useTransform } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Button, type Icon } from "../ui/button";
-import { BackIcon } from "../icons";
-import { cn } from "../../utils/cn";
+import { Button, type Icon } from "@/components/ui/button";
+import { BackIcon } from "@/components/icons";
+import { cn } from "@/utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
-import { useProfiles, useSettings, useSpaces } from "../../state/library";
-import { useSpace } from "../../state/space";
-import { analytics } from "../../ipc/analytics";
-import { browser } from "../../ipc/browser";
-import { hasApp } from "../../ipc/app";
+import { useProfiles, useSettings, useSpaces } from "@/state/library";
+import { useSpace } from "@/state/space";
+import { analytics } from "@/ipc/analytics";
+import { browser } from "@/ipc/browser";
+import { hasApp } from "@/ipc/app";
 import { type Section, SectionList } from "./sections";
 import { CreateDialog } from "./profile-dialogs";
 import { DefaultBrowserCard } from "./default-browser";
-import { FilterBar, FilterButton, useDownloadsFilter } from "../downloads/filter";
+import { FilterBar, FilterButton, useDownloadsFilter } from "@/components/downloads/filter";
 
 const sections: { id: Section; name: string; icon: Icon; item: string }[] = [
   { id: "spaces", name: "Spaces", icon: Orbit, item: "Space" },

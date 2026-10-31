@@ -13,8 +13,8 @@
 
 import type { DragEvent, PointerEvent } from "react";
 import { useState } from "react";
-import { type Pin, type PinTarget, pins } from "../../ipc";
-import { useSpace } from "../../state/space";
+import { type Pin, type PinTarget, pins } from "@/ipc";
+import { useSpace } from "@/state/space";
 import { noteDrop } from "./arrival";
 import { holdForDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";

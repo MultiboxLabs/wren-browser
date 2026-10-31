@@ -4,7 +4,7 @@
 // size is not known, or the file is being scanned, a short arc spins round.
 
 import { ArrowDown } from "lucide-react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 // The ring's radius in the 20-point box it is drawn in, and its length.
 const RADIUS = 8.5;

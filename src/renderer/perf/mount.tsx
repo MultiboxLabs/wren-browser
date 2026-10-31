@@ -2,7 +2,7 @@
 // one. Its code loads only then.
 
 import { lazy, Suspense, useEffect, useState } from "react";
-import { hasApp, perf, type PerfConfig } from "../ipc";
+import { hasApp, perf, type PerfConfig } from "@/ipc";
 
 const PerfRun = lazy(() => import("./run").then((run) => ({ default: run.PerfRun })));
 

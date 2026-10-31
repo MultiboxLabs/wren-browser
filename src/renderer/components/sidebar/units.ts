@@ -4,7 +4,7 @@
 // a group's tabs with its heading. Each is an element of the list, carrying
 // its marks as data attributes, and the first child of it is the row it draws.
 
-import { browser, type TabUnit } from "../../ipc";
+import { browser, type TabUnit } from "@/ipc";
 import { whenDragEnds } from "./drag-hold";
 
 /** The kinds of unit: what the app moves by one of its tabs (`TabUnit` in ipc/browser.ts). */

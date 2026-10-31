@@ -6,10 +6,10 @@
 
 import { Minus, Plus } from "lucide-react";
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useRef } from "react";
-import { cn } from "../../utils/cn";
-import { derivedColors, colorCss } from "../../utils/theme";
-import { dragKnob, knobAt, nudgeKnob, type Point } from "../../utils/theme-pad";
-import { Tooltip } from "../ui/tooltip";
+import { cn } from "@/utils/cn";
+import { derivedColors, colorCss } from "@/utils/theme";
+import { dragKnob, knobAt, nudgeKnob, type Point } from "@/utils/theme-pad";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { EditProps } from "./edit";
 
 const MAX_COLORS = 3;

@@ -3,7 +3,7 @@
 
 import type { Transition } from "motion/react";
 import { useRef } from "react";
-import { prefersReducedMotion } from "../../utils/motion";
+import { prefersReducedMotion } from "@/utils/motion";
 
 /** A strong ease-out: fast from the start, so the change is seen at once, and settling gently. */
 export const EASE_OUT = [0.23, 1, 0.32, 1] as const;

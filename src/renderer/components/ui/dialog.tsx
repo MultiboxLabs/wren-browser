@@ -18,8 +18,8 @@ import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 
 import { Button } from "./button";
 import { useDialogTurn } from "./dialog-turn";
 import { useHoldWhile } from "./hold";
-import { useWindowBlocked } from "../../state/window";
-import { cn } from "../../utils/cn";
+import { useWindowBlocked } from "@/state/window";
+import { cn } from "@/utils/cn";
 
 /** The dialog's default button. */
 export type DialogAction = {

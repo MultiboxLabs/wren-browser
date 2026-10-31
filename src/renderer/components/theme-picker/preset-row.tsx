@@ -2,10 +2,10 @@
 // the theme's primary.
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { colorCss, PRESET_PAGES } from "../../utils/theme";
-import { withPrimary } from "../../utils/theme-pad";
-import { cn } from "../../utils/cn";
-import { Tooltip } from "../ui/tooltip";
+import { colorCss, PRESET_PAGES } from "@/utils/theme";
+import { withPrimary } from "@/utils/theme-pad";
+import { cn } from "@/utils/cn";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { EditProps } from "./edit";
 
 const PAGE_COUNT = PRESET_PAGES.length;

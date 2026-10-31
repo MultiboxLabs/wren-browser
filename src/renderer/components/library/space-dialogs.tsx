@@ -5,13 +5,13 @@
 // dialog stays up, and says so in place of its description.
 
 import { useState } from "react";
-import type { NewSpace, SpaceEntry, SpaceTheme } from "../../ipc";
-import { IconPopover, ThemePopover } from "../space-fields";
-import { SpaceIcon } from "../space-icon";
-import { ThemeSwatch } from "../theme-swatch";
-import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
-import { TextField } from "../ui/text-field";
+import type { NewSpace, SpaceEntry, SpaceTheme } from "@/ipc";
+import { IconPopover, ThemePopover } from "@/components/space-fields";
+import { SpaceIcon } from "@/components/space-icon";
+import { ThemeSwatch } from "@/components/theme-swatch";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { TextField } from "@/components/ui/text-field";
 
 type DialogProps = {
   open: boolean;

@@ -2,7 +2,7 @@
 // sidebar and the page does. Below a panel, it resizes its height.
 
 import { type CSSProperties, useRef } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 export type Range = { min: number; max: number };
 

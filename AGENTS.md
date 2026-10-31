@@ -51,6 +51,8 @@ Wren Browser is a modern, privacy-focused browser with a minimalistic design.
   `components/ui` that does; its colours then follow the system's.
 - The page's calls into the main process live in `src/main/ipc/<part>.rs`, with
   their renderer side in `src/renderer/ipc/<part>.ts`. Change both together.
+- In the renderer, import what is outside a file's own folder by `@/`
+  (`src/renderer/`), not with `../`; a file in the same folder by `./`.
 - Commit directly to `main`; do not create branches unless asked.
 - Commit messages are `feat:`, `fix:` or `chore:`, then a lowercase summary.
 

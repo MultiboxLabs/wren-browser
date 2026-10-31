@@ -9,7 +9,7 @@
 
 import { Switch as Radix } from "radix-ui";
 import { useRef, useState } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 // How far the pointer moves, in points, before a press is a drag.
 const DRAG_AFTER = 3;

@@ -1,4 +1,4 @@
-import type { PerfResults } from "../perf/budgets";
+import type { PerfResults } from "@/perf/budgets";
 
 /** The settings of the sidebar's performance run (scripts/perf.ts). */
 export type PerfConfig = {

@@ -19,9 +19,9 @@ import {
   type WindowPopup,
   type WindowProfile,
   type WindowSpace
-} from "../ipc";
-import { OFF_THE_RECORD_ICON, PROFILE_ICON } from "../components/space-icon";
-import { contentScheme, defaultTheme, primaryHex } from "../utils/theme";
+} from "@/ipc";
+import { OFF_THE_RECORD_ICON, PROFILE_ICON } from "@/components/space-icon";
+import { contentScheme, defaultTheme, primaryHex } from "@/utils/theme";
 import { useProfiles, useSpaces } from "./library";
 import { NO_PROFILE_COLOR, type NewSpaceState, type SpaceDraft, useNewSpace } from "./new-space";
 import { type SpaceSlide, useSpaceSlide } from "./space-slide";

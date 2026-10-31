@@ -20,9 +20,9 @@ import {
   type TabSplit,
   type Toast,
   toast
-} from "../ipc";
-import { updateCommitted, updateReceived, updateRendering } from "../perf/measure";
-import { settle } from "../utils/settle";
+} from "@/ipc";
+import { updateCommitted, updateReceived, updateRendering } from "@/perf/measure";
+import { settle } from "@/utils/settle";
 
 /** A tab of the Browser, with its favicon once the app has given it. */
 export type BrowserTabWithFavicon = BrowserTab & { favicon?: string | null };

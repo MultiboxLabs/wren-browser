@@ -9,9 +9,9 @@
 // so its end (a query, a file) still shows. Clicks pass through it.
 
 import { useEffect, useState } from "react";
-import { browser, hasApp } from "../ipc";
-import { cn } from "../utils/cn";
-import { linkAddress } from "../utils/url";
+import { browser, hasApp } from "@/ipc";
+import { cn } from "@/utils/cn";
+import { linkAddress } from "@/utils/url";
 
 const SHOW = 80;
 const HIDE = 250;

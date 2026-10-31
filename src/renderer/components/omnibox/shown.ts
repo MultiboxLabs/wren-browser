@@ -8,7 +8,7 @@
 // space a Browser, with no tab yet, for it to ask.
 
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { hasApp, omnibox, type OmniboxTarget } from "../../ipc";
+import { hasApp, omnibox, type OmniboxTarget } from "@/ipc";
 import type { OmniboxPlace } from "./omnibox";
 
 export type ShownOmnibox = {

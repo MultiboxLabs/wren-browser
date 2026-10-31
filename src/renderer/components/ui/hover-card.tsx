@@ -6,7 +6,7 @@
 
 import { HoverCard as Radix } from "radix-ui";
 import { type ReactNode, useRef } from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 import { useHoldWhile } from "./hold";
 import { useSafeTriangle } from "./safe-triangle";
 

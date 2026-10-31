@@ -3,8 +3,8 @@
 // Display P3, as the app keeps them (`Hsb` in ipc/spaces.ts), or "#rrggbb"
 // whose parts are Display P3's, as utils/color.ts has them.
 
-import grain from "../assets/grain.png";
-import type { Hsb, SpaceTheme } from "../ipc";
+import grain from "@/assets/grain.png";
+import type { Hsb, SpaceTheme } from "@/ipc";
 import { schemeFor } from "./color";
 import type { CSSProperties } from "react";
 

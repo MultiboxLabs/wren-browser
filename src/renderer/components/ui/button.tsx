@@ -6,7 +6,7 @@ import { type HTMLMotionProps, motion } from "motion/react";
 import { type ComponentType, isValidElement, type ReactElement, type ReactNode, type Ref } from "react";
 import { press, restingBox } from "./press";
 import { Tooltip } from "./tooltip";
-import { cn } from "../../utils/cn";
+import { cn } from "@/utils/cn";
 
 /** A Lucide icon, or one drawn the same way (in currentColor, sized by `size`). */
 export type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;

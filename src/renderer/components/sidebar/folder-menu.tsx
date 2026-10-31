@@ -8,11 +8,11 @@
 
 import { Search } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { appWindow, type Pin, type PinFolder, pins as pinsIpc } from "../../ipc";
-import { useBrowser } from "../../state/browser";
-import { cn } from "../../utils/cn";
-import { ago, useNow } from "../../utils/now";
-import { HoverCard } from "../ui/hover-card";
+import { appWindow, type Pin, type PinFolder, pins as pinsIpc } from "@/ipc";
+import { useBrowser } from "@/state/browser";
+import { cn } from "@/utils/cn";
+import { ago, useNow } from "@/utils/now";
+import { HoverCard } from "@/components/ui/hover-card";
 import { PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pins";
 
 type PagePin = Exclude<Pin, PinFolder>;
