@@ -58,13 +58,11 @@ export function Split({
           </GoButton>
         </motion.div>
       </div>
-      {/* Divided from the left by a line as the window's own edge is drawn:
-          on dark, fainter than the separator and warm, as macOS draws a dark
-          window's edge over the slate's warm light. */}
+      {/* Divided from the left by a line as the window's own edge is drawn. */}
       <motion.div
         {...rise(1)}
         className={cn(
-          "no-drag flex min-w-0 flex-1 flex-col justify-center border-l border-separator bg-fill px-12 in-data-[scheme=dark]:border-[rgb(255_236_220/0.1)]",
+          "no-drag flex min-w-0 flex-1 flex-col justify-center border-l border-(--onboarding-divider) bg-fill px-12",
           panelClassName
         )}
       >

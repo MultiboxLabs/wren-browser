@@ -1,9 +1,9 @@
 // The onboarding window (src/main/onboarding.rs): what the user goes through
 // before the app is theirs, a step at a time, in the order of `STEPS`, but
 // for those what they chose makes no use of (a browser whose spaces come over
-// leaves no first space to make). The last step's Continue finishes it, with what the
-// user chose: the window closes, and the app starts. The window starts as
-// a clean slate (`Slate`); once the user picks their first space's theme,
+// leaves no first space to make). The last step's button finishes it, with
+// what the user chose: the window closes, and the app starts. The window
+// starts as a clean slate (`Slate`); once the user picks their first space's theme,
 // it is drawn in it, as that space's window will be, its blur and buttons
 // too.
 
@@ -123,8 +123,8 @@ export function Onboarding() {
 function Slate() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0">
-      <div className="absolute inset-0 bg-[rgb(248_247_245/0.72)] in-data-[scheme=dark]:bg-[rgb(31_30_29/0.72)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_0%,rgb(255_170_90/0.18),transparent)] in-data-[scheme=dark]:bg-[radial-gradient(60%_55%_at_50%_0%,rgb(255_150_70/0.12),transparent)]" />
+      <div className="absolute inset-0 bg-(--slate-veil)" />
+      <div className="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_0%,var(--slate-glow),transparent)]" />
     </div>
   );
 }

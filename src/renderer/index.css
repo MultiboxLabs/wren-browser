@@ -215,6 +215,12 @@ body,
   --folder-back-lightness: 0.79;
   --folder-back-chroma: 0.95;
   --folder-front: rgb(255 255 255);
+  /* Onboarding's clean slate (pages/onboarding): a veil of near white over
+     the window's blur, a faint warm light from the top, and the line beside
+     a step's choices. */
+  --slate-veil: rgb(248 247 245 / 0.72);
+  --slate-glow: rgb(255 170 90 / 0.18);
+  --onboarding-divider: var(--separator);
   /* The update, in the sidebar (sidebar/update.tsx): its edge, and the
      card it opens into. */
   --update-edge: rgb(0 0 0 / 0.08);
@@ -282,6 +288,11 @@ body,
   /* How light and vivid a pinned folder's back is (sidebar/folder-icon.tsx). */
   --folder-back-lightness: 0.74;
   --folder-back-chroma: 0.8;
+  /* The divider is fainter than the separator and warm, as macOS draws a dark
+     window's edge over the slate's warm light. */
+  --slate-veil: rgb(31 30 29 / 0.72);
+  --slate-glow: rgb(255 150 70 / 0.12);
+  --onboarding-divider: rgb(255 236 220 / 0.1);
   --update-edge: rgb(255 255 255 / 0.18);
   --update-card: color-mix(in oklab, var(--space) 10%, rgb(10 10 12));
   /* Bright on the black card, however vivid or muted the space: a fixed
