@@ -91,30 +91,9 @@ pub fn set_onboarding_menu(mt: MainThread) {
         // Check for Updates… and Settings… are greyed out: no window
         // answers them yet.
         app_menu(mt, false, false),
-        MenuItem::submenu(
-            "Edit",
-            vec![
-                MenuItem::role(MenuRole::Undo),
-                MenuItem::role(MenuRole::Redo),
-                MenuItem::Separator,
-                MenuItem::role(MenuRole::Cut),
-                MenuItem::role(MenuRole::Copy),
-                MenuItem::role(MenuRole::Paste),
-                MenuItem::role(MenuRole::PasteAndMatchStyle),
-                MenuItem::role(MenuRole::Delete),
-                MenuItem::role(MenuRole::SelectAll),
-            ],
-        ),
-        system(
-            MenuRole::Window,
-            None,
-            vec![
-                MenuItem::role(MenuRole::Minimize),
-                MenuItem::Separator,
-                MenuItem::role(MenuRole::BringAllToFront),
-            ],
-        ),
-        system(MenuRole::Help, Some("Help"), vec![]),
+        edit_menu(vec![], vec![]),
+        window_menu(vec![]),
+        help_menu(),
     ];
     if cfg!(debug_assertions) {
         menu.push(development_menu());
@@ -167,23 +146,13 @@ fn main_menu(
                 MenuItem::chromium(Command::ReopenClosedTab),
             ],
         ),
-        MenuItem::submenu(
-            "Edit",
+        edit_menu(
+            // The active tab's address, with a toast saying so.
+            // An upper-case key is the key with Shift: ⇧⌘C.
+            vec![keyed(COPY_URL, "Copy URL", "C", MenuModifiers::PRIMARY)],
+            // Each opens the page's find bar.
             vec![
-                MenuItem::role(MenuRole::Undo),
-                MenuItem::role(MenuRole::Redo),
                 MenuItem::Separator,
-                MenuItem::role(MenuRole::Cut),
-                MenuItem::role(MenuRole::Copy),
-                // The active tab's address, with a toast saying so.
-                // An upper-case key is the key with Shift: ⇧⌘C.
-                keyed(COPY_URL, "Copy URL", "C", MenuModifiers::PRIMARY),
-                MenuItem::role(MenuRole::Paste),
-                MenuItem::role(MenuRole::PasteAndMatchStyle),
-                MenuItem::role(MenuRole::Delete),
-                MenuItem::role(MenuRole::SelectAll),
-                MenuItem::Separator,
-                // Each opens the page's find bar.
                 MenuItem::chromium(Command::Find),
                 MenuItem::chromium(Command::FindNext),
                 MenuItem::chromium(Command::FindPrevious),
@@ -266,27 +235,20 @@ fn main_menu(
             ])
             .collect(),
         ),
-        system(
-            MenuRole::Window,
-            None,
-            vec![
-                MenuItem::role(MenuRole::Minimize),
-                MenuItem::role(MenuRole::Zoom),
-                MenuItem::Separator,
-                // The Library's downloads, not chrome://downloads.
-                keyed(
-                    SHOW_DOWNLOADS,
-                    "Downloads",
-                    "l",
-                    MenuModifiers::PRIMARY | MenuModifiers::ALT,
-                ),
-                MenuItem::chromium(Command::Extensions),
-                MenuItem::chromium(Command::TaskManager),
-                MenuItem::Separator,
-                MenuItem::role(MenuRole::BringAllToFront),
-            ],
-        ),
-        system(MenuRole::Help, Some("Help"), vec![]),
+        window_menu(vec![
+            MenuItem::role(MenuRole::Zoom),
+            MenuItem::Separator,
+            // The Library's downloads, not chrome://downloads.
+            keyed(
+                SHOW_DOWNLOADS,
+                "Downloads",
+                "l",
+                MenuModifiers::PRIMARY | MenuModifiers::ALT,
+            ),
+            MenuItem::chromium(Command::Extensions),
+            MenuItem::chromium(Command::TaskManager),
+        ]),
+        help_menu(),
     ];
     if cfg!(debug_assertions) {
         menu.push(development_menu());
@@ -400,6 +362,46 @@ fn favorite_items() -> impl Iterator<Item = MenuItem> {
         hidden: true,
         key: Some(MenuKey::new(number.to_string(), MenuModifiers::PRIMARY)),
     })
+}
+
+// Edit, with the items the system's editing lacks: `after_copy`, and `after`
+// at its end.
+fn edit_menu(after_copy: Vec<MenuItem>, after: Vec<MenuItem>) -> MenuItem {
+    let items = [
+        MenuItem::role(MenuRole::Undo),
+        MenuItem::role(MenuRole::Redo),
+        MenuItem::Separator,
+        MenuItem::role(MenuRole::Cut),
+        MenuItem::role(MenuRole::Copy),
+    ]
+    .into_iter()
+    .chain(after_copy)
+    .chain([
+        MenuItem::role(MenuRole::Paste),
+        MenuItem::role(MenuRole::PasteAndMatchStyle),
+        MenuItem::role(MenuRole::Delete),
+        MenuItem::role(MenuRole::SelectAll),
+    ])
+    .chain(after)
+    .collect();
+    MenuItem::submenu("Edit", items)
+}
+
+// The system's Window menu, with `after_minimize` after Minimize.
+fn window_menu(after_minimize: Vec<MenuItem>) -> MenuItem {
+    let items = [MenuItem::role(MenuRole::Minimize)]
+        .into_iter()
+        .chain(after_minimize)
+        .chain([
+            MenuItem::Separator,
+            MenuItem::role(MenuRole::BringAllToFront),
+        ])
+        .collect();
+    system(MenuRole::Window, None, items)
+}
+
+fn help_menu() -> MenuItem {
+    system(MenuRole::Help, Some("Help"), vec![])
 }
 
 // For working on the app, in a development build only.
