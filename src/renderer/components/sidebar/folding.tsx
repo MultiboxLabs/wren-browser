@@ -21,6 +21,7 @@
 
 import { AnimatePresence, frame, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "../../utils/cn";
 import { ArrivalScope } from "./arrival";
 import { ROW_IN, ROW_OUT } from "./row-motion";
 import { ROW_GAP } from "./rows";
@@ -165,7 +166,10 @@ export function FoldingRows({
           </PeekLayer>
         )}
       </AnimatePresence>
-      <div ref={rows} className="flex flex-col" style={peeked ? UNDER_PEEK : undefined}>
+      {/* Under a peek, not a drag region: it is stretched over the peek's
+          row and comes after it, and a later region wins, so the window
+          would take the row's presses and hover as a drag. */}
+      <div ref={rows} className={cn("flex flex-col", peeked && "no-drag")} style={peeked ? UNDER_PEEK : undefined}>
         <Disclosed open={open} rest={rest} onFrame={onFrame}>
           {children}
         </Disclosed>
