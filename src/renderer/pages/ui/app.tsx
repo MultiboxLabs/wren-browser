@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { useEffect, useRef } from "react";
-import type { SidebarState } from "../../ipc";
+import { hasApp, type SidebarState } from "../../ipc";
 import { HoldContext } from "../../components/ui/hold";
 import { TooltipProvider } from "../../components/ui/tooltip";
 import { ResizeHandle } from "../../components/ui/resize-handle";
@@ -79,7 +79,11 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   useEffect(() => {
     if (blocked) omnibox.done();
   }, [blocked]);
-  const sidebar = useSidebarPresentation(saved, omnibox.shown !== null && omnibox.shown.place !== "center");
+  const sidebar = useSidebarPresentation(
+    saved,
+    omnibox.shown !== null && omnibox.shown.place !== "center",
+    fullScreen !== undefined
+  );
 
   return (
     // The downloads the window lists, and the Library button's indicator.
@@ -104,8 +108,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           {browser !== null && sidePanel && !fullScreen && <SidePanel browser={browser} panel={sidePanel} />}
         </main>
 
-        {/* Where the pointer brings the hidden sidebar out. */}
-        {!sidebar.open && !fullScreen && (
+        {/* Where the pointer brings the hidden sidebar out, with no app to watch it (components/sidebar/hover.ts). */}
+        {!hasApp && !sidebar.open && !fullScreen && (
           <div className="no-drag fixed inset-y-0 left-0 w-2.5" onPointerEnter={sidebar.enter} />
         )}
         <motion.aside

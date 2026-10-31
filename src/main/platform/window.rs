@@ -150,6 +150,27 @@ impl PageWindow {
         self.native.pointer()
     }
 
+    /// Where the pointer is, as `pointer` says, but beyond the page too: a
+    /// negative x is left of the window.
+    pub fn pointer_place(&self) -> Option<(f64, f64)> {
+        self.native.pointer_place()
+    }
+
+    /// Whether the pointer is the window's to answer: the window is in use,
+    /// and the pointer is beyond it, or over it with no other window over
+    /// it there. A window not in use has no part in it, even under it.
+    pub fn owns_pointer(&self) -> bool {
+        self.native.owns_pointer()
+    }
+
+    /// Calls `moved` as the pointer moves, over the window or beyond it,
+    /// while the window is in use; and as it comes into use and goes out of
+    /// it, when `owns_pointer` changes without a move. Nothing is watched
+    /// while it is not in use.
+    pub fn watch_pointer(&self, mt: MainThread, moved: impl Fn() + 'static) {
+        self.native.watch_pointer(mt, moved);
+    }
+
     /// Calls `changed` with is_active whenever it changes, once the platform
     /// has finished moving the focus between windows.
     pub fn watch_active(&self, mt: MainThread, changed: impl Fn(bool) + 'static) {

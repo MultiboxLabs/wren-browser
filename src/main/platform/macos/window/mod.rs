@@ -6,6 +6,7 @@
 // - state.rs: minimised, zoomed or neither;
 // - delegate.rs: the window's delegate, which hears its close button;
 // - title_bar.rs: the close, minimise and zoom buttons, which the page places;
+// - pointer.rs: where the pointer is, and its moves, beyond the window too;
 // - devtools.rs: the window of Chromium's undocked DevTools;
 // - key_window.rs: closing a key window of its own (⌘W).
 
@@ -14,6 +15,7 @@ mod devtools;
 mod frame;
 mod full_screen;
 mod key_window;
+mod pointer;
 mod state;
 mod title_bar;
 
@@ -58,6 +60,9 @@ pub struct PageWindow {
     // A window holds its delegate weakly.
     delegate: Retained<WindowDelegate>,
     observers: RefCell<Vec<Retained<ProtocolObject<dyn NSObjectProtocol>>>>,
+    // The app's monitor of the pointer, while the window watches it and is
+    // in use (pointer.rs).
+    pointer_monitor: Rc<RefCell<Option<Retained<AnyObject>>>>,
     title_bar: Rc<TitleBar>,
 }
 
@@ -186,6 +191,7 @@ impl PageWindow {
             backdrop,
             delegate,
             observers: RefCell::new(observers),
+            pointer_monitor: Rc::default(),
             title_bar,
         }
     }
@@ -214,31 +220,22 @@ impl PageWindow {
         is_active(&self.window)
     }
 
-    pub fn pointer(&self) -> Option<(f64, f64)> {
-        let content = self.window.contentView()?;
-        let at =
-            content.convertPoint_fromView(self.window.mouseLocationOutsideOfEventStream(), None);
-        let size = content.bounds().size;
-        let y = if content.isFlipped() {
-            at.y
-        } else {
-            size.height - at.y
-        };
-        ((0.0..=size.width).contains(&at.x) && (0.0..=size.height).contains(&y))
-            .then_some((at.x, y))
-    }
-
-    // Checked once AppKit has finished moving key and main between windows,
-    // and the app has become active or resigned.
     pub fn watch_active(&self, mt: MainThread, changed: impl Fn(bool) + 'static) {
         let window = self.window.clone();
         let last = Cell::new(None);
-        let check = Rc::new(move || {
+        self.after_focus_moves(mt, move || {
             let active = is_active(&window);
             if last.replace(Some(active)) != Some(active) {
                 changed(active);
             }
         });
+    }
+
+    // Runs `check` whenever whether the window is in use may have changed:
+    // once AppKit has finished moving key and main between windows, and the
+    // app has become active or resigned.
+    fn after_focus_moves(&self, mt: MainThread, check: impl Fn() + 'static) {
+        let check = Rc::new(check);
         let center = NSNotificationCenter::defaultCenter();
         let names = unsafe {
             [
@@ -357,6 +354,9 @@ impl Drop for PageWindow {
         let center = NSNotificationCenter::defaultCenter();
         for observer in self.observers.take() {
             unsafe { center.removeObserver(observer.as_ref()) };
+        }
+        if let Some(monitor) = self.pointer_monitor.take() {
+            pointer::remove_monitor(&monitor);
         }
         self.window.setDelegate(None);
         self.window.close();

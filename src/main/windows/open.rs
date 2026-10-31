@@ -115,6 +115,15 @@ impl State {
             window.page.set_active(active);
             ipc::send_active(&window.page, active);
         });
+        // Whether the pointer is over the sidebar, as it moves, and as the
+        // window comes into use or goes out of it.
+        let state = Rc::downgrade(self);
+        page.watch_pointer(mt, move || {
+            let Some(state) = state.upgrade() else { return };
+            if let Some(window) = state.windows.get(id) {
+                ipc::check_sidebar_hover(&window);
+            }
+        });
         let state = Rc::downgrade(self);
         page.watch_crash(move || {
             if let Some(state) = state.upgrade() {

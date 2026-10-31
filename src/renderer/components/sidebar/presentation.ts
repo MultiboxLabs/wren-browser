@@ -1,8 +1,8 @@
 // How the sidebar is shown, and what changes it: its button and the main
 // menu's Toggle Sidebar dock it or float it; floating, it is out while the
-// pointer is over it (or at the window's left edge) or something it opened
-// is open, and away otherwise. And its width, kept between runs, and
-// whether the Library is open in its place.
+// pointer is over it (or at the window's left edge, hover.ts) or something
+// it opened is open, and away otherwise. And its width, kept between runs,
+// and whether the Library is open in its place.
 
 import { useEffect, useRef, useState } from "react";
 import { downloads, hasApp, menu, type SidebarState } from "../../ipc";
@@ -10,7 +10,8 @@ import { useBrowser } from "../../state/browser";
 import { useSpace } from "../../state/space";
 import { useHolds } from "../ui/hold";
 import type { LibraryReveal } from "../library/library";
-import { useLibraryMotion } from "../library/motion";
+import { LIBRARY_RAIL, useLibraryMotion } from "../library/motion";
+import { useSidebarHover } from "./hover";
 import { type Presentation, useSidebarMotion, useWindowButtons } from "./motion";
 import { useSaveSidebar } from "./state";
 
@@ -21,8 +22,9 @@ export const SIDEBAR_WIDTH = { min: 240, max: 480, initial: 320 };
  * `omniboxOnAddress`: the omnibox is open over the address field, which
  * holds the floating sidebar out too. One in the middle of the window does
  * not: it opens there while the sidebar is away, and leaves it away.
+ * `pageFullScreen`: a page has the window, and nothing brings it out.
  */
-export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddress: boolean) {
+export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddress: boolean, pageFullScreen: boolean) {
   // Docked beside the page, or floating over it: the user's choice, kept
   // between runs. Only floating is it ever away.
   const [docked, setDocked] = useState(saved?.open !== false);
@@ -35,9 +37,6 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
   const toggle = () => setDocked((docked) => !docked);
   useEffect(() => (hasApp ? menu.onToggleSidebar(toggle) : undefined), []);
 
-  // Whether the pointer is over it, or at the window's left edge, which
-  // brings it out.
-  const [pointerOver, setPointerOver] = useState(false);
   // What is open of the sidebar's keeps it out too, though the pointer goes
   // over to it: a popover, a menu or a dialog it opened (by `HoldContext`),
   // one of Chromium's bubbles hanging off its buttons, the omnibox over its
@@ -68,8 +67,15 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
   const bubbleOpen = useBrowser().showing.length > 0;
   const making = useSpace().newSpace !== null;
   const held = opened || bubbleOpen || omniboxOnAddress || making || reveal !== null;
+  // Whether the pointer is over it, or at the window's left edge, which
+  // brings it out.
+  const pointer = useSidebarHover({
+    out: docked || held,
+    width: width + (libraryOpen ? LIBRARY_RAIL : 0),
+    enabled: !pageFullScreen
+  });
   // Floating, it is out while either keeps it out, and goes once neither does.
-  const presentation: Presentation = docked ? "anchored" : pointerOver || held ? "floating" : "hidden";
+  const presentation: Presentation = docked ? "anchored" : pointer.over || held ? "floating" : "hidden";
 
   const library = useLibraryMotion(libraryOpen);
   const motion = useSidebarMotion(presentation, width, library.rail);
@@ -86,10 +92,10 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
     motion,
     library: { open: libraryOpen, setOpen: setLibrary, motion: library, reveal },
     toggle,
-    /** The pointer came over it, or to the window's left edge. */
-    enter: () => setPointerOver(true),
-    /** The pointer left it. */
-    leave: () => setPointerOver(false),
+    /** The pointer came over it, or to the window's left edge, by the page's own events (no app only). */
+    enter: pointer.enter,
+    /** It left them, by the page's own events (no app only). */
+    leave: pointer.leave,
     /** For `HoldContext`, around what the sidebar opens. */
     hold
   };

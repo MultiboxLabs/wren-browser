@@ -54,6 +54,7 @@ pub use omnibox::{
 pub use pins::broadcast_pins;
 pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
 pub use side_panel::send_side_panel;
+pub use sidebar::check_sidebar_hover;
 pub use site::send_site;
 pub use spaces::broadcast_spaces;
 pub use tab_switcher::watch_tab_switcher_keys;

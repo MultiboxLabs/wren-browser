@@ -23,14 +23,24 @@ export type Presentation = "anchored" | "floating" | "hidden";
 /** How far in from the window's edges the sidebar floats. */
 export const PEEK_INSET = 5;
 
-// The gap left of the page while the sidebar is away, as on its other sides.
-const PAGE_INSET = 10;
+/** The gap left of the page while the sidebar is away, as on its other sides. */
+export const PAGE_INSET = 10;
+// The sidebar's padding: left of its content, right of it as it floats, and
+// the gap after it to the page as it is docked.
+const PADDING = 8;
+/** The window's buttons, in the sidebar's top row: how far in from its top left, and how wide. */
+export const WINDOW_BUTTONS = { inset: 13, width: 72 };
 // How far the floating sidebar's shadow reaches past it, to slide it out too.
 const SHADOW_REACH = 32;
 // Brisk enough to use all day: most of the way there at once, settled in
 // 0.15s. Not a spring, whose long tail keeps the page reflowing after the
 // sidebar looks still.
 const transition = { duration: 0.15, ease: [0.25, 1, 0.5, 1] } as const;
+
+/** The floating sidebar's right edge, from the window's left, for its width (its padding not in it). */
+export function floatingRight(width: number) {
+  return PEEK_INSET + width + PADDING;
+}
 
 /**
  * The sidebar's movement, from three values that each go from 0 to 1: how
@@ -79,11 +89,11 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
   const inset = useTransform(() => PEEK_INSET * floating.get());
   // Floating, it is as wide again as its left padding, to pad its right:
   // as its fill is, at once, over the gap the page takes as it floats.
-  const padding = useTransform(() => 8 * fill.get());
-  const hiddenLeft = useTransform(() => -(shownWidth.get() + 8 + PEEK_INSET + SHADOW_REACH));
+  const padding = useTransform(() => PADDING * fill.get());
+  const hiddenLeft = useTransform(() => -(shownWidth.get() + PADDING + PEEK_INSET + SHADOW_REACH));
   return {
     /** The room left of the page: the docked sidebar and the gap after it, or the page's inset. */
-    slot: useTransform(() => PAGE_INSET + (shownWidth.get() + 8 - PAGE_INSET) * docked.get()),
+    slot: useTransform(() => PAGE_INSET + (shownWidth.get() + PADDING - PAGE_INSET) * docked.get()),
     /**
      * The sidebar's place and size, its panel in it. It slides by `left`
      * rather than a transform, which Chromium would not follow with the
@@ -130,9 +140,10 @@ export function useWindowButtons(
     if (!hasApp) return;
     const half = (value: number) => Math.round(value * 2) / 2;
     const place = (): [number, number] | null => {
-      const shift = windowButtonsShift(library, left.get(), -72);
+      const { inset, width } = WINDOW_BUTTONS;
+      const shift = windowButtonsShift(library, left.get(), -width);
       const x = left.get() + shift.x;
-      return x > -72 ? [13 + half(x), 13 + half(top.get() + shift.y)] : null;
+      return x > -width ? [inset + half(x), inset + half(top.get() + shift.y)] : null;
     };
     // Nothing sent yet: the window starts with its buttons shown, so a sidebar
     // that starts hidden has to say so.

@@ -18,6 +18,7 @@ use serde::Serialize;
 use wren::{Browser, BubbleAnchor, RequestedBounds, WindowState};
 
 use super::Place;
+use super::sidebar_hover::SidebarHover;
 use super::tag::Tag;
 use crate::db::SpaceId;
 use crate::downloads;
@@ -71,6 +72,9 @@ pub struct BrowserWindow {
     /// not.
     pub key: String,
     pub page: PageWindow,
+    /// Whether the pointer is over the floating sidebar, or at the edge
+    /// that brings it out.
+    pub sidebar_hover: SidebarHover,
     places: RefCell<HashMap<Place, Slot>>,
     // A window on a profile has only that place in front, ever.
     front: RefCell<Front>,
@@ -118,6 +122,7 @@ impl BrowserWindow {
             id,
             key,
             page,
+            sidebar_hover: SidebarHover::default(),
             places: RefCell::default(),
             front: RefCell::new(place.map_or(Front::Waiting, Front::Place)),
             framed: Cell::new(framed),
