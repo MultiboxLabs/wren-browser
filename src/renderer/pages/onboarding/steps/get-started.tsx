@@ -1,20 +1,14 @@
 // The first step: Wren, by its mark and name, and what it is for. Get
 // Started goes on, as Return does.
 
-import { CornerDownLeft } from "lucide-react";
 import { motion } from "motion/react";
 import { WrenMark } from "@/components/icons";
-import { Button } from "@/components/ui/button";
+import { GoButton } from "@/pages/onboarding/go-button";
+import { EASE, rise } from "@/pages/onboarding/rise";
 import { type StepProps, useReturnKey } from "@/pages/onboarding/step";
 
-const EASE = [0.22, 1, 0.36, 1] as const;
-
-// Each part comes in a little after the one above it, once the window shows.
-const rise = (order: number) => ({
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6, delay: 0.2 + order * 0.07, ease: EASE }
-});
+// A little later than a later step's parts: the window has only just shown.
+const START = 0.2;
 
 export function GetStarted({ next, finishing }: StepProps) {
   useReturnKey(() => next());
@@ -30,25 +24,18 @@ export function GetStarted({ next, finishing }: StepProps) {
         >
           <WrenMark size={88} />
         </motion.div>
-        <motion.h1 {...rise(1)} className="mt-6 text-onboarding-title font-bold tracking-[-0.02em]">
+        <motion.h1 {...rise(1, START)} className="mt-6 text-onboarding-title font-bold tracking-[-0.02em]">
           Welcome to Wren
         </motion.h1>
-        <motion.p {...rise(2)} className="mt-2 text-onboarding-body text-fg-2">
+        <motion.p {...rise(2, START)} className="mt-2 text-onboarding-body text-fg-2">
           A calm, private browser that keeps out of your way.
         </motion.p>
       </div>
       {/* At the bottom right, where a setup assistant's Continue is. */}
-      <motion.footer {...rise(3)} className="flex justify-end px-8 pb-7">
-        <Button
-          variant="raised"
-          shape="large"
-          className="gap-2.5 font-medium"
-          disabled={finishing}
-          onClick={() => next()}
-        >
+      <motion.footer {...rise(3, START)} className="flex justify-end px-8 pb-7">
+        <GoButton disabled={finishing} onClick={() => next()}>
           Get Started
-          <CornerDownLeft size={14} strokeWidth={2.25} aria-hidden className="opacity-55" />
-        </Button>
+        </GoButton>
       </motion.footer>
     </div>
   );

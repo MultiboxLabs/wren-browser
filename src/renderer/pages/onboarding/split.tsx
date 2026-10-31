@@ -2,21 +2,13 @@
 // what the step is and its buttons, which stay as the choice changes; on the
 // right, the whole height of the window, what there is to choose from.
 
-import { CornerDownLeft } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
+import { GoButton } from "./go-button";
+import { rise } from "./rise";
 import { useReturnKey } from "./step";
-
-const EASE = [0.22, 1, 0.36, 1] as const;
-
-/** Each part comes in a little after the one before it. */
-export const rise = (order: number) => ({
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6, delay: 0.1 + order * 0.07, ease: EASE }
-});
 
 export function Split({
   title,
@@ -58,16 +50,9 @@ export function Split({
               Back
             </Button>
           )}
-          <Button
-            variant="raised"
-            shape="large"
-            className="w-full gap-2.5 font-medium"
-            disabled={finishing}
-            onClick={go}
-          >
+          <GoButton className="w-full" disabled={finishing} onClick={go}>
             {goLabel}
-            <CornerDownLeft size={14} strokeWidth={2.25} aria-hidden className="opacity-55" />
-          </Button>
+          </GoButton>
         </motion.div>
       </div>
       {/* Divided from the left by a line as the window's own edge is drawn:
