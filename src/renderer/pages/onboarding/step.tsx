@@ -1,6 +1,6 @@
-// What every onboarding step is given, and what each does alike.
+// What every onboarding step is given.
 
-import { type ComponentType, useEffect } from "react";
+import type { ComponentType } from "react";
 import type { ImportSource, SpaceTheme } from "@/ipc";
 
 /** What the user has chosen so far. */
@@ -39,16 +39,3 @@ export type Step = {
   /** Whether the step is for the user, with what they have chosen; always if not given. */
   shown?: (choices: Choices) => boolean;
 };
-
-/** Return presses `press`, as it presses a dialog's default button. */
-export function useReturnKey(press: () => void) {
-  useEffect(() => {
-    const down = (event: KeyboardEvent) => {
-      if (event.key !== "Enter" || event.repeat || event.isComposing) return;
-      event.preventDefault();
-      press();
-    };
-    addEventListener("keydown", down);
-    return () => removeEventListener("keydown", down);
-  }, [press]);
-}

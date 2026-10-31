@@ -3,15 +3,16 @@
 
 import { motion } from "motion/react";
 import { WrenMark } from "@/components/icons";
+import { useAnswerKeys } from "@/components/ui/answer-keys";
 import { GoButton } from "@/pages/onboarding/go-button";
 import { EASE, rise } from "@/pages/onboarding/rise";
-import { type StepProps, useReturnKey } from "@/pages/onboarding/step";
+import type { StepProps } from "@/pages/onboarding/step";
 
 // A little later than a later step's parts: the window has only just shown.
 const START = 0.2;
 
 export function GetStarted({ next, finishing }: StepProps) {
-  useReturnKey(() => next());
+  useAnswerKeys(() => next());
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-1 flex-col items-center justify-center pt-6 text-center">

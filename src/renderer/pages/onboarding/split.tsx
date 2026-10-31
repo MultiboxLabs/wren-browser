@@ -4,11 +4,11 @@
 
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
+import { useAnswerKeys } from "@/components/ui/answer-keys";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { GoButton } from "./go-button";
 import { rise } from "./rise";
-import { useReturnKey } from "./step";
 
 export function Split({
   title,
@@ -34,7 +34,7 @@ export function Split({
   panelClassName?: string;
   children: ReactNode;
 }) {
-  useReturnKey(go);
+  useAnswerKeys(go, back);
   return (
     <div className="flex h-full">
       <div className="flex w-88 shrink-0 flex-col px-11 pt-20 pb-10">

@@ -15,6 +15,7 @@ import { CornerDownLeft, LoaderCircle } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Dialog as Radix } from "radix-ui";
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { answerOf } from "./answer-keys";
 import { Button } from "./button";
 import { useDialogTurn } from "./dialog-turn";
 import { useHoldWhile } from "./hold";
@@ -81,8 +82,6 @@ export function Dialog(props: DialogProps) {
     </Radix.Root>
   );
 }
-
-const isMac = () => document.documentElement.dataset.platform === "mac";
 
 // In, a strong ease-out: it moves at once, where the eye is, and settles
 // slowly. Out, a gentler one: the strong one would do nearly all its fade in
@@ -159,12 +158,13 @@ function Card({
   };
 
   const keys = (event: KeyboardEvent) => {
-    if (event.key === "Enter" && !event.nativeEvent.isComposing && !(event.target instanceof HTMLTextAreaElement)) {
+    const answer = answerOf(event.nativeEvent);
+    if (answer === "default") {
       // Not a press of the button that has focus, if one has: Return is
       // the default button's, as on the platform.
       event.preventDefault();
       confirm();
-    } else if (event.key === "." && event.metaKey && isMac()) {
+    } else if (answer === "cancel") {
       event.preventDefault();
       if (cancel === null) confirm();
       else close();
