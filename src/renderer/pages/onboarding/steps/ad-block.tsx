@@ -1,6 +1,7 @@
 // Whether Wren blocks ads and trackers, as it does unless the user says
-// not. The choice goes to the app as onboarding finishes, which does
-// nothing with it yet (onboarding.rs).
+// not. The choice goes to the app as onboarding finishes, which turns the
+// ad blocker on or off in every profile there is, and keeps it as the
+// setting a new profile's starts as (onboarding.rs).
 
 import { useState } from "react";
 import { Choice } from "@/pages/onboarding/choice";

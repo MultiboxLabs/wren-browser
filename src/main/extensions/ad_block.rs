@@ -85,6 +85,21 @@ pub fn set(
     });
 }
 
+/// Turns the ad blocker on or off in every profile Chromium lists, as
+/// onboarding does with what the user chose there. A profile not made yet
+/// takes it from the setting instead (`on_install`).
+pub fn set_in_every_profile(mt: MainThread, enabled: bool) {
+    for profile in mt.profile_list() {
+        set(mt, &profile.id, enabled, move |result| {
+            // One with no ad blocker yet answers None, and takes the
+            // setting's once Chromium installs it.
+            if let Err(error) = result {
+                eprintln!("Wren could not turn a profile's ad blocker on or off: {error:?}");
+            }
+        });
+    }
+}
+
 /// The ad blocker in the profile; None while it has none, as Chromium
 /// installs it once the profile has loaded, or refused it.
 pub fn state(profile: &Profile) -> Option<AdBlock> {

@@ -11,7 +11,8 @@ use serde::Deserialize;
 use wren::MainThread;
 
 use crate::app::State;
-use crate::db::FirstSpace;
+use crate::db::{FirstSpace, SettingsChange};
+use crate::extensions::ad_block;
 use crate::ipc;
 use crate::pages::ONBOARDING;
 use crate::platform::{PageWindow, TitleBarKind, WindowSize};
@@ -28,7 +29,7 @@ pub struct Choices {
     /// them, as when their spaces come over from another browser.
     pub space: FirstSpace,
     /// Whether ads and trackers are blocked, as they are unless the user
-    /// says not. Not used yet (`finish_onboarding`).
+    /// says not: in every profile there is, and in each made after.
     pub ad_block: bool,
 }
 
@@ -81,9 +82,17 @@ impl State {
         if let Err(error) = self.db.set_first_space(choices.space) {
             eprintln!("Wren could not give the first space what was chosen for it: {error}");
         }
-        // TODO: keep it as the setting new profiles take their ad blocker
-        // from, once there is one. Nothing is done with it yet.
-        let _ = choices.ad_block;
+        // The setting a new profile's ad blocker starts as, the first run's
+        // too, as onboarding opens none; and the profiles there are already,
+        // after Reset Onboarding.
+        let change = SettingsChange {
+            block_ads_in_new_profiles: Some(choices.ad_block),
+            ..SettingsChange::default()
+        };
+        if let Err(error) = self.db.update_settings(change) {
+            eprintln!("Wren could not keep whether to block ads: {error}");
+        }
+        ad_block::set_in_every_profile(mt, choices.ad_block);
         if let Err(error) = self.db.set_onboarded(true) {
             eprintln!("Wren could not note that onboarding is done: {error}");
         }
