@@ -22,9 +22,16 @@ import { app } from "./channel";
 import { sparkle } from "./sparkle";
 
 const REPOSITORY = "MultiboxLabs/wren-browser-releases";
-// The manifests a release sets the version of: Stable's and Beta's, which
-// are the same app (Dev's has nothing to update to).
-const MANIFESTS = ["wren-app.json", "wren-app.beta.json"];
+// The manifests a release sets the build of, which Sparkle updates by:
+// Stable's and Beta's, which are the same app (Dev's has nothing to update
+// to).
+const UPDATED = ["wren-app.json", "wren-app.beta.json"];
+// The manifests a release sets the version of: Dev's too, so a dev build
+// says which release it follows.
+const MANIFESTS = [...UPDATED, "wren-app.dev.json"];
+// What a release commits: the manifests, and the crate's version, which
+// analytics reports (CARGO_PKG_VERSION), kept the same as theirs.
+const VERSIONED = [...MANIFESTS, "Cargo.toml", "Cargo.lock"];
 const KEY_ACCOUNT = "wren";
 const OUT = "target/publish";
 
@@ -109,12 +116,12 @@ if (build <= newest) fail(`${shortVersion} is not newer than what ${channel} has
 if (!resuming) {
   await make();
   if (dryRun) {
-    await $`git checkout -- ${MANIFESTS}`;
+    await $`git checkout -- ${VERSIONED}`;
     console.log(`\nDry run: ${zip} and ${json} are made; nothing is committed, pushed or released.`);
     console.log(await Bun.file(json).text());
     process.exit(0);
   }
-  await $`git commit -m ${`chore: release ${shortVersion}`} -- ${MANIFESTS}`;
+  await $`git commit -m ${`chore: release ${shortVersion}`} -- ${VERSIONED}`;
   await $`git tag ${tag}`;
 }
 // Pushing again what is pushed already does nothing.
@@ -153,21 +160,30 @@ console.log(
 console.log(`${JSON.stringify(entry, null, 2)},`);
 
 /**
- * Writes the version into the manifests, and builds, notarises, zips and
- * signs the app into `zip`, with `json` beside it. If it fails, the
- * manifests are put back.
+ * Writes the version into the manifests and Cargo.toml, and builds,
+ * notarises, zips and signs the app into `zip`, with `json` beside it. If it
+ * fails, what it wrote is put back.
  */
 async function make() {
   await sparkle();
 
-  // The version, in each manifest; kept only once it is published.
-  for (const path of MANIFESTS) {
-    const manifest = JSON.parse(await Bun.file(path).text());
-    await Bun.write(path, JSON.stringify({ ...manifest, version: shortVersion, build: String(build) }, null, 2) + "\n");
-  }
-  await $`bunx prettier --write ${MANIFESTS}`.quiet();
-
   try {
+    // The version, in each manifest, and the build where Sparkle reads it;
+    // kept only once it is published.
+    for (const path of MANIFESTS) {
+      const manifest = JSON.parse(await Bun.file(path).text());
+      const written = { ...manifest, version: shortVersion, ...(UPDATED.includes(path) && { build: String(build) }) };
+      await Bun.write(path, JSON.stringify(written, null, 2) + "\n");
+    }
+    await $`bunx prettier --write ${MANIFESTS}`.quiet();
+    // And the crate's, in Cargo.toml's [package] and in Cargo.lock, which
+    // updating only the workspace's packages changes nothing else of.
+    const cargo = await Bun.file("Cargo.toml").text();
+    const packageVersion = /(^\[package\]\n(?:(?!\[).*\n)*?version = )"[^"]*"/m;
+    if (!packageVersion.test(cargo)) throw new Error("Cargo.toml has no version under [package].");
+    await Bun.write("Cargo.toml", cargo.replace(packageVersion, `$1"${shortVersion}"`));
+    await $`cargo update --workspace --offline`.quiet();
+
     await $`bun run scripts/build.ts --channel ${channel} --identity ${identity}`;
     await $`wren notarize ${app} --keychain-profile ${notaryProfile}`;
     await $`xcrun stapler staple ${app}`;
@@ -200,7 +216,7 @@ async function make() {
       ) + "\n"
     );
   } catch (error) {
-    await $`git checkout -- ${MANIFESTS}`;
+    await $`git checkout -- ${VERSIONED}`;
     throw error;
   }
 }
