@@ -10,6 +10,10 @@ export type BrowserTab = {
   canGoBack: boolean;
   canGoForward: boolean;
   crashed: boolean;
+  /** Its page plays sound, or just did, muted or not. */
+  audible: boolean;
+  /** Its sound is muted. */
+  muted: boolean;
   /** Its group's ID, if it is in one. */
   group: string | null;
   /** Its split's ID, if it is in one. */
@@ -73,6 +77,7 @@ export const browser = {
   onPreviewChanged: (listener: (changed: TabPreviewChanged) => void) =>
     wren.on<TabPreviewChanged>("tabs.previewChanged", listener),
   close: (id: number) => wren.invoke<null>("tabs.close", id),
+  setMuted: (id: number, muted: boolean) => wren.invoke<null>("tabs.setMuted", { id, muted }),
   /**
    * Moves a unit so its first tab is at an index among all the tabs. A moved
    * group is made again, with a new ID. A tab also goes into the group of

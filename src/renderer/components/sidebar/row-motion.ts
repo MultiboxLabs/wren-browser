@@ -26,6 +26,21 @@ export const ROW_OUT: Transition = {
   height: { duration: 0.2, delay: 0.06, ease: EASE_OUT }
 };
 
+/**
+ * A control in a row coming and going beside its title, as a row does across
+ * it: its room opens or closes, the title sliding, and it fades over that.
+ */
+export const CONTROL_IN: Transition = {
+  width: ROW_IN.height,
+  marginRight: ROW_IN.height,
+  opacity: ROW_IN.opacity
+};
+export const CONTROL_OUT: Transition = {
+  opacity: ROW_OUT.opacity,
+  width: ROW_OUT.height,
+  marginRight: ROW_OUT.height
+};
+
 /** A pin or a favourite sliding to its new place in its list, as another comes, goes or moves. */
 export const REORDER: Transition = { duration: 0.22, ease: EASE_OUT };
 

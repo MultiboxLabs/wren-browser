@@ -2,6 +2,7 @@
 // same props (Icon, components/ui/button.tsx). `size` is the width in
 // points; each keeps its own stroke, as heavy as the system's toolbar icons.
 
+import { motion, useReducedMotion } from "motion/react";
 import { useId } from "react";
 
 type Props = { size?: number; strokeWidth?: number };
@@ -113,6 +114,71 @@ export function InsecureIcon({ size = 24, strokeWidth = 2 }: Props) {
         <rect x="3" y="11" width="18" height="11" rx="2" />
         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
         <path d="M2 2l20 20" />
+      </g>
+    </svg>
+  );
+}
+
+// How long one of the speaker's marks takes to draw or undraw, and how long
+// after the one before it the next starts.
+const SOUND_MARK = 0.11;
+const SOUND_STEP = 0.05;
+// How far the speaker's body slides to stand under the slash, centred without its waves.
+const SOUND_BODY_SHIFT = 2.9;
+const SOUND_SLASH = "M3.4 2.6 12.9 15.4";
+
+/** One of the speaker's marks, drawn along its line, `at` steps in. */
+function SoundMark({ d, on, at, still }: { d: string; on: boolean; at: number; still: boolean | null }) {
+  const delay = at * SOUND_STEP;
+  return (
+    <motion.path
+      d={d}
+      initial={false}
+      animate={{ pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }}
+      transition={
+        still
+          ? { duration: 0 }
+          : {
+              pathLength: { duration: SOUND_MARK, delay, ease: "easeInOut" },
+              // At once, at the end its line is not there: a round cap would leave a dot.
+              opacity: { duration: 0, delay: on ? delay : delay + SOUND_MARK }
+            }
+      }
+    />
+  );
+}
+
+/**
+ * A filled speaker: two waves as it plays; muted, a slash through it, with a
+ * gap cut around the slash. The waves undraw from the outside in as the body
+ * slides to the middle and the slash draws, and the other way back.
+ */
+export function SoundIcon({ muted, size = 17 }: { muted: boolean; size?: number }) {
+  // Its mask's ID, which is the document's: one for each icon drawn.
+  const id = useId();
+  const still = useReducedMotion();
+  const slash = { d: SOUND_SLASH, on: muted, at: muted ? 1.5 : 0, still };
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden>
+      <mask id={id} maskUnits="userSpaceOnUse" x="0" y="0" width="18" height="18">
+        <rect width="18" height="18" fill="#fff" />
+        <g stroke="#000" strokeWidth="3.2" strokeLinecap="round">
+          <SoundMark {...slash} />
+        </g>
+      </mask>
+      <g mask={`url(#${id})`}>
+        <motion.path
+          d="M2.6 6.3H4.7L7.9 3.5C8.4 3.05 9.2 3.4 9.2 4.1V13.9C9.2 14.6 8.4 14.95 7.9 14.5L4.7 11.7H2.6C1.9 11.7 1.4 11.2 1.4 10.5V7.5C1.4 6.8 1.9 6.3 2.6 6.3Z"
+          fill="currentColor"
+          initial={false}
+          animate={{ x: muted ? SOUND_BODY_SHIFT : 0 }}
+          transition={still ? { duration: 0 } : { duration: 0.2, ease: "easeInOut" }}
+        />
+      </g>
+      <g stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+        <SoundMark d="M11.42 5.92A4.6 4.6 0 0 1 11.42 12.08" on={!muted} at={1} still={still} />
+        <SoundMark d="M13.35 3.06A8 8 0 0 1 13.35 14.94" on={!muted} at={muted ? 0 : 2} still={still} />
+        <SoundMark {...slash} />
       </g>
     </svg>
   );

@@ -36,6 +36,10 @@ export type Tab = {
   group?: string | null;
   /** A tab of the Browser's split's ID. */
   split?: string | null;
+  /** Its page plays sound, or just did, muted or not. */
+  audible?: boolean;
+  /** Its sound is muted. */
+  muted?: boolean;
 };
 export type Space = {
   /** Its ID in the app's database; 0 for a made-up one, and `NEW_SPACE` for the one being made. */

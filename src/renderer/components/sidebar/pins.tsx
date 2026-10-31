@@ -29,6 +29,7 @@ import {
   IconSlot,
   NESTED_INDENT,
   Row,
+  SoundButton,
   SplitFrame,
   SplitHalf,
   TitleField,
@@ -194,6 +195,7 @@ function PinLabel({
   return (
     <>
       <PinPageIcon page={page} open={open} />
+      <SoundButton tab={open?.tab} />
       <Tooltip label={title}>
         <span className="min-w-0 flex-1 truncate" onClick={renameClick}>
           {title}
@@ -237,6 +239,7 @@ function TabPinRow({
         <AwayTitle
           page={pin.page}
           title={title}
+          tab={tab.tab}
           inset="row"
           onBack={() => pinsIpc.back(pin.id, 0)}
           onRename={() => actions.onStartRename(pin)}
@@ -262,17 +265,20 @@ const BACK_INSET = { row: "-ml-2.5 -mr-1 px-2.5", half: "-ml-1.5 px-1.5" };
  * the left edge of the row (or the half) as its corners are, and the title
  * says what it does under it; pressing it takes the tab back to the pin's
  * page (`onBack`), without selecting the row first. A double click on the
- * title renames the pin (`onRename`).
+ * title renames the pin (`onRename`). The tab's sound button comes after the
+ * title, as the icon and the slash stay together.
  */
 function AwayTitle({
   page,
   title,
+  tab,
   inset,
   onBack,
   onRename
 }: {
   page: PinPage;
   title: string;
+  tab: BrowserTabWithFavicon;
   inset: keyof typeof BACK_INSET;
   onBack: () => void;
   onRename: () => void;
@@ -307,6 +313,7 @@ function AwayTitle({
         </Tooltip>
         <span className="hidden truncate text-caption text-fg-3 peer-hover/back:block">Back to Pinned URL</span>
       </span>
+      <SoundButton tab={tab} />
     </>
   );
 }
@@ -357,6 +364,7 @@ function SplitPinRow({
               <AwayTitle
                 page={page}
                 title={title}
+                tab={half.tab}
                 inset="half"
                 onBack={() => pinsIpc.back(pin.id, side)}
                 onRename={() => actions.onStartRename(pin)}

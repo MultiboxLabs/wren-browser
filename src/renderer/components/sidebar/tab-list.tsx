@@ -32,6 +32,7 @@ import {
   IconSlot,
   NESTED_INDENT,
   Row,
+  SoundButton,
   SplitFrame,
   SplitHalf,
   TitleField,
@@ -342,6 +343,7 @@ function TabRow({
       identities={[tabIdentity(tab.id)]}
     >
       <Favicon url={tab.url} icon={tab.favicon} />
+      <SoundButton tab={tab} />
       <Tooltip label={tab.title}>
         <span className="min-w-0 flex-1 truncate">{tab.title}</span>
       </Tooltip>
@@ -429,6 +431,7 @@ function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab;
           identities={[tabIdentity(tab.id)]}
         >
           <Favicon url={tab.url} icon={tab.favicon} />
+          <SoundButton tab={tab} />
           <Tooltip label={tab.title}>
             <span className="min-w-0 flex-1 truncate">{tab.title}</span>
           </Tooltip>

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
-use wren::{Browser, BrowserTab, MainThread, TabCrash, TabGroup, TabSplit, TabStatus, WebView};
+use wren::{
+    Browser, BrowserTab, MainThread, TabAlert, TabCrash, TabGroup, TabSplit, TabStatus, WebView,
+};
 
 use super::groups::Group;
 use super::splits::Split;
@@ -26,6 +28,10 @@ pub struct Tab {
     can_go_back: bool,
     can_go_forward: bool,
     crashed: bool,
+    /// Its page plays sound, or just did, muted or not.
+    audible: bool,
+    /// Its sound is muted.
+    muted: bool,
     /// Its group's ID, if it is in one.
     group: Option<String>,
     /// Its split's ID, if it is in one.
@@ -100,6 +106,13 @@ enum Movable {
 struct Pair {
     first: i32,
     second: i32,
+}
+
+/// A tab to mute or unmute.
+#[derive(Deserialize)]
+struct SetMuted {
+    id: i32,
+    muted: bool,
 }
 
 /// An address dropped on the list, to open where it was dropped.
@@ -200,6 +213,15 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("tabs.activate", move |id: i32| {
         with_browser(&weak, |_, browser| {
             tab(mt, browser, id)?.activate().map_err(failed)
+        })
+    });
+
+    let weak = window.clone();
+    let _ = web_view.handle("tabs.setMuted", move |set: SetMuted| {
+        with_browser(&weak, |_, browser| {
+            tab(mt, browser, set.id)?
+                .set_muted(set.muted)
+                .map_err(failed)
         })
     });
 
@@ -410,6 +432,8 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
                 can_go_back: state.is_some_and(|state| state.can_go_back),
                 can_go_forward: state.is_some_and(|state| state.can_go_forward),
                 crashed: state.is_some_and(|state| state.crash != TabCrash::None),
+                audible: state.is_some_and(|state| state.alert_set().contains(TabAlert::AUDIBLE)),
+                muted: state.is_some_and(|state| state.muted),
                 group: group.map(|group| group.to_string()),
                 split: split.map(|split| split.to_string()),
                 pinned: state.is_some_and(|state| state.pinned),
