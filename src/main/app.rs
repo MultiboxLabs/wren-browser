@@ -130,6 +130,11 @@ impl State {
     // (not on a Mac), it is kept with its session for the next run. Any
     // other is forgotten, and leaves by closing its Browsers, as Chrome's
     // does, and goes once they have.
+    //
+    // TODO: a page's "Leave site?" prompt can keep a Browser open, but by then
+    // the window is forgotten and marked as closing, and its other Browsers
+    // may have closed. Change nothing until every Browser has closed, once
+    // Wren's `Browser::close` reports a page cancelling it.
     pub(crate) fn close_window(self: &Rc<Self>, mt: MainThread, id: WindowId) {
         if QUITS_WITH_LAST_WINDOW && self.windows.len() <= 1 {
             return mt.quit();

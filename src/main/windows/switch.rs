@@ -103,6 +103,11 @@ impl State {
     /// on one switches to the most recently used space left, of `profile`
     /// if given (the deleted space's), and its Browsers of those spaces
     /// close with their tabs.
+    ///
+    /// TODO: a page's "Leave site?" prompt can keep such a Browser open, with
+    /// its space deleted and no window to show it. Delete a space only once
+    /// its Browsers have closed, when Wren's `Browser::close` reports a page
+    /// cancelling it.
     pub fn leave_gone_spaces(&self, profile: Option<&str>) {
         let exists = |space| matches!(self.db.space(space), Ok(Some(_)));
         for window in self.windows.all() {
