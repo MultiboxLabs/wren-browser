@@ -1,6 +1,7 @@
 // Sparkle, the app's updater (src/main/platform/macos/updater/): its
 // framework, which `wren bundle` puts in the app (each manifest's
-// `frameworks`), and its tools for keys and releases (bin/), in Frameworks/.
+// `frameworks`), its tools for keys and releases (bin/), and its licence,
+// which scripts/notices.ts ships, in Frameworks/.
 // Downloaded once for the version pinned here, and checked against its
 // SHA-256. Nothing links it: the app loads it as it runs.
 import { $ } from "bun";
@@ -14,13 +15,15 @@ const SHA256 = "1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27
 const FOLDER = "Frameworks";
 // The version in the folder, written once it is all there.
 const STAMP = `${FOLDER}/sparkle-version`;
+/** Sparkle's licence, MIT, from its archive. */
+export const SPARKLE_LICENSE = `${FOLDER}/Sparkle-LICENSE`;
 
 /** Puts the pinned Sparkle in Frameworks/, unless it is there already. */
 export async function sparkle() {
   const had = await Bun.file(STAMP)
     .text()
     .catch(() => null);
-  if (had?.trim() === VERSION) return;
+  if (had?.trim() === VERSION && (await Bun.file(SPARKLE_LICENSE).exists())) return;
 
   const url = `https://github.com/sparkle-project/Sparkle/releases/download/${VERSION}/Sparkle-${VERSION}.tar.xz`;
   const response = await fetch(url);
@@ -41,6 +44,7 @@ export async function sparkle() {
     // ditto keeps the framework's symbolic links and signature as they are.
     await $`ditto ${join(unpacked, "Sparkle.framework")} ${FOLDER}/Sparkle.framework`;
     await $`ditto ${join(unpacked, "bin")} ${FOLDER}/bin`;
+    await $`cp ${join(unpacked, "LICENSE")} ${SPARKLE_LICENSE}`;
     await Bun.write(STAMP, `${VERSION}\n`);
   } finally {
     await rm(unpacked, { recursive: true, force: true });

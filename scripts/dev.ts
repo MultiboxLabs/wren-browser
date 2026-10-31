@@ -5,6 +5,7 @@
 import { $ } from "bun";
 import { realpath, stat } from "node:fs/promises";
 import { app, executable, manifestOf } from "./channel";
+import { notices } from "./notices";
 import { sparkle } from "./sparkle";
 
 const manifest = manifestOf("dev");
@@ -67,6 +68,7 @@ const vite = Bun.spawn(["bunx", "vite"], { stdout: "inherit", stderr: "inherit" 
 try {
   await $`wren install --manifest ${manifest}`;
   await sparkle();
+  await notices();
   await $`WREN_CHANNEL=dev cargo build`;
   // Nothing in the bundle changes with the pages, which are fetched from the
   // server: only with the executable, the manifest, the icon, the resources

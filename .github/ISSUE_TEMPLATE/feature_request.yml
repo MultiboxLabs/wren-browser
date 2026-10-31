@@ -1,0 +1,19 @@
+name: Feature request
+description: Something Wren should do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: Search the open issues first. Someone may have asked already.
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to do
+      description: What you are trying to do, and what Wren is missing for it.
+    validations:
+      required: true
+  - type: textarea
+    id: elsewhere
+    attributes:
+      label: Where you have seen it
+      description: If another browser does this, which one, and how it works there.

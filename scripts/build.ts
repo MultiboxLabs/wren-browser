@@ -6,6 +6,7 @@
 import { $ } from "bun";
 import { parseArgs } from "util";
 import { app, channelOf, executable, manifestOf } from "./channel";
+import { notices } from "./notices";
 import { sparkle } from "./sparkle";
 
 const args = process.argv.slice(2);
@@ -20,6 +21,7 @@ const signing = typeof identity === "string" ? ["--identity", identity] : [];
 await $`wren install --manifest ${manifest}`;
 await sparkle();
 await $`bunx vite build`;
+await notices();
 await $`WREN_CHANNEL=${channel} cargo build ${release}`;
 await $`wren bundle --executable target/${profile}/wren-browser --manifest ${manifest} --output ${app} ${signing}`;
 

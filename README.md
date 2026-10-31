@@ -17,12 +17,20 @@ Wren is still in development. The sidebar's favourites and pinned folders are un
 
 ## Run from source
 
-You need macOS, Bun, Rust 1.85 or later, and the Wren runtime's `wren` command on your `PATH`.
+You need macOS on Apple silicon, Bun, Rust 1.85 or later, and the Wren runtime's `wren` command on your `PATH`. Install `wren` once:
+
+```sh
+curl -fsSL https://wrenbrowser.com/runtime/cli/install.sh | sh
+```
+
+Then:
 
 ```sh
 bun install
 bun run dev
 ```
+
+The Wren runtime is not open source. Its [licence](https://github.com/MultiboxLabs/wren-runtime/blob/main/LICENSE) lets you use it to build, run, change and contribute to Wren Browser, but not to distribute builds of it.
 
 The dev script installs the runtime named in the app manifest, starts Vite on port 5173, builds the Rust executable and launches `Wren.app`. It reuses the app bundle when its inputs have not changed.
 
@@ -106,3 +114,24 @@ To add a page:
 - `bun run sync-ublock` downloads the latest uBlock Origin release into `extensions/uBlock0.crx`. Pass `--version <version>` to select a release.
 
 Both commands update files in the repository for the next build.
+
+### Notices
+
+`bun run build` and `bun run dev` write `dist/LICENSES`, which the app carries in its Resources folder. It holds Wren Browser's licence, the Wren runtime's `LICENSES` folder with Chromium's notices, and `third-party.txt`, the licences of uBlock Origin, Sparkle, Kagi's bangs, and the Rust crates and npm packages the app is built from. `scripts/notices.ts` makes it. A crate or package that ships no licence file gets its repository's from `scripts/licences/`, which `scripts/notices.ts` names.
+
+## Contributing
+
+Bug reports and feature requests go in [issues](https://github.com/MultiboxLabs/wren-browser/issues). Report a security vulnerability privately, as [SECURITY.md](SECURITY.md) says.
+
+Pull requests are welcome. Each one asks you to agree to the [Contributor Licence Agreement](CLA.md) by ticking a box in its description, and the CLA check passes once you have. Read [AGENTS.md](AGENTS.md) for the project's conventions, and run `bun run check` first.
+
+## Licence
+
+Copyright 2026 Avocado and Bear Limited, trading as Multibox Labs.
+
+Wren Browser is under the [Mozilla Public License 2.0](LICENSE). These are not:
+
+- The name Wren, and the logos and icons in `branding/`. They are trademarks, and [TRADEMARKS.md](TRADEMARKS.md) says how you may use them.
+- The Wren runtime, which has its [own licence](https://github.com/MultiboxLabs/wren-runtime/blob/main/LICENSE).
+- `extensions/uBlock0.crx`, uBlock Origin, under the GPL 3.0.
+- `src/renderer/data/bangs.json`, from Kagi's bangs, under the MIT licence in `bangs.LICENSE` beside it.

@@ -1,0 +1,42 @@
+name: Bug report
+description: Wren does something wrong, or crashes.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. Search the open issues first.
+        A security vulnerability goes in a private report, not here. SECURITY.md says how.
+  - type: input
+    id: version
+    attributes:
+      label: Wren version
+      description: From Wren's About window, such as 0.1.0 (10099).
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.1
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what Wren did, and what you expected it to do.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: The steps, from opening Wren. Name the site if it happens on one.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Crash report or screenshot
+      description: For a crash, the report from Console, under Crash Reports. Remove anything private first.

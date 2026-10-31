@@ -1,0 +1,62 @@
+# Checks that the person who opened a pull request agreed to the Contributor
+# Licence Agreement (CLA.md), by ticking its box in the description. When they
+# tick it, it labels the pull request "CLA" and records who agreed, to which
+# version and when, in a comment that only maintainers can change. Make the
+# "CLA" check required on main, so nothing is merged without it.
+#
+# It runs on pull_request_target, so that it may label and comment on pull
+# requests from forks. It never checks out or runs the pull request's code:
+# it reads only the event's description and labels.
+name: CLA
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  cla:
+    name: CLA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const VERSION = "1.0";
+            const LABEL = "CLA";
+            const BOX = /^\s*[-*] \[[xX]\] I have read and agree to the \[Contributor Licence Agreement\]/m;
+
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+            if (pr.user.type === "Bot") {
+              core.info(`@${author} is a bot, which needs no CLA.`);
+              return;
+            }
+            const agreed = BOX.test(pr.body ?? "");
+            const labelled = pr.labels.some(({ name }) => name === LABEL);
+            const issue = { ...context.repo, issue_number: pr.number };
+
+            if (agreed && !labelled) {
+              // Only the author can agree for themselves.
+              if (context.actor !== author) {
+                core.setFailed(`Only @${author}, who opened this pull request, can agree to the CLA. @${context.actor} ticked the box.`);
+                return;
+              }
+              const cla = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${pr.base.sha}/CLA.md`;
+              await github.rest.issues.addLabels({ ...issue, labels: [LABEL] });
+              await github.rest.issues.createComment({
+                ...issue,
+                body: `@${author} agreed to the [Contributor Licence Agreement, version ${VERSION}](${cla}) on ${new Date().toISOString()}, by ticking its box in this pull request's description.`,
+              });
+              core.info(`@${author} agreed to the CLA, version ${VERSION}.`);
+              return;
+            }
+            if (!agreed && labelled) {
+              await github.rest.issues.removeLabel({ ...issue, name: LABEL });
+            }
+            if (!agreed) {
+              core.setFailed("Tick the Contributor Licence Agreement's box in the pull request's description to agree to it.");
+            }

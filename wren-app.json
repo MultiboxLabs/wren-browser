@@ -4,10 +4,10 @@
   "bundleId": "dev.multibox.wren",
   "version": "0.1.0",
   "icon": "branding/stable.icon",
-  "copyright": "Copyright 2026 Multibox Labs. All rights reserved.",
+  "copyright": "Copyright © 2026 Multibox Labs.",
   "urlSchemes": [{ "name": "Web site URL", "schemes": ["http", "https"] }],
   "documentTypes": [{ "name": "HTML document", "types": ["public.html", "public.xhtml"] }],
-  "resources": ["extensions/uBlock0.crx", "extensions/wren-components"],
+  "resources": ["extensions/uBlock0.crx", "extensions/wren-components", "dist/LICENSES"],
   "wren": "0.3.0",
   "frameworks": ["Frameworks/Sparkle.framework"],
   "infoPlist": {

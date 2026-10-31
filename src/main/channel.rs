@@ -81,7 +81,7 @@ impl Channel {
         startup.product_icon_dark_svg =
             Some(include_bytes!("../../branding/wren-dark.svg").to_vec());
         startup.company_name = Some("Multibox Labs".into());
-        startup.copyright = Some("Copyright 2026 Multibox Labs. All rights reserved.".into());
+        startup.copyright = Some("Copyright © 2026 Multibox Labs.".into());
         startup.help_url = Some("https://github.com/MultiboxLabs/wren-browser".into());
         // The bundle's, from the manifest's `version`: the one updates.rs
         // keeps, to know a new version as it starts.
