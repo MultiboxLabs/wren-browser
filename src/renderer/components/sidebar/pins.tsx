@@ -21,7 +21,7 @@ import { pinIdentity, tabIdentity } from "./arrival";
 import { FoldingRows, foldRow } from "./folding";
 import type { PinActions } from "./pin-actions";
 import { usePeek } from "./peeks";
-import { pinDrag } from "./pin-drop";
+import { pinBody, pinDrag } from "./pin-drop";
 import { useStrike } from "./row-motion";
 import {
   Appear,
@@ -125,7 +125,7 @@ function PinBody({ pin, peek = false, ...props }: PinProps & { pin: Pin; peek?: 
   };
   return (
     // Each brings the gap above it, which grows and shrinks with it.
-    <div className="flex flex-col gap-1.25 pt-1.25">
+    <div {...pinBody(pin, peek)} className="flex flex-col gap-1.25 pt-1.25">
       {pin.kind === "folder" ? (
         <FolderRow folder={pin} {...props} />
       ) : (

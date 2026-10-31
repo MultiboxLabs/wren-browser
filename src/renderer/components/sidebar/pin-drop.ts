@@ -81,6 +81,13 @@ export function pinDrag(pin: Pin, { favorite = false, renaming = false, peek = f
   };
 }
 
+/**
+ * Marks the element that holds all that is drawn of `pin` (`data-pin-body`):
+ * its row and, for a folder, what is in it, or its peek while it is folded.
+ * Not a `peek`'s, which is not where the pin is.
+ */
+export const pinBody = (pin: Pin, peek = false) => ({ "data-pin-body": peek ? undefined : pin.id });
+
 // A landing is plain data, so the same is the same as text.
 const sameLanding = (a: PinLanding | null, b: PinLanding | null) => JSON.stringify(a) === JSON.stringify(b);
 

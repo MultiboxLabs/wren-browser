@@ -42,8 +42,19 @@ function linesBetween(spans: [start: number, end: number][], gap: number) {
 const nearest = (values: number[], to: number) =>
   values.reduce((best, value, at) => (Math.abs(to - value) < Math.abs(to - values[best]) ? at : best), 0);
 
-/** A pin as the section draws it, in order: where it is, and the folder it is drawn in. */
-type Placed = { pin: Pin; parent: number | null; index: number; depth: number; box: DOMRect; up: Placed | null };
+/**
+ * A pin as the section draws it, in order: where it is, its row's box, how
+ * far down what is drawn of it goes (`end`), and the folder it is drawn in.
+ */
+type Placed = {
+  pin: Pin;
+  parent: number | null;
+  index: number;
+  depth: number;
+  box: DOMRect;
+  end: number;
+  up: Placed | null;
+};
 
 // The pins drawn in `section`, top to bottom, with what is in each open
 // folder after it. What is in the held folder is not a place to land.
@@ -53,15 +64,14 @@ function placedIn(section: HTMLElement, pins: Pin[], held: number | undefined, u
     if (!row) return [];
     // The row itself, in from the list's edge as its folders are.
     const drawn = row.firstElementChild ?? row;
-    const placed = {
-      pin,
-      parent: up?.pin.id ?? null,
-      index,
-      depth: up ? up.depth + 1 : 0,
-      box: drawn.getBoundingClientRect(),
-      up
-    };
+    const box = drawn.getBoundingClientRect();
     const inside = pin.kind === "folder" && pin.open && pin.id !== held;
+    // A folder whose rows are not places of their own goes down past them,
+    // or past the row it shows folded (its peek, folding.tsx), so no place
+    // is drawn across them.
+    const body = inside ? null : section.querySelector(`[data-pin-body="${pin.id}"]`);
+    const end = Math.max(box.bottom, body?.getBoundingClientRect().bottom ?? 0);
+    const placed = { pin, parent: up?.pin.id ?? null, index, depth: up ? up.depth + 1 : 0, box, end, up };
     return [placed, ...(inside ? placedIn(section, pin.items, held, placed) : [])];
   });
 }
@@ -104,7 +114,7 @@ export function pinsLandingAt(
 
   // The nearest place between the rows, by the line it would be drawn on.
   const lines = linesBetween(
-    rows.map(({ box }) => [box.top, box.bottom]),
+    rows.map(({ box, end }) => [box.top, end]),
     ROW_GAP
   );
   const at = nearest(lines, y);
