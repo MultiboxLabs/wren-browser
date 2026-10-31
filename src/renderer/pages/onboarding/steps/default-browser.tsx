@@ -1,11 +1,13 @@
 // Whether Wren opens the links of other apps: mail, messages, documents.
 // Going on with Yes asks the system, which asks the user to confirm in a
 // dialog of its own, before the next step. Once Wren is the default
-// already, there is nothing to ask.
+// already, or where policy keeps the user from making it so, there is nothing
+// to ask, and the step says where things stand, as the Library's card does.
 
-import { CircleCheck } from "lucide-react";
+import { Building2, CircleCheck } from "lucide-react";
 import { useEffect, useState } from "react";
-import { defaultBrowser, hasApp } from "@/ipc";
+import { defaultBrowser, type DefaultBrowser as State, hasApp } from "@/ipc";
+import { defaultBrowserText } from "@/components/library/default-browser";
 import { Choice } from "@/pages/onboarding/choice";
 import { LaterIcon, WrenIcon } from "@/pages/onboarding/option-icons";
 import { Split } from "@/pages/onboarding/split";
@@ -13,32 +15,22 @@ import type { StepProps } from "@/pages/onboarding/step";
 
 export function DefaultBrowser({ next, back, finishing, last }: StepProps) {
   const [make, setMake] = useState(true);
-  // Whether it is already; undefined until the app has said.
-  const [already, setAlready] = useState<boolean | undefined>(hasApp ? undefined : false);
-  // Policy may keep the user from making it so: then there is nothing to ask.
-  const [canSet, setCanSet] = useState(hasApp);
+  // Until the app says otherwise, one the user may make the default.
+  const [state, setState] = useState<State>({ isDefault: false, canSet: true });
+  const already = state.isDefault === true;
   const [asking, setAsking] = useState(false);
   useEffect(() => {
     if (!hasApp) return;
-    defaultBrowser.get().then(
-      ({ isDefault, canSet }) => {
-        setAlready(isDefault === true);
-        setCanSet(canSet);
-      },
-      () => setAlready(false)
-    );
+    defaultBrowser.get().then(setState, () => {});
   }, []);
   const go = () => {
     if (asking) return;
-    if (!make || already || !canSet) return next();
+    if (!make || already || !state.canSet || !hasApp) return next();
     setAsking(true);
     // On, whether the user kept their browser or not: they were asked.
     defaultBrowser
       .set()
-      .then(
-        ({ isDefault }) => setAlready(isDefault === true),
-        () => {}
-      )
+      .then(setState, () => {})
       .finally(() => {
         setAsking(false);
         next();
@@ -53,10 +45,16 @@ export function DefaultBrowser({ next, back, finishing, last }: StepProps) {
       goLabel={last ? "Start Browsing" : "Continue"}
       finishing={finishing || asking}
     >
-      {already ? (
+      {already || !state.canSet ? (
         <div className="flex flex-col items-center gap-3 text-center">
-          <CircleCheck size={40} strokeWidth={1.5} className="text-fg-2" />
-          <p className="text-onboarding-body text-fg-2">Wren is your default browser.</p>
+          {already ? (
+            <CircleCheck size={40} strokeWidth={1.5} className="text-fg-2" />
+          ) : (
+            <Building2 size={40} strokeWidth={1.5} className="text-fg-2" />
+          )}
+          <p className="text-onboarding-body text-fg-2">
+            {already ? "Wren is your default browser." : defaultBrowserText(state).about}
+          </p>
         </div>
       ) : (
         <div role="radiogroup" aria-label="Default Browser" className="flex flex-col gap-3">

@@ -12,7 +12,7 @@ import { TileIcon, TONES } from "@/components/tile-icon";
 import { Button } from "@/components/ui/button";
 
 // Its lines, by whether Wren is the default and may be made so.
-function defaultBrowserText({ isDefault, canSet }: DefaultBrowser) {
+export function defaultBrowserText({ isDefault, canSet }: DefaultBrowser) {
   if (isDefault) return { title: "Wren Is Your Default Browser", about: "Links you click in other apps open here." };
   return {
     title: "Make Wren Your Default",
