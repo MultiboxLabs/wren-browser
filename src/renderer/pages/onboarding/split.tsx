@@ -88,23 +88,12 @@ export function Split({
 
 /**
  * What a step chooses with, on a card as a popover is, as the main window
- * shows it (index.css's `.popover`): light or dark with the system, with a
- * dark outer edge and a light inner one. The inner edge is drawn over what
- * the card holds, not under it as the popover's is, so a picker filled to
- * its edges (the theme picker) does not hide it.
+ * shows it (index.css's `.popover-card`): light or dark with the system.
  */
 export function Card({ children }: { children: ReactNode }) {
   return (
-    <motion.div
-      {...rise(3)}
-      data-scheme="system"
-      className="relative overflow-hidden rounded-popover bg-(--popover) shadow-[0_0_0_0.5px_var(--popover-edge),0_12px_32px_rgb(0_0_0/0.28)]"
-    >
+    <motion.div {...rise(3)} data-scheme="system" className="popover-card">
       {children}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0_0_0_1px_var(--popover-highlight)]"
-      />
     </motion.div>
   );
 }

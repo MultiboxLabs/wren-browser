@@ -571,19 +571,37 @@ body,
    and solid: backdrop-filter blurs nothing in the window's page, so a
    see-through one only shows what is under it, sharp. A light inner edge
    and a dark outer one, as a native popover's. It grows in from where it
-   hangs, and fades as it goes. */
-.popover {
+   hangs, and fades as it goes. A popover-card is drawn alike, but stays where
+   it is in the page, and draws its inner edge over what it holds, so what
+   fills it to its edges does not hide it. */
+.popover,
+.popover-card {
+  --popover-shadow: 0 0 0 0.5px var(--popover-edge), 0 12px 32px rgb(0 0 0 / 0.28);
   background: var(--popover);
   border-radius: var(--radius-popover);
+  box-shadow: var(--popover-shadow);
+}
+.popover-card {
+  position: relative;
+  overflow: hidden;
+}
+.popover-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--popover-highlight);
+  pointer-events: none;
+}
+.popover {
   box-shadow:
     inset 0 0 0 1px var(--popover-highlight),
-    0 0 0 0.5px var(--popover-edge),
-    var(--popover-shadow, 0 12px 32px rgb(0 0 0 / 0.28));
+    var(--popover-shadow);
   transform-origin: var(--radix-popover-content-transform-origin, var(--radix-hover-card-content-transform-origin));
   animation: popover-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.1);
 }
 .popover-deep {
-  --popover-shadow: 0 14px 36px rgb(0 0 0 / 0.34);
+  --popover-shadow: 0 0 0 0.5px var(--popover-edge), 0 14px 36px rgb(0 0 0 / 0.34);
   background: var(--popover-deep);
 }
 .popover[data-state="closed"] {
