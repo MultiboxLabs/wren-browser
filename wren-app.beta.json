@@ -5,6 +5,8 @@
   "version": "0.1.0",
   "icon": "branding/beta.icon",
   "copyright": "Copyright 2026 Multibox Labs. All rights reserved.",
+  "urlSchemes": [{ "name": "Web site URL", "schemes": ["http", "https"] }],
+  "documentTypes": [{ "name": "HTML document", "types": ["public.html", "public.xhtml"] }],
   "resources": ["extensions/uBlock0.crx", "extensions/wren-components"],
   "wren": "0.3.0",
   "frameworks": ["Frameworks/Sparkle.framework"],

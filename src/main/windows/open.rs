@@ -270,6 +270,8 @@ impl State {
                 };
                 state.host(&window, place, &browser);
                 then();
+                // Links held for want of a Browser open now (open_urls.rs).
+                state.open_held_urls(mt);
             });
         });
     }

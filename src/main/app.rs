@@ -55,6 +55,8 @@ pub struct State {
     tab_switcher_keys: RefCell<Option<KeyWatch>>,
     /// The app's own updates (updates.rs).
     pub updates: Updates,
+    /// Links macOS asked the app to open before it could (windows/open_urls.rs).
+    pub(crate) held_urls: RefCell<Vec<String>>,
 }
 
 impl State {
@@ -81,6 +83,7 @@ impl State {
             }),
             tab_switcher_keys: RefCell::default(),
             updates: Updates::default(),
+            held_urls: RefCell::default(),
         }
     }
 
@@ -101,6 +104,9 @@ impl State {
         }
         self.updates.start(self, mt);
         tabs::archive::start(self);
+        // Restoring from now, while the profile opens: the windows wait for
+        // their Browsers, which a link must not make first (open_urls.rs).
+        self.restore_started();
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
             Ok(profile) => {
@@ -110,7 +116,8 @@ impl State {
                 // A kept window on a profile deleted since goes.
                 state.leave_gone_profiles(mt);
                 state.update_menu(mt);
-                state.restore_sessions(mt, profile)
+                state.restore_sessions(mt, profile);
+                state.restore_finished(mt);
             }
             Err(error) => {
                 eprintln!("Wren opened no Profile: {error:?}");
@@ -627,6 +634,12 @@ impl App for Wren {
         if self.state.windows.len() == 0 {
             self.state.open_recent_window(mt);
         }
+    }
+
+    // A link clicked in another app while Wren is the default browser, or a
+    // page opened with it: a new tab each (windows/open_urls.rs).
+    fn open_urls(&self, mt: MainThread, urls: &[String]) {
+        self.state.open_urls(mt, urls);
     }
 
     // Chromium closes a Browser whose last tab closes. Its window stays, with

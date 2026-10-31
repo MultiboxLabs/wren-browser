@@ -78,7 +78,7 @@ impl State {
                     Ok(profile) => state.restore(mt, profile, false),
                     Err(error) => eprintln!("Wren opened no Profile to restore: {error:?}"),
                 }
-                state.restore_finished();
+                state.restore_finished(mt);
             });
         }
     }
@@ -92,7 +92,7 @@ impl State {
         let state = self.clone();
         self.restore_started();
         profile.clone().restore_last_session(move |result| {
-            state.restore_finished();
+            state.restore_finished(mt);
             if let Err(error) = result {
                 eprintln!("Wren restored no session: {error:?}");
             }
@@ -222,12 +222,15 @@ impl State {
         self.restoring.get() > 0
     }
 
-    fn restore_started(&self) {
+    pub(crate) fn restore_started(&self) {
         self.restoring.set(self.restoring.get() + 1);
     }
 
-    fn restore_finished(&self) {
+    // Links held while restoring open once the last restore is done
+    // (open_urls.rs).
+    pub(crate) fn restore_finished(self: &Rc<Self>, mt: MainThread) {
         self.restoring.set(self.restoring.get() - 1);
+        self.open_held_urls(mt);
     }
 }
 
