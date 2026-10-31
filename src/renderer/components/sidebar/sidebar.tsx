@@ -12,7 +12,7 @@ import {
   useReducedMotion,
   useTransform
 } from "motion/react";
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { browser } from "../../ipc";
 import { Button } from "../ui/button";
 import { AddressField } from "../address/field";
@@ -87,6 +87,18 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
   );
 }
 
+/**
+ * The space `id`, a render after it changes: once the window has put the
+ * space's look on the page (useWindowTheme, around the sidebar, in a layout
+ * effect too), and still before it paints. What mounts for the space then
+ * starts in its colours, rather than tweening from the last space's.
+ */
+function useThemedSpace(id: number) {
+  const [themed, setThemed] = useState(id);
+  useLayoutEffect(() => setThemed(id), [id]);
+  return themed;
+}
+
 export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visible }: SidebarProps) {
   const { space, spaces, profile, newSpace, startNewSpace, showNow, slide } = useSpace();
   // A swipe across the sidebar goes to the next space or the previous one;
@@ -106,6 +118,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   const swipe = slide.x;
   // The content fades as it slides away.
   const fade = useTransform(swipe, (x) => 1 - Math.min(Math.abs(x) / SLIDE, 1) * 0.85);
+  const themed = useThemedSpace(space.id);
   const { current: active } = useBrowser();
   // Read once for every space's content, not again as each comes in.
   const settings = useSettings(true);
@@ -186,12 +199,14 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
           {newSpace ? (
             <NewSpaceForm state={newSpace} />
           ) : (
-            // Each space's own, so one's tabs never leave or arrive in another's.
-            <BrowserOfSpace key={space.id} space={space.id}>
-              <ListBelowContext value={below}>
-                <SpaceContent omnibox={omnibox} address={address} settings={settings} />
-              </ListBelowContext>
-            </BrowserOfSpace>
+            themed === space.id && (
+              // Each space's own, so one's tabs never leave or arrive in another's.
+              <BrowserOfSpace key={space.id} space={space.id}>
+                <ListBelowContext value={below}>
+                  <SpaceContent omnibox={omnibox} address={address} settings={settings} />
+                </ListBelowContext>
+              </BrowserOfSpace>
+            )
           )}
         </motion.div>
       </motion.div>
