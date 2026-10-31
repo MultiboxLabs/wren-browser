@@ -206,10 +206,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("tabs.close", move |id: i32| {
         with_browser(&weak, |_, browser| {
-            tabs::close(browser, &[tab(mt, browser, id)?]).map_err(failed)?;
-            let from = TabFrom::Sidebar;
-            weak.state()?.analytics.record(Event::TabClosed { from });
-            Ok(())
+            let tab = tab(mt, browser, id)?;
+            tabs::closes::close(browser, tab, TabFrom::Sidebar).map_err(failed)
         })
     });
 

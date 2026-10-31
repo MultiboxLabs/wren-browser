@@ -7,6 +7,7 @@
 // Browser's own only where a tab is put in place (`at_list`).
 
 pub mod archive;
+pub mod closes;
 pub mod placeholder;
 pub mod previews;
 

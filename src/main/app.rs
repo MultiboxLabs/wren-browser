@@ -198,10 +198,7 @@ impl State {
                     let _ = pins::close(&browser, pin);
                 }
                 None => {
-                    if tabs::close(&browser, &[tab]).is_ok() {
-                        let from = analytics::TabFrom::Command;
-                        self.analytics.record(Event::TabClosed { from });
-                    }
+                    let _ = tabs::closes::close(&browser, tab, analytics::TabFrom::Command);
                 }
             },
             None => self.close_window(mt, window.id),
@@ -373,6 +370,7 @@ impl App for Wren {
                 // active tab. A tab left for another has its picture taken,
                 // and one whose page changes has it go stale.
                 ChangeKind::Tabs | ChangeKind::Tab | ChangeKind::Split => {
+                    tabs::closes::settle(&state.analytics);
                     placeholder::settle(browser);
                     tabs::previews::follow_active(browser);
                     if let Some(tab) = change.tab
@@ -663,6 +661,7 @@ impl App for Wren {
     // popup's window goes with its Browser, always.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         pins::forget(&browser);
+        tabs::closes::forget_gone();
         tabs::previews::forget(&browser);
         let devtools = self.state.devtools.borrow_mut().remove(&browser);
         if devtools.is_some() {
