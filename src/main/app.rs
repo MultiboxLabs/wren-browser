@@ -241,6 +241,12 @@ impl Wren {
                     ipc::send_reveal(&front, None);
                 }
             }
+            menus::SHOW_SETTINGS => {
+                if let Some(front) = front {
+                    front.page.bring_forward();
+                    ipc::send_show_settings(&front);
+                }
+            }
             menus::NEW_WINDOW => state.new_window(mt, front.as_deref()),
             menus::NEW_INCOGNITO_WINDOW => state.new_incognito_window(mt, front.as_deref()),
             menus::NEW_TAB | menus::OPEN_LOCATION => {
@@ -484,6 +490,9 @@ impl App for Wren {
         }
         if id == menus::SHOW_DOWNLOADS {
             return ipc::send_reveal(&window, None);
+        }
+        if id == menus::SHOW_SETTINGS {
+            return ipc::send_show_settings(&window);
         }
         if id == menus::NEW_TAB {
             return ipc::send_show_omnibox(&window, OmniboxTarget::NewTab, true);

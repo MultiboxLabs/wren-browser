@@ -37,12 +37,12 @@ export type LibraryProps = {
   width: number;
   /** Its steps in and out, which the sidebar and the window's buttons follow too. */
   motion: LibraryMotion;
-  /** The last request to open it at the downloads, at one of them if it names one. */
+  /** The last request to open it at a section, at one of its downloads if it names one. */
   reveal: LibraryReveal | null;
 };
 
-/** A request to open the Library at the downloads; each `key` is a request of its own. */
-export type LibraryReveal = { download: string | null; key: number };
+/** A request to open the Library at a section; each `key` is a request of its own. */
+export type LibraryReveal = { section: Section; download: string | null; key: number };
 
 export function Library({ open, onClose, width, motion: steps, reveal }: LibraryProps) {
   const [section, setSection] = useState<Section>(DEFAULT_SECTION);
@@ -88,7 +88,7 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
   };
   useEffect(() => {
     if (!reveal) return;
-    choose("downloads");
+    choose(reveal.section);
     setRevealed(reveal.download);
   }, [reveal?.key]);
 

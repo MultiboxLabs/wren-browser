@@ -29,6 +29,7 @@ pub const MOVE_TAB_UP: &str = "move-tab-up";
 pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const SHOW_DOWNLOADS: &str = "show-downloads";
+pub const SHOW_SETTINGS: &str = "show-settings";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 pub const RELOAD_UI: &str = "reload-ui";
 pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
@@ -100,6 +101,9 @@ fn main_menu(
                     MenuItem::item(CHECK_FOR_UPDATES, "Check for Updates…"),
                     updates,
                 ),
+                MenuItem::Separator,
+                // The Library's settings, not chrome://settings.
+                keyed(SHOW_SETTINGS, "Settings…", ",", MenuModifiers::PRIMARY),
                 MenuItem::Separator,
                 system(MenuRole::Services, None, vec![]),
                 MenuItem::Separator,

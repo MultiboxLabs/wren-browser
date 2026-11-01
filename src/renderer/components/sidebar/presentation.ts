@@ -11,6 +11,7 @@ import { useSpace } from "@/state/space";
 import { useHolds } from "@/components/ui/hold";
 import type { LibraryReveal } from "@/components/library/library";
 import { LIBRARY_RAIL, useLibraryMotion } from "@/components/library/motion";
+import type { Section } from "@/components/library/sections";
 import { useSidebarHover } from "./hover";
 import { type Presentation, useSidebarMotion, useWindowButtons } from "./motion";
 import { useSaveSidebar } from "./state";
@@ -45,21 +46,24 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
   // permission prompt, an extension's popup from its shortcut) or the form.
   const [opened, hold] = useHolds();
   // The Library, which takes the sidebar's place while it is open. Opened
-  // at the downloads (Window ▸ Downloads, or Chromium asking for them), it
-  // keeps the sidebar out until it closes.
+  // by a request, at the downloads (Window ▸ Downloads, or Chromium asking
+  // for them) or the settings (Wren ▸ Settings…), it keeps the sidebar out
+  // until it closes.
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [reveal, setReveal] = useState<LibraryReveal | null>(null);
   const reveals = useRef(0);
-  useEffect(
-    () =>
-      hasApp
-        ? downloads.onReveal((download) => {
-            setReveal({ download, key: ++reveals.current });
-            setLibraryOpen(true);
-          })
-        : undefined,
-    []
-  );
+  useEffect(() => {
+    if (!hasApp) return;
+    const open = (section: Section, download: string | null) => {
+      setReveal({ section, download, key: ++reveals.current });
+      setLibraryOpen(true);
+    };
+    const stops = [
+      downloads.onReveal((download) => open("downloads", download)),
+      menu.onShowSettings(() => open("settings", null))
+    ];
+    return () => stops.forEach((stop) => stop());
+  }, []);
   const setLibrary = (open: boolean) => {
     setLibraryOpen(open);
     if (!open) setReveal(null);
