@@ -211,9 +211,11 @@ impl PageWindow {
         self.window.orderOut(None);
     }
 
-    // The Window menu, the Dock and Mission Control show the title.
+    // The Window menu, the Dock and Mission Control show the title. A new one
+    // has AppKit lay the title bar out, which puts the buttons back at once.
     pub fn set_title(&self, title: &str) {
         self.window.setTitle(&NSString::from_str(title));
+        self.title_bar.apply(&self.window);
     }
 
     pub fn is_active(&self) -> bool {
