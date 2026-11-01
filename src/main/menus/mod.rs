@@ -30,6 +30,7 @@ pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const SHOW_DOWNLOADS: &str = "show-downloads";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
+pub const RELOAD_UI: &str = "reload-ui";
 pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
 pub const CHECK_FOR_UPDATES: &str = "check-for-updates";
 /// A space's item is this and the space's ID.
@@ -350,15 +351,22 @@ fn favorite_items() -> impl Iterator<Item = MenuItem> {
 fn development_menu() -> MenuItem {
     MenuItem::submenu(
         "DEVELOPMENT",
-        vec![MenuItem::Item {
-            id: TOGGLE_UI_DEVTOOLS.into(),
-            label: "Toggle UI Devtools".into(),
-            enabled: true,
-            checked: false,
-            hidden: false,
-            key: None,
-        }],
+        vec![
+            development_item(TOGGLE_UI_DEVTOOLS, "Toggle UI Devtools"),
+            development_item(RELOAD_UI, "Reload UI"),
+        ],
     )
+}
+
+fn development_item(id: &str, label: &str) -> MenuItem {
+    MenuItem::Item {
+        id: id.into(),
+        label: label.into(),
+        enabled: true,
+        checked: false,
+        hidden: false,
+        key: None,
+    }
 }
 
 // One of the system's own submenus.

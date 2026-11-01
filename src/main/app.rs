@@ -173,6 +173,13 @@ impl State {
         }
     }
 
+    // Reload UI: reloads `window`'s page, not its tabs.
+    fn reload_ui(&self, window: &BrowserWindow) {
+        if let Err(error) = window.page.web_view.reload() {
+            eprintln!("Wren could not reload the UI: {error:?}");
+        }
+    }
+
     // ⌘W: the omnibox for a new tab, as if it were that tab; else the space
     // the user makes, which the window comes back from; else the active tab;
     // or, with none of its own, the window, as Chrome's goes with its last
@@ -440,9 +447,13 @@ impl App for Wren {
             .and_then(|browser| windows.of(&browser))
             .or_else(|| windows.in_use());
         // The page of the key window, a popup's too.
-        if id == menus::TOGGLE_UI_DEVTOOLS {
+        if id == menus::TOGGLE_UI_DEVTOOLS || id == menus::RELOAD_UI {
             if let Some(window) = key.or_else(|| windows.front()) {
-                self.state.toggle_ui_devtools(&window);
+                if id == menus::RELOAD_UI {
+                    self.state.reload_ui(&window);
+                } else {
+                    self.state.toggle_ui_devtools(&window);
+                }
             }
             return;
         }
