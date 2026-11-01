@@ -8,11 +8,12 @@
 
 import { Search } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { appWindow, type Pin, type PinFolder, pins as pinsIpc } from "@/ipc";
+import { type Pin, type PinFolder, pins as pinsIpc } from "@/ipc";
 import { useBrowser } from "@/state/browser";
 import { cn } from "@/utils/cn";
 import { ago, useNow } from "@/utils/now";
 import { HoverCard } from "@/components/ui/hover-card";
+import { useKeyboardWhile } from "@/components/ui/keyboard";
 import { PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pins";
 
 type PagePin = Exclude<Pin, PinFolder>;
@@ -79,22 +80,8 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const list = useRef<HTMLDivElement>(null);
-  // The search takes the keyboard as the menu opens, from the tab's page
-  // if that had it, which is read as the menu is made, before the search
-  // takes it. As the menu goes, the keyboard goes back where it was, unless
-  // something else has taken it since.
-  const [before] = useState(() => ({
-    element: document.activeElement,
-    tab: !document.hasFocus() || document.activeElement?.localName === "wren-view"
-  }));
-  useEffect(() => {
-    void appWindow.takeKeyboard();
-    return () => {
-      if (document.activeElement !== document.body) return;
-      if (before.tab) void appWindow.giveBackKeyboard();
-      else if (before.element instanceof HTMLElement) before.element.focus();
-    };
-  }, [before]);
+  const search = useRef<HTMLInputElement>(null);
+  useKeyboardWhile(true, search);
 
   const words = query.trim().toLocaleLowerCase();
   const shown = pinsIn(folder.items, usedAt).filter((pin) => !words || matches(pin, words));
@@ -115,7 +102,7 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
       <label className="flex h-10 shrink-0 items-center gap-2 border-b border-separator px-3">
         <Search size={14} className="glyph-3 shrink-0" aria-hidden />
         <input
-          autoFocus
+          ref={search}
           value={query}
           placeholder={`Search ${folder.name}…`}
           aria-label={`Search ${folder.name}`}

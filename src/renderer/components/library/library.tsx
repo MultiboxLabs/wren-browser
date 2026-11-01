@@ -7,11 +7,11 @@ import { ArrowDownToLine, CircleUserRound, Orbit, Paintbrush, Plus, Search, Sett
 import { motion, useTransform } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button, type Icon } from "@/components/ui/button";
+import { useKeyboardWhile } from "@/components/ui/keyboard";
 import { BackIcon } from "@/components/icons";
 import { cn } from "@/utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
 import { useProfiles, useSettings, useSpaces } from "@/state/library";
-import { useHoldWhile } from "@/components/ui/hold";
 import { useSpace } from "@/state/space";
 import { analytics } from "@/ipc/analytics";
 import { browser } from "@/ipc/browser";
@@ -59,7 +59,6 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
   const { profiles, failed, reload, create, rename, remove, openWindow } = useProfiles(open);
   const spaces = useSpaces(open);
   const settings = useSettings(open);
-  useHoldWhile(open);
   const filter = useDownloadsFilter(profiles);
   const { startNewSpace } = useSpace();
   const shown = sections.find(({ id }) => id === section)!;
@@ -81,6 +80,10 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
     return () => removeEventListener("keydown", close);
   }, [open]);
 
+  // Escape reaches it however it was opened.
+  const root = useRef<HTMLDivElement>(null);
+  useKeyboardWhile(open, root);
+
   const choose = (id: Section) => {
     setSection(id);
     setQuery("");
@@ -98,7 +101,12 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
     // Closed, it is not laid out at all: its box, over the sidebar's and
     // after it, would make the whole sidebar a drag region of the window,
     // which pointer-events and inert do not change.
-    <div inert={!open} className={cn("absolute inset-0", !steps.present && "hidden")}>
+    <div
+      ref={root}
+      tabIndex={-1}
+      inert={!open}
+      className={cn("absolute inset-0 outline-none", !steps.present && "hidden")}
+    >
       {/* A panel of its own from the window's edge, past the sidebar's left
           padding, a little lighter than the window. */}
       <motion.nav
