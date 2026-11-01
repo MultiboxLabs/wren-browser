@@ -287,6 +287,7 @@ impl Wren {
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
         self.state.update_menu(mt);
+        menus::set_app_icon_menu(mt, &self.state);
         password_manager::ready(mt);
         *self.state.tab_switcher_keys.borrow_mut() = ipc::watch_tab_switcher_keys(&self.state);
         let source = self.source.clone();

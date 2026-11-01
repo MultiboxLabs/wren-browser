@@ -2,6 +2,7 @@
 
 pub mod apps;
 pub mod files;
+pub mod icon_menu;
 pub mod keyboard;
 pub mod main_thread;
 pub mod paths;
