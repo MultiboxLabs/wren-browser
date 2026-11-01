@@ -20,9 +20,9 @@ import { useAspect } from "@/utils/aspect";
 import { cn } from "@/utils/cn";
 import { ThemeLayers } from "./theme-swatch";
 
-// How much the stand-in for the window's blur shows: clear enough that what
-// is behind still shows a little through it.
-const MATERIAL = 0.4;
+// How much the stand-in for the window's blur shows: mostly, so that the
+// theme is its own, with what is behind showing only a little through it.
+const MATERIAL = 0.8;
 // Out of use, the window is flat, and the stand-in shows whole.
 const FLAT = 1;
 

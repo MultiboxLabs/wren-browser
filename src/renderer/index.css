@@ -433,23 +433,34 @@ body,
 }
 
 /* The sidebar while it floats over the page: the space's theme (a
-   SpaceBackground in it) over the page blurred, with a light hairline for
-   an edge, drawn over the theme. The shadow and the edge show as far as
-   `--peek` (0–1) says, as it eases onto its panel (sidebar/motion.ts). Out of
-   use, it is not blurred: the window is flat then. */
+   SpaceBackground in it) over the page blurred, with a hairline for an edge,
+   drawn over the theme: light on a dark space's panel, which is mostly its
+   own, and dark on a light one's, where a light one would be lost; fainter
+   out of use. The shadow and the edge show as far as `--peek` (0–1) says, as
+   it eases onto its panel (sidebar/motion.ts). Out of use, it is not
+   blurred: the window is flat then. */
 .peek {
+  --peek-edge: rgb(255 255 255 / 0.3);
   backdrop-filter: blur(40px) saturate(1.4);
   box-shadow: 0 8px 24px rgb(0 0 0 / calc(0.25 * var(--peek, 1)));
 }
+:root[data-scheme="light"] .peek {
+  --peek-edge: rgb(0 0 0 / 0.18);
+}
 :root[data-active="false"] .peek {
+  --peek-edge: rgb(255 255 255 / 0.2);
   backdrop-filter: none;
+}
+:root[data-scheme="light"][data-active="false"] .peek {
+  --peek-edge: rgb(0 0 0 / 0.12);
 }
 .peek::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / calc(0.28 * var(--peek, 1)));
+  box-shadow: inset 0 0 0 1px var(--peek-edge);
+  opacity: var(--peek, 1);
 }
 
 /* The selected favourite (sidebar/favorite.tsx): a white fill, stronger in

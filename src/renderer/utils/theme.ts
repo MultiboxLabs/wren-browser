@@ -237,7 +237,7 @@ const CLARITY = {
 // darker; a little more of it out of use.
 const UNDERLAY = {
   window: { rgb: "255 255 255", light: [0.2, 1], dark: [0.18, 0.8] },
-  box: { rgb: "0 0 0", light: [0.27, 0.32], dark: [0.15, 0.2] }
+  box: { rgb: "0 0 0", light: [0.2, 0.25], dark: [0.08, 0.14] }
 };
 
 export type ThemeStyle = {
