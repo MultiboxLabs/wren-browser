@@ -45,10 +45,10 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
   // made while it is away brings it out, for the bubble to hang off (a
   // permission prompt, an extension's popup from its shortcut) or the form.
   const [opened, hold] = useHolds();
-  // The Library, which takes the sidebar's place while it is open. Opened
-  // by a request, at the downloads (Window ▸ Downloads, or Chromium asking
-  // for them) or the settings (Wren ▸ Settings…), it keeps the sidebar out
-  // until it closes.
+  // The Library, which takes the sidebar's place while it is open, and holds
+  // it out as what else it opens does. A request opens it at a section: the
+  // downloads (Window ▸ Downloads, or Chromium asking for them) or the
+  // settings (Wren ▸ Settings…).
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [reveal, setReveal] = useState<LibraryReveal | null>(null);
   const reveals = useRef(0);
@@ -64,13 +64,9 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
     ];
     return () => stops.forEach((stop) => stop());
   }, []);
-  const setLibrary = (open: boolean) => {
-    setLibraryOpen(open);
-    if (!open) setReveal(null);
-  };
   const bubbleOpen = useBrowser().showing.length > 0;
   const making = useSpace().newSpace !== null;
-  const held = opened || bubbleOpen || omniboxOnAddress || making || reveal !== null;
+  const held = opened || bubbleOpen || omniboxOnAddress || making;
   // Whether the pointer is over it, or at the window's left edge, which
   // brings it out.
   const pointer = useSidebarHover({
@@ -94,7 +90,7 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
     /** A drag of its edge is over: the width it left is kept. */
     endResize: () => save({ open: docked, width }),
     motion,
-    library: { open: libraryOpen, setOpen: setLibrary, motion: library, reveal },
+    library: { open: libraryOpen, setOpen: setLibraryOpen, motion: library, reveal },
     toggle,
     /** The pointer came over it, or to the window's left edge, by the page's own events (no app only). */
     enter: pointer.enter,

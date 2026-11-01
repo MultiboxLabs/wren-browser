@@ -11,6 +11,7 @@ import { BackIcon } from "@/components/icons";
 import { cn } from "@/utils/cn";
 import { LIBRARY_RAIL, type LibraryMotion, listShift, railShift, sidebarShift } from "./motion";
 import { useProfiles, useSettings, useSpaces } from "@/state/library";
+import { useHoldWhile } from "@/components/ui/hold";
 import { useSpace } from "@/state/space";
 import { analytics } from "@/ipc/analytics";
 import { browser } from "@/ipc/browser";
@@ -58,6 +59,7 @@ export function Library({ open, onClose, width, motion: steps, reveal }: Library
   const { profiles, failed, reload, create, rename, remove, openWindow } = useProfiles(open);
   const spaces = useSpaces(open);
   const settings = useSettings(open);
+  useHoldWhile(open);
   const filter = useDownloadsFilter(profiles);
   const { startNewSpace } = useSpace();
   const shown = sections.find(({ id }) => id === section)!;
