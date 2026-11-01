@@ -2,7 +2,7 @@
 // and downloads; this says what it is doing to Chromium's About page and to
 // each window's update card (ipc/update.rs), answers Check for Updates…,
 // and hands the relaunch to the updater, which installs the update before
-// it launches the app again. It also knows, as the app starts, whether the
+// it launches the app again. It is also told, as the app starts, whether the
 // version is new since the last run, which the windows show.
 //
 // A download shows in the card only when the card offered the update, or
@@ -19,8 +19,12 @@ use wren::{MainThread, UpdateState, UpdateStatus};
 use crate::app::State;
 use crate::db::Settings;
 use crate::ipc::{self, OwnToast};
-use crate::platform::{self, Updater, UpdaterOptions, UpdaterState};
+use crate::platform::{Updater, UpdaterOptions, UpdaterState};
 use crate::shell::WindowId;
+
+/// The version that runs: `Cargo.toml`'s, which a release sets along with the
+/// manifests' (scripts/publish.ts).
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Where the update is, as the card shows it.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -61,10 +65,22 @@ pub struct Updates {
 }
 
 impl Updates {
+    /// `installed`: this version is new since the last run (a first run has
+    /// none before it).
+    pub fn new(installed: bool) -> Updates {
+        Updates {
+            installed: RefCell::new(installed.then(|| VERSION.to_string())),
+            ..Updates::default()
+        }
+    }
+
     /// Starts the updater, if the app has one, with the windows the app
-    /// opened with. Before, the version is compared with the last run's.
+    /// opened with. On a version just installed, those windows say so.
     pub fn start(&self, state: &Rc<State>, mt: MainThread) {
-        self.note_version(state);
+        if self.installed.borrow().is_some() {
+            *self.sweeps.borrow_mut() =
+                state.windows.all().iter().map(|window| window.id).collect();
+        }
         let settings = state.db.settings().unwrap_or_default();
         let weak = Rc::downgrade(state);
         let updater = Updater::start(
@@ -79,25 +95,6 @@ impl Updates {
         set_about(mt, &updater.state());
         *self.updater.borrow_mut() = Some(updater);
         state.update_menu(mt);
-    }
-
-    // A version other than the last run's was just installed (a first run
-    // has none). Its windows say so.
-    fn note_version(&self, state: &State) {
-        let Some(version) = platform::app_version() else {
-            return;
-        };
-        let last = state.db.last_version().ok().flatten();
-        if last.as_ref().is_some_and(|last| *last != version) {
-            *self.installed.borrow_mut() = Some(version.clone());
-            let windows = state.windows.all();
-            *self.sweeps.borrow_mut() = windows.iter().map(|window| window.id).collect();
-        }
-        if last.as_ref() != Some(&version)
-            && let Err(error) = state.db.set_last_version(&version)
-        {
-            eprintln!("Wren could not keep its version: {error}");
-        }
     }
 
     /// The app has an updater: Check for Updates… can check.

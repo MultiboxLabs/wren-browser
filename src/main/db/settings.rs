@@ -150,14 +150,17 @@ impl Db {
         self.settings()
     }
 
-    /// The app's version at its last run, which the page never sees: none
-    /// before the first (updates.rs).
-    pub fn last_version(&self) -> Result<Option<String>, String> {
-        self.setting("lastVersion")
-    }
-
-    pub fn set_last_version(&self, version: &str) -> Result<(), String> {
-        set(&self.conn, "lastVersion", &version)
+    /// Notes that `version` runs, and answers with the one that ran before,
+    /// if it was another; the first run has none before it. The page never
+    /// sees it. A second call in a run would answer none, so `State::new`
+    /// makes the one call and hands on the answer.
+    pub fn note_version(&self, version: &str) -> Result<Option<String>, String> {
+        let last: Option<String> = self.setting("lastVersion")?;
+        if last.as_deref() == Some(version) {
+            return Ok(None);
+        }
+        set(&self.conn, "lastVersion", &version)?;
+        Ok(last)
     }
 
     // A setting's value, or none if it was never set or can't be read.
@@ -255,11 +258,12 @@ mod tests {
     }
 
     #[test]
-    fn keeps_the_last_version() {
+    fn tells_of_a_new_version_once() {
         let db = db();
-        assert_eq!(db.last_version().unwrap(), None);
-        db.set_last_version("1.2.0").unwrap();
-        assert_eq!(db.last_version().unwrap().as_deref(), Some("1.2.0"));
+        assert_eq!(db.note_version("1.0.0").unwrap(), None);
+        assert_eq!(db.note_version("1.0.0").unwrap(), None);
+        assert_eq!(db.note_version("1.1.0").unwrap().as_deref(), Some("1.0.0"));
+        assert_eq!(db.note_version("1.1.0").unwrap(), None);
     }
 
     #[test]

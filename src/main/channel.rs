@@ -83,8 +83,7 @@ impl Channel {
         startup.company_name = Some("Multibox Labs".into());
         startup.copyright = Some("Copyright © 2026 Multibox Labs.".into());
         startup.help_url = Some("https://github.com/MultiboxLabs/wren-browser".into());
-        // The bundle's, from the manifest's `version`: the one updates.rs
-        // keeps, to know a new version as it starts.
+        // The bundle's, from the manifest's `version`.
         startup.app_version = platform::app_version();
     }
 }

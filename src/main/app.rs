@@ -26,7 +26,7 @@ use crate::platform::{DevToolsWindow, KeyWatch, QUITS_WITH_LAST_WINDOW, close_ot
 use crate::shell::{BrowserWindow, WindowId, Windows};
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
-use crate::updates::Updates;
+use crate::updates::{self, Updates};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -65,7 +65,13 @@ impl State {
         let settings = db.settings().unwrap_or_default();
         password_manager::start(settings.password_manager);
         let on = settings.share_usage_data;
-        let analytics = Analytics::start(&db, &data, channel, perf.is_some(), on);
+        // The one place that notes the version: noting it forgets the last.
+        let updated_from = db.note_version(updates::VERSION).unwrap_or_else(|error| {
+            eprintln!("Wren could not note its version: {error}");
+            None
+        });
+        let updates = Updates::new(updated_from.is_some());
+        let analytics = Analytics::start(&db, &data, channel, perf.is_some(), on, updated_from);
         State {
             ui_profile: RefCell::default(),
             devtools: RefCell::default(),
@@ -82,7 +88,7 @@ impl State {
                 blocked: false,
             }),
             tab_switcher_keys: RefCell::default(),
-            updates: Updates::default(),
+            updates,
             held_urls: RefCell::default(),
         }
     }

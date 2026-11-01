@@ -1,6 +1,6 @@
 // What analytics (analytics/) keeps between runs, in rows of `settings` that
-// the page never sees: the install's ID, the version that ran last, a crash
-// not sent yet, and when the last of Crashpad's reports counted was written.
+// the page never sees: the install's ID, a crash not sent yet, and when the
+// last of Crashpad's reports counted was written.
 
 use std::path::Path;
 
@@ -10,7 +10,6 @@ use super::settings::set;
 use super::{Db, FILE};
 
 const ID: &str = "analyticsId";
-const LAST_VERSION: &str = "lastVersion";
 const PENDING_CRASH: &str = "pendingCrash";
 const LAST_CRASH_REPORT: &str = "lastCrashReport";
 
@@ -31,17 +30,6 @@ impl Db {
         let id = make();
         set(&self.conn, ID, &id)?;
         Ok(id)
-    }
-
-    /// Notes that `version` runs, and answers with the one that ran before,
-    /// if it was another. The first run has none before it.
-    pub fn note_version(&self, version: &str) -> Result<Option<String>, String> {
-        let last: Option<String> = self.setting(LAST_VERSION)?;
-        if last.as_deref() == Some(version) {
-            return Ok(None);
-        }
-        set(&self.conn, LAST_VERSION, &version)?;
-        Ok(last)
     }
 
     /// When the last of Crashpad's reports counted was written, in
@@ -75,15 +63,6 @@ mod tests {
         let db = db();
         assert_eq!(db.analytics_id(|| "a".into()).unwrap(), "a");
         assert_eq!(db.analytics_id(|| "b".into()).unwrap(), "a");
-    }
-
-    #[test]
-    fn tells_of_a_new_version_once() {
-        let db = db();
-        assert_eq!(db.note_version("1.0.0").unwrap(), None);
-        assert_eq!(db.note_version("1.0.0").unwrap(), None);
-        assert_eq!(db.note_version("1.1.0").unwrap().as_deref(), Some("1.0.0"));
-        assert_eq!(db.note_version("1.1.0").unwrap(), None);
     }
 
     #[test]

@@ -28,6 +28,7 @@ pub use event::{
 use crate::channel::Channel;
 use crate::db::{self, Db};
 use crate::platform;
+use crate::updates::VERSION;
 use sender::Sender;
 
 /// The PostHog project's key. It only lets one send events to the project,
@@ -37,8 +38,6 @@ const KEY: &str = "phc_tbTqgFEowbBSpbVfewmt3QYJtEu2j26YSpGBF9YA3CgV";
 const HOST: &str = "https://eu.i.posthog.com";
 /// Dev builds send too, for trying events out. Never commit it `true`.
 const SEND_DEV: bool = false;
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Analytics {
     /// None where this build never sends.
@@ -67,8 +66,16 @@ fn sends(channel: Channel, perf: bool) -> bool {
 impl Analytics {
     /// Starts sending, where this build does, and records an update since
     /// the last run and the crashes since. `on`: the user shares usage data.
-    /// `data`: the app's data folder, Crashpad's among it.
-    pub fn start(db: &Db, data: &Path, channel: Channel, perf: bool, on: bool) -> Analytics {
+    /// `data`: the app's data folder, Crashpad's among it. `updated_from`: the
+    /// version of the last run, if it was another.
+    pub fn start(
+        db: &Db,
+        data: &Path,
+        channel: Channel,
+        perf: bool,
+        on: bool,
+        updated_from: Option<String>,
+    ) -> Analytics {
         let started = Instant::now();
         let sending = sends(channel, perf).then(|| {
             let id = db.analytics_id(new_id).unwrap_or_else(|error| {
@@ -100,10 +107,8 @@ impl Analytics {
             started,
             opened: Cell::new(false),
         };
-        match db.note_version(VERSION) {
-            Ok(Some(from_version)) => analytics.record(Event::AppUpdated { from_version }),
-            Ok(None) => {}
-            Err(error) => eprintln!("Wren could not note its version: {error}"),
+        if let Some(from_version) = updated_from {
+            analytics.record(Event::AppUpdated { from_version });
         }
         match db.take_crash() {
             Ok(Some(location)) => analytics.record(Event::AppCrashed {
