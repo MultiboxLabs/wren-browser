@@ -19,7 +19,7 @@ import { PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pins";
 type PagePin = Exclude<Pin, PinFolder>;
 
 /** A pin's row in the menu: its title and when it was used, one over the other. */
-const ROW_HEIGHT = 38;
+const ROW_HEIGHT = 42;
 /** How many rows the menu shows before it scrolls. */
 const ROWS_SHOWN = 6;
 /** The list's padding (`p-1`), above and below its rows. */
@@ -59,10 +59,10 @@ export function FolderMenu({
       trigger={children}
       label={folder.name}
       align="center"
-      // Clear of the sidebar, whose edge is 8px past its rows.
-      sideOffset={16}
+      // Over the sidebar's edge by 4px, which is 8px past its rows.
+      sideOffset={4}
       // Its corners nest a row's (`rounded-control`) at the list's padding.
-      className="[--radius-popover:10px]"
+      className="popover-deep [--radius-popover:10px]"
     >
       <FolderMenuBody folder={folder} onDone={() => setOpen(false)} />
     </HoverCard>
@@ -98,8 +98,9 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
   };
 
   return (
-    <div className="flex w-52 flex-col text-menu-item">
-      <label className="flex h-10 shrink-0 items-center gap-2 border-b border-separator px-3">
+    // Inside the popover's 1px inner edge, which the separator would cross.
+    <div className="flex w-56 flex-col p-px text-menu-item">
+      <label className="flex h-11 shrink-0 items-center gap-2 border-b border-separator px-3">
         <Search size={14} className="glyph-3 shrink-0" aria-hidden />
         <input
           ref={search}
@@ -176,8 +177,8 @@ function MenuPin({
     >
       <PinPageIcon page={pinPages(pin)[0]} open={open[0]} />
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-[12px]">{pinTitle(pin, open)}</span>
-        <span className="truncate text-caption text-fg-3">{used}</span>
+        <span className="truncate">{pinTitle(pin, open)}</span>
+        <span className="truncate text-subtitle text-fg-3">{used}</span>
       </div>
     </div>
   );
