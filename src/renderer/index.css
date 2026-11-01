@@ -278,7 +278,11 @@ body,
   --folder-back-chroma: 0.8;
   --update-edge: rgb(255 255 255 / 0.18);
   --update-card: color-mix(in oklab, var(--space) 10%, rgb(10 10 12));
-  --update-accent: oklch(from var(--space) 0.74 calc(c * 1.4) h);
+  /* Bright on the black card, however vivid or muted the space: a fixed
+     lightness, and its saturation held up, but for a space with next to no
+     colour, whose hue means nothing, which stays grey. Its hue is turned a
+     little, as a violet lightened this far would look blue beside the window. */
+  --update-accent: hsl(from var(--space) calc(h + 15) min(s * 8, clamp(70, s * 1.3, 100)) 72);
   --list-edge: rgb(255 255 255 / 0.08);
   --switch-off: rgb(255 255 255 / 0.25);
   /* Lighter than the window, in dark. */
