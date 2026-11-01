@@ -159,9 +159,8 @@ body,
   transition: none;
 }
 
-/* Unfocused, the space's colour is paler: lighter, and less of it, as a
-   window in the background fades, and as its theme does (themeStyle in
-   utils/theme.ts). */
+/* Unfocused, the space's colour, as what is drawn of it alone shows it, is
+   paler: lighter, and less of it, as a window in the background fades. */
 :root[data-active="false"] {
   --space-shown: oklch(from var(--space) 0.58 calc(c * 0.5) h);
 }
@@ -436,13 +435,13 @@ body,
 /* The sidebar while it floats over the page: the space's theme (a
    SpaceBackground in it) over the page blurred, with a light hairline for
    an edge, drawn over the theme. The shadow and the edge show as far as
-   `--peek` (0–1) says, as it eases onto its panel (sidebar/motion.ts). Of a
-   dark space out of use, it is not blurred: the window is flat then. */
+   `--peek` (0–1) says, as it eases onto its panel (sidebar/motion.ts). Out of
+   use, it is not blurred: the window is flat then. */
 .peek {
   backdrop-filter: blur(40px) saturate(1.4);
   box-shadow: 0 8px 24px rgb(0 0 0 / calc(0.25 * var(--peek, 1)));
 }
-:root[data-scheme="dark"][data-active="false"] .peek {
+:root[data-active="false"] .peek {
   backdrop-filter: none;
 }
 .peek::after {

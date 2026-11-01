@@ -18,13 +18,12 @@ import { type Space, themeKey } from "@/state/space";
 import { useWindowActive } from "@/state/window";
 import { useAspect } from "@/utils/aspect";
 import { cn } from "@/utils/cn";
-import { contentScheme } from "@/utils/theme";
 import { ThemeLayers } from "./theme-swatch";
 
 // How much the stand-in for the window's blur shows: clear enough that what
 // is behind still shows a little through it.
 const MATERIAL = 0.4;
-// Of a dark space out of use, the window is flat, and the stand-in shows whole.
+// Out of use, the window is flat, and the stand-in shows whole.
 const FLAT = 1;
 
 export function SpaceBackground({
@@ -40,7 +39,7 @@ export function SpaceBackground({
   const box = useRef<HTMLDivElement>(null);
   const aspect = useAspect(box);
   const active = useWindowActive();
-  const standIn = !material ? 0 : !active && contentScheme(space.theme) === "dark" ? FLAT : MATERIAL;
+  const standIn = !material ? 0 : active ? MATERIAL : FLAT;
   return (
     // Isolated, so the layers add up with each other only, not with what is
     // under the box.
