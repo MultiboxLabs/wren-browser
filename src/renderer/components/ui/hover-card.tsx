@@ -72,8 +72,10 @@ export function HoverCard({
           collisionPadding={8}
           data-scheme="system"
           // Over the window's title bar too: a press in it is the card's,
-          // not a drag of the window.
-          className={cn("popover no-drag z-50 overflow-hidden outline-none", className)}
+          // not a drag of the window. Radix makes what is in the card
+          // selectable during a press, inline; it holds controls, no document,
+          // so a field in it says `select-text` for itself.
+          className={cn("popover no-drag z-50 overflow-hidden outline-none select-none!", className)}
         >
           {children}
         </Radix.Content>

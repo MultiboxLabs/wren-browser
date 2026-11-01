@@ -121,7 +121,7 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
               open(shown[at]);
             }
           }}
-          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-fg-3"
+          className="min-w-0 flex-1 bg-transparent outline-none select-text placeholder:text-fg-3"
         />
       </label>
       {shown.length === 0 ? (
