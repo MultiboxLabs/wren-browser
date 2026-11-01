@@ -1,6 +1,7 @@
 // Publishes a release: builds Wren.app for its channel, signed with a
-// Developer ID and notarised, zips and signs it for Sparkle, and puts it on
-// GitHub Releases. Nobody is offered it yet: wrenbrowser.com/appcast.xml, the
+// Developer ID and notarised, zips and signs it for Sparkle, makes its disk
+// image (scripts/dmg.ts), and puts them on GitHub Releases. Nobody is offered
+// it yet: wrenbrowser.com/appcast.xml, the
 // feed every build checks, lists what is in the site's `releases.ts`, so this
 // ends by printing the entry to add there.
 //
@@ -15,10 +16,12 @@
 //
 // It needs, on this Mac: the Developer ID (WREN_IDENTITY, codesign's name
 // for it), a notarytool profile (WREN_NOTARY_PROFILE), Sparkle's private
-// key in the login Keychain (account "wren"), and `gh` signed in.
+// key in the login Keychain (account "wren"), `gh` signed in, and what
+// scripts/dmg.ts needs.
 import { $ } from "bun";
 import { parseArgs } from "util";
 import { app } from "./channel";
+import { checkDmgTools, dmgOf, makeDmg } from "./dmg";
 import { sparkle } from "./sparkle";
 
 const REPOSITORY = "MultiboxLabs/wren-browser-releases";
@@ -79,17 +82,20 @@ const notaryProfile = process.env.WREN_NOTARY_PROFILE ?? fail("Set WREN_NOTARY_P
 if ((await $`git status --porcelain`.text()).trim()) fail("Commit or stash what is changed first.");
 if ((await $`git rev-parse --abbrev-ref HEAD`.text()).trim() !== "main") fail("Publish from main.");
 if ((await $`gh auth status`.nothrow().quiet()).exitCode !== 0) fail("Sign in with `gh auth login` first.");
-// The tag is made only after the zip and its .json, so with the tag there,
-// a run stopped after its commit: what is left is to push and release them.
+// The tag is made only after the zip, its .json and the disk image, so with the
+// tag there, a run stopped after its commit: what is left is to push and
+// release them.
 const resuming = (await $`git rev-parse -q --verify refs/tags/${tag}`.nothrow().quiet()).exitCode === 0;
 const zip = `${OUT}/Wren-${shortVersion}.zip`;
 const json = `${OUT}/Wren-${shortVersion}.json`;
+const dmg = dmgOf(shortVersion);
 if (resuming) {
   if (dryRun) fail(`The tag ${tag} is there already: ${shortVersion} is committed, so there is nothing to try.`);
   const tagged = JSON.parse(await $`git show ${`${tag}:${MANIFESTS[0]}`}`.text());
   if (tagged.version !== shortVersion) fail(`The tag ${tag} is there already, but not on ${shortVersion}'s commit.`);
-  if (!(await Bun.file(zip).exists()) || !(await Bun.file(json).exists()))
-    fail(`The tag ${tag} is there already, but ${zip} and ${json}, which it was made with, are not.`);
+  const made = await Promise.all([zip, json, dmg].map((path) => Bun.file(path).exists()));
+  if (made.includes(false))
+    fail(`The tag ${tag} is there already, but ${zip}, ${json} and ${dmg}, which it was made with, are not.`);
   await sparkle();
   const { edSignature } = JSON.parse(await Bun.file(json).text());
   if (
@@ -114,10 +120,12 @@ const newest = published
 if (build <= newest) fail(`${shortVersion} is not newer than what ${channel} has out already.`);
 
 if (!resuming) {
+  // Now, not once it is notarised, so that trying again costs no submission.
+  await checkDmgTools().catch((error) => fail(error.message));
   await make();
   if (dryRun) {
     await $`git checkout -- ${VERSIONED}`;
-    console.log(`\nDry run: ${zip} and ${json} are made; nothing is committed, pushed or released.`);
+    console.log(`\nDry run: ${zip}, ${json} and ${dmg} are made; nothing is committed, pushed or released.`);
     console.log(await Bun.file(json).text());
     process.exit(0);
   }
@@ -127,9 +135,9 @@ if (!resuming) {
 // Pushing again what is pushed already does nothing.
 await $`git push origin main ${tag}`;
 
-// A draft first, with both files, then published, so that the release is never
+// A draft first, with every file, then published, so that the release is never
 // out with a file missing. Stable is GitHub's latest; a beta never is. A
-// resumed run finds its draft, and uploads both files again over what of them
+// resumed run finds its draft, and uploads every file again over what of them
 // is there; once published, the release is left as it is.
 const releases = (await $`gh release list -R ${REPOSITORY} --limit 1000 --json tagName,isDraft`.json()) as {
   tagName: string;
@@ -143,7 +151,7 @@ if (isDraft === null) {
   await $`gh release create ${tag} -R ${REPOSITORY} --draft --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
 }
 if (isDraft !== false) {
-  await $`gh release upload ${tag} -R ${REPOSITORY} --clobber ${zip} ${json}`;
+  await $`gh release upload ${tag} -R ${REPOSITORY} --clobber ${zip} ${json} ${dmg}`;
   const latest = channel === "stable" ? "--latest" : "--latest=false";
   await $`gh release edit ${tag} -R ${REPOSITORY} --draft=false ${latest}`;
 }
@@ -161,8 +169,8 @@ console.log(`${JSON.stringify(entry, null, 2)},`);
 
 /**
  * Writes the version into the manifests and Cargo.toml, and builds,
- * notarises, zips and signs the app into `zip`, with `json` beside it. If it
- * fails, what it wrote is put back.
+ * notarises, zips and signs the app into `zip`, with `json` and the disk image
+ * `dmg` beside it. If it fails, what it wrote is put back.
  */
 async function make() {
   await sparkle();
@@ -215,6 +223,7 @@ async function make() {
         2
       ) + "\n"
     );
+    await makeDmg(app, dmg);
   } catch (error) {
     await $`git checkout -- ${VERSIONED}`;
     throw error;

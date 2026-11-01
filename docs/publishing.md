@@ -9,7 +9,8 @@ bun run publish --version 1.2.0
 ## How updates reach people
 
 1. `bun run publish` builds `Wren.app`, signs it with the Developer ID, notarises it, zips it, and signs the zip with Sparkle's private key. The result is `Wren-<version>.zip` and `Wren-<version>.json`, which holds the signature.
-2. Both go on a GitHub release tagged `v<version>`. The release is a draft until both are uploaded, and is published after that.
+   It also puts the notarised app in `Wren-<version>.dmg`, for people downloading Wren for the first time. Updates use the zip.
+2. All three go on a GitHub release tagged `v<version>`. The release is a draft until they are uploaded, and is published after that.
 3. The site's `src/app/releases/releases.ts` lists the releases by hand, and builds `appcast.xml` and each release's notes page from that list. A release is offered once its entry is added and the site has deployed.
 4. Each copy of Wren checks the feed once a day, and when **Check for Updates…** is chosen or Settings opens. With **Automatic Updates** on, it downloads a new version out of sight and shows the sidebar's card once it is ready. With it off, the card offers the update first. Restarting from the card installs it. Quitting installs it too, without opening Wren again.
 
@@ -38,6 +39,8 @@ Publishing runs on a Mac that has these:
 
 4. **GitHub,** signed in with `gh auth login`, as an account that can push to `main` and make releases.
 
+5. **What the disk image needs:** Google Chrome, which draws its picture (or `WREN_CHROME`, the path of a browser like it), Xcode's command line tools, and permission to control Finder, which macOS asks for the first time.
+
 Keychain Access shows all of these. Search the login keychain for `notary`, for `sparkle`, and look under My Certificates for the Developer ID.
 
 ## Publishing
@@ -60,20 +63,22 @@ The script refuses to start unless:
 - the working tree is clean, and the branch is `main`;
 - `gh` is signed in;
 - the tag `v<version>` does not exist, or it resumes (below);
-- the version is newer than every published release its channel takes. A stable release is compared with the stable ones, and a beta with all of them.
+- the version is newer than every published release its channel takes. A stable release is compared with the stable ones, and a beta with all of them;
+- the disk image could be made: what it needs is there, Finder can be controlled, and no disk called `Wren` is mounted.
 
 Then it:
 
 1. Writes the version and build into `wren-app.json` and `wren-app.beta.json`.
 2. Builds for the channel (`scripts/build.ts --identity …`), notarises with `wren notarize`, and staples the ticket.
 3. Zips the app into `target/publish/Wren-<version>.zip`, signs it with `sign_update --account wren`, and writes `target/publish/Wren-<version>.json`.
-4. Commits `chore: release <version>`, tags `v<version>`, and pushes `main` and the tag.
-5. Creates the GitHub release as a draft, with generated notes, uploads the zip and the `.json`, and publishes it. A stable release becomes GitHub's latest release. A beta is a prerelease, and never the latest.
-6. Prints the entry for the site's `releases.ts`. Add it to the top of the list, write its notes, and push the site.
+4. Makes the disk image `target/publish/Wren-<version>.dmg` from the notarised app (see [The disk image](#the-disk-image)). Finder opens its window for a few seconds as it does.
+5. Commits `chore: release <version>`, tags `v<version>`, and pushes `main` and the tag.
+6. Creates the GitHub release as a draft, with generated notes, uploads the zip, the `.json` and the disk image, and publishes it. A stable release becomes GitHub's latest release. A beta is a prerelease, and never the latest.
+7. Prints the entry for the site's `releases.ts`. Add it to the top of the list, write its notes, and push the site.
 
-If anything fails before the commit, the manifests are put back. If it fails after the tag is made, for example while uploading, run the same command again. With the tag there already, it resumes: it checks that the tag's commit has the version and that `target/publish/` still has the zip, signed as its `.json` says, and then pushes again, finds the draft or creates it, uploads both files over any that are there, and publishes it. It builds nothing again, and leaves a release that is published already as it is.
+If anything fails before the commit, the manifests are put back. If it fails after the tag is made, for example while uploading, run the same command again. With the tag there already, it resumes: it checks that the tag's commit has the version and that `target/publish/` still has the disk image and the zip, signed as its `.json` says, and then pushes again, finds the draft or creates it, uploads all three over any that are there, and publishes it. It builds nothing again, and leaves a release that is published already as it is.
 
-A dry run stops before the commit too: it puts the manifests back and leaves the zip and the `.json` in `target/publish/` to inspect. Notarisation still happens, so a dry run is a full check of the signing setup.
+A dry run stops before the commit too: it puts the manifests back and leaves the zip, the `.json` and the disk image in `target/publish/` to inspect. Notarisation still happens, so a dry run is a full check of the signing setup, and uses a submission.
 
 To check a dry run's zip:
 
@@ -83,6 +88,21 @@ spctl -a -vv -t execute /tmp/check/Wren.app        # "Notarized Developer ID"
 xcrun stapler validate /tmp/check/Wren.app
 Frameworks/bin/sign_update --account wren --verify target/publish/Wren-1.2.0.zip <edSignature>
 ```
+
+## The disk image
+
+`scripts/dmg.ts` makes it, for `publish` and on its own:
+
+```sh
+bun run dmg                                  # from Wren.app, into target/publish
+bun run dmg --app /tmp/check/Wren.app --output /tmp/Wren.dmg
+```
+
+It holds the app and a link to Applications, with Finder's window arranged over a picture. The app inside is signed and notarised, so the image around it is neither.
+
+The picture is `branding/dmg/background.html`. Open it in a browser to work on it, with `?version=1.2.0-beta.1` to set the version in its corner. The script draws it afresh for each image, with the version the app says it is, and the volume's icon is the app's, so a beta's image says so without anything being changed. If the picture changes size, or the icons move, change `WIDTH`, `HEIGHT` and `ICONS` in the script as well.
+
+The site's Download button links to the zip, in `src/app/releases/releases.ts`. Point it at the disk image when people should get that instead.
 
 ## Versions and builds
 

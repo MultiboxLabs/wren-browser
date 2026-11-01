@@ -1,0 +1,259 @@
+<!doctype html>
+<!--
+  The picture behind the icons in Wren's disk image, drawn by scripts/dmg.ts in
+  Google Chrome at 1x and 2x. Open this file in a browser to work on it.
+  ?version=1.2.0-beta.1 sets the version in the corner.
+
+  Its size is WIDTH and HEIGHT in scripts/dmg.ts, and the icons sit where
+  ICONS says there: the flight path starts and ends beside them. The lowest
+  28pt can be under Finder's path bar, so keep what must be read above it.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Wren disk image background</title>
+    <style>
+      @font-face {
+        font-family: Geist;
+        src: url("fonts/Geist-Medium.ttf");
+      }
+      @font-face {
+        font-family: GeistMono;
+        src: url("fonts/GeistMono-Medium.ttf");
+      }
+      @font-face {
+        font-family: Serif;
+        src: url("fonts/InstrumentSerif-Italic.ttf");
+      }
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 600px;
+        height: 408px;
+        overflow: hidden;
+        background: #fff;
+      }
+      #w {
+        position: relative;
+        width: 600px;
+        height: 408px;
+        overflow: hidden;
+        --space: #7a81ff;
+        -webkit-font-smoothing: antialiased;
+        background: linear-gradient(
+          to bottom,
+          color-mix(in oklab, var(--space) 60%, white) 0%,
+          color-mix(in oklab, var(--space) 38%, #fff4ec) 42%,
+          color-mix(in oklab, var(--space) 22%, #ffeadf) 72%,
+          #ffe6d8 100%
+        );
+      }
+      #w > * {
+        position: absolute;
+      }
+      svg {
+        left: 0;
+        top: 0;
+      }
+      .glow {
+        left: 368px;
+        top: -160px;
+        width: 360px;
+        height: 360px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle closest-side,
+          rgba(255, 240, 205, 0.85) 0%,
+          rgba(255, 238, 205, 0.62) 22%,
+          rgba(255, 232, 210, 0.32) 46%,
+          rgba(255, 228, 220, 0.12) 70%,
+          rgba(255, 228, 225, 0) 100%
+        );
+      }
+      .sun {
+        left: 516px;
+        top: -14px;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 42% 40%, #fffdf2 0%, #fff7dc 62%, #ffefc4 100%);
+        box-shadow: 0 0 14px 3px rgba(255, 246, 214, 0.75);
+      }
+      h1 {
+        top: 34px;
+        left: 0;
+        width: 600px;
+        text-align: center;
+        color: #16171c;
+        font: 500 29px/1 Geist;
+        letter-spacing: -0.024em;
+      }
+      h1 em {
+        font: italic 400 35.5px/1 Serif;
+        letter-spacing: -0.004em;
+        color: #4449c8;
+        padding-left: 1px;
+      }
+      .pill {
+        left: 50%;
+        top: 322px;
+        transform: translateX(-50%);
+        height: 28px;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        border-radius: 99px;
+        color: #3a3b44;
+        font: 500 12.5px/1 Geist;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow:
+          0 0 0 0.5px rgba(79, 85, 214, 0.18),
+          0 3px 12px rgba(79, 85, 214, 0.14);
+      }
+      .version {
+        right: 18px;
+        top: 331px;
+        color: rgba(63, 64, 72, 0.72);
+        font: 500 10px/1 GeistMono;
+        letter-spacing: 0.02em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="w">
+      <div class="glow"></div>
+      <div class="sun"></div>
+      <svg width="600" height="408" viewBox="0 0 600 408">
+        <defs>
+          <filter id="b" x="-10%" y="-25%" width="120%" height="150%"><feGaussianBlur stdDeviation="1.1" /></filter>
+          <filter id="far" x="-10%" y="-25%" width="120%" height="150%"><feGaussianBlur stdDeviation="1.7" /></filter>
+          <filter id="n" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="11" />
+            <feColorMatrix values="0 0 0 0 .3 0 0 0 0 .3 0 0 0 0 .6 0 0 0 .9 -.28" />
+          </filter>
+          <filter id="lift" x="-40%" y="-40%" width="180%" height="190%">
+            <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#4f55d6" flood-opacity=".5" />
+          </filter>
+          <linearGradient id="cf" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="40">
+            <stop offset="0" stop-color="#fff" />
+            <stop offset=".62" stop-color="#fbfaff" />
+            <stop offset="1" stop-color="#e4e3ff" />
+          </linearGradient>
+          <linearGradient id="cw" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="40">
+            <stop offset="0" stop-color="#fff" />
+            <stop offset=".7" stop-color="#fffaf6" />
+            <stop offset="1" stop-color="#ffeee4" />
+          </linearGradient>
+          <linearGradient id="trail" gradientUnits="userSpaceOnUse" x1="226" y1="0" x2="374" y2="0">
+            <stop offset="0" stop-color="#4f55d6" stop-opacity=".38" />
+            <stop offset=".55" stop-color="#4f55d6" stop-opacity=".6" />
+            <stop offset="1" stop-color="#4f55d6" stop-opacity=".9" />
+          </linearGradient>
+          <g id="puffs">
+            <rect x="6" y="21.6" width="88" height="18.4" rx="9.2" />
+            <rect x="16" y="8.8" width="34" height="23.2" rx="11.6" />
+            <rect x="38" y="0" width="40" height="30.4" rx="15.2" />
+            <rect x="64" y="16.8" width="24" height="17.6" rx="8.8" />
+          </g>
+          <g id="bird" fill="none" stroke="#4f55d6" stroke-linecap="round">
+            <ellipse cx="16" cy="8.4" rx="1.7" ry="1.3" fill="#4f55d6" stroke="none" />
+            <path d="M16 8Q12.5 5.4 9 6" stroke-width="1.8" />
+            <path d="M9 6Q5 5.6 1.5 7.8" stroke-width="1.4" />
+            <path d="M16 8Q19.5 5.4 23 6" stroke-width="1.8" />
+            <path d="M23 6Q27 5.6 30.5 7.8" stroke-width="1.4" />
+          </g>
+          <mask id="gap" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="408">
+            <rect width="600" height="408" fill="#fff" />
+            <ellipse cx="300" cy="155" rx="33" ry="27" fill="#000" />
+          </mask>
+          <mask id="t" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+            <rect width="512" height="512" fill="#fff" />
+            <path
+              d="M466 228 L 424 238 C 438 322 368 424 262 424 C 200 424 152 384 152 320 C 152 228 262 152 356 152 C 394 152 420 172 426 194 L 466 206 C 482 210 482 226 466 228 Z"
+              fill="#000"
+              stroke="#000"
+              stroke-width="32"
+              stroke-linejoin="round"
+            />
+          </mask>
+          <mask id="c" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+            <rect width="512" height="512" fill="#fff" />
+            <path
+              d="M332 262 C 324 330 262 366 132 352 C 190 300 262 262 332 262 Z"
+              fill="#000"
+              stroke="#000"
+              stroke-width="32"
+              stroke-linejoin="round"
+            />
+            <circle cx="360" cy="206" r="17" fill="#000" />
+          </mask>
+        </defs>
+        <g filter="url(#far)" fill="#fff">
+          <use href="#puffs" transform="translate(30 80) scale(.6)" opacity=".5" />
+          <use href="#puffs" transform="translate(400 104) scale(.5)" opacity=".42" />
+        </g>
+        <g filter="url(#b)" fill="url(#cf)">
+          <use href="#puffs" transform="translate(-52 100) scale(1.5)" opacity=".94" />
+          <use href="#puffs" transform="translate(500 124) scale(1.4)" opacity=".92" />
+        </g>
+        <g opacity=".55" transform="translate(516 72)">
+          <use href="#bird" transform="scale(.72)" />
+          <use href="#bird" transform="translate(28 -9) scale(.52)" />
+          <use href="#bird" transform="translate(50 -3) scale(.38)" />
+        </g>
+        <!-- banks of cloud, rising in the corners and carrying the pill -->
+        <g filter="url(#b)" fill="url(#cw)">
+          <use href="#puffs" transform="translate(-58 296) scale(2.1 1.7)" />
+          <use href="#puffs" transform="translate(436 290) scale(2.2 1.85)" />
+          <use href="#puffs" transform="translate(116 320) scale(3.7 1.5)" opacity=".96" />
+          <use href="#puffs" transform="translate(-50 354) scale(7.2 1.5)" />
+        </g>
+        <path
+          d="M228 204Q300 112 372 204"
+          fill="none"
+          stroke="url(#trail)"
+          stroke-width="2.3"
+          stroke-linecap="round"
+          stroke-dasharray=".1 7.6"
+          mask="url(#gap)"
+        />
+        <path
+          d="M370.9 193.6L372 204L362.1 200.4"
+          fill="none"
+          stroke="#4f55d6"
+          stroke-opacity=".9"
+          stroke-width="2.3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <g filter="url(#lift)">
+          <svg overflow="visible" x="273" y="130" width="54" height="47.5" viewBox="78.7404 100.121 354.2596 311.879">
+            <g transform="rotate(-6 256 256) translate(-45 -12)" fill="#fff">
+              <g mask="url(#t)">
+                <path d="M226 270 C 206 226 178 172 150 120 C 144 108 128 110 126 124 C 116 196 140 258 182 304 Z" />
+              </g>
+              <g mask="url(#c)">
+                <path
+                  d="M466 228 L 424 238 C 438 322 368 424 262 424 C 200 424 152 384 152 320 C 152 228 262 152 356 152 C 394 152 420 172 426 194 L 466 206 C 482 210 482 226 466 228 Z"
+                />
+              </g>
+              <path d="M332 262 C 324 330 262 366 132 352 C 190 300 262 262 332 262 Z" />
+            </g>
+          </svg>
+        </g>
+        <rect width="600" height="408" filter="url(#n)" opacity=".035" />
+      </svg>
+      <h1>A small browser for <em>big lives</em></h1>
+      <div class="pill">Drag Wren into Applications</div>
+      <div class="version"></div>
+    </div>
+    <script>
+      document.querySelector(".version").textContent =
+        new URLSearchParams(location.search).get("version") ?? "1.2.0-beta.1";
+    </script>
+  </body>
+</html>
