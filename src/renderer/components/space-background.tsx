@@ -18,11 +18,14 @@ import { type Space, themeKey } from "@/state/space";
 import { useWindowActive } from "@/state/window";
 import { useAspect } from "@/utils/aspect";
 import { cn } from "@/utils/cn";
+import { contentScheme } from "@/utils/theme";
 import { ThemeLayers } from "./theme-swatch";
 
 // How much the stand-in for the window's blur shows: clear enough that what
 // is behind still shows a little through it.
-const MATERIAL = 0.6;
+const MATERIAL = 0.4;
+// Of a dark space out of use, the window is flat, and the stand-in shows whole.
+const FLAT = 1;
 
 export function SpaceBackground({
   space,
@@ -37,6 +40,7 @@ export function SpaceBackground({
   const box = useRef<HTMLDivElement>(null);
   const aspect = useAspect(box);
   const active = useWindowActive();
+  const standIn = !material ? 0 : !active && contentScheme(space.theme) === "dark" ? FLAT : MATERIAL;
   return (
     // Isolated, so the layers add up with each other only, not with what is
     // under the box.
@@ -51,7 +55,7 @@ export function SpaceBackground({
           // As the space's colour tweens, in index.css.
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
-          <ThemeLayers theme={space.theme} layout={{ aspect, active, material: material ? MATERIAL : 0 }} />
+          <ThemeLayers theme={space.theme} layout={{ aspect, active, material: standIn }} />
         </motion.div>
       </AnimatePresence>
     </div>

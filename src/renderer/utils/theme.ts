@@ -221,7 +221,7 @@ const BLUR = { light: "rgb(236 236 236)", dark: "rgb(30 30 30)" };
 export type ThemeStyle = {
   /** Under everything, over something other than the window's blur: a stand-in for it. */
   material: CSSProperties | null;
-  /** Under the colours: white for a light theme, black for a dark one. */
+  /** Under the colours: white, or for a dark theme over something else, black. */
   underlay: CSSProperties;
   /** The colours, each as clear as intensity makes it. */
   colors: CSSProperties;
@@ -271,9 +271,10 @@ export type ThemeLayout = {
    */
   window?: number;
   /**
-   * Whether the window is in use. Out of use, the colours are paler, lighter
-   * and less of them, as a window in the background fades (the blur behind
-   * it is flat then), and the noise is a quarter as strong.
+   * Whether the window is in use. Out of use, a light theme's colours are
+   * paler, lighter and less of them, as a window in the background fades (the
+   * blur behind it is flat then), and its noise is a quarter as strong. A dark
+   * theme is lifted instead, by a lighter underlay.
    */
   active?: boolean;
   /**
@@ -293,18 +294,30 @@ export function themeStyle(
   { aspect, window: windowAspect = aspect, active = true, material: blur = 0 }: ThemeLayout
 ): ThemeStyle {
   const scheme = contentScheme(theme);
+  const dark = scheme === "dark";
+  // A light theme fades out of use: paler colours, a quieter noise. A dark
+  // one is lifted instead, by its underlay (below).
+  const faded = !active && !dark;
   const material: CSSProperties | null = blur > 0 ? { backgroundColor: BLUR[scheme], opacity: blur } : null;
-  const alpha = colorAlpha(theme);
-  const under = Math.min(alpha, 0.5);
-  const underlay: CSSProperties = {
-    backgroundColor: scheme === "light" ? `rgb(255 255 255 / ${under})` : `rgb(0 0 0 / ${0.35 * under})`
-  };
+  // A dark theme is a little clearer than a light one, as its underlay lifts it.
+  const alpha = colorAlpha(theme) * (dark ? 0.96 : 1);
+
+  // A light theme has white under it. A dark one over the window's blur has
+  // a thin white, as the colour would sink into the dark blur otherwise, and
+  // a lighter one out of use, when that blur is flat. A dark one over
+  // something else (the floating sidebar, which has its own stand-in for the
+  // blur) has a thin black, a little darker out of use.
+  let underlayColor: string;
+  if (!dark) underlayColor = `rgb(255 255 255 / ${Math.min(colorAlpha(theme), 0.5)})`;
+  else if (blur > 0) underlayColor = `rgb(0 0 0 / ${active ? 0.15 : 0.2})`;
+  else underlayColor = `rgb(255 255 255 / ${active ? 0.18 : 0.8})`;
+  const underlay: CSSProperties = { backgroundColor: underlayColor };
 
   // Each colour is as clear as intensity makes it, rather than the layer as a
   // whole: the third, laid over the others, adds to them where it shows.
   const color = (hsb: Hsb, share = 1) => {
     const css = colorCss(hsb, alpha * share);
-    return active ? css : `oklch(from ${css} 0.58 calc(c * 0.5) h)`;
+    return faded ? `oklch(from ${css} 0.58 calc(c * 0.5) h)` : css;
   };
   const [first, second, third] = derivedColors(theme);
   const colors: CSSProperties = {};
@@ -326,7 +339,7 @@ export function themeStyle(
           backgroundImage: `url(${TEXTURE_IMAGES[theme.texture] ?? grain})`,
           backgroundSize: "128px",
           mixBlendMode: "multiply",
-          opacity: theme.noise * NOISE_FACTOR[theme.texture] * (active ? 1 : 0.25)
+          opacity: theme.noise * NOISE_FACTOR[theme.texture] * (faded ? 0.25 : 1)
         }
       : null;
 
