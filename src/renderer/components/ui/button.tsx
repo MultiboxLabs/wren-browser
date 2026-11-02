@@ -17,9 +17,10 @@ export type Icon = ComponentType<{ size?: number; strokeWidth?: number; classNam
  * `faint`, a fainter one, for items of a grid that are many (extensions);
  * `raised`, a bezel standing on a popover; `prominent`, the space's colour,
  * for the default button of a dialog; `bright`, white, for what a card on
- * the window asks to be done.
+ * the window asks to be done; `solid`, near black (near white in dark), for
+ * the one thing a page in a tab asks, where colour is the page's own.
  */
-export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent" | "bright";
+export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent" | "bright" | "solid";
 
 /**
  * Its size and corners: `square`, a toolbar's 28 points; `text`, as tall,
@@ -87,6 +88,12 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
   bright: {
     off: "bg-white text-bright-fg shadow-[0_1px_2px_rgb(0_0_0/0.15),0_0_0_0.5px_rgb(0_0_0/0.06)] enabled:active:brightness-95 disabled:text-bright-fg disabled:opacity-45",
     on: "bg-white text-bright-fg shadow-[0_1px_2px_rgb(0_0_0/0.15),0_0_0_0.5px_rgb(0_0_0/0.06)] brightness-95"
+  },
+  // Flat, with a hairline of light along its top and no glow: a page's
+  // colour is its own, and the button stays out of it.
+  solid: {
+    off: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] enabled:active:brightness-90 disabled:opacity-45",
+    on: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] brightness-90"
   }
 };
 
@@ -123,7 +130,7 @@ export function Button({
   // scales, but reports the box it rests in: what hangs off it must not move
   // as it scales.
   const opens = rest["aria-haspopup"] !== undefined;
-  const coloured = variant === "prominent" || variant === "bright";
+  const coloured = variant === "prominent" || variant === "bright" || variant === "solid";
   const tone = tones[iconTone ?? (variant === "plain" ? "dim" : coloured ? "inherit" : "full")];
   return (
     <Tooltip label={label}>

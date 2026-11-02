@@ -22,7 +22,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: Object.fromEntries(
-        ["ui", "onboarding", "game"].map((page) => [
+        ["ui", "onboarding", "game", "migrate"].map((page) => [
           page,
           fileURLToPath(new URL(`src/renderer/pages/${page}/index.html`, import.meta.url))
         ])

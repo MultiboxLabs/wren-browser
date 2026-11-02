@@ -2,7 +2,8 @@
 // Resources: Wren Browser's licence, the Wren runtime's LICENSES folder (its
 // licence, Chromium's notices and where its changed LGPL source is), and
 // third-party.txt, the notices of what else the app ships: uBlock Origin,
-// Sparkle, Kagi's bangs, and the Rust crates and npm packages built into it.
+// Sparkle, Kagi's bangs, Instrument Serif (wren://migrate's heading), and the
+// Rust crates and npm packages built into it.
 // Run by build.ts and dev.ts after `wren install` and sparkle(), which put
 // the runtime and Sparkle in place. A file is written only when its text
 // changes, so dev.ts bundles again only when a notice changed.
@@ -16,6 +17,7 @@ const SOURCE_URL = "https://github.com/MultiboxLabs/wren-browser";
 const COPYRIGHT = "Copyright 2026 Avocado and Bear Limited, trading as Multibox Labs.";
 const UBLOCK = "extensions/uBlock0.crx";
 const BANGS_LICENSE = "src/renderer/data/bangs.LICENSE";
+const SERIF_LICENSE = "src/renderer/assets/fonts/InstrumentSerif-OFL.txt";
 const RUNTIME_LICENSES = ".wren/runtime/LICENSES";
 
 /** A licence file's name, as crates and packages name them. */
@@ -210,6 +212,12 @@ async function wanted() {
       licence: "MIT",
       source: "https://github.com/kagisearch/bangs",
       text: (await readFile(BANGS_LICENSE, "utf8")).trim()
+    },
+    {
+      name: "Instrument Serif",
+      licence: "OFL-1.1",
+      source: "https://github.com/Instrument/instrument-serif",
+      text: (await readFile(SERIF_LICENSE, "utf8")).trim()
     },
     ...(await crates()).sort((a, b) => a.name.localeCompare(b.name)),
     ...(await packages()).sort((a, b) => a.name.localeCompare(b.name))

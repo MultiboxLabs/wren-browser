@@ -100,6 +100,8 @@ body,
   --color-raised-hover: var(--raised-hover);
   --color-prominent: var(--prominent);
   --color-bright-fg: var(--bright-fg);
+  --color-solid: var(--solid);
+  --color-solid-fg: var(--solid-fg);
   --color-alert-screen: var(--alert-screen);
   --color-alert-captured: var(--alert-captured);
   --color-alert-camera: var(--alert-camera);
@@ -198,6 +200,9 @@ body,
 :root[data-scheme="light"],
 :root[data-system-scheme="light"] [data-scheme="system"] {
   color-scheme: light;
+  /* Button's solid: near black, its text white. */
+  --solid: rgb(22 23 28);
+  --solid-fg: rgb(255 255 255);
   --ink: oklch(from var(--space) 0.22 calc(c * 0.8) h);
   --fg: var(--ink);
   --glyph: rgb(0 0 0);
@@ -274,6 +279,9 @@ body,
 :root[data-scheme="dark"],
 :root[data-system-scheme="dark"] [data-scheme="system"] {
   color-scheme: dark;
+  /* Button's solid: near white, its text near black. */
+  --solid: rgb(245 245 247);
+  --solid-fg: rgb(22 23 28);
   --ink: color-mix(in srgb, var(--space) 15%, white);
   --fg: var(--ink);
   --glyph: rgb(255 255 255);

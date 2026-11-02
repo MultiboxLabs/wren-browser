@@ -1,0 +1,105 @@
+/* wren://migrate's own colours and motion, on top of index.css's. It is a
+   page in a tab, light or dark as the system is, with Wren's accent for its
+   space's colour (it is in no space of its own). Its sky is the website's:
+   the accent falling to peach by day, and a night sky in dark. */
+
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-display: block;
+  src: url("@/assets/fonts/InstrumentSerif-Italic.ttf");
+}
+
+:root {
+  --space: #7a81ff;
+  /* The deeper shade the website writes its flourish and birds in. */
+  --sky-ink: #4f55d6;
+}
+
+:root[data-scheme="light"] {
+  --page: rgb(255 255 255);
+  /* A page's text is neutral, not tinted toward a space. */
+  --fg: rgb(22 23 28);
+  --sky: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--space) 60%, white) 0%,
+    color-mix(in oklab, var(--space) 38%, #fff4ec) 45%,
+    color-mix(in oklab, var(--space) 22%, #ffeadf) 78%,
+    #ffe6d8 100%
+  );
+  --cloud: rgb(255 255 255);
+  --cloud-bank: #fff8f3;
+  --flourish: var(--sky-ink);
+  --group: rgb(0 0 0 / 0.035);
+  --label-on-sky: rgb(40 41 60 / 0.62);
+  --landed: rgb(31 157 99);
+}
+
+:root[data-scheme="dark"] {
+  --page: rgb(30 31 36);
+  --fg: rgb(245 245 247);
+  --sky: linear-gradient(to bottom, #15171c 0%, #1b1d2b 70%, #23253a 100%);
+  --cloud: rgb(255 255 255 / 0.1);
+  --cloud-bank: rgb(255 255 255 / 0.05);
+  --flourish: #a5aaff;
+  --group: rgb(255 255 255 / 0.05);
+  --label-on-sky: rgb(255 255 255 / 0.55);
+  --landed: rgb(76 214 148);
+}
+
+body {
+  background: var(--page);
+}
+
+.migrate-sky {
+  background: var(--sky);
+}
+
+/* The heading's flourish: about 1.2 times the size, to look even with the
+   system font beside it. */
+.migrate-serif {
+  font-family: "Instrument Serif", serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.2em;
+  line-height: 1;
+  letter-spacing: -0.004em;
+  color: var(--flourish);
+}
+
+/* Clouds drift one way and back, slowly, each at its own pace (--drift);
+   the wren bobs while it waits. */
+@keyframes migrate-drift {
+  from {
+    translate: -14px 0;
+  }
+  to {
+    translate: 14px 0;
+  }
+}
+@keyframes migrate-bob {
+  from {
+    translate: 0 -2px;
+  }
+  to {
+    translate: 0 3px;
+  }
+}
+.migrate-drift {
+  animation: migrate-drift var(--drift, 40s) ease-in-out infinite alternate;
+}
+.migrate-bob {
+  animation: migrate-bob 2.6s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .migrate-drift,
+  .migrate-bob {
+    animation: none;
+  }
+}
+
+/* Only by day: the sun, and the peach. At night, stars. */
+:root[data-scheme="dark"] .migrate-day,
+:root[data-scheme="light"] .migrate-night {
+  display: none;
+}
