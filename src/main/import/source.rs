@@ -141,11 +141,6 @@ pub trait Engine: Sync {
         profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<Cookie>),
     ) -> Result<(), ReadError>;
-    /// Its extensions from the Chrome Web Store; none for an engine whose
-    /// extensions are not the store's.
-    fn extensions(&self, _profile: &SourceProfile) -> Result<Vec<StoreExtension>, ReadError> {
-        Ok(Vec::new())
-    }
 }
 
 /// A browser the user may bring their things over from: its engine's
@@ -177,9 +172,6 @@ pub trait Source: Sync {
         batch: &mut dyn FnMut(Vec<Cookie>),
     ) -> Result<(), ReadError> {
         self.engine().cookies(profile, batch)
-    }
-    fn extensions(&self, profile: &SourceProfile) -> Result<Vec<StoreExtension>, ReadError> {
-        self.engine().extensions(profile)
     }
 
     /// It keeps tabs in spaces, which come over as Wren's.

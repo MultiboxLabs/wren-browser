@@ -290,7 +290,7 @@ impl App for Wren {
         menus::set_app_icon_menu(mt, &self.state);
         password_manager::ready(mt);
         components::ready(mt);
-        ipc::handle_migrate(mt);
+        ipc::handle_migrate(mt, &self.state);
         *self.state.tab_switcher_keys.borrow_mut() = ipc::watch_tab_switcher_keys(&self.state);
         let source = self.source.clone();
         let _ = mt.set_scheme_handler(

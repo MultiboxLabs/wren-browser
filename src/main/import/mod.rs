@@ -2,11 +2,13 @@
 // wren://migrate (ipc/migrate.rs), and onboarding's list of the browsers
 // installed (onboarding.rs). Each source is a browser built on an engine
 // (source.rs, sources.rs); what it has is read on a thread of its own, and
-// landed in Wren on the main thread, one run at a time.
+// landed in Wren on the main thread, one run at a time (run.rs, land/).
 
 mod browsers;
 mod data;
 mod engines;
+mod land;
+pub mod run;
 mod snapshot;
 mod source;
 mod sources;
@@ -15,7 +17,7 @@ use serde::Serialize;
 
 use crate::pages::icons;
 use crate::platform;
-pub use source::{ReadError, Source, SourceProfile, Survey};
+pub use source::{Source, SourceProfile, Survey};
 use sources::SOURCES;
 
 /// An installed browser, as onboarding lists it.

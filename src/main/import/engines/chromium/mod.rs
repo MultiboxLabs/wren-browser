@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 use wren::{Cookie, HistoryEntry};
 
-use crate::import::data::{BookmarkFolder, StoreExtension};
+use crate::import::data::BookmarkFolder;
 use crate::import::snapshot;
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
 use crate::platform;
@@ -103,10 +103,6 @@ impl Engine for Chromium {
         batch: &mut dyn FnMut(Vec<Cookie>),
     ) -> Result<(), ReadError> {
         cookies::read(&self.key, &self.root(), &profile.folder, batch)
-    }
-
-    fn extensions(&self, profile: &SourceProfile) -> Result<Vec<StoreExtension>, ReadError> {
-        extensions::read(&profile.folder)
     }
 }
 

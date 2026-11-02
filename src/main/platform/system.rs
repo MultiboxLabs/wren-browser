@@ -15,3 +15,14 @@ pub fn os_version() -> String {
 pub fn app_version() -> Option<String> {
     current::system::app_version()
 }
+
+/// What the user may let the app do in the system's privacy settings.
+pub enum Privacy {
+    /// Read what other apps keep (Safari's, on macOS).
+    FullDiskAccess,
+}
+
+/// Opens the system's settings where the user allows `what`.
+pub fn open_privacy_settings(what: Privacy) {
+    current::system::open_privacy_settings(what)
+}
