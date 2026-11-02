@@ -6,6 +6,8 @@ pub mod icon_menu;
 pub mod keyboard;
 pub mod main_thread;
 pub mod paths;
+pub mod property_list;
+pub mod secrets;
 pub mod system;
 pub mod updater;
 pub mod window;
