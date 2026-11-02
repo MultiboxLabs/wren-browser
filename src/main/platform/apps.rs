@@ -2,6 +2,12 @@
 
 use super::current;
 
+/// Whether the app the platform knows as `id` (on macOS, its bundle
+/// identifier) is installed.
+pub fn is_app_installed(id: &str) -> bool {
+    current::apps::is_app_installed(id)
+}
+
 /// The icon of the app the platform knows as `id` (on macOS, its bundle
 /// identifier), `size` points square at twice that in pixels, as a PNG;
 /// None if no such app is installed.

@@ -8,13 +8,12 @@ use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
 use wren::MainThread;
 
 use crate::app::State;
 use crate::extensions::bridge::{self, Call};
 use crate::import::run::{self, Plan, RunState};
-use crate::import::{self, Source, SourceProfile, Survey};
+use crate::import::{self, Landing, SourceProfile, Survey};
 use crate::pages::{MIGRATE, icons};
 use crate::platform::{self, Privacy};
 
@@ -33,6 +32,64 @@ struct Context {
     incognito: bool,
     profile: Option<WrenProfile>,
     profiles: Vec<WrenProfile>,
+}
+
+/// A browser installed with a real profile, as the page lists it.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ListedSource {
+    id: &'static str,
+    name: &'static str,
+    /// Its app's icon's ID (`iconUrl`).
+    icon: String,
+    keeps_spaces: bool,
+    profiles: Vec<ListedProfile>,
+}
+
+#[derive(Serialize)]
+struct ListedProfile {
+    id: String,
+    name: String,
+    /// Where it lands unless the user says otherwise.
+    landing: Landing,
+}
+
+/// What a profile has, as the page takes it: a thing it has none of is
+/// left out.
+#[derive(Serialize)]
+struct ListedSurvey {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    spaces: Option<SpaceCount>,
+    #[serde(skip_serializing_if = "is_zero")]
+    bookmarks: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    history: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    cookies: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    extensions: Vec<ListedExtension>,
+    /// What the user must allow for Wren to read the rest.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access: Option<&'static str>,
+}
+
+#[derive(Serialize)]
+struct SpaceCount {
+    spaces: usize,
+    pins: usize,
+}
+
+#[derive(Serialize)]
+struct ListedExtension {
+    id: String,
+    name: String,
+    /// Its icon's ID (`iconUrl`); empty if it has none.
+    icon: String,
+    enabled: bool,
+}
+
+fn is_zero(count: &usize) -> bool {
+    *count == 0
 }
 
 #[derive(Deserialize)]
@@ -86,59 +143,42 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
     });
 
     // The browsers installed with a real profile, each with its profiles
-    // and where each lands unless the user says otherwise.
+    // and where each lands unless the user says otherwise. The apps' icons
+    // are drawn here; their profiles are read on a thread.
     bridge::handle_call(&MIGRATE, "migrate.sources", move |call| {
         let installed = import::installed_sources();
         let here = call.profile().map(|profile| profile.id());
-        let names: Vec<(String, String)> = wren_profiles(mt)
-            .into_iter()
-            .map(|p| (p.id, p.name))
-            .collect();
-        let icons: Vec<(String, Vec<u8>)> = installed
-            .iter()
-            .map(|(source, png)| (source.about().id.to_owned(), png.clone()))
-            .collect();
-        let sources: Vec<&'static dyn Source> =
-            installed.into_iter().map(|(source, _)| source).collect();
+        let wren = wren_profiles(mt);
         on_a_thread(
             call,
             move || {
-                sources
+                installed
                     .into_iter()
-                    .filter_map(|source| {
-                        let profiles = source
-                            .profiles()
-                            .ok()
-                            .filter(|profiles| !profiles.is_empty())?;
-                        Some((source, profiles))
+                    .filter_map(|(source, icon)| {
+                        let profiles = source.profiles().ok().filter(|found| !found.is_empty())?;
+                        Some((source, icon, profiles))
                     })
                     .collect::<Vec<_>>()
             },
             move |_, call, found| {
-                let listed: Vec<Value> = found
+                let listed: Vec<ListedSource> = found
                     .into_iter()
-                    .map(|(source, profiles)| {
+                    .map(|(source, icon, profiles)| {
                         let about = source.about();
-                        let icon = icons
-                            .iter()
-                            .find(|(id, _)| id == about.id)
-                            .map(|(_, png)| icons::id(png.clone()))
-                            .unwrap_or_default();
-                        json!({
-                            "id": about.id,
-                            "name": about.name,
-                            "icon": icon,
-                            "keepsSpaces": source.keeps_spaces(),
-                            "profiles": profiles
+                        ListedSource {
+                            id: about.id,
+                            name: about.name,
+                            icon: icons::id(icon),
+                            keeps_spaces: source.keeps_spaces(),
+                            profiles: profiles
                                 .iter()
-                                .map(|profile| json!({
-                                    "id": profile.id,
-                                    "name": shown_name(profile, about.name),
-                                    "inUse": profile.in_use,
-                                    "landing": landing(profile, about.name, here.as_deref(), &names),
-                                }))
-                                .collect::<Vec<_>>(),
-                        })
+                                .map(|profile| ListedProfile {
+                                    id: profile.id.clone(),
+                                    name: shown_name(profile, about.name),
+                                    landing: landing(profile, about.name, here.as_deref(), &wren),
+                                })
+                                .collect(),
+                        }
                     })
                     .collect();
                 call.answer(Ok(listed));
@@ -166,7 +206,7 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
                 Some(source.survey(&profile))
             },
             |_, call, survey| match survey {
-                Some(survey) => call.answer(Ok(survey_json(survey))),
+                Some(survey) => call.answer(Ok(listed_survey(survey))),
                 None => call.answer::<()>(Err("That profile is not there now.".into())),
             },
         );
@@ -218,56 +258,42 @@ fn landing(
     profile: &SourceProfile,
     source: &str,
     here: Option<&str>,
-    wren: &[(String, String)],
-) -> Value {
+    wren: &[WrenProfile],
+) -> Landing {
     if profile.in_use {
-        return json!({ "kind": "this" });
+        return Landing::This;
     }
     let name = shown_name(profile, source);
-    match wren
-        .iter()
-        .find(|(id, existing)| existing.eq_ignore_ascii_case(&name) && Some(id.as_str()) != here)
-    {
-        Some((id, _)) => json!({ "kind": "existing", "id": id }),
-        None => json!({ "kind": "new", "name": name }),
+    match wren.iter().find(|existing| {
+        existing.name.eq_ignore_ascii_case(&name) && Some(existing.id.as_str()) != here
+    }) {
+        Some(existing) => Landing::Existing {
+            id: existing.id.clone(),
+        },
+        None => Landing::New { name },
     }
 }
 
-// What a profile has, as the page takes it: a thing it has none of is
-// left out; its extensions' icons are named for the page to fetch.
-fn survey_json(survey: Survey) -> Value {
-    let mut out = serde_json::Map::new();
-    if let Some((spaces, pins)) = survey.spaces
-        && spaces > 0
-    {
-        out.insert("spaces".into(), json!({ "spaces": spaces, "pins": pins }));
-    }
-    for (key, count) in [
-        ("bookmarks", survey.bookmarks),
-        ("history", survey.history),
-        ("cookies", survey.cookies),
-    ] {
-        if count > 0 {
-            out.insert(key.into(), json!(count));
-        }
-    }
-    if !survey.extensions.is_empty() {
-        let extensions: Vec<Value> = survey
+// Its extensions' icons are named for the page to fetch.
+fn listed_survey(survey: Survey) -> ListedSurvey {
+    ListedSurvey {
+        spaces: survey
+            .spaces
+            .filter(|(spaces, _)| *spaces > 0)
+            .map(|(spaces, pins)| SpaceCount { spaces, pins }),
+        bookmarks: survey.bookmarks,
+        history: survey.history,
+        cookies: survey.cookies,
+        extensions: survey
             .extensions
             .into_iter()
-            .map(|extension| {
-                json!({
-                    "id": extension.id,
-                    "name": extension.name,
-                    "icon": extension.icon.map(icons::id).unwrap_or_default(),
-                    "enabled": extension.enabled,
-                })
+            .map(|extension| ListedExtension {
+                id: extension.id,
+                name: extension.name,
+                icon: extension.icon.map(icons::id).unwrap_or_default(),
+                enabled: extension.enabled,
             })
-            .collect();
-        out.insert("extensions".into(), json!(extensions));
+            .collect(),
+        access: survey.no_access.then_some("fullDiskAccess"),
     }
-    if survey.no_access {
-        out.insert("access".into(), json!("fullDiskAccess"));
-    }
-    Value::Object(out)
 }

@@ -9,16 +9,18 @@
 // step starts once the last batch has landed. Every change goes to the
 // open migrate pages (`migrate.progress`).
 
-use std::cell::RefCell;
-use std::collections::{HashSet, VecDeque};
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::{Rc, Weak};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use wren::{CookieResult, MainThread, Profile, WebStoreInstallResult};
 
+use super::data::{BookmarkFolder, Spaces};
 use super::land::profiles::{self, Landing};
 use super::land::{bookmarks, spaces};
-use super::source::{Source, SourceProfile, Survey};
+use super::source::{ReadError, Source, SourceProfile, Survey};
 use crate::app::State;
 use crate::extensions::bridge;
 use crate::pages::MIGRATE;
@@ -95,11 +97,12 @@ struct Run {
     this: Profile,
     extensions: HashSet<String>,
     profiles: Vec<Landed>,
+    /// Each step: one thing of one profile (`profiles`' index).
     steps: VecDeque<(usize, Thing)>,
     /// Steps of each thing still to come or going.
-    left: Vec<(Thing, usize)>,
-    /// Failures of each thing, for its note.
-    failed: Vec<(Thing, Vec<String>)>,
+    left: HashMap<Thing, usize>,
+    /// Why each thing failed, a step at a time, for its note.
+    failed: HashMap<Thing, Vec<String>>,
     // The step going: whether its reading is over, and how many of its
     // batches Wren has yet to answer.
     reading: bool,
@@ -108,7 +111,7 @@ struct Run {
 
 thread_local! {
     static RUN: RefCell<Option<Run>> = const { RefCell::new(None) };
-    static NEXT_ID: std::cell::Cell<u64> = const { std::cell::Cell::new(1) };
+    static NEXT_ID: Cell<u64> = const { Cell::new(1) };
 }
 
 /// The run going, or the last one, if there has been one.
@@ -167,8 +170,8 @@ pub fn start(app: &Rc<State>, this: Profile, plan: Plan) -> Result<RunState, Str
             extensions: plan.extensions.iter().cloned().collect(),
             profiles: Vec::new(),
             steps: VecDeque::new(),
-            left: Vec::new(),
-            failed: Vec::new(),
+            left: HashMap::new(),
+            failed: HashMap::new(),
             reading: false,
             pending: 0,
         })
@@ -219,8 +222,7 @@ fn surveyed(
                 .sum();
         }
         for thing in &things {
-            run.left.push((*thing, read.len()));
-            run.failed.push((*thing, Vec::new()));
+            run.left.insert(*thing, read.len());
             for index in 0..read.len() {
                 run.steps.push_back((index, *thing));
             }
@@ -312,57 +314,39 @@ fn next(mt: MainThread, id: u64) {
         return;
     };
     match thing {
-        Thing::History => {
-            std::thread::spawn(move || {
-                let read = source.history(&profile, &mut |batch| {
-                    let _ = wren::post_to_main_thread(move |mt| {
-                        let Some(target) = with(id, |run| {
-                            run.pending += 1;
-                            run.profiles[index].profile.clone()
-                        }) else {
-                            return;
-                        };
-                        target.add_history(&batch, move |result| {
-                            landed_batch(
-                                mt,
-                                id,
-                                thing,
-                                result.map_err(|error| format!("{error:?}")),
-                            );
-                        });
-                    });
-                });
-                let why = read.err().map(|error| error.message(source.about().name));
-                let _ = wren::post_to_main_thread(move |mt| read_over(mt, id, thing, why));
-            });
-        }
-        Thing::Cookies => {
-            std::thread::spawn(move || {
-                let read = source.cookies(&profile, &mut |batch| {
-                    let _ = wren::post_to_main_thread(move |mt| {
-                        let Some(target) = with(id, |run| {
-                            run.pending += 1;
-                            run.profiles[index].profile.clone()
-                        }) else {
-                            return;
-                        };
-                        target.add_cookies(&batch, move |result| {
-                            let written = result
-                                .map(|results| {
-                                    results
-                                        .iter()
-                                        .filter(|each| **each == CookieResult::Written)
-                                        .count()
-                                })
-                                .map_err(|error| format!("{error:?}"));
-                            landed_batch(mt, id, thing, written);
-                        });
-                    });
-                });
-                let why = read.err().map(|error| error.message(source.about().name));
-                let _ = wren::post_to_main_thread(move |mt| read_over(mt, id, thing, why));
-            });
-        }
+        Thing::History => in_batches(
+            id,
+            index,
+            thing,
+            source.about().name,
+            move |batch| source.history(&profile, batch),
+            |target, batch, landed| {
+                target.add_history(batch, move |result| {
+                    landed(result.map_err(|error| format!("{error:?}")))
+                })
+            },
+        ),
+        Thing::Cookies => in_batches(
+            id,
+            index,
+            thing,
+            source.about().name,
+            move |batch| source.cookies(&profile, batch),
+            |target, batch, landed| {
+                target.add_cookies(batch, move |result| {
+                    landed(
+                        result
+                            .map(|results| {
+                                results
+                                    .iter()
+                                    .filter(|each| **each == CookieResult::Written)
+                                    .count()
+                            })
+                            .map_err(|error| format!("{error:?}")),
+                    )
+                })
+            },
+        ),
         Thing::Bookmarks => {
             std::thread::spawn(move || {
                 let read = source.bookmarks(&profile);
@@ -391,43 +375,12 @@ fn next(mt: MainThread, id: u64) {
                     spaces
                         .with_favicons(|pages| source.favicons(&profile, pages).unwrap_or_default())
                 });
+                let why = read
+                    .as_ref()
+                    .err()
+                    .map(|error| error.message(source.about().name));
                 let _ = wren::post_to_main_thread(move |mt| {
-                    let why = match read {
-                        Ok(read) => {
-                            let landing = with(id, |run| {
-                                let landed = &run.profiles[index];
-                                (run.app.upgrade(), landed.profile.id(), landed.made)
-                            });
-                            match landing {
-                                Some((Some(app), target, made)) => {
-                                    match spaces::land(&app, &target, read, made) {
-                                        Ok(added) => {
-                                            let skipped = added.skipped_spaces;
-                                            with(id, |run| {
-                                                if let Some(progress) = progress(run, thing) {
-                                                    progress.done += added.pins;
-                                                    if skipped > 0 {
-                                                        progress.note = Some(format!(
-                                                            "{skipped} {} there already.",
-                                                            if skipped == 1 {
-                                                                "space was"
-                                                            } else {
-                                                                "spaces were"
-                                                            }
-                                                        ));
-                                                    }
-                                                }
-                                            });
-                                            None
-                                        }
-                                        Err(error) => Some(error),
-                                    }
-                                }
-                                _ => None,
-                            }
-                        }
-                        Err(error) => Some(error.message(source.about().name)),
-                    };
+                    let why = why.or_else(|| land_spaces(id, index, read.ok()?));
                     read_over(mt, id, thing, why);
                 });
             });
@@ -448,37 +401,106 @@ fn next(mt: MainThread, id: u64) {
             }
             with(id, |run| run.pending += 1);
             let names: Vec<&str> = ids.iter().map(String::as_str).collect();
-            landed.install_from_web_store(&names, move |result| match result {
-                Ok(results) => {
-                    let missing = results
-                        .iter()
-                        .filter(|each| {
-                            !matches!(
-                                each,
-                                WebStoreInstallResult::Installed
-                                    | WebStoreInstallResult::AlreadyInstalled
-                            )
-                        })
-                        .count();
-                    with(id, |run| {
-                        if let Some(progress) = progress(run, thing) {
-                            progress.done += results.len() - missing;
-                            if missing > 0 {
-                                progress.note = Some(format!(
-                                    "{missing} {} not in the Chrome Web Store.",
-                                    if missing == 1 { "is" } else { "are" }
-                                ));
-                            }
+            landed.install_from_web_store(&names, move |result| {
+                let installed = result
+                    .map(|results| {
+                        let missing = results
+                            .iter()
+                            .filter(|each| {
+                                !matches!(
+                                    each,
+                                    WebStoreInstallResult::Installed
+                                        | WebStoreInstallResult::AlreadyInstalled
+                                )
+                            })
+                            .count();
+                        if missing > 0 {
+                            let verb = if missing == 1 { "is" } else { "are" };
+                            note(
+                                id,
+                                thing,
+                                format!("{missing} {verb} not in the Chrome Web Store."),
+                            );
                         }
-                    });
-                    landed_batch(mt, id, thing, Ok(0));
-                }
-                Err(error) => landed_batch(mt, id, thing, Err(format!("{error:?}"))),
+                        results.len() - missing
+                    })
+                    .map_err(|error| format!("{error:?}"));
+                landed_batch(mt, id, thing, installed);
             });
             read_over(mt, id, thing, None);
         }
     }
 }
+
+/// Takes Wren's word on a batch: how many of it landed, or why none did.
+type BatchLanded = Box<dyn FnOnce(Result<usize, String>)>;
+
+// Reads a thing on a thread, a batch at a time, and hands each batch to
+// Wren (`land`) on the main thread, in the step's profile.
+fn in_batches<T: Send + 'static>(
+    id: u64,
+    index: usize,
+    thing: Thing,
+    source: &'static str,
+    read: impl FnOnce(&mut dyn FnMut(Vec<T>)) -> Result<(), ReadError> + Send + 'static,
+    land: fn(&Profile, &[T], BatchLanded),
+) {
+    std::thread::spawn(move || {
+        let read = read(&mut |batch| {
+            let _ = wren::post_to_main_thread(move |mt| {
+                let Some(target) = with(id, |run| {
+                    run.pending += 1;
+                    run.profiles[index].profile.clone()
+                }) else {
+                    return;
+                };
+                land(
+                    &target,
+                    &batch,
+                    Box::new(move |result| landed_batch(mt, id, thing, result)),
+                );
+            });
+        });
+        let why = read.err().map(|error| error.message(source));
+        let _ = wren::post_to_main_thread(move |mt| read_over(mt, id, thing, why));
+    });
+}
+
+// Lands a profile's spaces in its Wren profile: why they did not, if not.
+fn land_spaces(id: u64, index: usize, read: Spaces) -> Option<String> {
+    let (app, target, made) = with(id, |run| {
+        let landed = &run.profiles[index];
+        (run.app.upgrade(), landed.profile.id(), landed.made)
+    })?;
+    let added = match spaces::land(&app?, &target, read, made) {
+        Ok(added) => added,
+        Err(error) => return Some(error),
+    };
+    with(id, |run| {
+        if let Some(progress) = progress(run, Thing::Spaces) {
+            progress.done += added.pins;
+        }
+    });
+    let skipped = added.skipped_spaces;
+    if skipped > 0 {
+        let were = if skipped == 1 {
+            "space was"
+        } else {
+            "spaces were"
+        };
+        note(
+            id,
+            Thing::Spaces,
+            format!("{skipped} {were} there already."),
+        );
+    }
+    None
+}
+
+/// How often, and how many times, a step looks again for a profile's
+/// bookmarks to have loaded: for 10 seconds.
+const BOOKMARKS_LOOK_EVERY: Duration = Duration::from_millis(100);
+const BOOKMARKS_LOOKS: u32 = 100;
 
 // Bookmarks land once the profile has loaded its own, which it does after
 // the profile opens: waits for that, a while.
@@ -487,24 +509,29 @@ fn land_bookmarks(
     id: u64,
     profile: Profile,
     source: &'static str,
-    tree: super::data::BookmarkFolder,
-    tries: u32,
+    tree: BookmarkFolder,
+    looks: u32,
 ) {
     if !bookmarks::ready(&profile) {
-        if tries >= 100 {
-            return landed_batch(
-                mt,
-                id,
-                Thing::Bookmarks,
-                Err("Its bookmarks did not load.".into()),
-            );
+        if looks >= BOOKMARKS_LOOKS {
+            let why = "Its bookmarks did not load.".to_owned();
+            return landed_batch(mt, id, Thing::Bookmarks, Err(why));
         }
-        return platform::after(std::time::Duration::from_millis(100), move || {
-            land_bookmarks(mt, id, profile, source, tree, tries + 1)
+        return platform::after(BOOKMARKS_LOOK_EVERY, move || {
+            land_bookmarks(mt, id, profile, source, tree, looks + 1)
         });
     }
     let added = bookmarks::land(&profile, source, &tree);
     landed_batch(mt, id, Thing::Bookmarks, added);
+}
+
+// What the user should know of how a thing went, beside its count.
+fn note(id: u64, thing: Thing, note: String) {
+    with(id, |run| {
+        if let Some(progress) = progress(run, thing) {
+            progress.note = Some(note);
+        }
+    });
 }
 
 fn progress(run: &mut Run, thing: Thing) -> Option<&mut ThingProgress> {
@@ -543,9 +570,7 @@ fn read_over(mt: MainThread, id: u64, thing: Thing, why: Option<String>) {
 }
 
 fn note_failure(run: &mut Run, thing: Thing, why: String) {
-    if let Some((_, failures)) = run.failed.iter_mut().find(|(each, _)| *each == thing) {
-        failures.push(why);
-    }
+    run.failed.entry(thing).or_default().push(why);
 }
 
 fn step_over(mt: MainThread, id: u64, thing: Thing) {
@@ -555,29 +580,23 @@ fn step_over(mt: MainThread, id: u64, thing: Thing) {
         }
         // One more step of the thing is done; with its last, it has landed,
         // or failed if every step of it did.
-        let left = run
-            .left
-            .iter_mut()
-            .find(|(each, _)| *each == thing)
-            .map(|(_, left)| {
-                *left -= 1;
-                *left
-            });
-        let failures = run
-            .failed
-            .iter()
-            .find(|(each, _)| *each == thing)
-            .map(|(_, failures)| failures.clone())
-            .unwrap_or_default();
-        let steps = run.profiles.len();
-        if let (Some(0), Some(progress)) = (left, progress(run, thing)) {
-            progress.state = if !failures.is_empty() && failures.len() >= steps {
+        let left = run.left.get_mut(&thing).map(|left| {
+            *left = left.saturating_sub(1);
+            *left
+        });
+        if left != Some(0) {
+            return true;
+        }
+        let failures = run.failed.remove(&thing).unwrap_or_default();
+        let every_step_failed = failures.len() >= run.profiles.len();
+        if let Some(progress) = progress(run, thing) {
+            progress.state = if every_step_failed {
                 Stage::Failed
             } else {
                 Stage::Landed
             };
-            if let Some(first) = failures.first() {
-                progress.note = Some(first.clone());
+            if let Some(first) = failures.into_iter().next() {
+                progress.note = Some(first);
             }
             progress.total = progress.total.max(progress.done);
         }

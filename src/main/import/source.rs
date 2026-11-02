@@ -23,8 +23,8 @@ pub struct About {
     pub app: &'static str,
 }
 
-/// One of a source's real profiles (decision 6 of the migration plan:
-/// none of a browser's own, nor one no space of it points at).
+/// One of a source's real profiles: none the browser keeps for itself, nor,
+/// in one that keeps spaces, one no space of it points at.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceProfile {
     /// Its folder's name, as the source names it.

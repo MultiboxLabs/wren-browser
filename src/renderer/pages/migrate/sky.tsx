@@ -2,12 +2,12 @@
 // its skies): the source's icon at the left, Wren's at the right, a dotted
 // arc between them, and the wren on it. Choosing, it waits at the arc's top;
 // flying, it is as far along as the run is, a small flock behind it;
-// landed, it perches on Wren's icon. By day, soft clouds, a far-off flock
-// and a low sun; at night, stars.
+// landed, it perches on Wren's icon. By day, a low sun, far-off clouds and
+// a flock; at night, a moon and stars; and a sea of clouds along the foot
+// (cloud-sea.tsx).
 //
 // The scene is the design's own, 1148 by 300 points, at the sky's middle,
 // whatever the tab's width: a wider tab shows more sky, not bigger clouds.
-// Its clouds are the design's: puffs, blurred in points.
 
 import { motion } from "motion/react";
 import type { CSSProperties, ReactNode } from "react";

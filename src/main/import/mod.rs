@@ -18,6 +18,7 @@ use serde::Serialize;
 
 use crate::pages::icons;
 use crate::platform;
+pub use land::profiles::Landing;
 pub use source::{Source, SourceProfile, Survey};
 use sources::SOURCES;
 
@@ -53,9 +54,10 @@ pub fn installed() -> Vec<Installed> {
 
 /// The source with `id`, if it is installed.
 pub fn source(id: &str) -> Option<&'static dyn Source> {
-    SOURCES.iter().copied().find(|source| {
-        source.about().id == id && platform::installed_app_icon(source.about().app, 16.0).is_some()
-    })
+    SOURCES
+        .iter()
+        .copied()
+        .find(|source| source.about().id == id && platform::is_app_installed(source.about().app))
 }
 
 /// The size wren://migrate's sky shows a source's icon at, in points: its

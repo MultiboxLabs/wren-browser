@@ -22,6 +22,7 @@ use crate::pages::{self, Page, SCHEME};
 const RELAYED: [&Page; 1] = [&pages::MIGRATE];
 
 /// A port, from when it opens to its page's word of which page it is.
+#[derive(Clone, Copy)]
 enum Session {
     Waiting,
     Open { page: &'static str, incognito: bool },
@@ -158,20 +159,16 @@ fn receive(port: NativePort, json: &str) {
     let Ok(message) = serde_json::from_str::<Value>(json) else {
         return refuse(port);
     };
-    let session = SESSIONS.with(|sessions| match sessions.borrow().get(&port) {
-        Some(Session::Open { page, incognito }) => Some(Some((*page, *incognito))),
-        Some(Session::Waiting) => Some(None),
-        None => None,
-    });
+    let session = SESSIONS.with(|sessions| sessions.borrow().get(&port).copied());
     match session {
         // Its first message: which page it is.
-        Some(None) => match opened(&message) {
+        Some(Session::Waiting) => match opened(&message) {
             Some(open) => {
                 SESSIONS.with(|sessions| sessions.borrow_mut().insert(port, open));
             }
             None => refuse(port),
         },
-        Some(Some((page, incognito))) => call(port, page, incognito, message),
+        Some(Session::Open { page, incognito }) => call(port, page, incognito, message),
         None => refuse(port),
     }
 }
