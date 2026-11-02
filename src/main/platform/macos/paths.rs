@@ -4,8 +4,11 @@
 use std::path::PathBuf;
 
 pub fn data_dir() -> PathBuf {
-    let home = std::env::var_os("HOME").expect("the user has a home folder");
-    PathBuf::from(home).join("Library/Application Support")
+    home_dir().join("Library/Application Support")
+}
+
+pub fn home_dir() -> PathBuf {
+    PathBuf::from(std::env::var_os("HOME").expect("the user has a home folder"))
 }
 
 pub fn resources_dir() -> PathBuf {
