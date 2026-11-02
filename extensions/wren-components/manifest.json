@@ -43,6 +43,11 @@
       "world": "MAIN"
     },
     {
+      "matches": ["wren://migrate/*"],
+      "js": ["bridge/page.js"],
+      "run_at": "document_start"
+    },
+    {
       "matches": ["chrome://version/*"],
       "css": ["chrome-pages/version.css"],
       "run_at": "document_start"

@@ -8,24 +8,24 @@
 // in it answers with a port, once, on the first call. Calls made before then
 // wait for it.
 
-/** What answers a tab page's calls: the app, through Wren Components, or a stand-in. */
-export type TabPageLink = {
+/** What answers a tab page's calls: the app, through Wren Components. */
+type TabPageLink = {
   invoke<Answer>(call: string, args?: unknown): Promise<Answer>;
   on<Value>(event: string, listener: (value: Value) => void): () => void;
 };
 
 /**
- * How long the page waits for Wren Components to answer its first call.
- * Its script is in the page from before the page's own, and answers at once,
- * so a little longer than a frame or two means it is not there.
+ * How long the page waits for Wren Components to answer its first call
+ * before it gives up. Its script is in the page from before the page's own,
+ * and answers at once: only a page it is not in waits this long.
  */
-const CONNECT_TIMEOUT = 150;
+const CONNECT_TIMEOUT = 2000;
 
 type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void };
 
 type Message = { id: number; value?: unknown; error?: string } | { event: string; value: unknown };
 
-function relayed(): TabPageLink & { connect: () => Promise<MessagePort> } {
+function relayed(): TabPageLink {
   const pending = new Map<number, Pending>();
   const listeners = new Map<string, Set<(value: unknown) => void>>();
   let nextId = 1;
@@ -63,7 +63,6 @@ function relayed(): TabPageLink & { connect: () => Promise<MessagePort> } {
     }));
 
   return {
-    connect,
     async invoke<Answer>(call: string, args?: unknown) {
       const given = await connect();
       const id = nextId++;
@@ -83,34 +82,5 @@ function relayed(): TabPageLink & { connect: () => Promise<MessagePort> } {
   };
 }
 
-const app = relayed();
-let standIn: TabPageLink | undefined;
-
-// Whether the app answers: Wren Components gave the page a port.
-const reachesApp = () =>
-  app.connect().then(
-    () => true,
-    () => false
-  );
-
 /** The page's link to the app. */
-export const tabPage: TabPageLink = {
-  async invoke<Answer>(call: string, args?: unknown) {
-    if (!standIn || (await reachesApp())) return app.invoke<Answer>(call, args);
-    return standIn.invoke<Answer>(call, args);
-  },
-  on<Value>(event: string, listener: (value: Value) => void) {
-    const offs = [app.on(event, listener), standIn?.on(event, listener)];
-    return () => offs.forEach((off) => off?.());
-  }
-};
-
-/**
- * Answers the page's calls with `link` where Wren Components does not answer
- * them. For now it never does: Wren Runtime refuses to let an extension
- * script the app's own scheme ("Invalid url pattern: wren://migrate/*"), so
- * no port comes. Remove the stand-in once it does.
- */
-export function standInForApp(link: TabPageLink) {
-  standIn = link;
-}
+export const tabPage = relayed();
