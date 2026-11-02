@@ -1,0 +1,4 @@
+# Promo images and the pages they are drawn from, which come and go (the
+# promo-images skill). Only this file is tracked, so the folder is always here.
+*
+!.gitignore

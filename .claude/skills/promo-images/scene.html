@@ -1,0 +1,241 @@
+<!doctype html>
+<!--
+  A starting point for a Wren image: copy it to branding/promo/<name>/promo.html and
+  change everything about it but its look. render.ts draws it; SKILL.md says
+  how. The image's size is the meta below, and all else is in its pixels.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="size" content="1200x630" />
+    <title>Wren image</title>
+    <style>
+      @font-face {
+        font-family: Geist;
+        src: url("../../dmg/fonts/Geist-Medium.ttf");
+      }
+      @font-face {
+        font-family: GeistMono;
+        src: url("../../dmg/fonts/GeistMono-Medium.ttf");
+      }
+      @font-face {
+        font-family: Serif;
+        src: url("../../dmg/fonts/InstrumentSerif-Italic.ttf");
+      }
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        overflow: hidden;
+        background: #fff;
+      }
+      #scene {
+        /* A Space: Personal #7a81ff and #4f55d6, Work #34b394 and #0f7a62, Studio #f0845f and #c2481f. */
+        --space: #7a81ff;
+        --ink: #4f55d6;
+        position: relative;
+        overflow: hidden;
+        color: #16171c;
+        -webkit-font-smoothing: antialiased;
+        background: linear-gradient(
+          to bottom,
+          color-mix(in oklab, var(--space) 60%, white) 0%,
+          color-mix(in oklab, var(--space) 38%, #fff4ec) 42%,
+          color-mix(in oklab, var(--space) 22%, #ffeadf) 72%,
+          #ffe6d8 100%
+        );
+      }
+      #scene > * {
+        position: absolute;
+      }
+      .layer {
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .glow {
+        right: -240px;
+        top: -360px;
+        width: 760px;
+        height: 760px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle closest-side,
+          rgba(255, 240, 205, 0.85) 0%,
+          rgba(255, 238, 205, 0.62) 22%,
+          rgba(255, 232, 210, 0.32) 46%,
+          rgba(255, 228, 220, 0.12) 70%,
+          rgba(255, 228, 225, 0) 100%
+        );
+      }
+      .sun {
+        right: 72px;
+        top: -38px;
+        width: 136px;
+        height: 136px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 42% 40%, #fffdf2 0%, #fff7dc 62%, #ffefc4 100%);
+        box-shadow: 0 0 30px 6px rgba(255, 246, 214, 0.75);
+      }
+      .mark {
+        overflow: visible;
+        color: var(--ink);
+      }
+      h1 {
+        font: 500 76px/1.04 Geist;
+        letter-spacing: -0.034em;
+      }
+      /* The one flourish in a heading: a word or two, about 1.2 times the size to look even with Geist. */
+      h1 em {
+        font: italic 400 1.2em/1 Serif;
+        letter-spacing: -0.004em;
+        color: var(--ink);
+      }
+      .pill {
+        display: flex;
+        align-items: center;
+        height: 44px;
+        padding: 0 20px;
+        white-space: nowrap;
+        border-radius: 99px;
+        color: #3a3b44;
+        font: 500 19px/1 Geist;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow:
+          0 0 0 0.5px color-mix(in srgb, var(--ink) 18%, transparent),
+          0 4px 16px color-mix(in srgb, var(--ink) 14%, transparent);
+      }
+      .mono {
+        color: rgba(63, 64, 72, 0.72);
+        font: 500 18px/1 GeistMono;
+        letter-spacing: 0.02em;
+      }
+      /* A screenshot of Wren, already a whole window. */
+      .window {
+        border-radius: 12px;
+        box-shadow:
+          0 0 0 0.5px rgba(30, 32, 90, 0.2),
+          0 16px 56px rgba(30, 32, 90, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="scene">
+      <!-- What the rest draws with. -->
+      <svg width="0" height="0" style="position: absolute">
+        <defs>
+          <filter id="near" x="-10%" y="-25%" width="120%" height="150%"><feGaussianBlur stdDeviation="2.2" /></filter>
+          <filter id="far" x="-10%" y="-25%" width="120%" height="150%"><feGaussianBlur stdDeviation="3.4" /></filter>
+          <filter id="grain" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="11" />
+            <feColorMatrix values="0 0 0 0 .3 0 0 0 0 .3 0 0 0 0 .6 0 0 0 .9 -.28" />
+          </filter>
+          <filter id="lift" x="-40%" y="-40%" width="180%" height="190%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#4f55d6" flood-opacity=".45" />
+          </filter>
+          <!-- A cloud's underside, cool and warm. In the 100 by 40 box of #puffs. -->
+          <linearGradient id="cool" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="40">
+            <stop offset="0" stop-color="#fff" />
+            <stop offset=".62" stop-color="#fbfaff" />
+            <stop offset="1" style="stop-color: color-mix(in oklab, var(--space) 22%, white)" />
+          </linearGradient>
+          <linearGradient id="warm" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="40">
+            <stop offset="0" stop-color="#fff" />
+            <stop offset=".7" stop-color="#fffaf6" />
+            <stop offset="1" stop-color="#ffeee4" />
+          </linearGradient>
+          <g id="puffs">
+            <rect x="6" y="21.6" width="88" height="18.4" rx="9.2" />
+            <rect x="16" y="8.8" width="34" height="23.2" rx="11.6" />
+            <rect x="38" y="0" width="40" height="30.4" rx="15.2" />
+            <rect x="64" y="16.8" width="24" height="17.6" rx="8.8" />
+          </g>
+          <!-- A bird far off, seen from behind, in a 32 by 16 box. -->
+          <g id="bird" fill="none" stroke="var(--ink)" stroke-linecap="round">
+            <ellipse cx="16" cy="8.4" rx="1.7" ry="1.3" fill="var(--ink)" stroke="none" />
+            <path d="M16 8Q12.5 5.4 9 6" stroke-width="1.8" />
+            <path d="M9 6Q5 5.6 1.5 7.8" stroke-width="1.4" />
+            <path d="M16 8Q19.5 5.4 23 6" stroke-width="1.8" />
+            <path d="M23 6Q27 5.6 30.5 7.8" stroke-width="1.4" />
+          </g>
+          <!-- The wren, from branding/wren-light.svg, in the colour of its element. It faces right. -->
+          <mask id="wren-tail-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+            <rect width="512" height="512" fill="#fff" />
+            <path
+              d="M466 228 L 424 238 C 438 322 368 424 262 424 C 200 424 152 384 152 320 C 152 228 262 152 356 152 C 394 152 420 172 426 194 L 466 206 C 482 210 482 226 466 228 Z"
+              fill="#000"
+              stroke="#000"
+              stroke-width="32"
+              stroke-linejoin="round"
+            />
+          </mask>
+          <mask id="wren-body-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+            <rect width="512" height="512" fill="#fff" />
+            <path
+              d="M332 262 C 324 330 262 366 132 352 C 190 300 262 262 332 262 Z"
+              fill="#000"
+              stroke="#000"
+              stroke-width="32"
+              stroke-linejoin="round"
+            />
+            <circle cx="360" cy="206" r="17" fill="#000" />
+          </mask>
+          <symbol id="wren" viewBox="78.7404 100.121 354.2596 311.879" overflow="visible">
+            <g transform="translate(-45 -12)" fill="currentColor">
+              <g mask="url(#wren-tail-cut)">
+                <path d="M226 270 C 206 226 178 172 150 120 C 144 108 128 110 126 124 C 116 196 140 258 182 304 Z" />
+              </g>
+              <g mask="url(#wren-body-cut)">
+                <path
+                  d="M466 228 L 424 238 C 438 322 368 424 262 424 C 200 424 152 384 152 320 C 152 228 262 152 356 152 C 394 152 420 172 426 194 L 466 206 C 482 210 482 226 466 228 Z"
+                />
+              </g>
+              <path d="M332 262 C 324 330 262 366 132 352 C 190 300 262 262 332 262 Z" />
+            </g>
+          </symbol>
+        </defs>
+      </svg>
+
+      <div class="glow"></div>
+      <div class="sun"></div>
+
+      <svg class="layer">
+        <g filter="url(#far)" fill="#fff">
+          <use href="#puffs" transform="translate(560 96) scale(1.5)" opacity=".5" />
+          <use href="#puffs" transform="translate(860 210) scale(1.2)" opacity=".42" />
+        </g>
+        <g filter="url(#near)" fill="url(#cool)">
+          <use href="#puffs" transform="translate(960 150) scale(3.2)" opacity=".92" />
+        </g>
+        <g opacity=".55" transform="translate(770 48)">
+          <use href="#bird" transform="scale(1)" />
+          <use href="#bird" transform="translate(40 -14) scale(.74)" />
+          <use href="#bird" transform="translate(72 -4) scale(.54)" />
+        </g>
+        <!-- Banks of cloud, rising in the corners. -->
+        <g filter="url(#near)" fill="url(#warm)">
+          <use href="#puffs" transform="translate(-90 470) scale(4.4 3.2)" />
+          <use href="#puffs" transform="translate(840 440) scale(4.8 3.6)" />
+          <use href="#puffs" transform="translate(260 520) scale(7.5 2.6)" opacity=".96" />
+          <use href="#puffs" transform="translate(-100 570) scale(15 2.4)" />
+        </g>
+      </svg>
+
+      <svg class="mark" style="left: 72px; top: 64px" width="50" height="44"><use href="#wren" /></svg>
+      <h1 style="left: 72px; top: 150px; width: 760px">A small browser<br />for <em>big lives</em></h1>
+      <div class="mono" style="left: 72px; top: 342px">wrenbrowser.com</div>
+
+      <!-- Over all of it, so the gradients do not band. -->
+      <svg class="layer" style="opacity: 0.035; pointer-events: none">
+        <rect width="100%" height="100%" filter="url(#grain)" />
+      </svg>
+    </div>
+    <script>
+      // The page is the size the meta says, in a browser as when it is drawn.
+      const [width, height] = document.querySelector('meta[name="size"]').content.split("x");
+      Object.assign(document.querySelector("#scene").style, { width: `${width}px`, height: `${height}px` });
+    </script>
+  </body>
+</html>
