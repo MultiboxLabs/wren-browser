@@ -31,7 +31,7 @@ export function Sources({
               "flex h-10 items-center gap-2 rounded-full pr-4 pl-2 text-[14px] outline-none",
               on
                 ? "bg-(--page) text-(--fg) shadow-[0_0_0_2px_var(--space),0_2px_10px_rgb(79_85_214/0.18)]"
-                : "bg-(--group) glyph-1 hover:bg-hover"
+                : "bg-(--pill) text-(--fg-quiet) hover:text-(--fg)"
             )}
           >
             <SourceIcon source={source} size={26} />

@@ -14,7 +14,7 @@ const NAMES: Record<Thing, string> = {
   spaces: "Spaces",
   bookmarks: "Bookmarks",
   history: "History",
-  cookies: "Stay signed in",
+  cookies: "Cookies",
   extensions: "Extensions"
 };
 
@@ -29,7 +29,7 @@ function detail({ thing, count: n, pins = 0 }: ThingSummary) {
     case "history":
       return "The past 90 days";
     case "cookies":
-      return plural(n, "site");
+      return `Stay signed in to ${plural(n, "site")}`;
     default:
       return count(n);
   }
@@ -54,7 +54,7 @@ export function ChooseThings({
           {summary.thing === "extensions" ? (
             extensions
           ) : (
-            <span className="text-[13px] glyph-2 tabular-nums">{detail(summary)}</span>
+            <span className="text-[13px] text-(--fg-faint) tabular-nums">{detail(summary)}</span>
           )}
           <Switch
             label={NAMES[summary.thing]}
@@ -80,7 +80,7 @@ export function FlyingThings({ things }: { things: ThingProgress[] }) {
 }
 
 function Progress({ progress: { state, done, total, note, thing } }: { progress: ThingProgress }) {
-  if (state === "waiting") return <span className="text-[13px] glyph-3">Waiting</span>;
+  if (state === "waiting") return <span className="text-[13px] text-(--fg-faint)">Waiting</span>;
   if (state === "flying") {
     return (
       <span className="h-1 w-30 overflow-hidden rounded-full bg-(--fill)">
@@ -97,7 +97,7 @@ function Progress({ progress: { state, done, total, note, thing } }: { progress:
       <span className={cn("tabular-nums", failed ? "text-danger" : "text-(--landed)")}>
         {failed ? "Didn’t land" : thing === "spaces" ? `${plural(done, "pin")} landed` : `${count(done)} landed`}
       </span>
-      {note && <span className="truncate text-[12px] glyph-3">{note}</span>}
+      {note && <span className="truncate text-[12px] text-(--fg-faint)">{note}</span>}
     </span>
   );
 }

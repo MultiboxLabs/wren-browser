@@ -7,6 +7,7 @@
 mod browsers;
 mod data;
 mod engines;
+mod favicons;
 mod land;
 pub mod run;
 mod snapshot;
@@ -57,14 +58,18 @@ pub fn source(id: &str) -> Option<&'static dyn Source> {
     })
 }
 
-/// Every source installed, with its app's icon.
+/// The size wren://migrate's sky shows a source's icon at, in points: its
+/// body 84, in the margin around it (pages/migrate/source-icon.tsx).
+const LARGE_ICON_SIZE: f64 = 112.0;
+
+/// Every source installed, with its app's icon, large enough for the sky.
 pub fn installed_sources() -> Vec<(&'static dyn Source, Vec<u8>)> {
     SOURCES
         .iter()
         .filter_map(|source| {
             Some((
                 *source,
-                platform::installed_app_icon(source.about().app, ICON_SIZE)?,
+                platform::installed_app_icon(source.about().app, LARGE_ICON_SIZE)?,
             ))
         })
         .collect()
