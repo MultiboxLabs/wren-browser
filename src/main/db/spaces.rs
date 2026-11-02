@@ -273,7 +273,7 @@ impl Db {
     }
 }
 
-fn insert(
+pub(super) fn insert(
     transaction: &rusqlite::Transaction,
     profile: &str,
     space: &NewSpace,
