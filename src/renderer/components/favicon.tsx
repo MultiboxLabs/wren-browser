@@ -1,8 +1,15 @@
 import { iconUrl } from "@/ipc";
-import { enginePage } from "@/utils/url";
-import { PAGE_GLYPHS, PageIcon, SITE_GLYPH } from "./page-icon";
+import { enginePage, ownPage } from "@/utils/url";
+import { OWN_PAGE_GLYPHS, PAGE_GLYPHS, PageIcon, SITE_GLYPH } from "./page-icon";
 
-/** A site's icon: the tab's own, or else a globe. A Chromium page's is a glyph of ours (page-icon.tsx), in place of the stock one Chromium gives it. */
+/** One of `glyphs`, by a page's host, if it has one. */
+const glyphOf = (glyphs: typeof PAGE_GLYPHS, page: string | null) =>
+  page !== null && Object.hasOwn(glyphs, page) ? glyphs[page] : undefined;
+
+/**
+ * A site's icon: the tab's own, or else a globe. A Chromium page's, and one of Wren's own, is a glyph of ours
+ * (page-icon.tsx), in the text's colour, in place of one the page gives.
+ */
 export function Favicon({
   url,
   icon,
@@ -13,8 +20,7 @@ export function Favicon({
   icon?: string | null;
   size?: number;
 }) {
-  const page = enginePage(url);
-  const glyph = page !== null && Object.hasOwn(PAGE_GLYPHS, page) ? PAGE_GLYPHS[page] : undefined;
+  const glyph = glyphOf(PAGE_GLYPHS, enginePage(url)) ?? glyphOf(OWN_PAGE_GLYPHS, ownPage(url));
   if (glyph) return <PageIcon glyph={glyph} size={size} />;
   if (icon)
     return <img aria-hidden src={iconUrl(icon)} width={size} height={size} className="shrink-0 rounded-favicon" />;

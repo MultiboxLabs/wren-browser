@@ -1,5 +1,6 @@
 // Chromium's own pages' icons (settings, history, downloads and the like),
-// drawn as the platform draws its symbols: filled, with soft corners and the
+// and Wren's own pages' in tabs (the wren), drawn as the platform draws its
+// symbols: filled, with soft corners and the
 // details cut out of them, in the text's colour. Lucide's stroked glyphs
 // read as web beside the sites' own icons. Drawn in 100 units with the
 // rules of a tile icon's glyph (.claude/skills/tile-icons), but bare, with
@@ -7,6 +8,7 @@
 // has a globe from here too, in lines.
 
 import { type ReactNode, useId } from "react";
+import { WREN_BOX, wrenShapes } from "./icons";
 import { CUT } from "./tile-icon";
 
 /** A glyph's shapes, given an ID for its masks. */
@@ -113,6 +115,22 @@ export const PAGE_GLYPHS: Record<string, Glyph> = {
   "password-manager": passwords,
   settings,
   version: about
+};
+
+/** The wren, across the box and in its middle. */
+const wren: Glyph = (id) => {
+  const { x, y, width, height } = WREN_BOX;
+  const scale = 100 / width;
+  return (
+    <g transform={`translate(0 ${(100 - height * scale) / 2}) scale(${scale}) translate(${-x} ${-y})`}>
+      {wrenShapes(id)}
+    </g>
+  );
+};
+
+/** Each of Wren's own pages that shows in a tab with the wren for its icon, by its host. */
+export const OWN_PAGE_GLYPHS: Record<string, Glyph> = {
+  migrate: wren
 };
 
 /** A site with no icon of its own: a globe. The one glyph here in lines, as a
