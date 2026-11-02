@@ -19,9 +19,10 @@ use crate::clipboard;
 use crate::ipc::{self, OwnToast};
 use crate::menus;
 
-/// When `tab` was last on screen: what archiving counts from, and a pin's
-/// last use (pins/). Now while it is shown; Chromium keeps it across
-/// launches, so a tab left a long while ago counts from then.
+/// When `tab` was last in use: what archiving counts from, and a pin's last
+/// use (pins/). Now while it is shown or its Browser's active tab, even in a
+/// window not on screen; Chromium keeps it across launches, so a tab left a
+/// long while ago counts from then.
 pub fn last_active(tab: BrowserTab) -> SystemTime {
     tab.state()
         .map_or_else(|_| SystemTime::now(), |state| last_active_in(&state))
