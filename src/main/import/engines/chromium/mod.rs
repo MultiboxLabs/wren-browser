@@ -5,9 +5,11 @@
 mod bookmarks;
 mod cookies;
 mod extensions;
+mod favicons;
 mod history;
 mod profiles;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use wren::{Cookie, HistoryEntry};
@@ -103,6 +105,14 @@ impl Engine for Chromium {
         batch: &mut dyn FnMut(Vec<Cookie>),
     ) -> Result<(), ReadError> {
         cookies::read(&self.key, &self.root(), &profile.folder, batch)
+    }
+
+    fn favicons(
+        &self,
+        profile: &SourceProfile,
+        pages: &[String],
+    ) -> Result<HashMap<String, Vec<u8>>, ReadError> {
+        favicons::read(&profile.folder, pages)
     }
 }
 

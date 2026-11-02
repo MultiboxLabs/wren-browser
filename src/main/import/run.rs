@@ -385,7 +385,12 @@ fn next(mt: MainThread, id: u64) {
         }
         Thing::Spaces => {
             std::thread::spawn(move || {
-                let read = source.spaces(&profile);
+                // Their favicons are a nicety: without them, the pins come
+                // over all the same.
+                let read = source.spaces(&profile).map(|spaces| {
+                    spaces
+                        .with_favicons(|pages| source.favicons(&profile, pages).unwrap_or_default())
+                });
                 let _ = wren::post_to_main_thread(move |mt| {
                     let why = match read {
                         Ok(read) => {

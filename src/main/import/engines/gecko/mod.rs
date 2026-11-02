@@ -4,10 +4,12 @@
 // so none come over.
 
 mod cookies;
+mod favicons;
 pub mod mozlz4;
 mod places;
 mod profiles;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use wren::{Cookie, HistoryEntry};
@@ -73,6 +75,14 @@ impl Engine for Gecko {
         batch: &mut dyn FnMut(Vec<Cookie>),
     ) -> Result<(), ReadError> {
         cookies::read(&profile.folder, batch)
+    }
+
+    fn favicons(
+        &self,
+        profile: &SourceProfile,
+        pages: &[String],
+    ) -> Result<HashMap<String, Vec<u8>>, ReadError> {
+        favicons::read(&profile.folder, pages)
     }
 }
 

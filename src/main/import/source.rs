@@ -6,6 +6,7 @@
 // a thread of its own (run.rs), and what it read is landed on the main
 // thread (land/).
 
+use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 
@@ -141,6 +142,16 @@ pub trait Engine: Sync {
         profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<Cookie>),
     ) -> Result<(), ReadError>;
+    /// The favicons it kept for `pages`, as PNGs, by page; none of a page
+    /// it kept none for (favicons.rs). An engine that keeps none of a pin's
+    /// kind gives none.
+    fn favicons(
+        &self,
+        _profile: &SourceProfile,
+        _pages: &[String],
+    ) -> Result<HashMap<String, Vec<u8>>, ReadError> {
+        Ok(HashMap::new())
+    }
 }
 
 /// A browser the user may bring their things over from: its engine's
@@ -173,13 +184,20 @@ pub trait Source: Sync {
     ) -> Result<(), ReadError> {
         self.engine().cookies(profile, batch)
     }
+    fn favicons(
+        &self,
+        profile: &SourceProfile,
+        pages: &[String],
+    ) -> Result<HashMap<String, Vec<u8>>, ReadError> {
+        self.engine().favicons(profile, pages)
+    }
 
     /// It keeps tabs in spaces, which come over as Wren's.
     fn keeps_spaces(&self) -> bool {
         false
     }
     /// Its spaces with their pins, and its favourites; none for a browser
-    /// that keeps none.
+    /// that keeps none. Their pages have no favicons: `favicons` gives them.
     fn spaces(&self, _profile: &SourceProfile) -> Result<Spaces, ReadError> {
         Ok(Spaces::default())
     }

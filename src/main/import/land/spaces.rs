@@ -18,7 +18,7 @@ const DEFAULT_ICON: &str = "lucide:orbit";
 
 /// The sources' own names for their icons, as Lucide's (`lucide:<name>`).
 /// A name is matched by its first word ("star.fill" is "star").
-const NAMED: [(&str, &str); 30] = [
+const NAMED: &[(&str, &str)] = &[
     ("star", "star"),
     ("house", "house"),
     ("home", "house"),
@@ -49,6 +49,40 @@ const NAMED: [(&str, &str); 30] = [
     ("cup", "coffee"),
     ("bookmark", "bookmark"),
     ("folder", "folder"),
+    ("planet", "orbit"),
+    ("construction", "wrench"),
+    ("hammer", "wrench"),
+    ("wrench", "wrench"),
+    ("bed", "bed-double"),
+    ("video", "film"),
+    ("film", "film"),
+    ("tv", "tv"),
+    ("fire", "flame"),
+    ("paintbrush", "palette"),
+    ("pencil", "pencil"),
+    ("lightbulb", "lightbulb"),
+    ("rocket", "rocket"),
+    ("gift", "gift"),
+    ("trophy", "trophy"),
+    ("map", "map"),
+    ("cloud", "cloud"),
+    ("flask", "flask-conical"),
+    ("chart", "chart-line"),
+    ("dollarsign", "wallet"),
+    ("creditcard", "wallet"),
+    ("bag", "shopping-bag"),
+    ("fork", "utensils"),
+    ("envelope", "mail"),
+    ("laptopcomputer", "laptop"),
+    ("desktopcomputer", "laptop"),
+    ("phone", "phone"),
+    ("headphones", "headphones"),
+    ("pawprint", "paw-print"),
+    ("dumbbell", "dumbbell"),
+    ("figure", "dumbbell"),
+    ("newspaper", "newspaper"),
+    ("calendar", "calendar"),
+    ("sparkles", "sparkles"),
 ];
 
 /// Lands `spaces` in the Wren profile `profile`. A profile made for them
@@ -129,7 +163,7 @@ fn page(page: PinPage) -> WrenPage {
     WrenPage {
         url: page.url,
         title: page.title,
-        favicon: None,
+        favicon: page.favicon,
     }
 }
 
@@ -185,5 +219,17 @@ mod tests {
         );
         assert_eq!(icon(&SpaceIcon::Named("unheard-of".into())), DEFAULT_ICON);
         assert_eq!(icon(&SpaceIcon::None), DEFAULT_ICON);
+    }
+
+    // Each is one the space's icon picker has, so it draws.
+    #[test]
+    fn maps_only_to_icons_wren_has() {
+        let catalog = include_str!("../../../renderer/components/icon-picker/catalog.ts");
+        for (_, lucide) in NAMED {
+            assert!(
+                catalog.contains(&format!("\"{lucide}\"")),
+                "{lucide} is not in the catalog"
+            );
+        }
     }
 }

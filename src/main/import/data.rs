@@ -2,6 +2,8 @@
 // `HistoryEntry` and `Cookie`: plain data, read on one thread and landed on
 // another.
 
+use std::collections::HashMap;
+
 /// A folder of bookmarks, and what is in it, in order.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BookmarkFolder {
@@ -82,6 +84,47 @@ impl Spaces {
                 .map(|space| count_pins(&space.pins))
                 .sum::<usize>()
     }
+
+    /// Every pin's page, the favourites' and those in folders too.
+    pub fn pages_mut(&mut self) -> Vec<&mut PinPage> {
+        let mut pages = Vec::new();
+        let spaces = self.spaces.iter_mut().map(|space| &mut space.pins);
+        for pins in std::iter::once(&mut self.favorites).chain(spaces) {
+            pages_in(pins, &mut pages);
+        }
+        pages
+    }
+
+    /// Gives each pin's page the favicon its source kept for it
+    /// (`Source::favicons`).
+    pub fn with_favicons(
+        mut self,
+        favicons: impl FnOnce(&[String]) -> HashMap<String, Vec<u8>>,
+    ) -> Spaces {
+        let urls: Vec<String> = self
+            .pages_mut()
+            .iter()
+            .map(|page| page.url.clone())
+            .collect();
+        let found = favicons(&urls);
+        for page in self.pages_mut() {
+            page.favicon = found.get(&page.url).cloned();
+        }
+        self
+    }
+}
+
+fn pages_in<'a>(pins: &'a mut [Pin], pages: &mut Vec<&'a mut PinPage>) {
+    for pin in pins {
+        match pin {
+            Pin::Tab(page) => pages.push(page),
+            Pin::Split { first, second, .. } => {
+                pages.push(first);
+                pages.push(second);
+            }
+            Pin::Folder { pins, .. } => pages_in(pins, pages),
+        }
+    }
 }
 
 pub fn count_pins(pins: &[Pin]) -> usize {
@@ -115,6 +158,8 @@ pub enum SpaceIcon {
 pub struct PinPage {
     pub title: String,
     pub url: String,
+    /// A PNG at 2x, as a tab's favicon is.
+    pub favicon: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
