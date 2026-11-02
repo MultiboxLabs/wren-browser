@@ -24,6 +24,11 @@ export function enginePage(url: string) {
   return url.startsWith(ENGINE) ? host(url) : null;
 }
 
+/** The name of Wren's own page an address is (migrate for wren://migrate), or null if it is not one. */
+export function ownPage(url: string) {
+  return url.startsWith(OURS) ? host(url) : null;
+}
+
 /** An address's host, or the address itself if it has none. */
 export function host(url: string) {
   try {

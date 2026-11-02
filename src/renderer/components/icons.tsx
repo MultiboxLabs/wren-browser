@@ -7,16 +7,17 @@ import { useId } from "react";
 
 type Props = { size?: number; strokeWidth?: number };
 
-/** Wren's mark, the wren (branding/wren-light.svg), filled in the text colour. */
-export function WrenMark({ size = 24 }: Props) {
-  // Its masks' IDs, which are the document's: one for each mark drawn.
-  const id = useId();
+/** The box the wren's shapes are drawn in (branding/wren-light.svg's). */
+export const WREN_BOX = { x: 78.7404, y: 100.121, width: 354.2596, height: 311.879 };
+
+/** The wren's shapes, filled in the text colour, in `WREN_BOX`; `id` names their masks, which are the document's. */
+export function wrenShapes(id: string) {
   const cut = { stroke: "#000", strokeWidth: 32, strokeLinejoin: "round" } as const;
   const body =
     "M466 228 L 424 238 C 438 322 368 424 262 424 C 200 424 152 384 152 320 C 152 228 262 152 356 152 C 394 152 420 172 426 194 L 466 206 C 482 210 482 226 466 228 Z";
   const wing = "M332 262 C 324 330 262 366 132 352 C 190 300 262 262 332 262 Z";
   return (
-    <svg width={size} height={(size * 311.879) / 354.2596} viewBox="78.7404 100.121 354.2596 311.879" aria-hidden>
+    <>
       <defs>
         <mask id={`${id}-tail`} maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
           <rect width="512" height="512" fill="#fff" />
@@ -36,6 +37,17 @@ export function WrenMark({ size = 24 }: Props) {
         <path mask={`url(#${id}-body)`} d={body} />
         <path d={wing} />
       </g>
+    </>
+  );
+}
+
+/** Wren's mark, the wren, filled in the text colour. */
+export function WrenMark({ size = 24 }: Props) {
+  const id = useId();
+  const { x, y, width, height } = WREN_BOX;
+  return (
+    <svg width={size} height={(size * height) / width} viewBox={`${x} ${y} ${width} ${height}`} aria-hidden>
+      {wrenShapes(id)}
     </svg>
   );
 }
