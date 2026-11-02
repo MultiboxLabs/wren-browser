@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "description": "Code Wren runs inside pages, which the user does not manage.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt2D85fZD+T3eaTokbdJQk+XayOChb8aW6oJo4aanNAyHBm7EkNQ0SjYWqnZHrN4qnl7xrhmFdy9mlGT6TOW5/nHqqjmKQqST2X2Iou8pwqLbkUzpwJkRgNb1rLS7KW12Tuzz6ADpTUycB4TWqPrFktBo/mqDffSpgMi6XGB06mgWLMjJ70KcfhjhGj/6JvXK7O7x0OvmO4eQp47bG+HT5PRfosYOWc2cJ5oRGn/JViwegKqQhY6bZRU+yB7eT/L+IopDK+UY2gQ0XjHVJSncZZdL7PTwRVCMxSXbJonCs6omtU2loh4PLuJsd3YudimPLnnGe/8atG4Dwu8PmdByXwIDAQAB",
+  "permissions": ["nativeMessaging"],
+  "background": { "service_worker": "background.js", "type": "module" },
   "content_scripts": [
     {
       "matches": ["https://chromewebstore.google.com/*"],

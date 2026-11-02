@@ -29,6 +29,8 @@ pub struct Page {
     /// Its page's `wheel` events say where a trackpad scroll is: the fingers
     /// landing, moving and lifting, and its glide after (`wrenPhase`).
     pub wheel_phases: bool,
+    /// Its page may fetch the icons the app names to it (`icons::PATH`).
+    pub icons: bool,
 }
 
 pub const UI: Page = Page {
@@ -38,6 +40,7 @@ pub const UI: Page = Page {
     anchors: true,
     in_tabs: false,
     wheel_phases: true,
+    icons: true,
 };
 
 /// The window the user goes through before the app is theirs
@@ -49,6 +52,7 @@ pub const ONBOARDING: Page = Page {
     anchors: false,
     in_tabs: false,
     wheel_phases: false,
+    icons: true,
 };
 
 pub const GAME: Page = Page {
@@ -58,9 +62,25 @@ pub const GAME: Page = Page {
     anchors: false,
     in_tabs: true,
     wheel_phases: false,
+    icons: false,
 };
 
-const PAGES: [&Page; 3] = [&UI, &ONBOARDING, &GAME];
+/// Bringing the user's things over from another browser, in a tab. It calls
+/// the app through Wren Components (extensions/bridge.rs), as a tab has no
+/// messages.
+pub const MIGRATE: Page = Page {
+    host: "migrate",
+    messages: false,
+    embeds_views: false,
+    anchors: false,
+    in_tabs: true,
+    wheel_phases: false,
+    icons: true,
+};
+
+// A tab's typed wren://<host> stays on the app's scheme only for a host
+// `OWN_HOSTS` lists (src/renderer/utils/url.ts); keep the two together.
+const PAGES: [&Page; 4] = [&UI, &ONBOARDING, &GAME, &MIGRATE];
 
 impl Page {
     pub fn url(&self) -> String {
@@ -166,7 +186,7 @@ pub fn serve_page(request: SchemeRequest, source: &Source) {
     };
     // The icons the app names to a page, and the UI's tabs' previews, come
     // from the app, whatever serves its files.
-    if page.messages
+    if page.icons
         && let Some(name) = path.strip_prefix(icons::PATH)
     {
         let _ = request.respond(icons::serve(name));
