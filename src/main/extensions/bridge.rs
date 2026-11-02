@@ -4,7 +4,7 @@
 // open gets a native port of its own (extensions/wren-components/bridge/),
 // whose first message says which page it is, from Chromium; then the page's
 // calls, each answered, as `wren.invoke`'s are, and the app's messages to
-// it, as `wren.on` gets them (once the app has any to send). src/renderer/ipc/tab-page.ts is the page's
+// it, as `wren.on` gets them. src/renderer/ipc/tab-page.ts is the page's
 // side, and ipc/<part>.rs registers each page's calls (`handle`).
 
 use std::cell::RefCell;
@@ -109,6 +109,28 @@ pub fn handle_call(page: &'static Page, name: &str, handler: impl Fn(Call) + 'st
             .borrow_mut()
             .insert((page.host, name.to_owned()), Rc::new(handler))
     });
+}
+
+/// Sends every open `page` the message `event`, with `value`, as `wren.on`
+/// gets one.
+pub fn send<V: Serialize + ?Sized>(page: &Page, event: &str, value: &V) {
+    let Ok(value) = serde_json::to_value(value) else {
+        return;
+    };
+    let message = json!({ "event": event, "value": value });
+    let ports: Vec<NativePort> = SESSIONS.with(|sessions| {
+        sessions
+            .borrow()
+            .iter()
+            .filter(|(_, session)| {
+                matches!(session, Session::Open { page: host, .. } if *host == page.host)
+            })
+            .map(|(port, _)| *port)
+            .collect()
+    });
+    for port in ports {
+        send_to(port, &message);
+    }
 }
 
 fn send_to(port: NativePort, message: &Value) {

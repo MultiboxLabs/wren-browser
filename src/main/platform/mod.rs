@@ -28,8 +28,8 @@ pub use keyboard::{Key, KeyWatch};
 pub use main_thread::after;
 pub use paths::{data_dir, home_dir, resources_dir};
 pub use property_list::read_property_list;
-pub use secrets::{BrowserKey, chromium_key, decrypt};
-pub use system::{OS_NAME, app_version, os_version};
+pub use secrets::{chromium_key, decrypt};
+pub use system::{OS_NAME, Privacy, app_version, open_privacy_settings, os_version};
 pub use updater::{Updater, UpdaterOptions, UpdaterState};
 pub use window::{DevToolsWindow, PageWindow, TitleBarKind, WindowSize, close_other_key_window};
 
