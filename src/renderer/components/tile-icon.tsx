@@ -17,7 +17,9 @@ export const TONES = {
   grey: ["rgb(168 168 174)", "rgb(112 112 118)"],
   wren: ["rgb(255 172 92)", "rgb(238 104 38)"],
   slate: ["rgb(142 150 166)", "rgb(88 96 112)"],
-  sky: ["rgb(110 196 255)", "rgb(36 118 238)"]
+  sky: ["rgb(110 196 255)", "rgb(36 118 238)"],
+  purple: ["rgb(196 146 255)", "rgb(140 82 226)"],
+  indigo: ["rgb(134 140 255)", "rgb(86 90 220)"]
 } as const;
 
 export function TileIcon({

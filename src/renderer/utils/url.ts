@@ -3,8 +3,9 @@
 // Chromium's own pages (chrome://settings) show and are typed under our scheme.
 const ENGINE = "chrome://";
 const OURS = "wren://";
-// The pages the app serves itself on its scheme (src/main/pages), which stay as they are.
-const OWN_HOSTS = ["ui", "game"];
+// The pages the app serves itself on its scheme (src/main/pages), which stay
+// as they are. Keep it with `PAGES` there.
+const OWN_HOSTS = ["ui", "game", "migrate"];
 
 /** An address as the page shows it: Chromium's pages on the app's scheme. */
 export function shownUrl(url: string) {
