@@ -293,6 +293,7 @@ fn page(item: &Value) -> Option<PinPage> {
     Some(PinPage {
         title: title.to_owned(),
         url: url.to_owned(),
+        favicon: None,
     })
 }
 

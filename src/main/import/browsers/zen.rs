@@ -86,6 +86,7 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
         Some(PinPage {
             title: entry["title"].as_str().unwrap_or(url).to_owned(),
             url: url.to_owned(),
+            favicon: None,
         })
     };
     let by_sync_id: HashMap<&str, &Value> = tabs
