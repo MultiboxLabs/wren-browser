@@ -14,8 +14,12 @@ export type TabPageLink = {
   on<Value>(event: string, listener: (value: Value) => void): () => void;
 };
 
-/** How long the page waits for Wren Components to answer its first call. */
-const CONNECT_TIMEOUT = 2000;
+/**
+ * How long the page waits for Wren Components to answer its first call.
+ * Its script is in the page from before the page's own, and answers at once,
+ * so a little longer than a frame or two means it is not there.
+ */
+const CONNECT_TIMEOUT = 150;
 
 type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void };
 

@@ -1,7 +1,7 @@
 // What the app would answer wren://migrate with, made up, for while Wren
 // Components cannot reach the page (`standInForApp`, ipc/tab-page.ts). It
-// answers each call as src/main/ipc/migrate.rs will, after a moment, and
-// plays a run through, so every state of the page can be seen. Delete it
+// answers each call as src/main/ipc/migrate.rs will, and plays a run
+// through, so every state of the page can be seen. Delete it
 // once the app answers.
 
 import type { MigrateContext, MigratePlan, MigrateRun, MigrateSource, Survey, TabPageLink, ThingProgress } from "@/ipc";
@@ -139,7 +139,6 @@ export const standIn: TabPageLink = {
   async invoke<Answer>(call: string, args?: unknown) {
     const answer = answers[call];
     if (!answer) throw new Error(`The page has no call “${call}”.`);
-    await new Promise((resolve) => setTimeout(resolve, 120));
     return structuredClone(answer(args as never)) as Answer;
   },
   on<Value>(event: string, listener: (value: Value) => void) {

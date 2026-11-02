@@ -12,7 +12,7 @@ import { migrate } from "@/ipc";
 import { useMigrate } from "@/state/migrate";
 import { useSystemScheme } from "@/state/window";
 import { ExtensionsDialog } from "./extensions-dialog";
-import { Profiles } from "./profiles";
+import { Destination, Profiles } from "./profiles";
 import { type Flight, Sky } from "./sky";
 import { Sources } from "./sources";
 import { ChooseThings, FlyingThings } from "./things";
@@ -24,24 +24,41 @@ export function Migrate() {
   }, [scheme]);
 
   const state = useMigrate();
+  // The column is scrolled: its edge under the sky blurs.
+  const [scrolled, setScrolled] = useState(false);
   const { phase, run, source, sources } = state;
   const flightSource = run && phase !== "choose" ? sources?.find(({ id }) => id === run.source) : source;
 
   return (
     <MotionConfig reducedMotion="user">
       <TooltipProvider>
-        <main className="flex min-h-screen flex-col items-center pb-16">
+        {/* The sky stays; the column under it scrolls. */}
+        <main className="flex h-screen flex-col overflow-hidden">
           <Sky source={flightSource} flight={flight(state)} />
-          {/* Each phase rises into place as it comes; the last one goes at once. */}
-          <motion.div
-            key={phase}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="flex w-full max-w-[552px] flex-col items-center px-4"
-          >
-            <Content state={state} />
-          </motion.div>
+          <div className="relative min-h-0 flex-1">
+            <div
+              className="migrate-scroll h-full overflow-y-auto"
+              onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 0)}
+            >
+              {/* Each phase rises into place as it comes; the last one goes at once.
+                  Choosing shows its heading at once, and the rest as it is read. */}
+              <motion.div
+                key={phase === "loading" ? "choose" : phase}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="mx-auto flex w-full max-w-[552px] flex-col items-center px-4 pb-16"
+              >
+                <Content state={state} />
+              </motion.div>
+            </div>
+            {/* Clear of the scrollbar. */}
+            <div
+              aria-hidden
+              data-shown={scrolled}
+              className="migrate-scroll-edge pointer-events-none absolute top-0 right-3.5 left-0 h-12"
+            />
+          </div>
         </main>
       </TooltipProvider>
     </MotionConfig>
@@ -62,7 +79,7 @@ function Content({ state }: { state: ReturnType<typeof useMigrate> }) {
   const { phase, error } = state;
   switch (phase) {
     case "loading":
-      return error ? <Heading title="Something went" flourish="astray" body={error} /> : null;
+      return error ? <Heading title="Something went" flourish="astray" body={error} /> : <Choose state={state} />;
     case "incognito":
       return (
         <Heading
@@ -96,10 +113,10 @@ function Content({ state }: { state: ReturnType<typeof useMigrate> }) {
 function Heading({ title, flourish, body }: { title: string; flourish: string; body: ReactNode }) {
   return (
     <header className="mt-10 flex flex-col items-center gap-3 text-center">
-      <h1 className="text-[44px] leading-[1.06] font-medium tracking-[-0.03em] text-balance">
+      <h1 className="text-[44px] leading-[1.06] tracking-[-0.03em] text-balance">
         {title} <em className="migrate-serif">{flourish}</em>
       </h1>
-      <p className="max-w-[520px] text-[15px] leading-[1.45] text-balance glyph-2">{body}</p>
+      <p className="max-w-[520px] text-[16px] leading-[1.45] text-(--fg-quiet)">{body}</p>
     </header>
   );
 }
@@ -107,18 +124,21 @@ function Heading({ title, flourish, body }: { title: string; flourish: string; b
 function Choose({ state }: { state: ReturnType<typeof useMigrate> }) {
   const [choosing, setChoosing] = useState(false);
   const { source, sources, context } = state;
-  if (!sources || !context) return null;
+  const heading = (
+    <Heading
+      title="Time to"
+      flourish="migrate"
+      body="Bring your things over from the browser you used before. It all stays on this Mac."
+    />
+  );
+  if (!sources || !context) return heading;
   return (
     <>
-      <Heading
-        title="Time to"
-        flourish="migrate"
-        body="Bring your things over from the browser you used before. It all stays on this Mac."
-      />
-      <div className="mt-7">
+      {heading}
+      <div className="mt-6.5">
         <Sources sources={sources} chosen={source?.id} onChoose={state.chooseSource} />
       </div>
-      <div className="mt-6 flex w-full flex-col gap-4">
+      <div className="mt-5.5 flex w-full flex-col gap-4">
         {source && source.profiles.length > 1 && (
           <Profiles profiles={source.profiles} choices={state.profiles} context={context} onChange={state.setProfile} />
         )}
@@ -129,20 +149,31 @@ function Choose({ state }: { state: ReturnType<typeof useMigrate> }) {
             isOn={state.isOn}
             setOn={state.setOn}
             extensions={
-              <button className="text-[13px] glyph-2 tabular-nums hover:underline" onClick={() => setChoosing(true)}>
+              <button
+                className="text-[13px] text-(--fg-faint) tabular-nums hover:underline"
+                onClick={() => setChoosing(true)}
+              >
                 {state.chosenExtensions.size} of {state.storeExtensions.length} · Choose…
               </button>
             }
           />
         )}
+        {source?.profiles.length === 1 && state.summaries.length > 0 && (
+          <Destination
+            profiles={source.profiles}
+            choices={state.profiles}
+            context={context}
+            onChange={state.setProfile}
+          />
+        )}
         {state.surveyed && !state.needsAccess && state.summaries.length === 0 && (
-          <p className="py-3 text-center text-[13px] glyph-2">{source?.name} has nothing to bring over.</p>
+          <p className="py-3 text-center text-[13px] text-(--fg-faint)">{source?.name} has nothing to bring over.</p>
         )}
         {source && (
           <Button
             variant="solid"
             shape="none"
-            className="mt-1 h-11 w-full justify-center rounded-[12px] text-[15px] font-medium"
+            className="-mt-0.5 h-11 w-full justify-center rounded-[12px] text-[15px]"
             disabled={!state.canStart}
             onClick={() => void state.start()}
           >
@@ -165,7 +196,7 @@ function Choose({ state }: { state: ReturnType<typeof useMigrate> }) {
 function AccessNotice() {
   return (
     <div className="flex items-center gap-3 rounded-[12px] bg-(--group) px-3.5 py-3 text-[13px]">
-      <span className="flex-1 glyph-2">
+      <span className="flex-1 text-(--fg-quiet)">
         Wren needs Full Disk Access to read this browser’s things. Allow it, then come back here.
       </span>
       <Button variant="filled" onClick={() => void migrate.openAccessSettings()}>
@@ -188,7 +219,7 @@ function Landed({ state }: { state: ReturnType<typeof useMigrate> }) {
       />
       <div className="mt-8 flex w-full flex-col gap-4">
         <FlyingThings things={things} />
-        <Button variant="plain" className="self-center glyph-2" onClick={state.again}>
+        <Button variant="plain" className="self-center text-(--fg-quiet)" onClick={state.again}>
           Migrate from Another Browser
         </Button>
       </div>

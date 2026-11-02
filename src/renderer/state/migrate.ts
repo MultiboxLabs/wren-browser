@@ -83,9 +83,12 @@ export function useMigrate() {
   const surveyed = !!source && chosenSurveys.length === chosen.length;
   const needsAccess = chosenSurveys.some((each) => each.access === "fullDiskAccess");
 
-  // Every store extension of the profiles chosen, once each.
+  // Every store extension of the profiles chosen, once each: on if any of
+  // them has it on. Each profile gets those it has of the ones chosen.
   const byId = new Map<string, StoreExtension>();
-  for (const each of chosenSurveys) for (const extension of each.extensions ?? []) byId.set(extension.id, extension);
+  for (const each of chosenSurveys)
+    for (const extension of each.extensions ?? [])
+      if (!byId.get(extension.id)?.enabled) byId.set(extension.id, extension);
   const storeExtensions = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
   const chosenExtensions = extensions ?? new Set(storeExtensions.filter((each) => each.enabled).map(({ id }) => id));
 
