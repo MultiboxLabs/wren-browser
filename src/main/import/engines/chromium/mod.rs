@@ -9,12 +9,11 @@ mod favicons;
 mod history;
 mod profiles;
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use wren::{Cookie, HistoryEntry};
 
-use crate::import::data::BookmarkFolder;
+use crate::import::data::{Bookmarks, Favicons};
 use crate::import::snapshot;
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
 use crate::platform;
@@ -87,7 +86,7 @@ impl Engine for Chromium {
         survey
     }
 
-    fn bookmarks(&self, profile: &SourceProfile) -> Result<BookmarkFolder, ReadError> {
+    fn bookmarks(&self, profile: &SourceProfile) -> Result<Bookmarks, ReadError> {
         bookmarks::read(&profile.folder)
     }
 
@@ -107,11 +106,7 @@ impl Engine for Chromium {
         cookies::read(&self.key, &self.root(), &profile.folder, batch)
     }
 
-    fn favicons(
-        &self,
-        profile: &SourceProfile,
-        pages: &[String],
-    ) -> Result<HashMap<String, Vec<u8>>, ReadError> {
+    fn favicons(&self, profile: &SourceProfile, pages: &[String]) -> Result<Favicons, ReadError> {
         favicons::read(&profile.folder, pages)
     }
 }

@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use wren::{Cookie, HistoryEntry};
 
-use crate::import::data::BookmarkFolder;
+use crate::import::data::Bookmarks;
 use crate::import::snapshot;
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
 use crate::platform;
@@ -60,7 +60,7 @@ impl Engine for Safari {
         survey
     }
 
-    fn bookmarks(&self, profile: &SourceProfile) -> Result<BookmarkFolder, ReadError> {
+    fn bookmarks(&self, profile: &SourceProfile) -> Result<Bookmarks, ReadError> {
         bookmarks::read(&profile.folder)
     }
 

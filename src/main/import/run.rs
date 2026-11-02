@@ -12,19 +12,17 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::{Rc, Weak};
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use wren::{CookieResult, MainThread, Profile, WebStoreInstallResult};
 
-use super::data::{BookmarkFolder, Spaces};
+use super::data::{Bookmarks, Spaces};
 use super::land::profiles::{self, Landing};
 use super::land::{bookmarks, spaces};
 use super::source::{ReadError, Source, SourceProfile, Survey};
 use crate::app::State;
 use crate::extensions::bridge;
 use crate::pages::MIGRATE;
-use crate::platform;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
@@ -347,44 +345,34 @@ fn next(mt: MainThread, id: u64) {
                 })
             },
         ),
-        Thing::Bookmarks => {
-            std::thread::spawn(move || {
-                let read = source.bookmarks(&profile);
-                let _ = wren::post_to_main_thread(move |mt| match read {
-                    Ok(tree) => {
-                        let Some(target) = with(id, |run| {
-                            run.pending += 1;
-                            run.profiles[index].profile.clone()
-                        }) else {
-                            return;
-                        };
-                        land_bookmarks(mt, id, target, source.about().name, tree, 0);
-                        read_over(mt, id, thing, None);
-                    }
-                    Err(error) => {
-                        read_over(mt, id, thing, Some(error.message(source.about().name)))
-                    }
-                });
-            });
-        }
-        Thing::Spaces => {
-            std::thread::spawn(move || {
-                // Their favicons are a nicety: without them, the pins come
-                // over all the same.
-                let read = source.spaces(&profile).map(|spaces| {
+        // Their favicons are a nicety: without them, the pins come over all
+        // the same.
+        Thing::Bookmarks => whole(
+            id,
+            index,
+            thing,
+            source.about().name,
+            move || {
+                source.bookmarks(&profile).map(|bookmarks| {
+                    bookmarks
+                        .with_favicons(|pages| source.favicons(&profile, pages).unwrap_or_default())
+                })
+            },
+            land_bookmarks,
+        ),
+        Thing::Spaces => whole(
+            id,
+            index,
+            thing,
+            source.about().name,
+            move || {
+                source.spaces(&profile).map(|spaces| {
                     spaces
                         .with_favicons(|pages| source.favicons(&profile, pages).unwrap_or_default())
-                });
-                let why = read
-                    .as_ref()
-                    .err()
-                    .map(|error| error.message(source.about().name));
-                let _ = wren::post_to_main_thread(move |mt| {
-                    let why = why.or_else(|| land_spaces(id, index, read.ok()?));
-                    read_over(mt, id, thing, why);
-                });
-            });
-        }
+                })
+            },
+            land_spaces,
+        ),
         Thing::Extensions => {
             let ids: Vec<String> = with(id, |run| {
                 run.profiles[index]
@@ -466,8 +454,61 @@ fn in_batches<T: Send + 'static>(
     });
 }
 
+// Reads a thing whole on a thread, then lands it (`land`) on the main
+// thread, in the step's profile.
+fn whole<T: Send + 'static>(
+    id: u64,
+    index: usize,
+    thing: Thing,
+    source: &'static str,
+    read: impl FnOnce() -> Result<T, ReadError> + Send + 'static,
+    land: fn(MainThread, u64, usize, T) -> Option<String>,
+) {
+    std::thread::spawn(move || {
+        let read = read();
+        let _ = wren::post_to_main_thread(move |mt| {
+            let why = match read {
+                Ok(read) => land(mt, id, index, read),
+                Err(error) => Some(error.message(source)),
+            };
+            read_over(mt, id, thing, why);
+        });
+    });
+}
+
+// Lands a profile's bookmarks as pins in its Wren profile: why they did
+// not, if not.
+fn land_bookmarks(mt: MainThread, id: u64, index: usize, read: Bookmarks) -> Option<String> {
+    let (app, target) = with(id, |run| {
+        (run.app.upgrade(), run.profiles[index].profile.id())
+    })?;
+    let Some(entry) = mt
+        .profile_list()
+        .into_iter()
+        .find(|entry| entry.id == target)
+    else {
+        return Some("That profile is gone.".into());
+    };
+    let count = read.count();
+    let added = match bookmarks::land(&app?, &entry, read) {
+        Ok(added) => added,
+        Err(error) => return Some(error),
+    };
+    landed(id, Thing::Bookmarks, added);
+    let skipped = count.saturating_sub(added);
+    if skipped > 0 {
+        let were = if skipped == 1 { "was" } else { "were" };
+        note(
+            id,
+            Thing::Bookmarks,
+            format!("{skipped} {were} pinned already."),
+        );
+    }
+    None
+}
+
 // Lands a profile's spaces in its Wren profile: why they did not, if not.
-fn land_spaces(id: u64, index: usize, read: Spaces) -> Option<String> {
+fn land_spaces(_: MainThread, id: u64, index: usize, read: Spaces) -> Option<String> {
     let (app, target, made) = with(id, |run| {
         let landed = &run.profiles[index];
         (run.app.upgrade(), landed.profile.id(), landed.made)
@@ -476,11 +517,7 @@ fn land_spaces(id: u64, index: usize, read: Spaces) -> Option<String> {
         Ok(added) => added,
         Err(error) => return Some(error),
     };
-    with(id, |run| {
-        if let Some(progress) = progress(run, Thing::Spaces) {
-            progress.done += added.pins;
-        }
-    });
+    landed(id, Thing::Spaces, added.pins);
     let skipped = added.skipped_spaces;
     if skipped > 0 {
         let were = if skipped == 1 {
@@ -497,32 +534,13 @@ fn land_spaces(id: u64, index: usize, read: Spaces) -> Option<String> {
     None
 }
 
-/// How often, and how many times, a step looks again for a profile's
-/// bookmarks to have loaded: for 10 seconds.
-const BOOKMARKS_LOOK_EVERY: Duration = Duration::from_millis(100);
-const BOOKMARKS_LOOKS: u32 = 100;
-
-// Bookmarks land once the profile has loaded its own, which it does after
-// the profile opens: waits for that, a while.
-fn land_bookmarks(
-    mt: MainThread,
-    id: u64,
-    profile: Profile,
-    source: &'static str,
-    tree: BookmarkFolder,
-    looks: u32,
-) {
-    if !bookmarks::ready(&profile) {
-        if looks >= BOOKMARKS_LOOKS {
-            let why = "Its bookmarks did not load.".to_owned();
-            return landed_batch(mt, id, Thing::Bookmarks, Err(why));
+// So much more of a thing has landed.
+fn landed(id: u64, thing: Thing, count: usize) {
+    with(id, |run| {
+        if let Some(progress) = progress(run, thing) {
+            progress.done += count;
         }
-        return platform::after(BOOKMARKS_LOOK_EVERY, move || {
-            land_bookmarks(mt, id, profile, source, tree, looks + 1)
-        });
-    }
-    let added = bookmarks::land(&profile, source, &tree);
-    landed_batch(mt, id, Thing::Bookmarks, added);
+    });
 }
 
 // What the user should know of how a thing went, beside its count.

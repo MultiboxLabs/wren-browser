@@ -1,58 +1,65 @@
 // Safari's bookmarks: its `Bookmarks.plist`, a tree of lists and leaves. Its
-// bar and menu each go in a folder named for them, its Reading List too, and
-// the rest at the top. Its History entry is a proxy, and is left out.
+// bar's are the bar's; the rest are Other Bookmarks', with its menu and its
+// Reading List each in a folder. Its History entry is a proxy, and is left
+// out.
 
 use std::path::Path;
 
 use serde_json::Value;
 
-use crate::import::data::{Bookmark, BookmarkFolder, is_page};
+use crate::import::data::{Bookmarks, Pin, PinPage, is_page};
 use crate::import::source::ReadError;
 use crate::platform;
 
-pub fn read(folder: &Path) -> Result<BookmarkFolder, ReadError> {
+pub fn read(folder: &Path) -> Result<Bookmarks, ReadError> {
     let plist = platform::read_property_list(&folder.join("Bookmarks.plist"))?;
     Ok(from_plist(&plist))
 }
 
-pub fn from_plist(root: &Value) -> BookmarkFolder {
-    let children = root["Children"]
-        .as_array()
-        .map(|children| children.iter().filter_map(item).collect())
-        .unwrap_or_default();
-    BookmarkFolder {
-        title: String::new(),
-        children,
+pub fn from_plist(root: &Value) -> Bookmarks {
+    let mut bookmarks = Bookmarks::default();
+    for node in root["Children"].as_array().into_iter().flatten() {
+        if node["Title"].as_str() == Some("BookmarksBar") {
+            bookmarks.bar = children(node);
+        } else {
+            bookmarks.other.extend(item(node));
+        }
     }
-    .pruned()
+    bookmarks.pruned()
 }
 
-fn item(node: &Value) -> Option<Bookmark> {
+fn children(node: &Value) -> Vec<Pin> {
+    node["Children"]
+        .as_array()
+        .map(|children| children.iter().filter_map(item).collect())
+        .unwrap_or_default()
+}
+
+fn item(node: &Value) -> Option<Pin> {
     match node["WebBookmarkType"].as_str()? {
         "WebBookmarkTypeLeaf" => {
             let url = node["URLString"].as_str()?;
-            is_page(url).then(|| Bookmark::Link {
-                title: node["URIDictionary"]["title"]
-                    .as_str()
-                    .unwrap_or(url)
-                    .into(),
-                url: url.into(),
+            is_page(url).then(|| {
+                Pin::Tab(PinPage {
+                    title: node["URIDictionary"]["title"]
+                        .as_str()
+                        .unwrap_or(url)
+                        .into(),
+                    url: url.into(),
+                    favicon: None,
+                })
             })
         }
         "WebBookmarkTypeList" => {
-            let title = match node["Title"].as_str().unwrap_or("") {
-                "BookmarksBar" => "Bookmarks Bar",
+            let name = match node["Title"].as_str().unwrap_or("") {
                 "BookmarksMenu" => "Bookmarks Menu",
                 "com.apple.ReadingList" => "Reading List",
                 title => title,
             };
-            Some(Bookmark::Folder(BookmarkFolder {
-                title: title.into(),
-                children: node["Children"]
-                    .as_array()
-                    .map(|children| children.iter().filter_map(item).collect())
-                    .unwrap_or_default(),
-            }))
+            Some(Pin::Folder {
+                name: name.into(),
+                pins: children(node),
+            })
         }
         _ => None,
     }
@@ -65,19 +72,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn names_safaris_own_lists() {
+    fn keeps_the_bar_apart_and_names_safaris_own_lists() {
         let plist = json!({ "Children": [
             { "WebBookmarkType": "WebBookmarkTypeProxy", "Title": "History" },
             { "WebBookmarkType": "WebBookmarkTypeList", "Title": "BookmarksBar", "Children": [
                 { "WebBookmarkType": "WebBookmarkTypeLeaf", "URLString": "https://a.example/",
                   "URIDictionary": { "title": "A" } },
             ]},
-            { "WebBookmarkType": "WebBookmarkTypeList", "Title": "com.apple.ReadingList", "Children": [] },
+            { "WebBookmarkType": "WebBookmarkTypeList", "Title": "com.apple.ReadingList", "Children": [
+                { "WebBookmarkType": "WebBookmarkTypeLeaf", "URLString": "https://b.example/",
+                  "URIDictionary": { "title": "B" } },
+            ]},
         ]});
-        let tree = from_plist(&plist);
-        assert_eq!(tree.count(), 1);
+        let bookmarks = from_plist(&plist);
+        assert_eq!(bookmarks.count(), 2);
+        assert!(matches!(&bookmarks.bar[..], [Pin::Tab(a)] if a.title == "A"));
         assert!(
-            matches!(&tree.children[..], [Bookmark::Folder(bar)] if bar.title == "Bookmarks Bar")
+            matches!(&bookmarks.other[..], [Pin::Folder { name, .. }] if name == "Reading List")
         );
     }
 }

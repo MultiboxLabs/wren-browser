@@ -5,12 +5,10 @@
 
 use std::rc::Rc;
 
+use super::imported;
 use crate::app::State;
-use crate::db::{
-    Added, ImportedPin, ImportedSpace, NewPin, NewSpace, PinLayout, PinPage as WrenPage,
-    SpaceTheme, avatar,
-};
-use crate::import::data::{Pin, PinPage, SpaceIcon, Spaces};
+use crate::db::{Added, ImportedPin, ImportedSpace, NewPin, NewSpace, SpaceTheme, avatar};
+use crate::import::data::{Pin, SpaceIcon, Spaces};
 use crate::ipc;
 
 /// A space with no icon of its own has Wren's.
@@ -108,7 +106,7 @@ pub fn land(
                 icon: icon(&space.icon),
                 theme: theme(&space.colours, profile),
             },
-            pins: space.pins.into_iter().map(pin).collect(),
+            pins: space.pins.into_iter().map(imported).collect(),
         })
         .collect();
     let favorites = flatten(spaces.favorites);
@@ -159,45 +157,12 @@ fn theme(colours: &[[u8; 3]], profile: &str) -> SpaceTheme {
     theme
 }
 
-fn page(page: PinPage) -> WrenPage {
-    WrenPage {
-        url: page.url,
-        title: page.title,
-        favicon: page.favicon,
-    }
-}
-
-fn pin(each: Pin) -> ImportedPin {
-    match each {
-        Pin::Tab(tab) => ImportedPin::Pin(NewPin::Tab(page(tab))),
-        Pin::Split {
-            first,
-            second,
-            stacked,
-            ratio,
-        } => ImportedPin::Pin(NewPin::Split {
-            first: page(first),
-            second: page(second),
-            layout: if stacked {
-                PinLayout::Stacked
-            } else {
-                PinLayout::SideBySide
-            },
-            ratio,
-        }),
-        Pin::Folder { name, pins } => ImportedPin::Folder {
-            name,
-            pins: pins.into_iter().map(pin).collect(),
-        },
-    }
-}
-
 // Favourites have no folders: what was in one comes out of it.
 fn flatten(pins: Vec<Pin>) -> Vec<NewPin> {
     pins.into_iter()
         .flat_map(|each| match each {
             Pin::Folder { pins, .. } => flatten(pins),
-            each => match pin(each) {
+            each => match imported(each) {
                 ImportedPin::Pin(made) => vec![made],
                 ImportedPin::Folder { .. } => Vec::new(),
             },

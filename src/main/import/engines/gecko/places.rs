@@ -1,6 +1,8 @@
 // A Gecko profile's history and bookmarks, both in its `places.sqlite`:
 // pages in `moz_places`, bookmarks in `moz_bookmarks`, under the roots the
-// toolbar, the menu, Other Bookmarks and the phone's.
+// toolbar, the menu, Other Bookmarks and the phone's. The toolbar's are the
+// bar's; the rest are Other Bookmarks', with the menu's and the phone's
+// each in a folder.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -9,20 +11,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::Connection;
 use wren::HistoryEntry;
 
-use crate::import::data::{Bookmark, BookmarkFolder, is_page};
+use crate::import::data::{Bookmarks, Pin, PinPage, is_page};
 use crate::import::snapshot::Snapshot;
 use crate::import::source::ReadError;
 
 const BATCH: usize = 5_000;
 
-// Each root, by its GUID, and the folder it goes in; Other Bookmarks' at
-// the top.
-const ROOTS: [(&str, &str); 4] = [
-    ("toolbar_____", "Bookmarks Bar"),
-    ("menu________", "Bookmarks Menu"),
-    ("unfiled_____", ""),
-    ("mobile______", "Mobile Bookmarks"),
-];
+// The roots, by their GUIDs.
+const TOOLBAR: &str = "toolbar_____";
+const MENU: &str = "menu________";
+const OTHER: &str = "unfiled_____";
+const MOBILE: &str = "mobile______";
 
 pub fn history(profile: &Path, batch: &mut dyn FnMut(Vec<HistoryEntry>)) -> Result<(), ReadError> {
     let snapshot = Snapshot::of(&profile.join("places.sqlite"))?;
@@ -73,12 +72,12 @@ pub fn bookmark_count(db: &Connection) -> Result<usize, ReadError> {
     Ok(tree(db)?.count())
 }
 
-pub fn bookmarks(profile: &Path) -> Result<BookmarkFolder, ReadError> {
+pub fn bookmarks(profile: &Path) -> Result<Bookmarks, ReadError> {
     let snapshot = Snapshot::of(&profile.join("places.sqlite"))?;
     tree(&snapshot.db)
 }
 
-fn tree(db: &Connection) -> Result<BookmarkFolder, ReadError> {
+fn tree(db: &Connection) -> Result<Bookmarks, ReadError> {
     // Every bookmark and folder, by its folder, in order.
     let mut query = db.prepare(
         "SELECT b.id, b.type, b.parent, b.title, b.guid, p.url FROM moz_bookmarks b \
@@ -97,19 +96,24 @@ fn tree(db: &Connection) -> Result<BookmarkFolder, ReadError> {
         guids.insert(row.get(4)?, node.id);
         children.entry(row.get(2)?).or_default().push(node);
     }
-    let mut top = Vec::new();
-    for (guid, title) in ROOTS {
-        let Some(&id) = guids.get(guid) else { continue };
-        let folder = folder(title, id, &children);
-        if title.is_empty() {
-            top.extend(folder.children);
-        } else {
-            top.push(Bookmark::Folder(folder));
-        }
-    }
-    Ok(BookmarkFolder {
-        title: String::new(),
-        children: top,
+    let root = |guid: &str| {
+        guids
+            .get(guid)
+            .map(|&id| pins(id, &children))
+            .unwrap_or_default()
+    };
+    let mut other = vec![Pin::Folder {
+        name: "Bookmarks Menu".into(),
+        pins: root(MENU),
+    }];
+    other.extend(root(OTHER));
+    other.push(Pin::Folder {
+        name: "Mobile Bookmarks".into(),
+        pins: root(MOBILE),
+    });
+    Ok(Bookmarks {
+        bar: root(TOOLBAR),
+        other,
     }
     .pruned())
 }
@@ -122,21 +126,23 @@ struct Node {
     url: Option<String>,
 }
 
-fn folder(title: &str, id: i64, children: &HashMap<i64, Vec<Node>>) -> BookmarkFolder {
-    BookmarkFolder {
-        title: title.into(),
-        children: children
-            .get(&id)
-            .into_iter()
-            .flatten()
-            .filter_map(|node| match (node.kind, &node.url) {
-                (1, Some(url)) if is_page(url) => Some(Bookmark::Link {
-                    title: node.title.clone(),
-                    url: url.clone(),
-                }),
-                (2, _) => Some(Bookmark::Folder(folder(&node.title, node.id, children))),
-                _ => None,
-            })
-            .collect(),
-    }
+// What is in the folder `id`, in order.
+fn pins(id: i64, children: &HashMap<i64, Vec<Node>>) -> Vec<Pin> {
+    children
+        .get(&id)
+        .into_iter()
+        .flatten()
+        .filter_map(|node| match (node.kind, &node.url) {
+            (1, Some(url)) if is_page(url) => Some(Pin::Tab(PinPage {
+                title: node.title.clone(),
+                url: url.clone(),
+                favicon: None,
+            })),
+            (2, _) => Some(Pin::Folder {
+                name: node.title.clone(),
+                pins: pins(node.id, children),
+            }),
+            _ => None,
+        })
+        .collect()
 }

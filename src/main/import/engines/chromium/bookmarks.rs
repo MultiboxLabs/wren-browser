@@ -1,61 +1,57 @@
-// A Chromium profile's bookmarks: its `Bookmarks` file, JSON. The bar's go
-// in a folder of their own; Other Bookmarks' are at the top; the phone's go
-// in a folder too.
+// A Chromium profile's bookmarks: its `Bookmarks` file, JSON. The bar's are
+// the bar's; Other Bookmarks' are the rest, with the phone's in a folder.
 
 use std::fs;
 use std::path::Path;
 
 use serde_json::Value;
 
-use crate::import::data::{Bookmark, BookmarkFolder, is_page};
+use crate::import::data::{Bookmarks, Pin, PinPage, is_page};
 use crate::import::source::ReadError;
 
-pub fn read(profile: &Path) -> Result<BookmarkFolder, ReadError> {
+pub fn read(profile: &Path) -> Result<Bookmarks, ReadError> {
     let text = fs::read_to_string(profile.join("Bookmarks"))?;
     Ok(from_json(&serde_json::from_str(&text)?))
 }
 
-pub fn from_json(file: &Value) -> BookmarkFolder {
+pub fn from_json(file: &Value) -> Bookmarks {
     let roots = &file["roots"];
-    let mut children = Vec::new();
-    children.push(Bookmark::Folder(folder(
-        "Bookmarks Bar",
-        &roots["bookmark_bar"],
-    )));
-    children.extend(folder("", &roots["other"]).children);
-    children.push(Bookmark::Folder(folder(
-        "Mobile Bookmarks",
-        &roots["synced"],
-    )));
-    BookmarkFolder {
-        title: String::new(),
-        children,
+    let mut other = children(&roots["other"]);
+    other.push(Pin::Folder {
+        name: "Mobile Bookmarks".into(),
+        pins: children(&roots["synced"]),
+    });
+    Bookmarks {
+        bar: children(&roots["bookmark_bar"]),
+        other,
     }
     .pruned()
 }
 
-fn folder(title: &str, node: &Value) -> BookmarkFolder {
-    let children = node["children"]
+fn children(node: &Value) -> Vec<Pin> {
+    node["children"]
         .as_array()
         .map(|children| children.iter().filter_map(item).collect())
-        .unwrap_or_default();
-    BookmarkFolder {
-        title: title.into(),
-        children,
-    }
+        .unwrap_or_default()
 }
 
-fn item(node: &Value) -> Option<Bookmark> {
+fn item(node: &Value) -> Option<Pin> {
     let name = node["name"].as_str().unwrap_or("");
     match node["type"].as_str()? {
         "url" => {
             let url = node["url"].as_str()?;
-            is_page(url).then(|| Bookmark::Link {
-                title: name.into(),
-                url: url.into(),
+            is_page(url).then(|| {
+                Pin::Tab(PinPage {
+                    title: name.into(),
+                    url: url.into(),
+                    favicon: None,
+                })
             })
         }
-        "folder" => Some(Bookmark::Folder(folder(name, node))),
+        "folder" => Some(Pin::Folder {
+            name: name.into(),
+            pins: children(node),
+        }),
         _ => None,
     }
 }
@@ -67,7 +63,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn keeps_the_bar_in_a_folder_and_other_at_the_top() {
+    fn keeps_the_bar_apart_from_the_rest() {
         let file = json!({ "roots": {
             "bookmark_bar": { "children": [
                 { "type": "url", "name": "A", "url": "https://a.example/" },
@@ -79,9 +75,9 @@ mod tests {
             ]},
             "synced": { "children": [] },
         }});
-        let tree = from_json(&file);
-        assert_eq!(tree.count(), 2);
-        assert_eq!(tree.children.len(), 2);
-        assert!(matches!(&tree.children[0], Bookmark::Folder(bar) if bar.title == "Bookmarks Bar"));
+        let bookmarks = from_json(&file);
+        assert_eq!(bookmarks.count(), 2);
+        assert!(matches!(&bookmarks.bar[..], [Pin::Tab(a)] if a.title == "A"));
+        assert!(matches!(&bookmarks.other[..], [Pin::Tab(b)] if b.title == "B"));
     }
 }
