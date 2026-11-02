@@ -9,13 +9,8 @@
 // host. What either end sends goes through untouched, and when one end goes,
 // the other is closed.
 //
-// Not in manifest.json yet: Wren Runtime 0.3.0 refuses an app scheme in a
-// match pattern ("Invalid url pattern"), and the browser crashes with it.
-// Once the runtime takes it, add to "content_scripts":
-//
-//   { "matches": ["wren://migrate/*"], "js": ["bridge/page.js"], "run_at": "document_start" }
-//
-// Until then the page answers itself (src/renderer/pages/migrate/stand-in.ts).
+// It runs in each page manifest.json names, which worker.js and the app list
+// too.
 
 (() => {
   let current;
