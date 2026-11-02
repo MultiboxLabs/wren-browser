@@ -21,7 +21,7 @@ mod system;
 mod updater;
 mod window;
 
-pub use apps::installed_app_icon;
+pub use apps::{installed_app_icon, is_app_installed};
 pub use files::{file_kind, file_thumbnail, file_type_icon};
 pub use icon_menu::{IconMenuItem, set_icon_menu};
 pub use keyboard::{Key, KeyWatch};

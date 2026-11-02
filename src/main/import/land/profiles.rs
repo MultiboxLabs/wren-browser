@@ -4,13 +4,13 @@
 
 use std::rc::Rc;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use wren::{MainThread, Profile};
 
 use crate::app::State;
 use crate::ipc;
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Landing {
     This,

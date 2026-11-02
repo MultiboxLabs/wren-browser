@@ -21,7 +21,7 @@ export type Phase = "loading" | "incognito" | "none" | "choose" | "flying" | "la
 /** A source's profile as the user has it: whether it comes, and where to. */
 export type ProfileChoice = { on: boolean; landing: Landing };
 
-/** One thing, summed over the profiles switched on: how much of it, or why there is none to read. */
+/** One thing, summed over the profiles switched on: how much of it there is. */
 export type ThingSummary = { thing: Thing; count: number; pins?: number };
 
 export function useMigrate() {

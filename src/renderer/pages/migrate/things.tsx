@@ -2,7 +2,6 @@
 // switch, and says how much of it there is; once it flies, each says how far
 // it has come, then what landed.
 
-import type { ReactNode } from "react";
 import { Switch } from "@/components/ui/switch";
 import type { Thing, ThingProgress } from "@/ipc";
 import type { ThingSummary } from "@/state/migrate";
@@ -44,15 +43,17 @@ export function ChooseThings({
   summaries: ThingSummary[];
   isOn: (thing: Thing) => boolean;
   setOn: (thing: Thing, on: boolean) => void;
-  /** The extensions row's own detail: how many are chosen, and a way to choose. */
-  extensions: ReactNode;
+  /** How many extensions are chosen, of how many, and a way to choose them. */
+  extensions: { chosen: number; of: number; choose: () => void };
 }) {
   return (
     <Group>
       {summaries.map((summary) => (
         <Row key={summary.thing} icon={<ThingIcon thing={summary.thing} size={26} />} name={NAMES[summary.thing]}>
           {summary.thing === "extensions" ? (
-            extensions
+            <button className="text-[13px] text-(--fg-faint) tabular-nums hover:underline" onClick={extensions.choose}>
+              {extensions.chosen} of {extensions.of} · Choose…
+            </button>
           ) : (
             <span className="text-[13px] text-(--fg-faint) tabular-nums">{detail(summary)}</span>
           )}

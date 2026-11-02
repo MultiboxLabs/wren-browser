@@ -9,7 +9,7 @@ import { type ReactNode, useLayoutEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { migrate } from "@/ipc";
-import { useMigrate } from "@/state/migrate";
+import { type MigrateState, useMigrate } from "@/state/migrate";
 import { useSystemScheme } from "@/state/window";
 import { ExtensionsDialog } from "./extensions-dialog";
 import { Destination, Profiles } from "./profiles";
@@ -66,7 +66,7 @@ export function Migrate() {
 }
 
 // How far the wren has come: the share of the run's things that has landed.
-function flight({ phase, run }: ReturnType<typeof useMigrate>): Flight {
+function flight({ phase, run }: MigrateState): Flight {
   if (phase === "landed") return "landed";
   if (phase !== "flying" || !run) return "waiting";
   const shares = run.things.map(({ state, done, total }) =>
@@ -75,7 +75,7 @@ function flight({ phase, run }: ReturnType<typeof useMigrate>): Flight {
   return shares.reduce((sum, share) => sum + share, 0) / Math.max(1, shares.length);
 }
 
-function Content({ state }: { state: ReturnType<typeof useMigrate> }) {
+function Content({ state }: { state: MigrateState }) {
   const { phase, error } = state;
   switch (phase) {
     case "loading":
@@ -121,7 +121,7 @@ function Heading({ title, flourish, body }: { title: string; flourish: string; b
   );
 }
 
-function Choose({ state }: { state: ReturnType<typeof useMigrate> }) {
+function Choose({ state }: { state: MigrateState }) {
   const [choosing, setChoosing] = useState(false);
   const { source, sources, context } = state;
   const heading = (
@@ -148,14 +148,11 @@ function Choose({ state }: { state: ReturnType<typeof useMigrate> }) {
             summaries={state.summaries}
             isOn={state.isOn}
             setOn={state.setOn}
-            extensions={
-              <button
-                className="text-[13px] text-(--fg-faint) tabular-nums hover:underline"
-                onClick={() => setChoosing(true)}
-              >
-                {state.chosenExtensions.size} of {state.storeExtensions.length} · Choose…
-              </button>
-            }
+            extensions={{
+              chosen: state.chosenExtensions.size,
+              of: state.storeExtensions.length,
+              choose: () => setChoosing(true)
+            }}
           />
         )}
         {source?.profiles.length === 1 && state.summaries.length > 0 && (
@@ -206,7 +203,7 @@ function AccessNotice() {
   );
 }
 
-function Landed({ state }: { state: ReturnType<typeof useMigrate> }) {
+function Landed({ state }: { state: MigrateState }) {
   const things = state.run!.things;
   const failed = things.some(({ state }) => state === "failed");
   const name = state.sources?.find(({ id }) => id === state.run!.source)?.name ?? "your old browser";

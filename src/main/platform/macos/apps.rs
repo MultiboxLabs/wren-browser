@@ -6,6 +6,12 @@ use objc2_foundation::NSString;
 
 use super::files::image_png;
 
+pub fn is_app_installed(id: &str) -> bool {
+    NSWorkspace::sharedWorkspace()
+        .URLForApplicationWithBundleIdentifier(&NSString::from_str(id))
+        .is_some()
+}
+
 pub fn installed_app_icon(id: &str, size: f64) -> Option<Vec<u8>> {
     let workspace = NSWorkspace::sharedWorkspace();
     let app = workspace.URLForApplicationWithBundleIdentifier(&NSString::from_str(id))?;
