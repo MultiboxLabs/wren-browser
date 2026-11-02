@@ -1,12 +1,15 @@
-// Spaces and pins brought over from another browser (import/land/spaces.rs):
-// a profile's all in one transaction, so a failure leaves nothing
-// half-made. What the profile has already is not made again: a space of the
-// same name, with its pins, and a favourite of the same address.
+// Spaces and pins brought over from another browser (import/land/): each
+// lot in one transaction, so a failure leaves nothing half-made. What the
+// profile has already is not made again: a space of the same name, with its
+// pins, a favourite of the same address, and a page its space has pinned.
 
 use std::collections::HashSet;
 
-use super::pins::{NewPin, PinKind, PinPlace, insert_pin};
-use super::spaces::{NewSpace, insert};
+use wren::ProfileListEntry;
+
+use super::pins::{NewPin, PinKind, PinPlace, PinRow, insert_pin};
+use super::profiles::default_space;
+use super::spaces::{NewSpace, SpaceId, insert};
 use super::{Db, sql};
 
 /// A space to make, with its pins.
@@ -79,6 +82,61 @@ impl Db {
         transaction.commit().map_err(sql)?;
         Ok(added)
     }
+
+    /// Adds `pins` after `space`'s own, less any page the space has pinned
+    /// already, and any folder that leaves empty; answers how many tabs and
+    /// splits it made.
+    pub fn add_pins(&self, space: SpaceId, pins: Vec<ImportedPin>) -> Result<usize, String> {
+        let mut pinned = HashSet::new();
+        pages_of(&self.space_pins(space)?, &mut pinned);
+        let pins = unpinned(pins, &mut pinned);
+        let transaction = self.conn.unchecked_transaction().map_err(sql)?;
+        let made = insert_pins(&transaction, space, None, pins)?;
+        transaction.commit().map_err(sql)?;
+        Ok(made)
+    }
+
+    /// The space pins brought over to `profile` go in: the one it used last,
+    /// or, if it has none, a new one, as the app gives a profile.
+    pub fn space_for_imports(&self, profile: &ProfileListEntry) -> Result<SpaceId, String> {
+        match self.recent_space(&profile.id)? {
+            Some(space) => Ok(space.id),
+            None => Ok(self.create_space(&profile.id, default_space(profile))?.id),
+        }
+    }
+}
+
+// Every page `rows` pin, in folders and splits too.
+fn pages_of(rows: &[PinRow], pages: &mut HashSet<String>) {
+    for row in rows {
+        match &row.kind {
+            PinKind::Tab(page) => {
+                pages.insert(page.url.clone());
+            }
+            PinKind::Split { first, second, .. } => {
+                pages.insert(first.url.clone());
+                pages.insert(second.url.clone());
+            }
+            PinKind::Folder { items, .. } => pages_of(items, pages),
+        }
+    }
+}
+
+// `pins`, less any tab of a page in `pinned`, which takes each it keeps, and
+// any folder that leaves empty.
+fn unpinned(pins: Vec<ImportedPin>, pinned: &mut HashSet<String>) -> Vec<ImportedPin> {
+    pins.into_iter()
+        .filter_map(|pin| match pin {
+            ImportedPin::Pin(NewPin::Tab(page)) => pinned
+                .insert(page.url.clone())
+                .then_some(ImportedPin::Pin(NewPin::Tab(page))),
+            ImportedPin::Folder { name, pins } => {
+                let pins = unpinned(pins, pinned);
+                (!pins.is_empty()).then_some(ImportedPin::Folder { name, pins })
+            }
+            other => Some(other),
+        })
+        .collect()
 }
 
 // Makes `pins` in space `space`, in folder `parent` or at the top, last;
@@ -174,5 +232,32 @@ mod tests {
             }
         );
         assert_eq!(db.favorites("Default").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn adds_pins_a_space_has_not_pinned() {
+        let db = db();
+        let space = db
+            .create_space("Default", space("Home", Vec::new()).space)
+            .unwrap()
+            .id;
+        let pins = || {
+            vec![
+                ImportedPin::Pin(tab("https://a.example/")),
+                ImportedPin::Folder {
+                    name: "Other Bookmarks".into(),
+                    pins: vec![
+                        ImportedPin::Pin(tab("https://b.example/")),
+                        ImportedPin::Pin(tab("https://a.example/")),
+                    ],
+                },
+            ]
+        };
+        assert_eq!(db.add_pins(space, pins()).unwrap(), 2);
+        let made = db.space_pins(space).unwrap();
+        assert!(matches!(&made[1].kind, PinKind::Folder { items, .. } if items.len() == 1));
+        // Again: every page is pinned, so nothing, not even the folder.
+        assert_eq!(db.add_pins(space, pins()).unwrap(), 0);
+        assert_eq!(db.space_pins(space).unwrap().len(), 2);
     }
 }

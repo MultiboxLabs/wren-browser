@@ -6,13 +6,12 @@
 // a thread of its own (run.rs), and what it read is landed on the main
 // thread (land/).
 
-use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 
 use wren::{Cookie, HistoryEntry};
 
-use super::data::{BookmarkFolder, Spaces, StoreExtension};
+use super::data::{Bookmarks, Favicons, Spaces, StoreExtension};
 
 /// Which browser it is.
 pub struct About {
@@ -129,7 +128,7 @@ impl Survey {
 pub trait Engine: Sync {
     fn profiles(&self) -> Result<Vec<SourceProfile>, ReadError>;
     fn survey(&self, profile: &SourceProfile) -> Survey;
-    fn bookmarks(&self, profile: &SourceProfile) -> Result<BookmarkFolder, ReadError>;
+    fn bookmarks(&self, profile: &SourceProfile) -> Result<Bookmarks, ReadError>;
     /// Every page, handed over a batch at a time.
     fn history(
         &self,
@@ -145,12 +144,8 @@ pub trait Engine: Sync {
     /// The favicons it kept for `pages`, as PNGs, by page; none of a page
     /// it kept none for (favicons.rs). An engine that keeps none of a pin's
     /// kind gives none.
-    fn favicons(
-        &self,
-        _profile: &SourceProfile,
-        _pages: &[String],
-    ) -> Result<HashMap<String, Vec<u8>>, ReadError> {
-        Ok(HashMap::new())
+    fn favicons(&self, _profile: &SourceProfile, _pages: &[String]) -> Result<Favicons, ReadError> {
+        Ok(Favicons::new())
     }
 }
 
@@ -167,7 +162,7 @@ pub trait Source: Sync {
     fn survey(&self, profile: &SourceProfile) -> Survey {
         self.engine().survey(profile)
     }
-    fn bookmarks(&self, profile: &SourceProfile) -> Result<BookmarkFolder, ReadError> {
+    fn bookmarks(&self, profile: &SourceProfile) -> Result<Bookmarks, ReadError> {
         self.engine().bookmarks(profile)
     }
     fn history(
@@ -184,11 +179,7 @@ pub trait Source: Sync {
     ) -> Result<(), ReadError> {
         self.engine().cookies(profile, batch)
     }
-    fn favicons(
-        &self,
-        profile: &SourceProfile,
-        pages: &[String],
-    ) -> Result<HashMap<String, Vec<u8>>, ReadError> {
+    fn favicons(&self, profile: &SourceProfile, pages: &[String]) -> Result<Favicons, ReadError> {
         self.engine().favicons(profile, pages)
     }
 

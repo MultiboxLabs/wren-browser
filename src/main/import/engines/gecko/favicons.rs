@@ -5,11 +5,12 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::import::data::Favicons;
 use crate::import::favicons;
 use crate::import::snapshot::Snapshot;
 use crate::import::source::ReadError;
 
-pub fn read(profile: &Path, pages: &[String]) -> Result<HashMap<String, Vec<u8>>, ReadError> {
+pub fn read(profile: &Path, pages: &[String]) -> Result<Favicons, ReadError> {
     let snapshot = Snapshot::of(&profile.join("favicons.sqlite"))?;
     let db = &snapshot.db;
     let kept = db

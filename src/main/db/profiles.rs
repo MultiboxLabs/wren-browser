@@ -25,7 +25,7 @@ pub fn avatar(id: &str) -> &'static str {
 
 /// The space a profile is given when the app has none: named for it, in its
 /// colour.
-fn default_space(profile: &ProfileListEntry) -> NewSpace {
+pub(super) fn default_space(profile: &ProfileListEntry) -> NewSpace {
     NewSpace {
         name: match profile.name.trim() {
             "" => "Space".to_owned(),

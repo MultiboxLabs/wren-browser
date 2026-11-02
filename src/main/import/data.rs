@@ -4,49 +4,52 @@
 
 use std::collections::HashMap;
 
-/// A folder of bookmarks, and what is in it, in order.
+/// A browser's bookmarks, as the pins they come over as: its bar's, as pins
+/// of their own, and the rest, in a folder (`OTHER_BOOKMARKS`).
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct BookmarkFolder {
-    pub title: String,
-    pub children: Vec<Bookmark>,
+pub struct Bookmarks {
+    pub bar: Vec<Pin>,
+    pub other: Vec<Pin>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Bookmark {
-    Link { title: String, url: String },
-    Folder(BookmarkFolder),
-}
+/// The folder the bookmarks off the bar come over in.
+pub const OTHER_BOOKMARKS: &str = "Other Bookmarks";
 
-impl BookmarkFolder {
-    /// How many links are in it, its folders' too.
+impl Bookmarks {
+    /// How many pages there are, in folders too.
     pub fn count(&self) -> usize {
-        self.children
-            .iter()
-            .map(|child| match child {
-                Bookmark::Link { .. } => 1,
-                Bookmark::Folder(folder) => folder.count(),
-            })
-            .sum()
+        count_pins(&self.bar) + count_pins(&self.other)
     }
 
-    /// It, less its folders with no link in them.
-    pub fn pruned(self) -> BookmarkFolder {
-        BookmarkFolder {
-            title: self.title,
-            children: self
-                .children
-                .into_iter()
-                .filter_map(|child| match child {
-                    Bookmark::Folder(folder) => {
-                        let folder = folder.pruned();
-                        (folder.count() > 0).then_some(Bookmark::Folder(folder))
-                    }
-                    link => Some(link),
-                })
-                .collect(),
+    /// Them, less any folder with no page in it.
+    pub fn pruned(self) -> Bookmarks {
+        Bookmarks {
+            bar: pruned(self.bar),
+            other: pruned(self.other),
         }
     }
+
+    /// Gives each page the favicon its source kept for it.
+    pub fn with_favicons(mut self, favicons: impl FnOnce(&[String]) -> Favicons) -> Bookmarks {
+        give_favicons([&mut self.bar, &mut self.other], favicons);
+        self
+    }
+
+    /// As the pins they come over as: the bar's, then a folder of the rest.
+    pub fn into_pins(self) -> Vec<Pin> {
+        let mut pins = self.bar;
+        if !self.other.is_empty() {
+            pins.push(Pin::Folder {
+                name: OTHER_BOOKMARKS.into(),
+                pins: self.other,
+            });
+        }
+        pins
+    }
 }
+
+/// A source's favicons, by page (`Source::favicons`).
+pub type Favicons = HashMap<String, Vec<u8>>;
 
 /// The addresses a bookmark or a pin may have: a web page's or a file's.
 pub fn is_page(url: &str) -> bool {
@@ -85,32 +88,28 @@ impl Spaces {
                 .sum::<usize>()
     }
 
-    /// Every pin's page, the favourites' and those in folders too.
-    pub fn pages_mut(&mut self) -> Vec<&mut PinPage> {
-        let mut pages = Vec::new();
+    /// Gives each pin's page the favicon its source kept for it.
+    pub fn with_favicons(mut self, favicons: impl FnOnce(&[String]) -> Favicons) -> Spaces {
         let spaces = self.spaces.iter_mut().map(|space| &mut space.pins);
-        for pins in std::iter::once(&mut self.favorites).chain(spaces) {
-            pages_in(pins, &mut pages);
-        }
-        pages
-    }
-
-    /// Gives each pin's page the favicon its source kept for it
-    /// (`Source::favicons`).
-    pub fn with_favicons(
-        mut self,
-        favicons: impl FnOnce(&[String]) -> HashMap<String, Vec<u8>>,
-    ) -> Spaces {
-        let urls: Vec<String> = self
-            .pages_mut()
-            .iter()
-            .map(|page| page.url.clone())
-            .collect();
-        let found = favicons(&urls);
-        for page in self.pages_mut() {
-            page.favicon = found.get(&page.url).cloned();
-        }
+        give_favicons(std::iter::once(&mut self.favorites).chain(spaces), favicons);
         self
+    }
+}
+
+// Gives each page in `trees` the favicon `favicons` finds for it, asked for
+// every page at once.
+fn give_favicons<'a>(
+    trees: impl IntoIterator<Item = &'a mut Vec<Pin>>,
+    favicons: impl FnOnce(&[String]) -> Favicons,
+) {
+    let mut pages = Vec::new();
+    for pins in trees {
+        pages_in(pins, &mut pages);
+    }
+    let urls: Vec<String> = pages.iter().map(|page| page.url.clone()).collect();
+    let found = favicons(&urls);
+    for page in pages {
+        page.favicon = found.get(&page.url).cloned();
     }
 }
 
@@ -125,6 +124,19 @@ fn pages_in<'a>(pins: &'a mut [Pin], pages: &mut Vec<&'a mut PinPage>) {
             Pin::Folder { pins, .. } => pages_in(pins, pages),
         }
     }
+}
+
+/// `pins`, less any folder with no page in it.
+pub fn pruned(pins: Vec<Pin>) -> Vec<Pin> {
+    pins.into_iter()
+        .filter_map(|pin| match pin {
+            Pin::Folder { name, pins } => {
+                let pins = pruned(pins);
+                (!pins.is_empty()).then_some(Pin::Folder { name, pins })
+            }
+            pin => Some(pin),
+        })
+        .collect()
 }
 
 pub fn count_pins(pins: &[Pin]) -> usize {
@@ -176,4 +188,48 @@ pub enum Pin {
         name: String,
         pins: Vec<Pin>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tab(url: &str) -> Pin {
+        Pin::Tab(PinPage {
+            title: url.into(),
+            url: url.into(),
+            favicon: None,
+        })
+    }
+
+    #[test]
+    fn bookmarks_are_the_bars_pins_then_a_folder_of_the_rest() {
+        let bookmarks = Bookmarks {
+            bar: vec![
+                tab("https://x.example/"),
+                Pin::Folder {
+                    name: "Y".into(),
+                    pins: vec![tab("https://y.example/")],
+                },
+                Pin::Folder {
+                    name: "Empty".into(),
+                    pins: Vec::new(),
+                },
+            ],
+            other: vec![tab("https://z.example/")],
+        }
+        .pruned();
+        let pins = bookmarks.into_pins();
+        assert_eq!(pins.len(), 3);
+        assert!(matches!(&pins[1], Pin::Folder { name, .. } if name == "Y"));
+        assert!(
+            matches!(&pins[2], Pin::Folder { name, pins } if name == OTHER_BOOKMARKS && pins.len() == 1)
+        );
+        // With nothing off the bar, no folder for it.
+        let bar_only = Bookmarks {
+            bar: vec![tab("https://x.example/")],
+            other: Vec::new(),
+        };
+        assert_eq!(bar_only.into_pins().len(), 1);
+    }
 }
