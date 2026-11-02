@@ -69,7 +69,8 @@ fn due(browser: &Browser, now: SystemTime, after: Duration) -> Vec<BrowserTab> {
 }
 
 // What the Browser's window shows as its space comes to the front: its
-// active tab, and the other of the active tab's split.
+// active tab, and the other of the active tab's split. Chromium keeps the
+// active tab's last use current itself, but not the other of its split's.
 fn shown(browser: &Browser) -> Vec<BrowserTab> {
     let Some(active) = browser.active_tab() else {
         return Vec::new();

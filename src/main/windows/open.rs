@@ -304,8 +304,9 @@ impl State {
     /// that of the window in front, as New Window's, if either is of its
     /// profile; otherwise its profile's most recently used space. A profile
     /// with no space gets a window on the profile. At startup, it goes in
-    /// the window that waits for its first. Chromium names no opener for a
-    /// link opened in a new window. An off-the-record one gets an
+    /// the window that waits for its first. Chromium names the opener of a
+    /// link opened in a new window, noopener or not. An off-the-record one
+    /// gets an
     /// off-the-record window of its own.
     pub fn place_opened(
         self: &Rc<Self>,
