@@ -200,60 +200,7 @@ impl Db {
         pin: NewPin,
     ) -> Result<PinId, String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
-        let (profile, space, parent) = resolve(&transaction, place)?;
-        let (kind, name, layout, ratio, pages) = match pin {
-            NewPin::Tab(page) => ("tab", None, None, None, vec![page]),
-            NewPin::Split {
-                first,
-                second,
-                layout,
-                ratio,
-            } => (
-                "split",
-                None,
-                Some(layout.text()),
-                Some(ratio.clamp(0.05, 0.95)),
-                vec![first, second],
-            ),
-            NewPin::Folder { name } => {
-                if space.is_none() {
-                    return Err("A folder can only be among a space's pins.".into());
-                }
-                let name = trimmed(&name).ok_or("A folder needs a name.")?;
-                ("folder", Some(name), None, None, Vec::new())
-            }
-        };
-        let count = siblings(&transaction, &profile, space, parent)?.len();
-        let position = position_at(index, count);
-        make_room(&transaction, (&profile, space, parent), position, None)?;
-        transaction
-            .execute(
-                "INSERT INTO pins (profile_id, space_id, parent_id, kind, name, layout, ratio,
-                                   position, created_at, last_active)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
-                params![
-                    profile,
-                    space,
-                    parent,
-                    kind,
-                    name,
-                    layout,
-                    ratio,
-                    position,
-                    now()
-                ],
-            )
-            .map_err(sql)?;
-        let id = transaction.last_insert_rowid();
-        for (side, page) in pages.iter().enumerate() {
-            transaction
-                .execute(
-                    "INSERT INTO pin_pages (pin_id, side, url, title, favicon)
-                     VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![id, side as i64, page.url, page.title, page.favicon],
-                )
-                .map_err(sql)?;
-        }
+        let id = insert_pin(&transaction, place, index, pin)?;
         transaction.commit().map_err(sql)?;
         Ok(id)
     }
@@ -546,6 +493,72 @@ fn build(
 
 // A place's profile, space and folder, or why a pin can't go there: a space
 // or a folder that is gone, or a parent that is not a folder of the space.
+
+/// Makes a pin in `place` inside `transaction`, as `Db::create_pin` does;
+/// db/imports.rs makes many in one.
+pub(super) fn insert_pin(
+    transaction: &rusqlite::Transaction,
+    place: &PinPlace,
+    index: Option<usize>,
+    pin: NewPin,
+) -> Result<PinId, String> {
+    let (profile, space, parent) = resolve(transaction, place)?;
+    let (kind, name, layout, ratio, pages) = match pin {
+        NewPin::Tab(page) => ("tab", None, None, None, vec![page]),
+        NewPin::Split {
+            first,
+            second,
+            layout,
+            ratio,
+        } => (
+            "split",
+            None,
+            Some(layout.text()),
+            Some(ratio.clamp(0.05, 0.95)),
+            vec![first, second],
+        ),
+        NewPin::Folder { name } => {
+            if space.is_none() {
+                return Err("A folder can only be among a space's pins.".into());
+            }
+            let name = trimmed(&name).ok_or("A folder needs a name.")?;
+            ("folder", Some(name), None, None, Vec::new())
+        }
+    };
+    let count = siblings(transaction, &profile, space, parent)?.len();
+    let position = position_at(index, count);
+    make_room(transaction, (&profile, space, parent), position, None)?;
+    transaction
+        .execute(
+            "INSERT INTO pins (profile_id, space_id, parent_id, kind, name, layout, ratio,
+                               position, created_at, last_active)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
+            params![
+                profile,
+                space,
+                parent,
+                kind,
+                name,
+                layout,
+                ratio,
+                position,
+                now()
+            ],
+        )
+        .map_err(sql)?;
+    let id = transaction.last_insert_rowid();
+    for (side, page) in pages.iter().enumerate() {
+        transaction
+            .execute(
+                "INSERT INTO pin_pages (pin_id, side, url, title, favicon)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![id, side as i64, page.url, page.title, page.favicon],
+            )
+            .map_err(sql)?;
+    }
+    Ok(id)
+}
+
 fn resolve(
     transaction: &Transaction,
     place: &PinPlace,
