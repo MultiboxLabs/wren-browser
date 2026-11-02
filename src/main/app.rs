@@ -15,7 +15,7 @@ use crate::analytics::{self, Analytics, Event};
 use crate::changes;
 use crate::channel::Channel;
 use crate::db::Db;
-use crate::extensions::ad_block;
+use crate::extensions::{ad_block, components};
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
@@ -289,6 +289,8 @@ impl App for Wren {
         self.state.update_menu(mt);
         menus::set_app_icon_menu(mt, &self.state);
         password_manager::ready(mt);
+        components::ready(mt);
+        ipc::handle_migrate(mt);
         *self.state.tab_switcher_keys.borrow_mut() = ipc::watch_tab_switcher_keys(&self.state);
         let source = self.source.clone();
         let _ = mt.set_scheme_handler(

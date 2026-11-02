@@ -1,6 +1,7 @@
 // The calls a browser window's page makes (`wren.invoke`), each by name, and
 // the messages the app sends it (`wren.on`): one file for each part of the
-// app; and the onboarding window's (onboarding.rs). src/renderer/ipc/ is
+// app; the onboarding window's (onboarding.rs); and wren://migrate's, which
+// come through Wren Components (migrate.rs). src/renderer/ipc/ is
 // the page's side; keep the two together.
 
 mod ad_block;
@@ -13,6 +14,7 @@ mod extensions;
 mod find;
 mod groups;
 mod menu;
+mod migrate;
 mod omnibox;
 mod onboarding;
 mod perf;
@@ -50,6 +52,7 @@ pub use downloads::{
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
 pub use menu::{send_show_settings, send_toggle_sidebar};
+pub use migrate::handle_migrate;
 pub use omnibox::{
     OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox, stop_omnibox,
 };

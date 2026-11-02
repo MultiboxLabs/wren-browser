@@ -1,7 +1,9 @@
 // The extensions the app ships, each in a file that is the only one to know
 // it: the ad blocker, which the user may turn off, and Wren Components,
 // which they never see. The extensions' own files are in the repository's
-// extensions/ folder (`wren-app.json` bundles them).
+// extensions/ folder (`wren-app.json` bundles them). bridge.rs answers the
+// pages Wren Components relays to the app.
 
 pub mod ad_block;
+pub mod bridge;
 pub mod components;
