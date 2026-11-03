@@ -252,17 +252,14 @@ fn shown_name(profile: &SourceProfile, source: &str) -> String {
     }
 }
 
-// Where a profile lands unless the user says otherwise: the one in use, in
-// the tab's profile; another, in the Wren profile of its name, or a new one.
+// Where a profile lands unless the user says otherwise: a new Wren profile
+// of its name, or the one it came into before, of that name.
 fn landing(
     profile: &SourceProfile,
     source: &str,
     here: Option<&str>,
     wren: &[WrenProfile],
 ) -> Landing {
-    if profile.in_use {
-        return Landing::This;
-    }
     let name = shown_name(profile, source);
     match wren.iter().find(|existing| {
         existing.name.eq_ignore_ascii_case(&name) && Some(existing.id.as_str()) != here

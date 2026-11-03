@@ -1,7 +1,5 @@
 // A Gecko-based browser's profiles: the `[Profile<n>]` sections of its
-// `profiles.ini` whose folders have a `places.sqlite`. The one an
-// `[Install…]` section names as its default is the one in use; or, with
-// none, the one marked `Default=1`.
+// `profiles.ini` whose folders have a `places.sqlite`.
 
 use std::fs;
 use std::path::Path;
@@ -48,25 +46,16 @@ pub fn from_ini(text: &str) -> Vec<(SourceProfile, String, bool)> {
             .find(|(name, _)| name == key)
             .map(|(_, value)| value.clone())
     };
-    let installed = sections
-        .iter()
-        .find(|(name, _)| name.starts_with("Install"))
-        .and_then(|(_, keys)| get(keys, "Default"));
     sections
         .iter()
         .filter(|(name, _)| name.starts_with("Profile"))
         .filter_map(|(_, keys)| {
             let path = get(keys, "Path")?;
-            let in_use = match &installed {
-                Some(default) => *default == path,
-                None => get(keys, "Default").as_deref() == Some("1"),
-            };
             let name = get(keys, "Name").unwrap_or_else(|| path.clone());
             let profile = SourceProfile {
                 id: path.clone(),
                 default_name: name.starts_with("default"),
                 name,
-                in_use,
                 folder: Default::default(),
             };
             Some((
@@ -83,7 +72,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_installs_default_is_in_use() {
+    fn lists_each_profile_with_its_path() {
         let ini = "[Install4F96D1932A9F858E]\nDefault=Profiles/b.default-release\n\n\
                    [Profile1]\nName=default\nIsRelative=1\nPath=Profiles/a.default\nDefault=1\n\n\
                    [Profile0]\nName=default-release\nIsRelative=1\nPath=Profiles/b.default-release\n\n\
@@ -91,13 +80,13 @@ mod tests {
         let profiles = from_ini(ini);
         let used: Vec<_> = profiles
             .iter()
-            .map(|(p, _, _)| (p.id.as_str(), p.in_use))
+            .map(|(p, path, relative)| (p.name.as_str(), path.as_str(), *relative))
             .collect();
         assert_eq!(
             used,
             [
-                ("Profiles/a.default", false),
-                ("Profiles/b.default-release", true)
+                ("default", "Profiles/a.default", true),
+                ("default-release", "Profiles/b.default-release", true)
             ]
         );
     }

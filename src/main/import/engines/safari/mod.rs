@@ -44,7 +44,6 @@ impl Engine for Safari {
         Ok(vec![SourceProfile {
             id: "Safari".into(),
             name: "Safari".into(),
-            in_use: true,
             default_name: true,
             folder: folder(),
         }])

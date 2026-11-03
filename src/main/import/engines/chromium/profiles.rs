@@ -20,7 +20,6 @@ pub fn read(root: &Path, one_profile: bool, name: &str) -> Result<Vec<SourceProf
         return Ok(vec![SourceProfile {
             id: "Default".into(),
             name: name.into(),
-            in_use: true,
             default_name: true,
             folder: root.to_path_buf(),
         }]);
@@ -44,13 +43,11 @@ pub fn read(root: &Path, one_profile: bool, name: &str) -> Result<Vec<SourceProf
 /// `exists` says are there. Folders are left empty, for `read` to fill.
 pub fn from_local_state(state: &Value, exists: impl Fn(&str) -> bool) -> Vec<SourceProfile> {
     let profile = &state["profile"];
-    let last_used = profile["last_used"].as_str().unwrap_or("Default");
     let Some(cache) = profile["info_cache"].as_object() else {
         return exists("Default")
             .then(|| SourceProfile {
                 id: "Default".into(),
                 name: "Default".into(),
-                in_use: true,
                 default_name: true,
                 folder: Default::default(),
             })
@@ -80,7 +77,6 @@ pub fn from_local_state(state: &Value, exists: impl Fn(&str) -> bool) -> Vec<Sou
             Some(SourceProfile {
                 id: id.into(),
                 name: info["name"].as_str().unwrap_or(id).into(),
-                in_use: id == last_used,
                 default_name: info["is_using_default_name"].as_bool().unwrap_or(false),
                 folder: Default::default(),
             })
@@ -97,7 +93,6 @@ mod tests {
     #[test]
     fn lists_the_users_profiles_only() {
         let state = json!({ "profile": {
-            "last_used": "Profile 1",
             "profiles_order": ["Default", "Profile 1"],
             "info_cache": {
                 "Default": { "name": "Person 1", "is_using_default_name": true },
@@ -110,11 +105,8 @@ mod tests {
         let profiles = from_local_state(&state, |id| id != "Profile 2");
         let names: Vec<_> = profiles
             .iter()
-            .map(|p| (p.id.as_str(), p.in_use, p.default_name))
+            .map(|p| (p.id.as_str(), p.default_name))
             .collect();
-        assert_eq!(
-            names,
-            [("Default", false, true), ("Profile 1", true, false)]
-        );
+        assert_eq!(names, [("Default", true), ("Profile 1", false)]);
     }
 }

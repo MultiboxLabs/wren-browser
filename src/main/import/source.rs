@@ -29,8 +29,6 @@ pub struct SourceProfile {
     /// Its folder's name, as the source names it.
     pub id: String,
     pub name: String,
-    /// The one the source is used with.
-    pub in_use: bool,
     /// Its name is the one the source gave it, not the user's ("Person 1").
     pub default_name: bool,
     /// Where its files are.
