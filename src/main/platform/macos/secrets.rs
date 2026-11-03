@@ -12,6 +12,7 @@ use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2_foundation::{NSData, NSDictionary, NSNumber, NSString};
 
+#[derive(Clone)]
 pub struct Key([u8; 16]);
 
 #[link(name = "Security", kind = "framework")]

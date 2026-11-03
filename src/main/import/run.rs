@@ -105,6 +105,9 @@ struct Run {
     // batches Wren has yet to answer.
     reading: bool,
     pending: usize,
+    /// The user would not let Wren have the source's key: its other
+    /// profiles' cookies are not asked for again.
+    key_refused: bool,
 }
 
 thread_local! {
@@ -172,6 +175,7 @@ pub fn start(app: &Rc<State>, this: Profile, plan: Plan) -> Result<RunState, Str
             failed: HashMap::new(),
             reading: false,
             pending: 0,
+            key_refused: false,
         })
     });
     // Which profiles come, and what each has, read on a thread.
@@ -311,6 +315,10 @@ fn next(mt: MainThread, id: u64) {
     }) else {
         return;
     };
+    if thing == Thing::Cookies && with(id, |run| run.key_refused) == Some(true) {
+        let why = ReadError::Refused.message(source.about().name);
+        return read_over(mt, id, thing, Some(why));
+    }
     match thing {
         Thing::History => in_batches(
             id,
@@ -449,8 +457,12 @@ fn in_batches<T: Send + 'static>(
                 );
             });
         });
+        let refused = matches!(read, Err(ReadError::Refused));
         let why = read.err().map(|error| error.message(source));
-        let _ = wren::post_to_main_thread(move |mt| read_over(mt, id, thing, why));
+        let _ = wren::post_to_main_thread(move |mt| {
+            with(id, |run| run.key_refused |= refused);
+            read_over(mt, id, thing, why);
+        });
     });
 }
 
