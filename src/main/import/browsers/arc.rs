@@ -10,7 +10,10 @@
 // space has a title, its profile, an icon and a theme, and its pinned
 // tabs' container; an item is a tab, a folder (`list`), a split, or a
 // container, with its children in order. `topAppsContainerIDs` alternates a
-// profile with the container of its favourites.
+// profile with the container of its favourites. Which folders are open is
+// each window's, in `StorableWindows.json`: `expandedItems` alternates an
+// item with how it shows, open or "peeked" (closed, showing its tab in use).
+// A folder open in any window comes over open.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -38,8 +41,31 @@ impl Arc {
         let file = self.chromium.root().with_file_name("StorableSidebar.json");
         let json: Value = serde_json::from_str(&fs::read_to_string(file)?)?;
         let this_mac = this_mac();
-        Ok(Sidebar::from_json(&json, this_mac.as_deref()))
+        let mut sidebar = Sidebar::from_json(&json, this_mac.as_deref());
+        // Without its windows, every folder comes over closed.
+        let windows = self.chromium.root().with_file_name("StorableWindows.json");
+        if let Ok(windows) = fs::read_to_string(windows)
+            && let Ok(windows) = serde_json::from_str(&windows)
+        {
+            sidebar.open_folders = open_folders(&windows);
+        }
+        Ok(sidebar)
     }
+}
+
+// The folders open in any of its windows.
+fn open_folders(windows: &Value) -> HashSet<String> {
+    windows["windows"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|window| window["expandedItems"].as_array())
+        .flat_map(|items| items.chunks(2))
+        .filter_map(|pair| match pair {
+            [id, how] if how.get("peeked").is_none() => id.as_str().map(str::to_owned),
+            _ => None,
+        })
+        .collect()
 }
 
 // This Mac's ID, as the browser knows it.
@@ -96,6 +122,8 @@ pub struct Sidebar {
     // Each profile's favourites' container.
     favorites: Vec<(String, String)>,
     items: HashMap<String, Value>,
+    /// The folders open in a window, by ID.
+    pub open_folders: HashSet<String>,
 }
 
 impl Sidebar {
@@ -170,6 +198,7 @@ impl Sidebar {
             spaces,
             favorites,
             items,
+            open_folders: HashSet::new(),
         }
     }
 
@@ -224,9 +253,11 @@ impl Sidebar {
             return vec![Pin::Tab(page)];
         }
         if data.get("list").is_some() {
+            let id = item["id"].as_str().unwrap_or_default();
             return vec![Pin::Folder {
                 name: item["title"].as_str().unwrap_or("Folder").to_owned(),
-                pins: self.children(item["id"].as_str().unwrap_or_default()),
+                pins: self.children(id),
+                open: self.open_folders.contains(id),
             }];
         }
         if let Some(split) = data.get("splitView") {
@@ -394,7 +425,12 @@ mod tests {
 
     #[test]
     fn brings_spaces_with_their_pins() {
-        let spaces = Sidebar::from_json(&sidebar(), Some("this")).spaces_of("Default");
+        let mut sidebar = Sidebar::from_json(&sidebar(), Some("this"));
+        sidebar.open_folders = open_folders(&json!({ "windows": [
+            { "expandedItems": ["l1", { "expanded": {} }, "l9", { "peeked": { "_0": ["t1"] } }] },
+        ] }));
+        assert_eq!(sidebar.open_folders, HashSet::from(["l1".to_owned()]));
+        let spaces = sidebar.spaces_of("Default");
         assert_eq!(spaces.favorites.len(), 1);
         let home = &spaces.spaces[0];
         assert_eq!(
@@ -414,7 +450,7 @@ mod tests {
         // A favourite, then a tab, a folder of one and a split.
         assert_eq!(spaces.pin_count(), 4);
         assert!(
-            matches!(&home.pins[1], Pin::Folder { name, pins } if name == "Folder" && pins.len() == 1)
+            matches!(&home.pins[1], Pin::Folder { name, pins, open: true } if name == "Folder" && pins.len() == 1)
         );
         // A tab the user named keeps the name, over its page's title.
         let Pin::Folder { pins, .. } = &home.pins[1] else {

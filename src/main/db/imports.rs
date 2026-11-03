@@ -5,6 +5,7 @@
 
 use std::collections::HashSet;
 
+use rusqlite::params;
 use wren::ProfileListEntry;
 
 use super::pins::{NewPin, PinKind, PinPlace, PinRow, insert_pin};
@@ -22,6 +23,7 @@ pub enum ImportedPin {
     Pin(NamedPin),
     Folder {
         name: String,
+        open: bool,
         pins: Vec<ImportedPin>,
     },
 }
@@ -149,9 +151,9 @@ fn unpinned(pins: Vec<ImportedPin>, pinned: &mut HashSet<String>) -> Vec<Importe
                     pin: NewPin::Tab(page),
                     name,
                 })),
-            ImportedPin::Folder { name, pins } => {
+            ImportedPin::Folder { name, open, pins } => {
                 let pins = unpinned(pins, pinned);
-                (!pins.is_empty()).then_some(ImportedPin::Folder { name, pins })
+                (!pins.is_empty()).then_some(ImportedPin::Folder { name, open, pins })
             }
             other => Some(other),
         })
@@ -174,8 +176,14 @@ fn insert_pins(
                 insert_pin(transaction, &place, None, pin, name.as_deref())?;
                 made += 1;
             }
-            ImportedPin::Folder { name, pins } => {
+            ImportedPin::Folder { name, open, pins } => {
                 let folder = insert_pin(transaction, &place, None, NewPin::Folder { name }, None)?;
+                transaction
+                    .execute(
+                        "UPDATE pins SET open = ?2 WHERE id = ?1",
+                        params![folder, open],
+                    )
+                    .map_err(sql)?;
                 made += insert_pins(transaction, space, Some(folder), pins)?;
             }
         }
@@ -225,6 +233,7 @@ mod tests {
                     }),
                     ImportedPin::Folder {
                         name: "Docs".into(),
+                        open: false,
                         pins: vec![ImportedPin::Pin(tab("https://b.example/"))],
                     },
                 ],
@@ -245,7 +254,10 @@ mod tests {
         let pins = db.space_pins(home.id).unwrap();
         // The name the user gave it, over its page's title.
         assert_eq!(pins[0].name.as_deref(), Some("Mine"));
-        assert!(matches!(&pins[1].kind, PinKind::Folder { items, .. } if items.len() == 1));
+        // Closed, as its source had it.
+        assert!(
+            matches!(&pins[1].kind, PinKind::Folder { items, open: false } if items.len() == 1)
+        );
         // Again: nothing is doubled.
         let again = db
             .add_spaces("Default", spaces(), vec![tab("https://c.example/")])
@@ -273,6 +285,7 @@ mod tests {
                 ImportedPin::Pin(tab("https://a.example/")),
                 ImportedPin::Folder {
                     name: "Other Bookmarks".into(),
+                    open: true,
                     pins: vec![
                         ImportedPin::Pin(tab("https://b.example/")),
                         ImportedPin::Pin(tab("https://a.example/")),
@@ -282,7 +295,7 @@ mod tests {
         };
         assert_eq!(db.add_pins(space, pins()).unwrap(), 2);
         let made = db.space_pins(space).unwrap();
-        assert!(matches!(&made[1].kind, PinKind::Folder { items, .. } if items.len() == 1));
+        assert!(matches!(&made[1].kind, PinKind::Folder { items, open: true } if items.len() == 1));
         // Again: every page is pinned, so nothing, not even the folder.
         assert_eq!(db.add_pins(space, pins()).unwrap(), 0);
         assert_eq!(db.space_pins(space).unwrap().len(), 2);

@@ -50,10 +50,7 @@ fn item(node: &Value) -> Option<Pin> {
                 "com.apple.ReadingList" => "Reading List",
                 title => title,
             };
-            Some(Pin::Folder {
-                name: name.into(),
-                pins: children(node),
-            })
+            Some(Pin::closed_folder(name, children(node)))
         }
         _ => None,
     }

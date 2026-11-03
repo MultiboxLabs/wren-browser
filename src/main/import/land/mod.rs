@@ -43,8 +43,9 @@ fn imported(each: Pin) -> ImportedPin {
                 ratio,
             },
         }),
-        Pin::Folder { name, pins } => ImportedPin::Folder {
+        Pin::Folder { name, pins, open } => ImportedPin::Folder {
             name,
+            open,
             pins: pins.into_iter().map(imported).collect(),
         },
     }

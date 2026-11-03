@@ -39,10 +39,7 @@ impl Bookmarks {
     pub fn into_pins(self) -> Vec<Pin> {
         let mut pins = self.bar;
         if !self.other.is_empty() {
-            pins.push(Pin::Folder {
-                name: OTHER_BOOKMARKS.into(),
-                pins: self.other,
-            });
+            pins.push(Pin::closed_folder(OTHER_BOOKMARKS, self.other));
         }
         pins
     }
@@ -130,9 +127,9 @@ fn pages_in<'a>(pins: &'a mut [Pin], pages: &mut Vec<&'a mut PinPage>) {
 pub fn pruned(pins: Vec<Pin>) -> Vec<Pin> {
     pins.into_iter()
         .filter_map(|pin| match pin {
-            Pin::Folder { name, pins } => {
+            Pin::Folder { name, pins, open } => {
                 let pins = pruned(pins);
-                (!pins.is_empty()).then_some(Pin::Folder { name, pins })
+                (!pins.is_empty()).then_some(Pin::Folder { name, pins, open })
             }
             pin => Some(pin),
         })
@@ -219,7 +216,20 @@ pub enum Pin {
     Folder {
         name: String,
         pins: Vec<Pin>,
+        /// It shows its pins; closed where the source does not say.
+        open: bool,
     },
+}
+
+impl Pin {
+    /// A folder, closed: one of bookmarks, which no browser keeps open.
+    pub fn closed_folder(name: &str, pins: Vec<Pin>) -> Pin {
+        Pin::Folder {
+            name: name.to_owned(),
+            pins,
+            open: false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -235,14 +245,8 @@ mod tests {
         let bookmarks = Bookmarks {
             bar: vec![
                 tab("https://x.example/"),
-                Pin::Folder {
-                    name: "Y".into(),
-                    pins: vec![tab("https://y.example/")],
-                },
-                Pin::Folder {
-                    name: "Empty".into(),
-                    pins: Vec::new(),
-                },
+                Pin::closed_folder("Y", vec![tab("https://y.example/")]),
+                Pin::closed_folder("Empty", Vec::new()),
             ],
             other: vec![tab("https://z.example/")],
         }
@@ -251,7 +255,7 @@ mod tests {
         assert_eq!(pins.len(), 3);
         assert!(matches!(&pins[1], Pin::Folder { name, .. } if name == "Y"));
         assert!(
-            matches!(&pins[2], Pin::Folder { name, pins } if name == OTHER_BOOKMARKS && pins.len() == 1)
+            matches!(&pins[2], Pin::Folder { name, pins, open: false } if name == OTHER_BOOKMARKS && pins.len() == 1)
         );
         // With nothing off the bar, no folder for it.
         let bar_only = Bookmarks {
