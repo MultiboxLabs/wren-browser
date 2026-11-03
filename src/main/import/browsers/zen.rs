@@ -170,6 +170,7 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
         Pin::Folder {
             name: folders[id]["name"].as_str().unwrap_or("Folder").to_owned(),
             pins,
+            open: folders[id]["collapsed"].as_bool() == Some(false),
         }
     }
 
@@ -256,7 +257,7 @@ mod tests {
         let sessions = json!({
             "spaces": [{ "uuid": "w1", "name": "Work", "icon": "chrome://browser/skin/zen-icons/selectable/briefcase.svg",
                          "theme": { "gradientColors": [{ "c": [10, 20, 30] }] } }],
-            "folders": [{ "id": "f1", "name": "Docs", "workspaceId": "w1", "parentId": null }],
+            "folders": [{ "id": "f1", "name": "Docs", "workspaceId": "w1", "parentId": null, "collapsed": false }],
             "splitViewData": [{ "groupId": "g1", "gridType": "vsep", "tabs": ["c", "d"] }],
             "tabs": [
                 tab("a", "https://a.example/", "w1", json!({ "zenEssential": true })),
@@ -276,10 +277,14 @@ mod tests {
             [[10.0 / 255.0, 20.0 / 255.0, 30.0 / 255.0]]
         );
         assert!(
-            matches!(&work.pins[0], Pin::Folder { name, pins } if name == "Docs" && pins.len() == 1)
+            matches!(&work.pins[0], Pin::Folder { name, pins, .. } if name == "Docs" && pins.len() == 1)
         );
-        // Named by the user, and on the page it was pinned on.
-        let Pin::Folder { pins, .. } = &work.pins[0] else {
+        // Named by the user, and on the page it was pinned on, in a folder
+        // left open.
+        let Pin::Folder {
+            pins, open: true, ..
+        } = &work.pins[0]
+        else {
             unreachable!()
         };
         assert!(matches!(&pins[0], Pin::Tab(page)

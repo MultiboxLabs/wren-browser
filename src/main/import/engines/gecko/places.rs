@@ -102,15 +102,9 @@ fn tree(db: &Connection) -> Result<Bookmarks, ReadError> {
             .map(|&id| pins(id, &children))
             .unwrap_or_default()
     };
-    let mut other = vec![Pin::Folder {
-        name: "Bookmarks Menu".into(),
-        pins: root(MENU),
-    }];
+    let mut other = vec![Pin::closed_folder("Bookmarks Menu", root(MENU))];
     other.extend(root(OTHER));
-    other.push(Pin::Folder {
-        name: "Mobile Bookmarks".into(),
-        pins: root(MOBILE),
-    });
+    other.push(Pin::closed_folder("Mobile Bookmarks", root(MOBILE)));
     Ok(Bookmarks {
         bar: root(TOOLBAR),
         other,
@@ -134,10 +128,7 @@ fn pins(id: i64, children: &HashMap<i64, Vec<Node>>) -> Vec<Pin> {
         .flatten()
         .filter_map(|node| match (node.kind, &node.url) {
             (1, Some(url)) if is_page(url) => Some(Pin::Tab(PinPage::bookmark(&node.title, url))),
-            (2, _) => Some(Pin::Folder {
-                name: node.title.clone(),
-                pins: pins(node.id, children),
-            }),
+            (2, _) => Some(Pin::closed_folder(&node.title, pins(node.id, children))),
             _ => None,
         })
         .collect()

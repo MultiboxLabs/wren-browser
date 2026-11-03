@@ -17,10 +17,10 @@ pub fn read(profile: &Path) -> Result<Bookmarks, ReadError> {
 pub fn from_json(file: &Value) -> Bookmarks {
     let roots = &file["roots"];
     let mut other = children(&roots["other"]);
-    other.push(Pin::Folder {
-        name: "Mobile Bookmarks".into(),
-        pins: children(&roots["synced"]),
-    });
+    other.push(Pin::closed_folder(
+        "Mobile Bookmarks",
+        children(&roots["synced"]),
+    ));
     Bookmarks {
         bar: children(&roots["bookmark_bar"]),
         other,
@@ -42,10 +42,7 @@ fn item(node: &Value) -> Option<Pin> {
             let url = node["url"].as_str()?;
             is_page(url).then(|| Pin::Tab(PinPage::bookmark(name, url)))
         }
-        "folder" => Some(Pin::Folder {
-            name: name.into(),
-            pins: children(node),
-        }),
+        "folder" => Some(Pin::closed_folder(name, children(node))),
         _ => None,
     }
 }
