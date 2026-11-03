@@ -13,7 +13,7 @@ use wren::MainThread;
 use crate::app::State;
 use crate::extensions::bridge::{self, Call};
 use crate::import::run::{self, Plan, RunState};
-use crate::import::{self, Landing, SourceProfile, Survey};
+use crate::import::{self, Landing, ReadError, SourceProfile, Survey};
 use crate::pages::{MIGRATE, icons};
 use crate::platform::{self, Privacy};
 
@@ -34,7 +34,11 @@ struct Context {
     profiles: Vec<WrenProfile>,
 }
 
-/// A browser installed with a real profile, as the page lists it.
+/// What the user must allow for Wren to read what macOS keeps from it.
+const FULL_DISK_ACCESS: &str = "fullDiskAccess";
+
+/// A browser installed with a real profile, as the page lists it; or one
+/// whose profiles macOS keeps from Wren, with none until the user allows it.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ListedSource {
@@ -44,6 +48,8 @@ struct ListedSource {
     icon: String,
     keeps_spaces: bool,
     profiles: Vec<ListedProfile>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access: Option<&'static str>,
 }
 
 #[derive(Serialize)]
@@ -142,7 +148,8 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
         })
     });
 
-    // The browsers installed with a real profile, each with its profiles
+    // The browsers installed with a real profile, or whose profiles macOS
+    // keeps from Wren until the user allows it, each with its profiles
     // and where each lands unless the user says otherwise. The apps' icons
     // are drawn here; their profiles are read on a thread.
     bridge::handle_call(&MIGRATE, "migrate.sources", move |call| {
@@ -155,15 +162,19 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
                 installed
                     .into_iter()
                     .filter_map(|(source, icon)| {
-                        let profiles = source.profiles().ok().filter(|found| !found.is_empty())?;
-                        Some((source, icon, profiles))
+                        let (profiles, access) = match source.profiles() {
+                            Ok(found) if !found.is_empty() => (found, None),
+                            Err(ReadError::NoAccess) => (Vec::new(), Some(FULL_DISK_ACCESS)),
+                            _ => return None,
+                        };
+                        Some((source, icon, profiles, access))
                     })
                     .collect::<Vec<_>>()
             },
             move |_, call, found| {
                 let listed: Vec<ListedSource> = found
                     .into_iter()
-                    .map(|(source, icon, profiles)| {
+                    .map(|(source, icon, profiles, access)| {
                         let about = source.about();
                         ListedSource {
                             id: about.id,
@@ -178,6 +189,7 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
                                     landing: landing(profile, about.name, here.as_deref(), &wren),
                                 })
                                 .collect(),
+                            access,
                         }
                     })
                     .collect();
@@ -291,6 +303,6 @@ fn listed_survey(survey: Survey) -> ListedSurvey {
                 enabled: extension.enabled,
             })
             .collect(),
-        access: survey.no_access.then_some("fullDiskAccess"),
+        access: survey.no_access.then_some(FULL_DISK_ACCESS),
     }
 }
