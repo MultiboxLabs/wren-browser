@@ -12,7 +12,7 @@ use std::fs;
 
 use serde_json::Value;
 
-use crate::import::data::{Pin, PinPage, Space, SpaceIcon, Spaces, count_pins, is_page};
+use crate::import::data::{Look, Pin, PinPage, Space, SpaceIcon, Spaces, count_pins, is_page};
 use crate::import::engines::gecko::{Gecko, mozlz4};
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
 
@@ -182,26 +182,31 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
                     .unwrap_or("Space")
                     .to_owned(),
                 icon: icon(space["icon"].as_str()),
-                colours: space["theme"]["gradientColors"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|colour| {
-                        let parts = colour["c"].as_array()?;
-                        let part = |index: usize| {
-                            parts
-                                .get(index)?
-                                .as_f64()
-                                .map(|value| value.clamp(0.0, 255.0) as u8)
-                        };
-                        Some([part(0)?, part(1)?, part(2)?])
-                    })
-                    .collect(),
+                look: look(&space["theme"]),
                 pins,
             }
         })
         .collect();
     Spaces { favorites, spaces }
+}
+
+// Its gradient's colours, each 0–255 in sRGB, and its grain, 0–1.
+fn look(theme: &Value) -> Look {
+    Look {
+        colours: theme["gradientColors"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|colour| {
+                let parts = colour["c"].as_array()?;
+                let part =
+                    |index: usize| Some(parts.get(index)?.as_f64()?.clamp(0.0, 255.0) / 255.0);
+                Some([part(0)?, part(1)?, part(2)?])
+            })
+            .collect(),
+        noise: theme["texture"].as_f64().unwrap_or(0.0),
+        ..Look::default()
+    }
 }
 
 // An emoji, or one of its own icons by URL (`chrome://…/zen-icons/…/<name>.svg`).
@@ -253,7 +258,10 @@ mod tests {
         assert_eq!(spaces.favorites.len(), 1);
         let work = &spaces.spaces[0];
         assert_eq!(work.icon, SpaceIcon::Named("briefcase".into()));
-        assert_eq!(work.colours, [[10, 20, 30]]);
+        assert_eq!(
+            work.look.colours,
+            [[10.0 / 255.0, 20.0 / 255.0, 30.0 / 255.0]]
+        );
         assert!(
             matches!(&work.pins[0], Pin::Folder { name, pins } if name == "Docs" && pins.len() == 1)
         );

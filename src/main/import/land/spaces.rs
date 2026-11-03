@@ -7,8 +7,10 @@ use std::rc::Rc;
 
 use super::imported;
 use crate::app::State;
-use crate::db::{Added, ImportedPin, ImportedSpace, NewPin, NewSpace, SpaceTheme, avatar};
-use crate::import::data::{Pin, SpaceIcon, Spaces};
+use crate::db::{
+    Added, Appearance, Hsb, ImportedPin, ImportedSpace, NewPin, NewSpace, SpaceTheme, avatar,
+};
+use crate::import::data::{Look, Pin, SpaceIcon, Spaces};
 use crate::ipc;
 
 /// A space with no icon of its own has Wren's.
@@ -104,7 +106,7 @@ pub fn land(
             space: NewSpace {
                 name: space.name,
                 icon: icon(&space.icon),
-                theme: theme(&space.colours, profile),
+                theme: theme(&space.look, profile),
             },
             pins: space.pins.into_iter().map(imported).collect(),
         })
@@ -146,15 +148,26 @@ fn icon(icon: &SpaceIcon) -> String {
     }
 }
 
-// Its colours, the first its main one; or the profile's own, as Wren gives
-// a space it makes.
-fn theme(colours: &[[u8; 3]], profile: &str) -> SpaceTheme {
-    let Some([red, green, blue]) = colours.first() else {
+// Its theme, drawn as its source drew it: its main colour exactly, how much
+// of it shows, light or dark, and its grain. With no colour, the profile's
+// own, as Wren gives a space it makes.
+fn theme(look: &Look, profile: &str) -> SpaceTheme {
+    let Some(&main) = look.colours.first() else {
         return SpaceTheme::default_for(avatar(profile));
     };
-    let mut theme = SpaceTheme::default_for(&format!("#{red:02x}{green:02x}{blue:02x}"));
-    theme.colors = colours.len().clamp(1, 3) as u8;
+    let mut theme = SpaceTheme::default_for(avatar(profile));
+    theme.primary = Hsb::of_srgb(main);
+    theme.colors = look.colours.len().clamp(1, 3) as u8;
+    theme.appearance = match look.dark {
+        Some(true) => Appearance::Dark,
+        Some(false) => Appearance::Light,
+        None => Appearance::Auto,
+    };
+    theme.intensity = look.intensity.unwrap_or(theme.intensity);
+    theme.noise = look.noise;
     theme
+        .checked()
+        .unwrap_or_else(|_| SpaceTheme::default_for(avatar(profile)))
 }
 
 // Favourites have no folders: what was in one comes out of it.

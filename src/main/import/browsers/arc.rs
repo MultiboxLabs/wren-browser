@@ -17,7 +17,7 @@ use std::fs;
 
 use serde_json::Value;
 
-use crate::import::data::{Pin, PinPage, Space, SpaceIcon, Spaces, is_page};
+use crate::import::data::{Look, Pin, PinPage, Space, SpaceIcon, Spaces, is_page};
 use crate::import::engines::chromium::Chromium;
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
 use crate::platform;
@@ -200,9 +200,7 @@ impl Sidebar {
                     .unwrap_or("Space")
                     .to_owned(),
                 icon: icon(&space["customInfo"]["iconType"]),
-                colours: colour(&space["customInfo"]["windowTheme"])
-                    .into_iter()
-                    .collect(),
+                look: look(&space["customInfo"]["windowTheme"]),
                 pins: pinned_container(space)
                     .map(|container| self.children(&container))
                     .unwrap_or_default(),
@@ -314,14 +312,37 @@ fn icon(kind: &Value) -> SpaceIcon {
     }
 }
 
-// Its theme's main colour: the palette's mid tone, each part from 0 to 1.
-fn colour(theme: &Value) -> Option<[u8; 3]> {
-    let tone = &theme["primaryColorPalette"]["midTone"];
-    let part = |name: &str| {
-        tone[name]
-            .as_f64()
-            .map(|value| (value.clamp(0.0, 1.0) * 255.0).round() as u8)
+// How its theme draws it: a single colour, as it was picked, with its
+// intensity, grain and light or dark. A theme of another kind gives its
+// palette's mid tone, as near as Wren comes to it.
+fn look(theme: &Value) -> Look {
+    let background = &theme["background"]["single"]["_0"];
+    let dark = match background["contentOverBackgroundAppearance"].as_str() {
+        Some("dark") => Some(true),
+        Some("light") => Some(false),
+        _ => None,
     };
+    let single = &background["style"]["color"]["_0"]["blendedSingleColor"]["_0"];
+    let modifiers = &single["modifiers"];
+    match colour(&single["color"]) {
+        Some(colour) => Look {
+            colours: vec![colour],
+            dark,
+            intensity: modifiers["intensityFactor"].as_f64(),
+            noise: modifiers["noiseFactor"].as_f64().unwrap_or(0.0),
+        },
+        None => Look {
+            colours: colour(&theme["primaryColorPalette"]["midTone"])
+                .into_iter()
+                .collect(),
+            ..Look::default()
+        },
+    }
+}
+
+// A colour in extended sRGB, as it keeps them.
+fn colour(colour: &Value) -> Option<[f64; 3]> {
+    let part = |name: &str| colour[name].as_f64().filter(|value| value.is_finite());
     Some([part("red")?, part("green")?, part("blue")?])
 }
 
@@ -338,7 +359,12 @@ mod tests {
                 "s1", { "id": "s1", "title": "Home", "profile": { "default": true },
                         "containerIDs": ["pinned", "p1", "unpinned", "u1"],
                         "customInfo": { "iconType": { "emoji_v2": "🏠" },
-                                        "windowTheme": { "primaryColorPalette": { "midTone": { "red": 1.0, "green": 0.5, "blue": 0.0 } } } } },
+                                        "windowTheme": { "background": { "single": { "_0": {
+                                            "contentOverBackgroundAppearance": "dark",
+                                            "style": { "color": { "_0": { "blendedSingleColor": { "_0": {
+                                                "color": { "red": 0.4, "green": -0.01, "blue": 1.04 },
+                                                "modifiers": { "intensityFactor": 0.6, "noiseFactor": 0.25 } } } } } } } } },
+                                        "primaryColorPalette": { "midTone": { "red": 0.7, "green": 0.6, "blue": 1.0 } } } } },
                 "s2", { "id": "s2", "title": "School", "profile": custom("Profile 1", "this"),
                         "containerIDs": ["pinned", "p2", "unpinned", "u2"], "customInfo": { "iconType": { "icon": "book" } } },
                 "s3", { "id": "s3", "title": "Elsewhere", "profile": custom("Profile 2", "other"),
@@ -376,7 +402,16 @@ mod tests {
             (home.name.as_str(), &home.icon),
             ("Home", &SpaceIcon::Emoji("🏠".into()))
         );
-        assert_eq!(home.colours, [[255, 128, 0]]);
+        // The colour picked, not its palette's.
+        assert_eq!(
+            home.look,
+            Look {
+                colours: vec![[0.4, -0.01, 1.04]],
+                dark: Some(true),
+                intensity: Some(0.6),
+                noise: 0.25,
+            }
+        );
         // A favourite, then a tab, a folder of one and a split.
         assert_eq!(spaces.pin_count(), 4);
         assert!(
