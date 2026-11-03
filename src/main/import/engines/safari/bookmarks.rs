@@ -40,14 +40,8 @@ fn item(node: &Value) -> Option<Pin> {
         "WebBookmarkTypeLeaf" => {
             let url = node["URLString"].as_str()?;
             is_page(url).then(|| {
-                Pin::Tab(PinPage {
-                    title: node["URIDictionary"]["title"]
-                        .as_str()
-                        .unwrap_or(url)
-                        .into(),
-                    url: url.into(),
-                    favicon: None,
-                })
+                let name = node["URIDictionary"]["title"].as_str().unwrap_or("");
+                Pin::Tab(PinPage::bookmark(name, url))
             })
         }
         "WebBookmarkTypeList" => {

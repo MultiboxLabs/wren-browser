@@ -40,13 +40,7 @@ fn item(node: &Value) -> Option<Pin> {
     match node["type"].as_str()? {
         "url" => {
             let url = node["url"].as_str()?;
-            is_page(url).then(|| {
-                Pin::Tab(PinPage {
-                    title: name.into(),
-                    url: url.into(),
-                    favicon: None,
-                })
-            })
+            is_page(url).then(|| Pin::Tab(PinPage::bookmark(name, url)))
         }
         "folder" => Some(Pin::Folder {
             name: name.into(),

@@ -277,12 +277,18 @@ pub fn profile_of(reference: &Value) -> Option<(String, Option<String>)> {
 fn page(item: &Value) -> Option<PinPage> {
     let tab = item["data"].get("tab")?;
     let url = tab["savedURL"].as_str().filter(|url| is_page(url))?;
-    let title = item["title"]
+    // Its own title is the user's name for it, and none if they gave it
+    // none.
+    let name = item["title"]
         .as_str()
-        .or(tab["savedTitle"].as_str())
-        .unwrap_or(url);
+        .filter(|name| !name.trim().is_empty());
     Some(PinPage {
-        title: title.to_owned(),
+        title: tab["savedTitle"]
+            .as_str()
+            .or(name)
+            .unwrap_or(url)
+            .to_owned(),
+        name: name.map(str::to_owned),
         url: url.to_owned(),
         favicon: None,
     })
@@ -410,6 +416,13 @@ mod tests {
         assert!(
             matches!(&home.pins[1], Pin::Folder { name, pins } if name == "Folder" && pins.len() == 1)
         );
+        // A tab the user named keeps the name, over its page's title.
+        let Pin::Folder { pins, .. } = &home.pins[1] else {
+            unreachable!()
+        };
+        assert!(matches!(&pins[0], Pin::Tab(page)
+            if page.title == "B" && page.name.as_deref() == Some("Mine")));
+        assert!(matches!(&home.pins[0], Pin::Tab(page) if page.name.is_none()));
         assert!(
             matches!(&home.pins[2], Pin::Split { ratio, stacked: false, .. } if (*ratio - 0.75).abs() < 1e-9)
         );

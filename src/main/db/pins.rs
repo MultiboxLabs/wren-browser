@@ -200,7 +200,7 @@ impl Db {
         pin: NewPin,
     ) -> Result<PinId, String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
-        let id = insert_pin(&transaction, place, index, pin)?;
+        let id = insert_pin(&transaction, place, index, pin, None)?;
         transaction.commit().map_err(sql)?;
         Ok(id)
     }
@@ -495,16 +495,18 @@ fn build(
 // or a folder that is gone, or a parent that is not a folder of the space.
 
 /// Makes a pin in `place` inside `transaction`, as `Db::create_pin` does;
-/// db/imports.rs makes many in one.
+/// db/imports.rs makes many in one. `name` is the user's for a tab or a
+/// split, shown over its page's title; a folder's is its own.
 pub(super) fn insert_pin(
     transaction: &rusqlite::Transaction,
     place: &PinPlace,
     index: Option<usize>,
     pin: NewPin,
+    name: Option<&str>,
 ) -> Result<PinId, String> {
     let (profile, space, parent) = resolve(transaction, place)?;
     let (kind, name, layout, ratio, pages) = match pin {
-        NewPin::Tab(page) => ("tab", None, None, None, vec![page]),
+        NewPin::Tab(page) => ("tab", name.and_then(trimmed), None, None, vec![page]),
         NewPin::Split {
             first,
             second,
@@ -512,7 +514,7 @@ pub(super) fn insert_pin(
             ratio,
         } => (
             "split",
-            None,
+            name.and_then(trimmed),
             Some(layout.text()),
             Some(ratio.clamp(0.05, 0.95)),
             vec![first, second],

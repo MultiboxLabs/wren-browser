@@ -7,7 +7,7 @@ pub mod bookmarks;
 pub mod profiles;
 pub mod spaces;
 
-use crate::db::{ImportedPin, NewPin, PinLayout, PinPage as WrenPage};
+use crate::db::{ImportedPin, NamedPin, NewPin, PinLayout, PinPage as WrenPage};
 use crate::import::data::{Pin, PinPage};
 
 fn page(page: PinPage) -> WrenPage {
@@ -21,21 +21,27 @@ fn page(page: PinPage) -> WrenPage {
 /// A pin read from a source, as the database makes it.
 fn imported(each: Pin) -> ImportedPin {
     match each {
-        Pin::Tab(tab) => ImportedPin::Pin(NewPin::Tab(page(tab))),
+        Pin::Tab(tab) => ImportedPin::Pin(NamedPin {
+            name: tab.name.clone(),
+            pin: NewPin::Tab(page(tab)),
+        }),
         Pin::Split {
             first,
             second,
             stacked,
             ratio,
-        } => ImportedPin::Pin(NewPin::Split {
-            first: page(first),
-            second: page(second),
-            layout: if stacked {
-                PinLayout::Stacked
-            } else {
-                PinLayout::SideBySide
+        } => ImportedPin::Pin(NamedPin {
+            name: None,
+            pin: NewPin::Split {
+                first: page(first),
+                second: page(second),
+                layout: if stacked {
+                    PinLayout::Stacked
+                } else {
+                    PinLayout::SideBySide
+                },
+                ratio,
             },
-            ratio,
         }),
         Pin::Folder { name, pins } => ImportedPin::Folder {
             name,

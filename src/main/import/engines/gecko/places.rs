@@ -133,11 +133,7 @@ fn pins(id: i64, children: &HashMap<i64, Vec<Node>>) -> Vec<Pin> {
         .into_iter()
         .flatten()
         .filter_map(|node| match (node.kind, &node.url) {
-            (1, Some(url)) if is_page(url) => Some(Pin::Tab(PinPage {
-                title: node.title.clone(),
-                url: url.clone(),
-                favicon: None,
-            })),
+            (1, Some(url)) if is_page(url) => Some(Pin::Tab(PinPage::bookmark(&node.title, url))),
             (2, _) => Some(Pin::Folder {
                 name: node.title.clone(),
                 pins: pins(node.id, children),
