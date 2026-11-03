@@ -19,7 +19,7 @@ use serde::Serialize;
 use crate::pages::icons;
 use crate::platform;
 pub use land::profiles::Landing;
-pub use source::{Source, SourceProfile, Survey};
+pub use source::{ReadError, Source, SourceProfile, Survey};
 use sources::SOURCES;
 
 /// An installed browser, as onboarding lists it.

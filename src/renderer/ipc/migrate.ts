@@ -36,6 +36,8 @@ export type MigrateSource = {
   /** It keeps spaces, with their pinned tabs, which come over as Wren's. */
   keepsSpaces: boolean;
   profiles: SourceProfile[];
+  /** Its profiles could not be read: macOS keeps them from Wren until the user allows it. */
+  access?: "fullDiskAccess";
 };
 
 /** What may be brought over, in the order it is. */
@@ -95,7 +97,7 @@ export type MigrateRun = {
 
 export const migrate = {
   context: () => tabPage.invoke<MigrateContext>("migrate.context"),
-  /** The browsers installed that have a real profile, by name. */
+  /** The browsers installed that have a real profile, or whose profiles macOS keeps from Wren, by name. */
   sources: () => tabPage.invoke<MigrateSource[]>("migrate.sources"),
   /** What one of a source's profiles has. */
   survey: (source: string, profile: string) => tabPage.invoke<Survey>("migrate.survey", { source, profile }),

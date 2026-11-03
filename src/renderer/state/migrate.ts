@@ -40,18 +40,22 @@ export function useMigrate() {
 
   const fail = (reason: Error) => setError(reason.message);
 
-  useEffect(() => {
-    migrate.context().then(setContext, fail);
+  const loadSources = useCallback(() => {
     migrate.sources().then((given) => {
       setSources(given);
       setSourceId((id) => id ?? (given.find((source) => source.keepsSpaces) ?? given[0])?.id);
     }, fail);
+  }, []);
+
+  useEffect(() => {
+    migrate.context().then(setContext, fail);
+    loadSources();
     migrate.run().then(setRun, fail);
     return migrate.onProgress((given) => {
       setRun(given);
       setSeenRun(false);
     });
-  }, []);
+  }, [loadSources]);
 
   const source = sources?.find(({ id }) => id === sourceId);
 
@@ -71,17 +75,23 @@ export function useMigrate() {
     setExtensions(undefined);
     survey();
   }, [source, survey]);
-  // Back from System Settings, where the user may have let Wren read more.
+  // Back from System Settings, where the user may have let Wren read more:
+  // a source's profiles, if it had none to show, or else what they have.
+  const sourceHidden = !!source?.access;
   useEffect(() => {
-    const shown = () => document.visibilityState === "visible" && survey();
+    const shown = () => {
+      if (document.visibilityState !== "visible") return;
+      if (sourceHidden) loadSources();
+      else survey();
+    };
     document.addEventListener("visibilitychange", shown);
     return () => document.removeEventListener("visibilitychange", shown);
-  }, [survey]);
+  }, [survey, loadSources, sourceHidden]);
 
   const chosen = (source?.profiles ?? []).filter(({ id }) => profiles[id]?.on);
   const chosenSurveys = chosen.map(({ id }) => surveys[`${source?.id}/${id}`]).filter(Boolean) as Survey[];
   const surveyed = !!source && chosenSurveys.length === chosen.length;
-  const needsAccess = chosenSurveys.some((each) => each.access === "fullDiskAccess");
+  const needsAccess = sourceHidden || chosenSurveys.some((each) => each.access === "fullDiskAccess");
 
   // Every store extension of the profiles chosen, once each: on if any of
   // them has it on. Each profile gets those it has of the ones chosen.
