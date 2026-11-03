@@ -25,6 +25,9 @@ use crate::import::engines::chromium::Chromium;
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
 use crate::platform;
 
+/// What its UI calls the profile it starts with.
+const DEFAULT_PROFILE: &str = "Default";
+
 /// The name it gives its own hidden profile, and any like it.
 const OWN_PROFILE_PREFIX: &str = "__ARC_";
 
@@ -92,6 +95,15 @@ impl Source for Arc {
             .filter(|profile| {
                 !profile.name.starts_with(OWN_PROFILE_PREFIX)
                     && sidebar.profiles.contains(&profile.id)
+            })
+            .map(|mut profile| {
+                // Its UI names the profile it starts with "Default", not
+                // Chromium's "Person 1".
+                if profile.default_name {
+                    profile.name = DEFAULT_PROFILE.into();
+                    profile.default_name = false;
+                }
+                profile
             })
             .collect())
     }
