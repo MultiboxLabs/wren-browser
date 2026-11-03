@@ -13,9 +13,10 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use serde::Serialize;
-use wren::{Browser, BubbleAnchor, RequestedBounds, WindowState};
+use wren::{Browser, BubbleAnchor, Error, RequestedBounds, WindowState};
 
 use super::Place;
 use super::sidebar_hover::SidebarHover;
@@ -262,13 +263,24 @@ impl BrowserWindow {
             .collect()
     }
 
-    /// Closes the window's Browsers. The window goes as the last of them
-    /// closes (`App::browser_closed`).
-    pub fn close_browsers(&self) {
-        self.closing.set(true);
-        for browser in self.browsers() {
-            let _ = browser.close();
+    /// Closes the window's Browsers, all or none, as a page's "Leave site?"
+    /// may keep them open. The window goes as the last of them closes
+    /// (`App::browser_closed`), and then `closed` runs; if they stay, the
+    /// window stays as it was. A close asked again while one asks is let be.
+    pub fn close_browsers(self: &Rc<Self>, closed: impl FnOnce() + 'static) {
+        if self.closing.replace(true) {
+            return;
         }
+        let window = self.clone();
+        Browser::close_all(&self.browsers(), move |result| match result {
+            Ok(()) => closed(),
+            Err(error) => {
+                window.closing.set(false);
+                if error != Error::Cancelled {
+                    eprintln!("Wren could not close a window's Browsers: {error:?}");
+                }
+            }
+        });
     }
 
     /// Moves and sizes the window to `frame`, as Chromium asked; in full

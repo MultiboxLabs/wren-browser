@@ -34,7 +34,7 @@ impl State {
     /// the window in front. One that gets no window closes.
     pub fn open_popup(self: &Rc<Self>, mt: MainThread, browser: Browser, opener: Option<Browser>) {
         let Some(profile) = browser.profile() else {
-            let _ = browser.close();
+            browser.close(|_| {});
             return;
         };
         let opener_window = opener.as_ref().and_then(|opener| self.windows.of(opener));
@@ -56,7 +56,7 @@ impl State {
             Some(popup),
         );
         let Some(window) = window else {
-            let _ = browser.close();
+            browser.close(|_| {});
             return;
         };
         let requested = browser.requested_bounds();

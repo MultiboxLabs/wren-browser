@@ -150,12 +150,8 @@ impl State {
     // The close button of window `id`. Where the last window quits the app
     // (not on a Mac), it is kept with its session for the next run. Any
     // other is forgotten, and leaves by closing its Browsers, as Chrome's
-    // does, and goes once they have.
-    //
-    // TODO: a page's "Leave site?" prompt can keep a Browser open, but by then
-    // the window is forgotten and marked as closing, and its other Browsers
-    // may have closed. Change nothing until every Browser has closed, once
-    // Wren's `Browser::close` reports a page cancelling it.
+    // does, and goes once they have. A page's "Leave site?" may keep them
+    // all open, and the window with them, still kept.
     pub(crate) fn close_window(self: &Rc<Self>, mt: MainThread, id: WindowId) {
         if QUITS_WITH_LAST_WINDOW && self.windows.len() <= 1 {
             return mt.quit();
@@ -164,10 +160,16 @@ impl State {
             return;
         };
         ipc::quit_window_closing(self, id);
-        self.forget_window(&window);
         if window.has_browsers() {
-            return window.close_browsers();
+            let state = Rc::downgrade(self);
+            let closed = window.clone();
+            return window.close_browsers(move || {
+                if let Some(state) = state.upgrade() {
+                    state.forget_window(&closed);
+                }
+            });
         }
+        self.forget_window(&window);
         // It has no Browser to close, and is not dropped inside its own
         // delegate's call.
         let state = Rc::downgrade(self);

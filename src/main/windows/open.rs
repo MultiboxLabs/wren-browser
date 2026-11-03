@@ -280,7 +280,7 @@ impl State {
                 let window = state.windows.get(id);
                 let Some(window) = window.filter(|w| !w.is_closing() && w.is_opening(&place))
                 else {
-                    let _ = browser.close();
+                    browser.close(|_| {});
                     return;
                 };
                 state.host(&window, place, &browser);
@@ -315,7 +315,7 @@ impl State {
         opener: Option<Browser>,
     ) {
         let Some(profile) = browser.profile() else {
-            let _ = browser.close();
+            browser.close(|_| {});
             return;
         };
         if profile.kind() == ProfileKind::OffTheRecord {
@@ -326,7 +326,7 @@ impl State {
             return;
         }
         if self.is_left_by_closed_window(&browser) {
-            let _ = browser.close();
+            browser.close(|_| {});
             return;
         }
         let of_profile = |space: &SpaceId| self.is_space_of(*space, &profile);
@@ -358,7 +358,7 @@ impl State {
             self.windows.get(id)
         });
         let Some(window) = window else {
-            let _ = browser.close();
+            browser.close(|_| {});
             return false;
         };
         self.host_as_requested(&window, place, browser);

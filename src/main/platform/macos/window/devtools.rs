@@ -45,7 +45,7 @@ impl DevToolsWindow {
         let delegate = WindowDelegate::new(
             mtm,
             Box::new(move || {
-                let _ = closing.close();
+                closing.close(|_| {});
                 false // browser_closed drops the window after Chromium closes.
             }),
         );
