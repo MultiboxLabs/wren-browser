@@ -33,6 +33,9 @@ pub struct SourceProfile {
     pub default_name: bool,
     /// Where its files are.
     pub folder: PathBuf,
+    /// Its picture, a PNG of the account it is signed in to, if the source
+    /// shows one for it.
+    pub picture: Option<PathBuf>,
 }
 
 /// Why something could not be read.

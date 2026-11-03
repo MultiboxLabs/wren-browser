@@ -25,6 +25,8 @@ export type SourceProfile = {
   name: string;
   /** Where it lands unless the user says otherwise: a new profile of its name, or the one it came into before. */
   landing: Landing;
+  /** Its picture's ID, for `iconUrl`, if it has one. */
+  picture?: string;
 };
 
 /** A browser installed that the user may bring their things over from. */

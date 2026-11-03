@@ -57,6 +57,7 @@ pub fn from_ini(text: &str) -> Vec<(SourceProfile, String, bool)> {
                 default_name: name.starts_with("default"),
                 name,
                 folder: Default::default(),
+                picture: None,
             };
             Some((
                 profile,

@@ -3,7 +3,7 @@
 // list), and any whose folder is gone.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
@@ -22,6 +22,7 @@ pub fn read(root: &Path, one_profile: bool, name: &str) -> Result<Vec<SourceProf
             name: name.into(),
             default_name: true,
             folder: root.to_path_buf(),
+            picture: None,
         }]);
     }
     let state = match fs::read_to_string(root.join("Local State")) {
@@ -34,6 +35,10 @@ pub fn read(root: &Path, one_profile: bool, name: &str) -> Result<Vec<SourceProf
         .into_iter()
         .map(|mut profile| {
             profile.folder = root.join(&profile.id);
+            profile.picture = profile
+                .picture
+                .map(|file| profile.folder.join(file))
+                .filter(|file| file.is_file());
             profile
         })
         .collect())
@@ -50,6 +55,7 @@ pub fn from_local_state(state: &Value, exists: impl Fn(&str) -> bool) -> Vec<Sou
                 name: "Default".into(),
                 default_name: true,
                 folder: Default::default(),
+                picture: None,
             })
             .into_iter()
             .collect();
@@ -79,9 +85,19 @@ pub fn from_local_state(state: &Value, exists: impl Fn(&str) -> bool) -> Vec<Sou
                 name: info["name"].as_str().unwrap_or(id).into(),
                 default_name: info["is_using_default_name"].as_bool().unwrap_or(false),
                 folder: Default::default(),
+                picture: picture(info),
             })
         })
         .collect()
+}
+
+// The account's picture, its file's name in the profile's folder, where the
+// browser shows it: unless the user chose one of its own avatars instead.
+fn picture(info: &Value) -> Option<PathBuf> {
+    let file = info["gaia_picture_file_name"].as_str().filter(|file| !file.is_empty())?;
+    let chose_avatar = info["is_using_default_avatar"].as_bool() == Some(false)
+        && info["use_gaia_picture"].as_bool() != Some(true);
+    (!chose_avatar).then(|| PathBuf::from(file))
 }
 
 #[cfg(test)]
@@ -95,8 +111,10 @@ mod tests {
         let state = json!({ "profile": {
             "profiles_order": ["Default", "Profile 1"],
             "info_cache": {
-                "Default": { "name": "Person 1", "is_using_default_name": true },
-                "Profile 1": { "name": "Work" },
+                "Default": { "name": "Person 1", "is_using_default_name": true,
+                             "gaia_picture_file_name": "Google Profile Picture.png" },
+                "Profile 1": { "name": "Work", "gaia_picture_file_name": "Google Profile Picture.png",
+                               "is_using_default_avatar": false },
                 "Profile 2": { "name": "Gone" },
                 "Profile 3": { "name": "Hidden", "is_omitted_from_profile_list": true },
                 "Guest Profile": { "name": "Guest" },
@@ -105,8 +123,9 @@ mod tests {
         let profiles = from_local_state(&state, |id| id != "Profile 2");
         let names: Vec<_> = profiles
             .iter()
-            .map(|p| (p.id.as_str(), p.default_name))
+            .map(|p| (p.id.as_str(), p.default_name, p.picture.is_some()))
             .collect();
-        assert_eq!(names, [("Default", true), ("Profile 1", false)]);
+        // Work's user chose an avatar over the account's picture.
+        assert_eq!(names, [("Default", true, true), ("Profile 1", false, false)]);
     }
 }

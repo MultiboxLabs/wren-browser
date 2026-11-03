@@ -58,6 +58,9 @@ struct ListedProfile {
     name: String,
     /// Where it lands unless the user says otherwise.
     landing: Landing,
+    /// Its picture's ID (`iconUrl`), if it has one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    picture: Option<String>,
 }
 
 /// What a profile has, as the page takes it: a thing it has none of is
@@ -167,6 +170,18 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
                             Err(ReadError::NoAccess) => (Vec::new(), Some(FULL_DISK_ACCESS)),
                             _ => return None,
                         };
+                        // Each with its picture's PNG, read here, off the
+                        // main thread.
+                        let profiles: Vec<_> = profiles
+                            .into_iter()
+                            .map(|profile| {
+                                let picture = profile
+                                    .picture
+                                    .as_ref()
+                                    .and_then(|file| std::fs::read(file).ok());
+                                (profile, picture)
+                            })
+                            .collect();
                         Some((source, icon, profiles, access))
                     })
                     .collect::<Vec<_>>()
@@ -182,11 +197,12 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
                             icon: icons::id(icon),
                             keeps_spaces: source.keeps_spaces(),
                             profiles: profiles
-                                .iter()
-                                .map(|profile| ListedProfile {
+                                .into_iter()
+                                .map(|(profile, picture)| ListedProfile {
                                     id: profile.id.clone(),
-                                    name: shown_name(profile, about.name),
-                                    landing: landing(profile, about.name, here.as_deref(), &wren),
+                                    name: shown_name(&profile, about.name),
+                                    landing: landing(&profile, about.name, here.as_deref(), &wren),
+                                    picture: picture.map(icons::id),
                                 })
                                 .collect(),
                             access,
