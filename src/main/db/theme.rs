@@ -116,6 +116,39 @@ impl SpaceTheme {
     }
 }
 
+impl Hsb {
+    /// A colour in extended sRGB, each part 0–1 or past it for one sRGB
+    /// does not hold, as Display P3 has it; one P3 does not hold either
+    /// comes as near as P3 has.
+    pub fn of_srgb(rgb: [f64; 3]) -> Hsb {
+        // sRGB's and P3's transfer curve, both ways, mirrored below zero as
+        // extended sRGB's is.
+        let linear = |v: f64| {
+            let a = v.abs();
+            let l = if a <= 0.04045 {
+                a / 12.92
+            } else {
+                ((a + 0.055) / 1.055).powf(2.4)
+            };
+            l.copysign(v)
+        };
+        let encode = |l: f64| {
+            let l = l.clamp(0.0, 1.0);
+            if l <= 0.0031308 {
+                12.92 * l
+            } else {
+                1.055 * l.powf(1.0 / 2.4) - 0.055
+            }
+        };
+        let [r, g, b] = rgb.map(linear);
+        hsb_of_rgb(
+            encode(0.822_462_1 * r + 0.177_538 * g),
+            encode(0.033_194_1 * r + 0.966_805_8 * g),
+            encode(0.017_082_7 * r + 0.072_397_4 * g + 0.910_519_9 * b),
+        )
+    }
+}
+
 // HSB of a `#rrggbb` colour, its parts read as they are.
 fn hsb_of(hex: &str) -> Option<Hsb> {
     let digits = hex.strip_prefix('#')?;
@@ -124,7 +157,10 @@ fn hsb_of(hex: &str) -> Option<Hsb> {
     }
     let part =
         |at: usize| u8::from_str_radix(&digits[at..at + 2], 16).map(|v| f64::from(v) / 255.0);
-    let (r, g, b) = (part(0).ok()?, part(2).ok()?, part(4).ok()?);
+    Some(hsb_of_rgb(part(0).ok()?, part(2).ok()?, part(4).ok()?))
+}
+
+fn hsb_of_rgb(r: f64, g: f64, b: f64) -> Hsb {
     let max = r.max(g).max(b);
     let delta = max - r.min(g).min(b);
     let sector = if delta == 0.0 {
@@ -136,11 +172,11 @@ fn hsb_of(hex: &str) -> Option<Hsb> {
     } else {
         (r - g) / delta + 4.0
     };
-    Some(Hsb {
+    Hsb {
         hue: sector / 6.0,
         saturation: if max == 0.0 { 0.0 } else { delta / max },
         brightness: max,
-    })
+    }
 }
 
 #[cfg(test)]
@@ -154,6 +190,25 @@ mod tests {
         assert!((theme.primary.saturation - 0.9608).abs() < 0.001);
         assert_eq!(theme.primary.brightness, 1.0);
         assert_eq!(SpaceTheme::default_for("#ff0000").primary.hue, 0.0);
+    }
+
+    #[test]
+    fn srgb_to_p3() {
+        let close = |a: Hsb, b: [f64; 3]| {
+            (a.hue - b[0]).abs() < 0.002
+                && (a.saturation - b[1]).abs() < 0.002
+                && (a.brightness - b[2]).abs() < 0.002
+        };
+        // sRGB's red is P3's (0.9175, 0.2003, 0.1387).
+        assert!(close(
+            Hsb::of_srgb([1.0, 0.0, 0.0]),
+            [0.0132, 0.8488, 0.9175]
+        ));
+        let white = Hsb::of_srgb([1.0, 1.0, 1.0]);
+        assert!(white.saturation < 1e-6 && (white.brightness - 1.0).abs() < 1e-6);
+        // A colour past sRGB, as P3 holds it.
+        let past = Hsb::of_srgb([0.4338, -0.00997, 1.0408]);
+        assert!(past.saturation > 0.9 && past.brightness <= 1.0);
     }
 
     #[test]

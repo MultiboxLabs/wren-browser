@@ -152,9 +152,24 @@ pub fn count_pins(pins: &[Pin]) -> usize {
 pub struct Space {
     pub name: String,
     pub icon: SpaceIcon,
-    /// Its colours, the first its main one; none for the source's default.
-    pub colours: Vec<[u8; 3]>,
+    pub look: Look,
     pub pins: Vec<Pin>,
+}
+
+/// How a space was drawn in its source.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Look {
+    /// Its colours, the first its main one, in extended sRGB: each part
+    /// 0–1, or past it for a colour sRGB does not hold. None for the
+    /// source's default.
+    pub colours: Vec<[f64; 3]>,
+    /// Whether what is over it is drawn dark or light; None for as its
+    /// colour is.
+    pub dark: Option<bool>,
+    /// How much of its colour shows, 0–1; None for Wren's default.
+    pub intensity: Option<f64>,
+    /// How grainy it is, 0–1.
+    pub noise: f64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
