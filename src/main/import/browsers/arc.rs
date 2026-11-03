@@ -61,20 +61,13 @@ impl Source for Arc {
 
     fn profiles(&self) -> Result<Vec<SourceProfile>, ReadError> {
         let sidebar = self.sidebar()?;
-        let mut profiles: Vec<SourceProfile> = Engine::profiles(&self.chromium)?
+        Ok(Engine::profiles(&self.chromium)?
             .into_iter()
             .filter(|profile| {
                 !profile.name.starts_with(OWN_PROFILE_PREFIX)
                     && sidebar.profiles.contains(&profile.id)
             })
-            .collect();
-        // The one in use is its last; if that is not a real one, the first.
-        if !profiles.iter().any(|profile| profile.in_use)
-            && let Some(first) = profiles.first_mut()
-        {
-            first.in_use = true;
-        }
-        Ok(profiles)
+            .collect())
     }
 
     fn survey(&self, profile: &SourceProfile) -> Survey {

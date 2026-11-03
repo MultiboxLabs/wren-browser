@@ -23,7 +23,7 @@ export type Landing = { kind: "this" } | { kind: "existing"; id: string } | { ki
 export type SourceProfile = {
   id: string;
   name: string;
-  /** Where it lands unless the user says otherwise: the one the source is used with, in the tab's profile. */
+  /** Where it lands unless the user says otherwise: a new profile of its name, or the one it came into before. */
   landing: Landing;
 };
 
