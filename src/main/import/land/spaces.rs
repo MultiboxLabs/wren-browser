@@ -8,7 +8,7 @@ use std::rc::Rc;
 use super::imported;
 use crate::app::State;
 use crate::db::{
-    Added, Appearance, Hsb, ImportedPin, ImportedSpace, NewPin, NewSpace, SpaceTheme, avatar,
+    Added, Appearance, Hsb, ImportedPin, ImportedSpace, NamedPin, NewSpace, SpaceTheme, avatar,
 };
 use crate::import::data::{Look, Pin, SpaceIcon, Spaces};
 use crate::ipc;
@@ -171,7 +171,7 @@ fn theme(look: &Look, profile: &str) -> SpaceTheme {
 }
 
 // Favourites have no folders: what was in one comes out of it.
-fn flatten(pins: Vec<Pin>) -> Vec<NewPin> {
+fn flatten(pins: Vec<Pin>) -> Vec<NamedPin> {
     pins.into_iter()
         .flat_map(|each| match each {
             Pin::Folder { pins, .. } => flatten(pins),

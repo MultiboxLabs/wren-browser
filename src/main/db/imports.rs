@@ -19,11 +19,18 @@ pub struct ImportedSpace {
 }
 
 pub enum ImportedPin {
-    Pin(NewPin),
+    Pin(NamedPin),
     Folder {
         name: String,
         pins: Vec<ImportedPin>,
     },
+}
+
+/// A tab or a split to make, with the name the user gave it in its source,
+/// if they did.
+pub struct NamedPin {
+    pub pin: NewPin,
+    pub name: Option<String>,
 }
 
 /// What was made, and what was left as the profile had it already.
@@ -39,7 +46,7 @@ impl Db {
         &self,
         profile: &str,
         spaces: Vec<ImportedSpace>,
-        favorites: Vec<NewPin>,
+        favorites: Vec<NamedPin>,
     ) -> Result<Added, String> {
         let names: HashSet<String> = self
             .list_spaces()?
@@ -71,12 +78,18 @@ impl Db {
             profile: profile.to_owned(),
         };
         for favorite in favorites {
-            if let NewPin::Tab(page) = &favorite
+            if let NewPin::Tab(page) = &favorite.pin
                 && !favorite_urls.insert(page.url.clone())
             {
                 continue;
             }
-            insert_pin(&transaction, &place, None, favorite)?;
+            insert_pin(
+                &transaction,
+                &place,
+                None,
+                favorite.pin,
+                favorite.name.as_deref(),
+            )?;
             added.pins += 1;
         }
         transaction.commit().map_err(sql)?;
@@ -127,9 +140,15 @@ fn pages_of(rows: &[PinRow], pages: &mut HashSet<String>) {
 fn unpinned(pins: Vec<ImportedPin>, pinned: &mut HashSet<String>) -> Vec<ImportedPin> {
     pins.into_iter()
         .filter_map(|pin| match pin {
-            ImportedPin::Pin(NewPin::Tab(page)) => pinned
+            ImportedPin::Pin(NamedPin {
+                pin: NewPin::Tab(page),
+                name,
+            }) => pinned
                 .insert(page.url.clone())
-                .then_some(ImportedPin::Pin(NewPin::Tab(page))),
+                .then_some(ImportedPin::Pin(NamedPin {
+                    pin: NewPin::Tab(page),
+                    name,
+                })),
             ImportedPin::Folder { name, pins } => {
                 let pins = unpinned(pins, pinned);
                 (!pins.is_empty()).then_some(ImportedPin::Folder { name, pins })
@@ -151,12 +170,12 @@ fn insert_pins(
     let mut made = 0;
     for pin in pins {
         match pin {
-            ImportedPin::Pin(pin) => {
-                insert_pin(transaction, &place, None, pin)?;
+            ImportedPin::Pin(NamedPin { pin, name }) => {
+                insert_pin(transaction, &place, None, pin, name.as_deref())?;
                 made += 1;
             }
             ImportedPin::Folder { name, pins } => {
-                let folder = insert_pin(transaction, &place, None, NewPin::Folder { name })?;
+                let folder = insert_pin(transaction, &place, None, NewPin::Folder { name }, None)?;
                 made += insert_pins(transaction, space, Some(folder), pins)?;
             }
         }
@@ -171,12 +190,15 @@ mod tests {
     use crate::db::test_db as db;
     use crate::db::theme::SpaceTheme;
 
-    fn tab(url: &str) -> NewPin {
-        NewPin::Tab(PinPage {
-            url: url.into(),
-            title: url.into(),
-            favicon: None,
-        })
+    fn tab(url: &str) -> NamedPin {
+        NamedPin {
+            pin: NewPin::Tab(PinPage {
+                url: url.into(),
+                title: url.into(),
+                favicon: None,
+            }),
+            name: None,
+        }
     }
 
     fn space(name: &str, pins: Vec<ImportedPin>) -> ImportedSpace {
@@ -197,7 +219,10 @@ mod tests {
             vec![space(
                 "Home",
                 vec![
-                    ImportedPin::Pin(tab("https://a.example/")),
+                    ImportedPin::Pin(NamedPin {
+                        name: Some("Mine".into()),
+                        ..tab("https://a.example/")
+                    }),
                     ImportedPin::Folder {
                         name: "Docs".into(),
                         pins: vec![ImportedPin::Pin(tab("https://b.example/"))],
@@ -218,6 +243,8 @@ mod tests {
         );
         let home = db.list_spaces().unwrap().pop().unwrap();
         let pins = db.space_pins(home.id).unwrap();
+        // The name the user gave it, over its page's title.
+        assert_eq!(pins[0].name.as_deref(), Some("Mine"));
         assert!(matches!(&pins[1].kind, PinKind::Folder { items, .. } if items.len() == 1));
         // Again: nothing is doubled.
         let again = db

@@ -80,11 +80,23 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
         }
     }
     let tabs = list("tabs");
+    // A pin's page is the one it was pinned on, which it goes back to; or,
+    // from before Zen kept that, the one it showed last. Its static label
+    // is the user's name for it.
     let page_of = |tab: &Value| -> Option<PinPage> {
-        let entry = tab["entries"].as_array()?.last()?;
+        let pinned = &tab["_zenPinnedInitialState"]["entry"];
+        let entry = if pinned.is_object() {
+            pinned
+        } else {
+            tab["entries"].as_array()?.last()?
+        };
         let url = entry["url"].as_str().filter(|url| is_page(url))?;
         Some(PinPage {
             title: entry["title"].as_str().unwrap_or(url).to_owned(),
+            name: tab["zenStaticLabel"]
+                .as_str()
+                .filter(|name| !name.trim().is_empty())
+                .map(str::to_owned),
             url: url.to_owned(),
             favicon: None,
         })
@@ -248,7 +260,8 @@ mod tests {
             "splitViewData": [{ "groupId": "g1", "gridType": "vsep", "tabs": ["c", "d"] }],
             "tabs": [
                 tab("a", "https://a.example/", "w1", json!({ "zenEssential": true })),
-                tab("b", "https://b.example/", "w1", json!({ "groupId": "f1" })),
+                tab("b", "https://b.example/now", "w1", json!({ "groupId": "f1", "zenStaticLabel": "Mine",
+                    "_zenPinnedInitialState": { "entry": { "url": "https://b.example/", "title": "B" } } })),
                 tab("c", "https://c.example/", "w1", json!({ "groupId": "g1" })),
                 tab("d", "https://d.example/", "w1", json!({ "groupId": "g1" })),
                 tab("e", "https://e.example/", "w1", json!({ "pinned": false })),
@@ -265,6 +278,12 @@ mod tests {
         assert!(
             matches!(&work.pins[0], Pin::Folder { name, pins } if name == "Docs" && pins.len() == 1)
         );
+        // Named by the user, and on the page it was pinned on.
+        let Pin::Folder { pins, .. } = &work.pins[0] else {
+            unreachable!()
+        };
+        assert!(matches!(&pins[0], Pin::Tab(page)
+            if page.url == "https://b.example/" && page.title == "B" && page.name.as_deref() == Some("Mine")));
         assert!(matches!(&work.pins[1], Pin::Split { stacked: false, .. }));
         assert_eq!(work.pins.len(), 2);
     }

@@ -183,10 +183,27 @@ pub enum SpaceIcon {
 /// A page as a pin has it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PinPage {
+    /// The page's title, as the source last saw it.
     pub title: String,
+    /// The user's name for it, which Wren keeps over its title.
+    pub name: Option<String>,
     pub url: String,
     /// A PNG at 2x, as a tab's favicon is.
     pub favicon: Option<Vec<u8>>,
+}
+
+impl PinPage {
+    /// A bookmark of `url`: its name, which the user sees and may change,
+    /// stays the pin's, as a bookmark's does, whatever the page is titled.
+    pub fn bookmark(name: &str, url: &str) -> PinPage {
+        let name = Some(name.trim()).filter(|name| !name.is_empty());
+        PinPage {
+            title: name.unwrap_or(url).to_owned(),
+            name: name.map(str::to_owned),
+            url: url.to_owned(),
+            favicon: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -210,11 +227,7 @@ mod tests {
     use super::*;
 
     fn tab(url: &str) -> Pin {
-        Pin::Tab(PinPage {
-            title: url.into(),
-            url: url.into(),
-            favicon: None,
-        })
+        Pin::Tab(PinPage::bookmark("", url))
     }
 
     #[test]
