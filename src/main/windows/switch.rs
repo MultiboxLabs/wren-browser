@@ -125,7 +125,7 @@ impl State {
                 .filter(|space| !exists(*space));
             for space in gone {
                 if let Some(browser) = window.forget(&Place::Space(space)) {
-                    let _ = browser.close();
+                    browser.close(|_| {});
                 }
             }
             self.save_window(&window);
