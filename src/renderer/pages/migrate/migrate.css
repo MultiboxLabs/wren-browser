@@ -162,7 +162,12 @@ body {
 
 /* The column under the sky scrolls, with a slim scrollbar of the page's
    own: a rounded thumb, inset from its track, that darkens under the
-   pointer. */
+   pointer. Its gutter is kept whether or not there is anything to scroll,
+   on both sides, so the column never moves as it comes and stays in the
+   middle, under the sky. */
+.migrate-scroll {
+  scrollbar-gutter: stable both-edges;
+}
 .migrate-scroll::-webkit-scrollbar {
   width: 14px;
 }
