@@ -46,6 +46,7 @@ impl Engine for Safari {
             name: "Safari".into(),
             default_name: true,
             folder: folder(),
+            picture: None,
         }])
     }
 
