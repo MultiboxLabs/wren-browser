@@ -5,7 +5,8 @@
 
 use std::path::{Path, PathBuf};
 
-use rusqlite::Connection;
+use rusqlite::types::ValueRef;
+use rusqlite::{Connection, Row};
 use wren::{Cookie, CookieSameSite};
 
 use super::{KeyItem, unix_ms};
@@ -75,13 +76,13 @@ pub fn read(
     let mut rows = query.query([])?;
     let mut cookies = Vec::with_capacity(BATCH);
     while let Some(row) = rows.next()? {
-        let plain: String = row.get(2)?;
+        let plain = String::from_utf8_lossy(bytes(row, 2)?).into_owned();
         let value = if plain.is_empty() {
-            let sealed: Vec<u8> = row.get(3)?;
+            let sealed = bytes(row, 3)?;
             if sealed.is_empty() {
                 Some(String::new())
             } else {
-                platform::decrypt(&key, &sealed).and_then(|opened| {
+                platform::decrypt(&key, sealed).and_then(|opened| {
                     let opened = if hashed && opened.len() >= 32 {
                         opened[32..].to_vec()
                     } else {
@@ -121,6 +122,15 @@ pub fn read(
     Ok(())
 }
 
+// A column's bytes, which some browsers keep as text and others as a blob,
+// even in one file; none for NULL.
+fn bytes<'row>(row: &'row Row, index: usize) -> rusqlite::Result<&'row [u8]> {
+    Ok(match row.get_ref(index)? {
+        ValueRef::Text(bytes) | ValueRef::Blob(bytes) => bytes,
+        _ => &[],
+    })
+}
+
 fn columns(db: &Connection) -> Result<Vec<String>, ReadError> {
     let mut query = db.prepare("SELECT name FROM pragma_table_info('cookies')")?;
     let names = query
@@ -136,5 +146,23 @@ fn same_site(value: i64) -> CookieSameSite {
         1 => CookieSameSite::Lax,
         2 => CookieSameSite::Strict,
         _ => CookieSameSite::Unspecified,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Some browsers keep a value as text in a blob column.
+    #[test]
+    fn reads_a_value_kept_as_text_or_a_blob() {
+        let db = Connection::open_in_memory().unwrap();
+        let read = |sql: &str| -> Vec<u8> {
+            db.query_row(sql, [], |row| bytes(row, 0).map(<[u8]>::to_vec))
+                .unwrap()
+        };
+        assert_eq!(read("SELECT CAST('v10' AS BLOB)"), b"v10");
+        assert_eq!(read("SELECT 'v10'"), b"v10");
+        assert_eq!(read("SELECT NULL"), b"");
     }
 }
