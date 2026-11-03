@@ -8,23 +8,24 @@
 use std::ffi::c_void;
 use std::path::Path;
 
-use objc2::rc::Retained;
-use objc2::runtime::AnyObject;
-use objc2_foundation::{NSData, NSDictionary, NSNumber, NSString};
-
 #[derive(Clone)]
 pub struct Key([u8; 16]);
 
 #[link(name = "Security", kind = "framework")]
 unsafe extern "C" {
-    static kSecClass: *const NSString;
-    static kSecClassGenericPassword: *const NSString;
-    static kSecAttrService: *const NSString;
-    static kSecAttrAccount: *const NSString;
-    static kSecReturnData: *const NSString;
-    static kSecMatchLimit: *const NSString;
-    static kSecMatchLimitOne: *const NSString;
-    fn SecItemCopyMatching(query: *const c_void, result: *mut *const c_void) -> i32;
+    // Deprecated for `SecItemCopyMatching`, but what Chromium still reads
+    // its own key with.
+    fn SecKeychainFindGenericPassword(
+        keychains: *const c_void,
+        service_length: u32,
+        service: *const std::ffi::c_char,
+        account_length: u32,
+        account: *const std::ffi::c_char,
+        password_length: *mut u32,
+        password: *mut *mut c_void,
+        item: *mut *mut c_void,
+    ) -> i32;
+    fn SecKeychainItemFreeContent(attributes: *const c_void, data: *mut c_void) -> i32;
 }
 
 unsafe extern "C" {
@@ -123,42 +124,32 @@ pub fn decrypt(key: &Key, value: &[u8]) -> Option<Vec<u8>> {
 
 // The password of the Keychain's generic password item `service` /
 // `account`, which macOS asks the user to let Wren read. None if there is no
-// such item, or the user said no.
+// such item, or the user said no. It is read as Chromium reads its own:
+// `SecItemCopyMatching` had macOS ask twice for one item.
 fn keychain_password(service: &str, account: &str) -> Result<Option<Vec<u8>>, String> {
-    let service = NSString::from_str(service);
-    let account = NSString::from_str(account);
-    let yes = NSNumber::new_bool(true);
-    // The Security framework's own keys and values, which are CFStrings,
-    // toll-free bridged to NSString.
-    let (class, generic, service_key, account_key, return_data, limit, one) = unsafe {
-        (
-            &*kSecClass,
-            &*kSecClassGenericPassword,
-            &*kSecAttrService,
-            &*kSecAttrAccount,
-            &*kSecReturnData,
-            &*kSecMatchLimit,
-            &*kSecMatchLimitOne,
+    let length = |text: &str| u32::try_from(text.len()).map_err(|_| "The name is too long.");
+    let mut password_length = 0u32;
+    let mut password: *mut c_void = std::ptr::null_mut();
+    let status = unsafe {
+        SecKeychainFindGenericPassword(
+            std::ptr::null(),
+            length(service)?,
+            service.as_ptr().cast(),
+            length(account)?,
+            account.as_ptr().cast(),
+            &mut password_length,
+            &mut password,
+            std::ptr::null_mut(),
         )
     };
-    let query: Retained<NSDictionary<NSString, AnyObject>> = NSDictionary::from_slices(
-        &[class, service_key, account_key, return_data, limit],
-        &[
-            generic.as_ref(),
-            service.as_ref(),
-            account.as_ref(),
-            yes.as_ref(),
-            one.as_ref(),
-        ],
-    );
-    let mut result: *const c_void = std::ptr::null();
-    let status = unsafe { SecItemCopyMatching(Retained::as_ptr(&query).cast(), &mut result) };
     match status {
         0 => {
-            // A CFData the caller owns, bridged to NSData.
-            let data = unsafe { Retained::from_raw(result.cast_mut().cast::<NSData>()) }
-                .ok_or("The Keychain gave no password.")?;
-            Ok(Some(data.to_vec()))
+            let bytes = unsafe {
+                std::slice::from_raw_parts(password.cast::<u8>(), password_length as usize)
+            }
+            .to_vec();
+            unsafe { SecKeychainItemFreeContent(std::ptr::null(), password) };
+            Ok(Some(bytes))
         }
         ERR_SEC_ITEM_NOT_FOUND
         | ERR_SEC_USER_CANCELED
