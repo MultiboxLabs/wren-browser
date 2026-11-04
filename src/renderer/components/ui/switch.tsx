@@ -1,11 +1,14 @@
 // A switch, as the system's settings have: a pill with a white knob at one
 // end, filled while on. A click flips it; or the knob is dragged, and where
-// it is let go, nearer one end or the other, is what it becomes. Its size,
-// its knob's are the platform's (--switch-*, in switch.css): on macOS, the
-// knob is a pill too. Its fill is the space's colour, set apart from the
-// window's: lighter in dark, darker in light. What eases is the knob's place and how much of the
-// fill shows, never a colour: a colour that eased would also ease from light
-// to dark as the space's scheme changes, where all else changes at once.
+// it is let go, nearer one end or the other, is what it becomes. While it is
+// dragged, the knob does not follow the pointer: it eases to the end the
+// pointer is nearer, as the system's does, and back if the pointer goes back.
+// Its size, its knob's are the platform's (--switch-*, in switch.css): on
+// macOS, the knob is a pill too. Its fill is the space's colour, set apart
+// from the window's: lighter in dark, darker in light. What eases, in the
+// system's time and curve, is the knob's place and how much of the fill
+// shows, never a colour: a colour that eased would also ease from light to
+// dark as the space's scheme changes, where all else changes at once.
 
 import { Switch as Radix } from "radix-ui";
 import { useRef, useState } from "react";
@@ -28,15 +31,17 @@ export function Switch({
 }) {
   const knob = useRef<HTMLSpanElement>(null);
   // Where the press began, and how far the knob can go; then, once the
-  // pointer moves far enough, how far along it the knob is dragged.
+  // pointer moves far enough, the end the drag is nearer: on or off.
   const press = useRef<{ x: number; travel: number; dragged: boolean } | null>(null);
-  const [dragged, setDragged] = useState<number | null>(null);
+  const [dragged, setDragged] = useState<boolean | null>(null);
+  const on = dragged ?? checked;
   // Let go after a drag, the click that follows is not a flip of its own.
   const skipClick = useRef(false);
 
-  const along = (x: number) => {
+  // Whether the knob, dragged to x, is nearer the end that is on.
+  const nearerOn = (x: number) => {
     const { x: from, travel } = press.current!;
-    return Math.min(Math.max((checked ? travel : 0) + x - from, 0), travel);
+    return (checked ? travel : 0) + x - from > travel / 2;
   };
 
   return (
@@ -59,14 +64,14 @@ export function Switch({
         if (!pressed) return;
         if (!pressed.dragged && Math.abs(event.clientX - pressed.x) < DRAG_AFTER) return;
         pressed.dragged = true;
-        setDragged(along(event.clientX));
+        setDragged(nearerOn(event.clientX));
       }}
       onPointerUp={(event) => {
         const pressed = press.current;
         if (pressed?.dragged) {
           skipClick.current = true;
-          const on = along(event.clientX) > pressed.travel / 2;
-          if (on !== checked) onCheckedChange(on);
+          const next = nearerOn(event.clientX);
+          if (next !== checked) onCheckedChange(next);
         }
         press.current = null;
         setDragged(null);
@@ -83,16 +88,17 @@ export function Switch({
       className="group/switch no-drag relative inline-flex h-(--switch-height) w-(--switch-width) shrink-0 items-center rounded-full bg-(--switch-off) shadow-[inset_0_0_0_0.5px_var(--separator)]"
     >
       <span
-        style={dragged === null ? undefined : { opacity: dragged / (press.current?.travel || 1), transition: "none" }}
         className={cn(
-          "absolute inset-0 rounded-[inherit] bg-(--switch-on) transition-opacity duration-200",
-          checked ? "opacity-100" : "opacity-0"
+          "absolute inset-0 rounded-[inherit] bg-(--switch-on) transition-opacity duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          on ? "opacity-100" : "opacity-0"
         )}
       />
       <Radix.Thumb
         ref={knob}
-        style={dragged === null ? undefined : { translate: `${INSET + dragged}px 0`, transition: "none" }}
-        className="relative block h-[calc(var(--switch-height)_-_4px)] w-(--switch-knob-width) translate-x-0.5 rounded-full bg-(--switch-knob) shadow-[0_0_0_0.5px_rgb(0_0_0/0.08),0_1px_2px_rgb(0_0_0/0.2)] transition-transform duration-200 ease-out data-[state=checked]:translate-x-[calc(var(--switch-width)_-_var(--switch-knob-width)_-_2px)]"
+        className={cn(
+          "relative block h-[calc(var(--switch-height)_-_4px)] w-(--switch-knob-width) rounded-full bg-(--switch-knob) shadow-[0_0_0_0.5px_rgb(0_0_0/0.08),0_1px_2px_rgb(0_0_0/0.2)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          on ? "translate-x-[calc(var(--switch-width)_-_var(--switch-knob-width)_-_2px)]" : "translate-x-0.5"
+        )}
       />
     </Radix.Root>
   );
