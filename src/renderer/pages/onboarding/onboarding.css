@@ -1,0 +1,25 @@
+/* Onboarding (onboarding.tsx). Its step's title, and what it says under it;
+   an option's title on its card, and the sentence under it. */
+@theme {
+  --text-onboarding-title: 34px;
+  --text-onboarding-body: 15px;
+  --text-onboarding-option: 17px;
+  --text-onboarding-option-body: 14px;
+}
+
+/* Its clean slate: a veil over the window's blur, a faint warm light from
+   the top, and the line beside a step's choices. */
+:root[data-scheme="light"],
+:root[data-system-scheme="light"] [data-scheme="system"] {
+  --slate-veil: rgb(248 247 245 / 0.72);
+  --slate-glow: rgb(255 170 90 / 0.18);
+  --onboarding-divider: var(--separator);
+}
+/* The divider is fainter than the separator and warm, as macOS draws a dark
+   window's edge over the slate's warm light. */
+:root[data-scheme="dark"],
+:root[data-system-scheme="dark"] [data-scheme="system"] {
+  --slate-veil: rgb(31 30 29 / 0.72);
+  --slate-glow: rgb(255 150 70 / 0.12);
+  --onboarding-divider: rgb(255 236 220 / 0.1);
+}

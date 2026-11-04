@@ -1,0 +1,182 @@
+/* The omnibox (omnibox.tsx), a command bar: neutral, not the space's, but
+   for its selected row, which is the space's colour. A little of what is
+   under it shows through, blurred, while the window is active; in the
+   background it is solid (see its palette below). A light inner edge and a
+   dark outer one. Light or dark with the system. Its panel and palette are
+   the find bar's (find-bar.css) and the tab switcher's
+   (tab-switcher/tab-switcher.css) too. */
+
+/* Its corners, its rows', and the tile a selected row's favicon sits on;
+   its rows' text, and its field's in the middle of the window. Not
+   --text-omnibox-fg and the like, which would clash with its colours. */
+@theme {
+  --radius-omnibox: 12px;
+  --radius-omnibox-row: 8px;
+  --radius-omnibox-icon: 5px;
+  --text-omnibox-row: 13px;
+  --text-omnibox-large: 18px;
+}
+
+@theme inline {
+  --color-omnibox-fg: var(--omnibox-fg);
+  --color-omnibox-typed: var(--omnibox-typed);
+  --color-omnibox-glyph: var(--omnibox-glyph);
+  --color-omnibox-placeholder: var(--omnibox-placeholder);
+  --color-omnibox-dim: var(--omnibox-dim);
+  --color-omnibox-separator: var(--omnibox-separator);
+  --color-omnibox-hover: var(--omnibox-hover);
+  --color-omnibox-tile: var(--omnibox-tile);
+  --color-omnibox-arrow: var(--omnibox-arrow);
+  --color-omnibox-text-selection: var(--omnibox-text-selection);
+  --color-omnibox-selected: var(--omnibox-selected);
+  --shadow-omnibox-chip: 0 0 10px var(--omnibox-glow);
+}
+
+:root[data-scheme] .omnibox {
+  /* Calmed: a vivid space's colour would glare as a row. */
+  --omnibox-selected: oklch(from var(--space) min(l, 0.5) min(c, 0.25) h);
+  --omnibox-glow: color-mix(in oklab, var(--omnibox-selected) 60%, transparent);
+  border-radius: var(--radius-omnibox);
+  background: var(--omnibox-bg);
+  backdrop-filter: blur(10px) saturate(1.6);
+  box-shadow:
+    inset 0 0 0 1px var(--omnibox-edge),
+    0 0 0 0.5px var(--omnibox-outline),
+    0 20px 56px rgb(0 0 0 / 0.4);
+}
+
+/* Its palette, and the find bar's and the tab switcher's: rows' text (fg),
+   the field's text and its icon (typed), the list's glyphs, what is dim (an
+   address, "Switch to Tab"), and the faint tiles behind a glyph or the Tab
+   key. */
+:root[data-system-scheme="dark"] .omnibox,
+:root[data-system-scheme="dark"] .find-bar,
+:root[data-system-scheme="dark"] .tab-switcher {
+  --omnibox-bg: rgb(26 26 28 / 0.88);
+  --omnibox-edge: rgb(255 255 255 / 0.22);
+  --omnibox-outline: rgb(0 0 0 / 0.9);
+  --omnibox-fg: rgb(255 255 255 / 0.82);
+  --omnibox-typed: rgb(255 255 255 / 0.9);
+  --omnibox-glyph: rgb(255 255 255 / 0.72);
+  --omnibox-placeholder: rgb(255 255 255 / 0.55);
+  --omnibox-dim: rgb(255 255 255 / 0.33);
+  --omnibox-separator: rgb(255 255 255 / 0.1);
+  --omnibox-hover: rgb(255 255 255 / 0.04);
+  --omnibox-tile: rgb(255 255 255 / 0.05);
+  --omnibox-arrow: rgb(255 255 255 / 0.7);
+  --omnibox-text-selection: rgb(255 255 255 / 0.35);
+}
+:root[data-system-scheme="light"] .omnibox,
+:root[data-system-scheme="light"] .find-bar,
+:root[data-system-scheme="light"] .tab-switcher {
+  --omnibox-bg: rgb(250 250 250 / 0.86);
+  --omnibox-edge: rgb(255 255 255 / 0.7);
+  --omnibox-outline: rgb(0 0 0 / 0.18);
+  --omnibox-fg: rgb(0 0 0 / 0.82);
+  --omnibox-typed: rgb(0 0 0 / 0.88);
+  --omnibox-glyph: rgb(0 0 0 / 0.6);
+  --omnibox-placeholder: rgb(0 0 0 / 0.4);
+  --omnibox-dim: rgb(0 0 0 / 0.38);
+  --omnibox-separator: rgb(0 0 0 / 0.08);
+  --omnibox-hover: rgb(0 0 0 / 0.04);
+  --omnibox-tile: rgb(0 0 0 / 0.05);
+  --omnibox-arrow: rgb(0 0 0 / 0.6);
+  --omnibox-text-selection: rgb(0 0 0 / 0.15);
+}
+
+/* Unfocused, the blur behind them is not live, so what showed through
+   would be flat and muddy: they are solid. */
+:root[data-system-scheme="dark"][data-active="false"] .omnibox,
+:root[data-system-scheme="dark"][data-active="false"] .find-bar,
+:root[data-system-scheme="dark"][data-active="false"] .tab-switcher {
+  --omnibox-bg: rgb(40 40 43);
+}
+:root[data-system-scheme="light"][data-active="false"] .omnibox,
+:root[data-system-scheme="light"][data-active="false"] .find-bar,
+:root[data-system-scheme="light"][data-active="false"] .tab-switcher {
+  --omnibox-bg: rgb(238 238 238);
+}
+
+/* The pulse as the field enters a search engine's keyword mode: the panel
+   flashes the space's colour, and a glow spreads out from it and fades. Its
+   shape is measured from a reference recording; its glow comes on sooner
+   and stronger. Behind the panel's content, in its stacking context. Two
+   layers, each drawn once, whose opacity alone animates, on the GPU: a
+   tight flash (a tint, an edge and a close glow), and a wide glow just
+   after it, so the glow seems to spread. The panel dips in scale with it
+   (omnibox.tsx). */
+.omnibox-pulse,
+.omnibox-pulse > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.omnibox-pulse {
+  z-index: -1;
+}
+.omnibox-pulse > span {
+  opacity: 0;
+  will-change: opacity;
+  /* Not the shorthand, which would take each layer's animation-name. */
+  animation-duration: 0.5s;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+.omnibox-pulse-flash {
+  background: color-mix(in oklab, var(--omnibox-selected) 15%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--omnibox-selected) 65%, transparent),
+    0 0 6px 0 color-mix(in oklab, var(--omnibox-selected) 50%, transparent);
+  animation-name: omnibox-pulse-flash;
+}
+.omnibox-pulse-glow {
+  box-shadow: 0 0 56px 9px color-mix(in oklab, var(--omnibox-selected) 62%, transparent);
+  animation-name: omnibox-pulse-glow;
+}
+@keyframes omnibox-pulse-flash {
+  0%,
+  8% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0.75;
+  }
+  45% {
+    opacity: 0.4;
+  }
+  65% {
+    opacity: 0.15;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes omnibox-pulse-glow {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.5;
+  }
+  15% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.45;
+  }
+  70% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .omnibox-pulse {
+    display: none;
+  }
+}

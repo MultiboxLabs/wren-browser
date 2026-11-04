@@ -1,7 +1,7 @@
 // A switch, as the system's settings have: a pill with a white knob at one
 // end, filled while on. A click flips it; or the knob is dragged, and where
 // it is let go, nearer one end or the other, is what it becomes. Its size,
-// its knob's are the platform's (--switch-*, in index.css): on macOS, the
+// its knob's are the platform's (--switch-*, in switch.css): on macOS, the
 // knob is a pill too. Its fill is the space's colour, set apart from the
 // window's: lighter in dark, darker in light. What eases is the knob's place and how much of the
 // fill shows, never a colour: a colour that eased would also ease from light

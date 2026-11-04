@@ -74,7 +74,7 @@ export function Split({
 
 /**
  * What a step chooses with, on a card as a popover is, as the main window
- * shows it (index.css's `.popover-card`): light or dark with the system.
+ * shows it (`.popover-card` in components/ui/popover.css): light or dark with the system.
  */
 export function Card({ children }: { children: ReactNode }) {
   return (

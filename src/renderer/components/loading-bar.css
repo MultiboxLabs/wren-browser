@@ -1,0 +1,50 @@
+/* The loading bar above a card (loading-bar.tsx): a pill in the window's
+   glyph colour. Blinking, its track is nearly solid; sweeping, it is
+   fainter, more so on a dark window, and a line sweeps through it each
+   1.125s: in from the left, out to the right, then a pause. The line is as
+   wide as the whole bar, so the bar shows only its start while it grows. */
+.loading-bar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+}
+.loading-bar > i {
+  position: absolute;
+  inset: 0;
+  background: rgb(from var(--glyph) r g b / 0.92);
+}
+.loading-bar[data-phase="sweep"] > i {
+  background: rgb(from var(--glyph) r g b / 0.46);
+}
+:root[data-scheme="dark"] .loading-bar[data-phase="sweep"] > i {
+  background: rgb(from var(--glyph) r g b / 0.276);
+}
+.loading-bar > span {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 128px;
+  background: var(--glyph);
+  clip-path: inset(0 100% 0 0);
+}
+.loading-bar[data-phase="sweep"] > span {
+  animation: loading-bar-sweep 1.125s linear infinite;
+}
+@keyframes loading-bar-sweep {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+  33.333% {
+    clip-path: inset(0 0 0 0);
+  }
+  66.667%,
+  100% {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-bar[data-phase="sweep"] > span {
+    animation: none;
+  }
+}

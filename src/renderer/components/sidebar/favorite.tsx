@@ -7,7 +7,7 @@
 // Escape leaves it as it was.
 // Selected, it has a light fill with a soft shadow, the icon's colours
 // glowing faintly through it, and a thin ring of the same colours, which
-// fills the gap between a split's halves (see .favorite in index.css).
+// fills the gap between a split's halves (see favorite.css).
 
 import { motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, type Ref, useId, useRef } from "react";

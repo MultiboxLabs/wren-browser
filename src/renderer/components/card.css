@@ -1,0 +1,35 @@
+/* Where a tab's page or a side panel will show (<wren-view>, in
+   tab-view.tsx and side-panel.tsx), with a faint tint of the space. Its text
+   is neutral, as a popover's, not the space's title colour: that is for
+   text on the window itself. */
+@theme inline {
+  --color-card: var(--card);
+}
+
+:root[data-scheme="light"],
+:root[data-system-scheme="light"] [data-scheme="system"] {
+  --card: color-mix(in oklab, var(--space) 4%, white);
+  --card-edge: rgb(0 0 0 / 0.08);
+}
+:root[data-scheme="dark"],
+:root[data-system-scheme="dark"] [data-scheme="system"] {
+  --card: color-mix(in oklab, var(--space) 6%, rgb(22 22 24));
+  --card-edge: rgb(0 0 0 / 0.25);
+}
+
+.card {
+  --fg: var(--glyph);
+  color: var(--fg);
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 0 0 0.5px var(--card-edge),
+    0 0 6px rgb(0 0 0 / 0.12);
+}
+
+/* Where the page goes, with no tab to show: the space's own colour, a
+   little lighter than the sidebar's; the card's edge and shadow set it
+   apart, as a light space's colour hardly changes. */
+.card.empty {
+  background: color-mix(in srgb, white 7%, transparent);
+}

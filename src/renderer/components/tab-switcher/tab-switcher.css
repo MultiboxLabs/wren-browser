@@ -1,0 +1,26 @@
+/* The tab switcher (tab-switcher.tsx), a row of the space's tabs: the
+   omnibox's panel and palette (omnibox/omnibox.css), its selected tab the
+   space's colour, as the omnibox's selected row is. */
+
+/* Its corners, its tabs', and those of what each shows of its page, which
+   nest in its tab's at the tab's padding. */
+@theme {
+  --radius-tab-switcher: 18px;
+  --radius-tab-switcher-card: 10px;
+  --radius-tab-switcher-preview: 6px;
+}
+
+@theme inline {
+  --color-tab-switcher-selected: var(--tab-switcher-selected);
+}
+
+:root[data-scheme] .tab-switcher {
+  --tab-switcher-selected: oklch(from var(--space) min(l, 0.5) min(c, 0.25) h);
+  border-radius: var(--radius-tab-switcher);
+  background: var(--omnibox-bg);
+  backdrop-filter: blur(10px) saturate(1.6);
+  box-shadow:
+    inset 0 0 0 1px var(--omnibox-edge),
+    0 0 0 0.5px var(--omnibox-outline),
+    0 20px 56px rgb(0 0 0 / 0.4);
+}
