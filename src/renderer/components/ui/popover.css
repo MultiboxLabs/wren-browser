@@ -1,0 +1,98 @@
+/* A popover (popover.tsx), or a hover card (hover-card.tsx): the system's
+   neutral colours, as menus' and tooltips' are, not the space's; light or
+   dark with the system, and solid: backdrop-filter blurs nothing in the
+   window's page, so a see-through one only shows what is under it, sharp. A
+   light inner edge and a dark outer one, as a native popover's. It grows in
+   from where it hangs, and fades as it goes. A popover-card is drawn alike,
+   but stays where it is in the page, and draws its inner edge over what it
+   holds, so what fills it to its edges does not hide it. */
+
+/* Its corners (the page info popover's), and the tiles in it, whose corners
+   nest in its corners at its padding. */
+@theme {
+  --radius-popover: 18px;
+  --radius-tile: 8px;
+}
+
+:root[data-scheme="light"],
+:root[data-system-scheme="light"] [data-scheme="system"] {
+  --popover: rgb(246 246 246);
+  /* A popover a little darker, with more shadow (`.popover-deep`), to stand
+     off the sidebar it overlaps. */
+  --popover-deep: rgb(243 243 243);
+  --popover-edge: rgb(0 0 0 / 0.14);
+  --popover-highlight: rgb(255 255 255 / 0.6);
+}
+:root[data-scheme="dark"],
+:root[data-system-scheme="dark"] [data-scheme="system"] {
+  --popover: rgb(40 40 42);
+  --popover-deep: rgb(37 37 39);
+  --popover-edge: rgb(0 0 0 / 0.5);
+  --popover-highlight: rgb(255 255 255 / 0.12);
+}
+
+.popover,
+.popover-card {
+  --popover-shadow: 0 0 0 0.5px var(--popover-edge), 0 12px 32px rgb(0 0 0 / 0.28);
+  background: var(--popover);
+  border-radius: var(--radius-popover);
+  box-shadow: var(--popover-shadow);
+}
+.popover-card {
+  position: relative;
+  overflow: hidden;
+}
+.popover-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--popover-highlight);
+  pointer-events: none;
+}
+.popover {
+  box-shadow:
+    inset 0 0 0 1px var(--popover-highlight),
+    var(--popover-shadow);
+  transform-origin: var(--radix-popover-content-transform-origin, var(--radix-hover-card-content-transform-origin));
+  animation: popover-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.popover-deep {
+  --popover-shadow: 0 0 0 0.5px var(--popover-edge), 0 14px 36px rgb(0 0 0 / 0.34);
+  background: var(--popover-deep);
+}
+.popover[data-state="closed"] {
+  animation: popover-out 0.1s ease-in forwards;
+}
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+@keyframes popover-out {
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .popover {
+    animation-name: popover-fade-in;
+    animation-timing-function: ease-out;
+  }
+  .popover[data-state="closed"] {
+    animation-name: popover-fade-out;
+    animation-timing-function: ease-in;
+  }
+}
+@keyframes popover-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes popover-fade-out {
+  to {
+    opacity: 0;
+  }
+}

@@ -1,0 +1,96 @@
+/* A favourite (favorite.tsx). */
+@theme {
+  --radius-favorite: 12px;
+}
+
+/* The selected one: a white fill, stronger in light, with a soft shadow;
+   over it, the icon blurred and saturated (a blur, then saturation 1.5,
+   brightness +0.05, contrast 0.85), centred and stretched past the tile's
+   edges, to its shape, so each edge takes the colour of the icon's; faint in
+   dark and only on hover in light; and a 2px ring of that glow. Blurred from
+   a favicon, the glow's size, its blur and the ring's opacity are set by
+   eye. */
+:root[data-scheme="light"] {
+  --favorite-selected: rgb(255 255 255 / 0.8);
+  --favorite-selected-unfocused: rgb(255 255 255 / 0.35);
+  --favorite-glow: 0;
+  --favorite-glow-hover: 0.05;
+  /* Over the stronger fill, the ring needs more of its colour to show. */
+  --favorite-ring: 0.7;
+}
+:root[data-scheme="dark"] {
+  --favorite-selected: rgb(255 255 255 / 0.45);
+  --favorite-selected-unfocused: rgb(255 255 255 / 0.18);
+  --favorite-glow: 0.08;
+  --favorite-glow-hover: 0.12;
+  --favorite-ring: 0.5;
+}
+.favorite-selected {
+  background: var(--favorite-selected);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+}
+.favorite-glow,
+.favorite-ring {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.favorite-glow > *,
+.favorite-ring > :not(svg) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 130% !important;
+  height: 130% !important;
+  filter: blur(14px) saturate(1.5) brightness(1.05) contrast(0.85);
+}
+.favorite-glow {
+  opacity: var(--favorite-glow);
+  transition: opacity 0.15s ease-out;
+}
+.favorite:hover .favorite-glow {
+  opacity: var(--favorite-glow-hover);
+}
+/* The ring's icon is blurred and made opaque by an SVG filter of the tile's
+   own (favorite.tsx), so it has no gaps. Where a mostly transparent icon
+   still leaves none of its colour, a separator's shows, so the ring is
+   always there, if faintly. */
+.favorite-ring > :not(svg) {
+  filter: var(--favorite-ring-filter) saturate(1.5) brightness(1.05) contrast(0.85);
+}
+.favorite-ring {
+  opacity: var(--favorite-ring);
+  padding: 2px;
+  background: var(--separator);
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+/* A split's: its halves parted by a gap through the middle, which, as it
+   is selected, the ring fills, as if the gap were never there. */
+.favorite-split:not(.favorite-selected) {
+  mask-image: linear-gradient(to right, #000 calc(50% - 1.5px), transparent 0 calc(50% + 1.5px), #000 0);
+}
+.favorite-split .favorite-ring {
+  mask:
+    linear-gradient(to right, transparent calc(50% - 1.5px), #000 0 calc(50% + 1.5px), transparent 0) add,
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+/* Unfocused, as the window in the background pales, it takes none of the
+   icon's colours: a fill far fainter, no glow, and a ring of faint white. */
+:root[data-active="false"] .favorite-selected {
+  background: var(--favorite-selected-unfocused);
+}
+:root[data-active="false"] .favorite-glow {
+  opacity: 0;
+}
+:root[data-active="false"] .favorite-ring {
+  background: rgb(255 255 255 / 0.5);
+}
+:root[data-active="false"] .favorite-ring > :not(svg) {
+  visibility: hidden;
+}

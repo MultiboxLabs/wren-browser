@@ -6,7 +6,7 @@
 // place from step to step. Closed, it is a pill, as round as it is tall.
 // Once installed, a card says so, open until it is closed, with what is new
 // in it and a way to send feedback. Both have a faint edge; their colours
-// are --update-* in index.css. Going, either folds into its line as it
+// are --update-* in update.css. Going, either folds into its line as it
 // fades, and the room it took closes.
 
 import { MessageSquare, Sparkles, X } from "lucide-react";

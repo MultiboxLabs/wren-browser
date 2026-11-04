@@ -1,0 +1,35 @@
+/* The window opening on a new version of Wren (updated.tsx): a sheen that
+   sweeps up over it, soft at both ends, and a ring of light inside the
+   window's edge, brightest level with the sheen's middle (--middle), and
+   faint away from it. Both add light to what is under them. */
+.updated-sheen,
+.updated-edge {
+  position: fixed;
+  pointer-events: none;
+  mix-blend-mode: plus-lighter;
+}
+.updated-sheen {
+  inset-inline: 0;
+  top: 0;
+  background: linear-gradient(
+    rgb(255 255 255 / 0),
+    rgb(255 255 255 / 0.06) 30%,
+    rgb(255 255 255 / 0.16) 50%,
+    rgb(255 255 255 / 0.06) 70%,
+    rgb(255 255 255 / 0)
+  );
+}
+.updated-edge {
+  inset: 0;
+  border-radius: var(--window-corner);
+  padding: 1.5px;
+  background: radial-gradient(
+    130% 45% at 50% var(--middle),
+    rgb(255 255 255 / 0.85),
+    rgb(255 255 255 / 0.25) 55%,
+    rgb(255 255 255 / 0) 80%
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}

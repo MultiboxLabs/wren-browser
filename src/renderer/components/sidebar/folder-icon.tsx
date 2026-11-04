@@ -15,11 +15,11 @@ const RIM = { stroke: "currentColor", strokeWidth: 6, strokeLinejoin: "round", s
 
 /**
  * Its back's fill: a tint of the space's colour, as light as
- * --folder-back-lightness, with --folder-back-chroma of its chroma (index.css).
+ * --folder-back-lightness, with --folder-back-chroma of its chroma (folder-icon.css).
  */
 const FILL = { fill: "oklch(from var(--space) var(--folder-back-lightness) calc(c * var(--folder-back-chroma)) h)" };
 
-/** Its front's fill: --folder-front (index.css), or a deep shade of the space's colour. */
+/** Its front's fill: --folder-front (folder-icon.css), or a deep shade of the space's colour. */
 const FRONT_FILL = { fill: "var(--folder-front, oklch(from var(--space) 0.5 calc(c * 1.3) h))" };
 
 /**

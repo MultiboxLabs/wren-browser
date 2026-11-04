@@ -1,0 +1,12 @@
+/* The find bar (find-bar.tsx), the omnibox's neighbour: the same neutral,
+   blurred panel, and its palette (omnibox/omnibox.css), without the
+   omnibox's depth. */
+:root[data-scheme] .find-bar {
+  border-radius: var(--radius-omnibox);
+  background: var(--omnibox-bg);
+  backdrop-filter: blur(10px) saturate(1.6);
+  box-shadow:
+    inset 0 0 0 1px var(--omnibox-edge),
+    0 0 0 0.5px var(--omnibox-outline),
+    0 4px 14px rgb(0 0 0 / 0.22);
+}

@@ -1,0 +1,14 @@
+/* A pinned folder (folder-icon.tsx): how light and vivid its back is, and
+   its front. In dark, the front is unset, and is a deep shade of the space's
+   colour. */
+:root[data-scheme="light"],
+:root[data-system-scheme="light"] [data-scheme="system"] {
+  --folder-back-lightness: 0.79;
+  --folder-back-chroma: 0.95;
+  --folder-front: rgb(255 255 255);
+}
+:root[data-scheme="dark"],
+:root[data-system-scheme="dark"] [data-scheme="system"] {
+  --folder-back-lightness: 0.74;
+  --folder-back-chroma: 0.8;
+}

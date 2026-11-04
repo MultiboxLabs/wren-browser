@@ -1,7 +1,7 @@
 // What a tab's row says its page is doing, beside its favicon: one slot, for
 // the most exposing of what applies. Sharing the screen, the page being
 // captured, the camera and the microphone are marks in a colour of their own
-// (index.css), and name all that applies as they are hovered. Sound, the last,
+// (tab-alert.css), and name all that applies as they are hovered. Sound, the last,
 // is a speaker that mutes or unmutes the tab; its menu does that too, for a
 // tab whose sound another alert hides here.
 
