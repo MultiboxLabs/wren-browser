@@ -24,13 +24,16 @@
 }
 
 :root {
+  /* Light or dark by color-scheme, which index.html's meta gives the page
+     from its first frame, before its script puts the scheme on <html>: so
+     a reload never flashes the other. */
+  --page: light-dark(rgb(255 255 255), rgb(30 31 36));
   --space: #7a81ff;
   /* The deeper shade the website writes its flourish and birds in. */
   --sky-ink: #4f55d6;
 }
 
 :root[data-scheme="light"] {
-  --page: rgb(255 255 255);
   /* A page's text is neutral, not tinted toward a space. */
   --fg: rgb(22 23 28);
   --fg-quiet: rgb(85 86 94);
@@ -61,7 +64,6 @@
 }
 
 :root[data-scheme="dark"] {
-  --page: rgb(30 31 36);
   --fg: rgb(245 245 247);
   --fg-quiet: rgb(255 255 255 / 0.62);
   --fg-faint: rgb(255 255 255 / 0.42);
