@@ -3,9 +3,9 @@
 // Chromium's own pages (chrome://settings) show and are typed under our scheme.
 const ENGINE = "chrome://";
 const OURS = "wren://";
-// The pages the app serves itself on its scheme (src/main/pages), which stay
-// as they are. Keep it with `PAGES` there.
-const OWN_HOSTS = ["ui", "game", "migrate"];
+// The pages the app serves itself on its scheme, which stay as they are: the
+// folders of src/renderer/pages, as vite.config.ts finds them.
+declare const __PAGES__: string[];
 
 /** An address as the page shows it: Chromium's pages on the app's scheme. */
 export function shownUrl(url: string) {
@@ -16,7 +16,7 @@ export function shownUrl(url: string) {
 export function engineUrl(text: string) {
   if (!text.toLowerCase().startsWith(OURS)) return text;
   const rest = text.slice(OURS.length);
-  return OWN_HOSTS.includes(rest.split(/[/?#]/)[0].toLowerCase()) ? text : ENGINE + rest;
+  return __PAGES__.includes(rest.split(/[/?#]/)[0].toLowerCase()) ? text : ENGINE + rest;
 }
 
 /** The name of the Chromium page an address is (settings for chrome://settings/privacy), or null if it is not one. */

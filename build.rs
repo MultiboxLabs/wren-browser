@@ -2,15 +2,19 @@
 // app's code signature covers it. The renderer has access to the app, and a
 // file in Contents/Resources can be replaced without breaking that signature.
 //
-// Writes $OUT_DIR/renderer.rs, the table src/main/pages/embedded.rs includes.
+// Writes $OUT_DIR/renderer.rs, the table src/main/pages/embedded.rs includes,
+// and $OUT_DIR/pages.rs, the pages' folders src/main/pages/mod.rs checks its
+// `PAGES` against.
 
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 const RENDERER: &str = "dist/renderer";
+const PAGES: &str = "src/renderer/pages";
 
 fn main() {
+    pages();
     println!("cargo:rerun-if-changed={RENDERER}");
     let root = Path::new(RENDERER);
     let mut files = Vec::new();
@@ -47,6 +51,25 @@ fn main() {
         table,
     )
     .unwrap();
+}
+
+/// The folders of src/renderer/pages with a page in them, as vite.config.ts
+/// finds them.
+fn pages() {
+    println!("cargo:rerun-if-changed={PAGES}");
+    let mut folders: Vec<String> = fs::read_dir(PAGES)
+        .unwrap()
+        .flatten()
+        .filter(|entry| entry.path().join("index.html").is_file())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    folders.sort();
+    let source = format!("const FOLDERS: &[&str] = &{folders:?};\n");
+    // Written only when it changes, as a page's every edit reruns this.
+    let path = Path::new(&env::var("OUT_DIR").unwrap()).join("pages.rs");
+    if fs::read_to_string(&path).ok().as_deref() != Some(&source) {
+        fs::write(path, source).unwrap();
+    }
 }
 
 fn collect(directory: &Path, files: &mut Vec<PathBuf>) {
