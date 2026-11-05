@@ -22,7 +22,7 @@ use serde_json::Value;
 
 use crate::import::data::{Look, Pin, PinPage, Space, SpaceIcon, Spaces, is_page};
 use crate::import::engines::chromium::Chromium;
-use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
+use crate::import::source::{About, Engine, ReadError, Source, SourceProfile};
 use crate::platform;
 
 /// What its UI calls the profile it starts with.
@@ -106,14 +106,6 @@ impl Source for Arc {
                 profile
             })
             .collect())
-    }
-
-    fn survey(&self, profile: &SourceProfile) -> Survey {
-        let mut survey = Engine::survey(&self.chromium, profile);
-        if let Ok(spaces) = self.spaces(profile) {
-            survey.spaces = Some((spaces.spaces.len(), spaces.pin_count()));
-        }
-        survey
     }
 
     fn keeps_spaces(&self) -> bool {
@@ -322,19 +314,11 @@ fn page(item: &Value) -> Option<PinPage> {
     let url = tab["savedURL"].as_str().filter(|url| is_page(url))?;
     // Its own title is the user's name for it, and none if they gave it
     // none.
-    let name = item["title"]
-        .as_str()
-        .filter(|name| !name.trim().is_empty());
-    Some(PinPage {
-        title: tab["savedTitle"]
-            .as_str()
-            .or(name)
-            .unwrap_or(url)
-            .to_owned(),
-        name: name.map(str::to_owned),
-        url: url.to_owned(),
-        favicon: None,
-    })
+    Some(PinPage::new(
+        tab["savedTitle"].as_str(),
+        item["title"].as_str(),
+        url,
+    ))
 }
 
 // The container its pinned tabs are in: after "pinned" in its list.
@@ -460,7 +444,7 @@ mod tests {
             }
         );
         // A favourite, then a tab, a folder of one and a split.
-        assert_eq!(spaces.pin_count(), 4);
+        assert_eq!(spaces.count().pins, 4);
         assert!(
             matches!(&home.pins[1], Pin::Folder { name, pins, open: true } if name == "Folder" && pins.len() == 1)
         );

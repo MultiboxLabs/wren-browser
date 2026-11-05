@@ -5,62 +5,47 @@
 use std::path::Path;
 
 use rusqlite::Connection;
-use wren::{Cookie, CookieSameSite};
+use wren::Cookie;
 
-use crate::import::snapshot::Snapshot;
-use crate::import::source::ReadError;
-
-const BATCH: usize = 1_000;
+use crate::import::engines::same_site;
+use crate::import::snapshot::{self, Snapshot};
+use crate::import::source::{COOKIE_BATCH, ReadError};
 
 pub fn count(db: &Connection) -> Result<usize, ReadError> {
-    let count: i64 = db.query_row(
+    snapshot::count(
+        db,
         "SELECT COUNT(DISTINCT host) FROM moz_cookies WHERE originAttributes NOT LIKE '%userContextId=%'",
         [],
-        |row| row.get(0),
-    )?;
-    Ok(count as usize)
+    )
 }
 
 pub fn read(profile: &Path, batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<(), ReadError> {
-    let snapshot = Snapshot::of(&profile.join("cookies.sqlite"))?;
-    let mut query = snapshot.db.prepare(
+    Snapshot::of(&profile.join("cookies.sqlite"))?.read_in_batches(
         "SELECT host, name, value, path, expiry, lastAccessed, creationTime, isSecure, isHttpOnly, \
          sameSite, originAttributes FROM moz_cookies",
-    )?;
-    let mut rows = query.query([])?;
-    let mut cookies = Vec::with_capacity(BATCH);
-    while let Some(row) = rows.next()? {
-        let attributes: String = row.get(10)?;
-        if attributes.contains("userContextId=") {
-            continue;
-        }
-        cookies.push(Cookie {
-            domain: row.get(0)?,
-            name: row.get(1)?,
-            value: row.get(2)?,
-            path: row.get(3)?,
-            expires_ms: expiry_ms(row.get(4)?),
-            last_access_ms: row.get::<_, i64>(5)? / 1000,
-            created_ms: row.get::<_, i64>(6)? / 1000,
-            secure: row.get(7)?,
-            http_only: row.get(8)?,
-            same_site: match row.get::<_, i64>(9)? {
-                0 => CookieSameSite::None,
-                1 => CookieSameSite::Lax,
-                2 => CookieSameSite::Strict,
-                _ => CookieSameSite::Unspecified,
-            },
-            partition_site: partition_site(&attributes),
-            partition_cross_site_ancestor: false,
-        });
-        if cookies.len() == BATCH {
-            batch(std::mem::replace(&mut cookies, Vec::with_capacity(BATCH)));
-        }
-    }
-    if !cookies.is_empty() {
-        batch(cookies);
-    }
-    Ok(())
+        COOKIE_BATCH,
+        batch,
+        |row| {
+            let attributes: String = row.get(10)?;
+            if attributes.contains("userContextId=") {
+                return Ok(None);
+            }
+            Ok(Some(Cookie {
+                domain: row.get(0)?,
+                name: row.get(1)?,
+                value: row.get(2)?,
+                path: row.get(3)?,
+                expires_ms: expiry_ms(row.get(4)?),
+                last_access_ms: row.get::<_, i64>(5)? / 1000,
+                created_ms: row.get::<_, i64>(6)? / 1000,
+                secure: row.get(7)?,
+                http_only: row.get(8)?,
+                same_site: same_site(row.get(9)?),
+                partition_site: partition_site(&attributes),
+                partition_cross_site_ancestor: false,
+            }))
+        },
+    )
 }
 
 /// Its expiry, in seconds in older versions and milliseconds in newer ones,

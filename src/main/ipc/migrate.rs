@@ -13,7 +13,7 @@ use wren::MainThread;
 use crate::app::State;
 use crate::extensions::bridge::{self, Call};
 use crate::import::run::{self, Plan, RunState};
-use crate::import::{self, Landing, ReadError, SourceProfile, Survey};
+use crate::import::{self, Landing, ReadError, SourceProfile, SpaceCount, Survey};
 use crate::pages::{MIGRATE, icons};
 use crate::platform::{self, Privacy};
 
@@ -33,6 +33,10 @@ struct Context {
     profile: Option<WrenProfile>,
     profiles: Vec<WrenProfile>,
 }
+
+/// The size the sky shows a source's icon at, in points: its body 84, in the
+/// margin around it (pages/migrate/source-icon.tsx).
+const SOURCE_ICON_SIZE: f64 = 112.0;
 
 /// What the user must allow for Wren to read what macOS keeps from it.
 const FULL_DISK_ACCESS: &str = "fullDiskAccess";
@@ -80,12 +84,6 @@ struct ListedSurvey {
     /// What the user must allow for Wren to read the rest.
     #[serde(skip_serializing_if = "Option::is_none")]
     access: Option<&'static str>,
-}
-
-#[derive(Serialize)]
-struct SpaceCount {
-    spaces: usize,
-    pins: usize,
 }
 
 #[derive(Serialize)]
@@ -156,7 +154,7 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
     // and where each lands unless the user says otherwise. The apps' icons
     // are drawn here; their profiles are read on a thread.
     bridge::handle_call(&MIGRATE, "migrate.sources", move |call| {
-        let installed = import::installed_sources();
+        let installed = import::installed_sources(SOURCE_ICON_SIZE);
         let here = call.profile().map(|profile| profile.id());
         let wren = wren_profiles(mt);
         on_a_thread(
@@ -226,11 +224,7 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
         on_a_thread(
             call,
             move || {
-                let profile = source
-                    .profiles()
-                    .ok()?
-                    .into_iter()
-                    .find(|profile| profile.id == args.profile)?;
+                let profile = source.profile(&args.profile).ok()??;
                 Some(source.survey(&profile))
             },
             |_, call, survey| match survey {
@@ -302,10 +296,7 @@ fn landing(
 // Its extensions' icons are named for the page to fetch.
 fn listed_survey(survey: Survey) -> ListedSurvey {
     ListedSurvey {
-        spaces: survey
-            .spaces
-            .filter(|(spaces, _)| *spaces > 0)
-            .map(|(spaces, pins)| SpaceCount { spaces, pins }),
+        spaces: survey.spaces.filter(|count| count.spaces > 0),
         bookmarks: survey.bookmarks,
         history: survey.history,
         cookies: survey.cookies,

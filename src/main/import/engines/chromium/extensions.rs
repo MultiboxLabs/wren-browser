@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use serde_json::{Map, Value};
 
 use crate::import::data::StoreExtension;
+use crate::import::favicons;
 use crate::import::source::ReadError;
 
 pub fn read(profile: &Path) -> Result<Vec<StoreExtension>, ReadError> {
@@ -35,9 +36,7 @@ pub fn read(profile: &Path) -> Result<Vec<StoreExtension>, ReadError> {
         .filter(|(_, setting)| from_store(setting))
         .filter_map(|(id, setting)| {
             let folder = newest_version(&profile.join("Extensions").join(id))?;
-            let manifest: Value =
-                serde_json::from_str(&fs::read_to_string(folder.join("manifest.json")).ok()?)
-                    .ok()?;
+            let manifest = json(&folder.join("manifest.json"))?;
             Some(StoreExtension {
                 id: id.clone(),
                 name: name(&manifest, &folder)?,
@@ -96,10 +95,7 @@ fn name(manifest: &Value, folder: &Path) -> Option<String> {
         return Some(name.to_owned());
     };
     let locale = manifest["default_locale"].as_str().unwrap_or("en");
-    let messages: Value = serde_json::from_str(
-        &fs::read_to_string(folder.join("_locales").join(locale).join("messages.json")).ok()?,
-    )
-    .ok()?;
+    let messages = json(&folder.join("_locales").join(locale).join("messages.json"))?;
     let messages = messages.as_object()?;
     let (_, message) = messages
         .iter()
@@ -115,7 +111,12 @@ fn icon(manifest: &Value, folder: &Path) -> Option<Vec<u8>> {
         .filter_map(|(size, path)| Some((size.parse::<u32>().ok()?, path.as_str()?)))
         .max_by_key(|(size, _)| *size)?;
     let png = fs::read(folder.join(path.trim_start_matches('/'))).ok()?;
-    png.starts_with(b"\x89PNG").then_some(png)
+    favicons::is_png(&png).then_some(png)
+}
+
+// The JSON file at `path`, if it is one.
+fn json(path: &Path) -> Option<Value> {
+    serde_json::from_str(&fs::read_to_string(path).ok()?).ok()
 }
 
 #[cfg(test)]

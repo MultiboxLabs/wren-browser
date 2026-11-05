@@ -77,12 +77,22 @@ pub struct RunState {
     pub finished: bool,
 }
 
-// A source's profile, with what it has, and the Wren profile it lands in.
-struct Landed {
-    source: SourceProfile,
+/// A source's profile, with what it has, and the Wren profile it lands in.
+struct Route {
+    from: SourceProfile,
     survey: Survey,
-    profile: Profile,
+    to: Profile,
+    /// `to` was made for it.
     made: bool,
+}
+
+/// One step of a run: one thing of one of its routes.
+#[derive(Clone, Copy)]
+struct Step {
+    run: u64,
+    /// `Run::routes`' index.
+    route: usize,
+    thing: Thing,
 }
 
 struct Run {
@@ -94,8 +104,8 @@ struct Run {
     /// The page's tab's Wren profile.
     this: Profile,
     extensions: HashSet<String>,
-    profiles: Vec<Landed>,
-    /// Each step: one thing of one profile (`profiles`' index).
+    routes: Vec<Route>,
+    /// The steps to come, each one thing of one route (by its index).
     steps: VecDeque<(usize, Thing)>,
     /// Steps of each thing still to come or going.
     left: HashMap<Thing, usize>,
@@ -169,7 +179,7 @@ pub fn start(app: &Rc<State>, this: Profile, plan: Plan) -> Result<RunState, Str
             source,
             this,
             extensions: plan.extensions.iter().cloned().collect(),
-            profiles: Vec::new(),
+            routes: Vec::new(),
             steps: VecDeque::new(),
             left: HashMap::new(),
             failed: HashMap::new(),
@@ -216,7 +226,7 @@ fn surveyed(
         Ok(_) => return fail_all(id, "None of those profiles are there now."),
         Err(error) => return fail_all(id, &error),
     };
-    let ok = with(id, |run| {
+    let this = with(id, |run| {
         for progress in &mut run.view.things {
             progress.total = read
                 .iter()
@@ -225,12 +235,13 @@ fn surveyed(
         }
         for thing in &things {
             run.left.insert(*thing, read.len());
-            for index in 0..read.len() {
-                run.steps.push_back((index, *thing));
+            for route in 0..read.len() {
+                run.steps.push_back((route, *thing));
             }
         }
+        run.this.clone()
     });
-    let Some(this) = ok.and_then(|()| with(id, |run| run.this.clone())) else {
+    let Some(this) = this else {
         return;
     };
     tell(id);
@@ -239,7 +250,7 @@ fn surveyed(
 
 fn total(survey: &Survey, thing: Thing, chosen: &HashSet<String>) -> usize {
     match thing {
-        Thing::Spaces => survey.spaces.map_or(0, |(_, pins)| pins),
+        Thing::Spaces => survey.spaces.map_or(0, |spaces| spaces.pins),
         Thing::Bookmarks => survey.bookmarks,
         Thing::History => survey.history,
         Thing::Cookies => survey.cookies,
@@ -257,7 +268,7 @@ fn land_profiles(
     this: Profile,
     mut left: VecDeque<(SourceProfile, Survey, Landing)>,
 ) {
-    let Some((source, survey, landing)) = left.pop_front() else {
+    let Some((from, survey, landing)) = left.pop_front() else {
         return next(mt, id);
     };
     let Some(app) = with(id, |run| run.app.upgrade()).flatten() else {
@@ -265,12 +276,12 @@ fn land_profiles(
     };
     let again = this.clone();
     profiles::resolve(mt, &app, &this, &landing, move |result| match result {
-        Ok((profile, made)) => {
+        Ok((to, made)) => {
             with(id, |run| {
-                run.profiles.push(Landed {
-                    source,
+                run.routes.push(Route {
+                    from,
                     survey,
-                    profile,
+                    to,
                     made,
                 })
             });
@@ -292,54 +303,53 @@ fn fail_all(id: u64, why: &str) {
     tell(id);
 }
 
-// The next step: one thing of one profile.
+// The next step, or the run is over.
 fn next(mt: MainThread, id: u64) {
-    let Some(step) = with(id, |run| run.steps.pop_front()) else {
+    let Some(next) = with(id, |run| run.steps.pop_front()) else {
         return;
     };
-    let Some((index, thing)) = step else {
+    let Some((route, thing)) = next else {
         with(id, |run| run.view.finished = true);
         return tell(id);
     };
-    with(id, |run| {
+    let step = Step {
+        run: id,
+        route,
+        thing,
+    };
+    let Some((source, from, to)) = with(id, |run| {
         run.reading = true;
         run.pending = 0;
         if let Some(progress) = progress(run, thing) {
             progress.state = Stage::Flying;
         }
-    });
-    tell(id);
-    let Some((source, profile, landed)) = with(id, |run| {
-        let landed = &run.profiles[index];
-        (run.source, landed.source.clone(), landed.profile.clone())
+        let route = &run.routes[route];
+        (run.source, route.from.clone(), route.to.clone())
     }) else {
         return;
     };
+    tell(id);
+    let name = source.about().name;
     if thing == Thing::Cookies && with(id, |run| run.key_refused) == Some(true) {
-        let why = ReadError::Refused.message(source.about().name);
-        return read_over(mt, id, thing, Some(why));
+        return read_over(mt, step, Some(ReadError::Refused.message(name)));
     }
     match thing {
         Thing::History => in_batches(
-            id,
-            index,
-            thing,
-            source.about().name,
-            move |batch| source.history(&profile, batch),
-            |target, batch, landed| {
-                target.add_history(batch, move |result| {
+            step,
+            name,
+            move |batch| source.history(&from, batch),
+            |to, batch, landed| {
+                to.add_history(batch, move |result| {
                     landed(result.map_err(|error| format!("{error:?}")))
                 })
             },
         ),
         Thing::Cookies => in_batches(
-            id,
-            index,
-            thing,
-            source.about().name,
-            move |batch| source.cookies(&profile, batch),
-            |target, batch, landed| {
-                target.add_cookies(batch, move |result| {
+            step,
+            name,
+            move |batch| source.cookies(&from, batch),
+            |to, batch, landed| {
+                to.add_cookies(batch, move |result| {
                     landed(
                         result
                             .map(|results| {
@@ -356,87 +366,83 @@ fn next(mt: MainThread, id: u64) {
         // Their favicons are a nicety: without them, the pins come over all
         // the same.
         Thing::Bookmarks => whole(
-            id,
-            index,
-            thing,
-            source.about().name,
+            step,
+            name,
             move || {
-                source.bookmarks(&profile).map(|bookmarks| {
+                source.bookmarks(&from).map(|bookmarks| {
                     bookmarks
-                        .with_favicons(|pages| source.favicons(&profile, pages).unwrap_or_default())
+                        .with_favicons(|pages| source.favicons(&from, pages).unwrap_or_default())
                 })
             },
             land_bookmarks,
         ),
         Thing::Spaces => whole(
-            id,
-            index,
-            thing,
-            source.about().name,
+            step,
+            name,
             move || {
-                source.spaces(&profile).map(|spaces| {
-                    spaces
-                        .with_favicons(|pages| source.favicons(&profile, pages).unwrap_or_default())
+                source.spaces(&from).map(|spaces| {
+                    spaces.with_favicons(|pages| source.favicons(&from, pages).unwrap_or_default())
                 })
             },
             land_spaces,
         ),
-        Thing::Extensions => {
-            let ids: Vec<String> = with(id, |run| {
-                run.profiles[index]
-                    .survey
-                    .extensions
-                    .iter()
-                    .filter(|extension| run.extensions.contains(&extension.id))
-                    .map(|extension| extension.id.clone())
-                    .collect()
-            })
-            .unwrap_or_default();
-            if ids.is_empty() {
-                return read_over(mt, id, thing, None);
-            }
-            with(id, |run| run.pending += 1);
-            let names: Vec<&str> = ids.iter().map(String::as_str).collect();
-            landed.install_from_web_store(&names, move |result| {
-                let installed = result
-                    .map(|results| {
-                        let missing = results
-                            .iter()
-                            .filter(|each| {
-                                !matches!(
-                                    each,
-                                    WebStoreInstallResult::Installed
-                                        | WebStoreInstallResult::AlreadyInstalled
-                                )
-                            })
-                            .count();
-                        if missing > 0 {
-                            let verb = if missing == 1 { "is" } else { "are" };
-                            note(
-                                id,
-                                thing,
-                                format!("{missing} {verb} not in the Chrome Web Store."),
-                            );
-                        }
-                        results.len() - missing
-                    })
-                    .map_err(|error| format!("{error:?}"));
-                landed_batch(mt, id, thing, installed);
-            });
-            read_over(mt, id, thing, None);
-        }
+        Thing::Extensions => install_extensions(mt, step, &to),
     }
+}
+
+// Installs the extensions chosen that the step's route has, from the Chrome
+// Web Store, into its Wren profile.
+fn install_extensions(mt: MainThread, step: Step, to: &Profile) {
+    let ids: Vec<String> = with(step.run, |run| {
+        run.routes[step.route]
+            .survey
+            .extensions
+            .iter()
+            .filter(|extension| run.extensions.contains(&extension.id))
+            .map(|extension| extension.id.clone())
+            .collect()
+    })
+    .unwrap_or_default();
+    if ids.is_empty() {
+        return read_over(mt, step, None);
+    }
+    with(step.run, |run| run.pending += 1);
+    let names: Vec<&str> = ids.iter().map(String::as_str).collect();
+    to.install_from_web_store(&names, move |result| {
+        let installed = result
+            .map(|results| {
+                let missing = results
+                    .iter()
+                    .filter(|each| {
+                        !matches!(
+                            each,
+                            WebStoreInstallResult::Installed
+                                | WebStoreInstallResult::AlreadyInstalled
+                        )
+                    })
+                    .count();
+                if missing > 0 {
+                    let are = plural(missing, "is", "are");
+                    note(
+                        step,
+                        format!("{missing} {are} not in the Chrome Web Store."),
+                    );
+                }
+                results.len() - missing
+            })
+            .map_err(|error| format!("{error:?}"));
+        landed_batch(mt, step, installed);
+    });
+    read_over(mt, step, None);
 }
 
 /// Takes Wren's word on a batch: how many of it landed, or why none did.
 type BatchLanded = Box<dyn FnOnce(Result<usize, String>)>;
 
-// Reads a thing on a thread, a batch at a time, and hands each batch to
-// Wren (`land`) on the main thread, in the step's profile.
+// Reads a step's thing on a thread, a batch at a time, and hands each batch
+// to Wren (`land`) on the main thread, in the route's Wren profile.
 fn in_batches<T: Send + 'static>(
-    id: u64,
-    index: usize,
-    thing: Thing,
+    step: Step,
     source: &'static str,
     read: impl FnOnce(&mut dyn FnMut(Vec<T>)) -> Result<(), ReadError> + Send + 'static,
     land: fn(&Profile, &[T], BatchLanded),
@@ -444,61 +450,55 @@ fn in_batches<T: Send + 'static>(
     std::thread::spawn(move || {
         let read = read(&mut |batch| {
             let _ = wren::post_to_main_thread(move |mt| {
-                let Some(target) = with(id, |run| {
+                let Some(to) = with(step.run, |run| {
                     run.pending += 1;
-                    run.profiles[index].profile.clone()
+                    run.routes[step.route].to.clone()
                 }) else {
                     return;
                 };
                 land(
-                    &target,
+                    &to,
                     &batch,
-                    Box::new(move |result| landed_batch(mt, id, thing, result)),
+                    Box::new(move |result| landed_batch(mt, step, result)),
                 );
             });
         });
         let refused = matches!(read, Err(ReadError::Refused));
         let why = read.err().map(|error| error.message(source));
         let _ = wren::post_to_main_thread(move |mt| {
-            with(id, |run| run.key_refused |= refused);
-            read_over(mt, id, thing, why);
+            with(step.run, |run| run.key_refused |= refused);
+            read_over(mt, step, why);
         });
     });
 }
 
-// Reads a thing whole on a thread, then lands it (`land`) on the main
-// thread, in the step's profile.
+// Reads a step's thing whole on a thread, then lands it (`land`) on the
+// main thread, in the route's Wren profile.
 fn whole<T: Send + 'static>(
-    id: u64,
-    index: usize,
-    thing: Thing,
+    step: Step,
     source: &'static str,
     read: impl FnOnce() -> Result<T, ReadError> + Send + 'static,
-    land: fn(MainThread, u64, usize, T) -> Option<String>,
+    land: fn(MainThread, Step, T) -> Option<String>,
 ) {
     std::thread::spawn(move || {
         let read = read();
         let _ = wren::post_to_main_thread(move |mt| {
             let why = match read {
-                Ok(read) => land(mt, id, index, read),
+                Ok(read) => land(mt, step, read),
                 Err(error) => Some(error.message(source)),
             };
-            read_over(mt, id, thing, why);
+            read_over(mt, step, why);
         });
     });
 }
 
-// Lands a profile's bookmarks as pins in its Wren profile: why they did
-// not, if not.
-fn land_bookmarks(mt: MainThread, id: u64, index: usize, read: Bookmarks) -> Option<String> {
-    let (app, target) = with(id, |run| {
-        (run.app.upgrade(), run.profiles[index].profile.id())
+// Lands a route's bookmarks as pins in its Wren profile: why they did not,
+// if not.
+fn land_bookmarks(mt: MainThread, step: Step, read: Bookmarks) -> Option<String> {
+    let (app, to) = with(step.run, |run| {
+        (run.app.upgrade(), run.routes[step.route].to.id())
     })?;
-    let Some(entry) = mt
-        .profile_list()
-        .into_iter()
-        .find(|entry| entry.id == target)
-    else {
+    let Some(entry) = mt.profile_list().into_iter().find(|entry| entry.id == to) else {
         return Some("That profile is gone.".into());
     };
     let count = read.count();
@@ -506,59 +506,52 @@ fn land_bookmarks(mt: MainThread, id: u64, index: usize, read: Bookmarks) -> Opt
         Ok(added) => added,
         Err(error) => return Some(error),
     };
-    landed(id, Thing::Bookmarks, added);
+    landed(step, added);
     let skipped = count.saturating_sub(added);
     if skipped > 0 {
-        let were = if skipped == 1 { "was" } else { "were" };
-        note(
-            id,
-            Thing::Bookmarks,
-            format!("{skipped} {were} pinned already."),
-        );
+        let were = plural(skipped, "was", "were");
+        note(step, format!("{skipped} {were} pinned already."));
     }
     None
 }
 
-// Lands a profile's spaces in its Wren profile: why they did not, if not.
-fn land_spaces(_: MainThread, id: u64, index: usize, read: Spaces) -> Option<String> {
-    let (app, target, made) = with(id, |run| {
-        let landed = &run.profiles[index];
-        (run.app.upgrade(), landed.profile.id(), landed.made)
+// Lands a route's spaces in its Wren profile: why they did not, if not.
+fn land_spaces(_: MainThread, step: Step, read: Spaces) -> Option<String> {
+    let (app, to, made) = with(step.run, |run| {
+        let route = &run.routes[step.route];
+        (run.app.upgrade(), route.to.id(), route.made)
     })?;
-    let added = match spaces::land(&app?, &target, read, made) {
+    let added = match spaces::land(&app?, &to, read, made) {
         Ok(added) => added,
         Err(error) => return Some(error),
     };
-    landed(id, Thing::Spaces, added.pins);
+    landed(step, added.pins);
     let skipped = added.skipped_spaces;
     if skipped > 0 {
-        let were = if skipped == 1 {
-            "space was"
-        } else {
-            "spaces were"
-        };
-        note(
-            id,
-            Thing::Spaces,
-            format!("{skipped} {were} there already."),
-        );
+        let were = plural(skipped, "space was", "spaces were");
+        note(step, format!("{skipped} {were} there already."));
     }
     None
 }
 
-// So much more of a thing has landed.
-fn landed(id: u64, thing: Thing, count: usize) {
-    with(id, |run| {
-        if let Some(progress) = progress(run, thing) {
+// `one` or `many`, as `count` takes.
+fn plural<'a>(count: usize, one: &'a str, many: &'a str) -> &'a str {
+    if count == 1 { one } else { many }
+}
+
+// So much more of the step's thing has landed.
+fn landed(step: Step, count: usize) {
+    with(step.run, |run| {
+        if let Some(progress) = progress(run, step.thing) {
             progress.done += count;
         }
     });
 }
 
-// What the user should know of how a thing went, beside its count.
-fn note(id: u64, thing: Thing, note: String) {
-    with(id, |run| {
-        if let Some(progress) = progress(run, thing) {
+// What the user should know of how the step's thing went, beside its count.
+fn note(step: Step, note: String) {
+    with(step.run, |run| {
+        if let Some(progress) = progress(run, step.thing) {
             progress.note = Some(note);
         }
     });
@@ -572,54 +565,50 @@ fn progress(run: &mut Run, thing: Thing) -> Option<&mut ThingProgress> {
 }
 
 // Wren took a batch: so much more has landed, or it failed.
-fn landed_batch(mt: MainThread, id: u64, thing: Thing, result: Result<usize, String>) {
-    with(id, |run| {
-        run.pending = run.pending.saturating_sub(1);
-        match result {
-            Ok(count) => {
-                if let Some(progress) = progress(run, thing) {
-                    progress.done += count;
-                }
-            }
-            Err(error) => note_failure(run, thing, error),
+fn landed_batch(mt: MainThread, step: Step, result: Result<usize, String>) {
+    with(step.run, |run| run.pending = run.pending.saturating_sub(1));
+    match result {
+        Ok(count) => landed(step, count),
+        Err(error) => {
+            with(step.run, |run| note_failure(run, step.thing, error));
         }
-    });
-    tell(id);
-    step_over(mt, id, thing);
+    }
+    tell(step.run);
+    step_over(mt, step);
 }
 
 // The step's reading is over: the step is too, once its batches have landed.
-fn read_over(mt: MainThread, id: u64, thing: Thing, why: Option<String>) {
-    with(id, |run| {
+fn read_over(mt: MainThread, step: Step, why: Option<String>) {
+    with(step.run, |run| {
         run.reading = false;
         if let Some(why) = why {
-            note_failure(run, thing, why);
+            note_failure(run, step.thing, why);
         }
     });
-    step_over(mt, id, thing);
+    step_over(mt, step);
 }
 
 fn note_failure(run: &mut Run, thing: Thing, why: String) {
     run.failed.entry(thing).or_default().push(why);
 }
 
-fn step_over(mt: MainThread, id: u64, thing: Thing) {
-    let over = with(id, |run| {
+fn step_over(mt: MainThread, step: Step) {
+    let over = with(step.run, |run| {
         if run.reading || run.pending > 0 {
             return false;
         }
         // One more step of the thing is done; with its last, it has landed,
         // or failed if every step of it did.
-        let left = run.left.get_mut(&thing).map(|left| {
+        let left = run.left.get_mut(&step.thing).map(|left| {
             *left = left.saturating_sub(1);
             *left
         });
         if left != Some(0) {
             return true;
         }
-        let failures = run.failed.remove(&thing).unwrap_or_default();
-        let every_step_failed = failures.len() >= run.profiles.len();
-        if let Some(progress) = progress(run, thing) {
+        let failures = run.failed.remove(&step.thing).unwrap_or_default();
+        let every_step_failed = failures.len() >= run.routes.len();
+        if let Some(progress) = progress(run, step.thing) {
             progress.state = if every_step_failed {
                 Stage::Failed
             } else {
@@ -633,7 +622,7 @@ fn step_over(mt: MainThread, id: u64, thing: Thing) {
         true
     });
     if over == Some(true) {
-        tell(id);
-        next(mt, id);
+        tell(step.run);
+        next(mt, step.run);
     }
 }

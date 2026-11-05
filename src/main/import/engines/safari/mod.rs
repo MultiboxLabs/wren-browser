@@ -8,6 +8,7 @@ mod cookies;
 mod history;
 
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use wren::{Cookie, HistoryEntry};
 
@@ -30,9 +31,19 @@ fn folder() -> PathBuf {
     platform::home_dir().join("Library/Safari")
 }
 
+/// Seconds from 1970 to 2001, where Apple's time starts.
+const TO_2001: f64 = 978_307_200.0;
+
 /// Seconds since 2001, as Apple keeps time, in milliseconds since 1970.
-pub fn unix_ms(seconds: f64) -> i64 {
-    ((seconds + 978_307_200.0) * 1000.0) as i64
+fn unix_ms(seconds: f64) -> i64 {
+    ((seconds + TO_2001) * 1000.0) as i64
+}
+
+/// `time` in Apple's time.
+fn apple_time(time: SystemTime) -> f64 {
+    time.duration_since(UNIX_EPOCH)
+        .map_or(0.0, |since| since.as_secs_f64())
+        - TO_2001
 }
 
 impl Engine for Safari {

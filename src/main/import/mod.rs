@@ -18,6 +18,7 @@ use serde::Serialize;
 
 use crate::pages::icons;
 use crate::platform;
+pub use data::SpaceCount;
 pub use land::profiles::Landing;
 pub use source::{ReadError, Source, SourceProfile, Survey};
 use sources::SOURCES;
@@ -37,17 +38,16 @@ const ICON_SIZE: f64 = 40.0;
 
 /// The browsers installed, by name.
 pub fn installed() -> Vec<Installed> {
-    SOURCES
-        .iter()
-        .filter_map(|source| {
+    installed_sources(ICON_SIZE)
+        .into_iter()
+        .map(|(source, png)| {
             let about = source.about();
-            let png = platform::installed_app_icon(about.app, ICON_SIZE)?;
-            Some(Installed {
+            Installed {
                 id: about.id,
                 name: about.name,
                 icon: icons::id(png),
                 spaces: source.keeps_spaces(),
-            })
+            }
         })
         .collect()
 }
@@ -60,18 +60,14 @@ pub fn source(id: &str) -> Option<&'static dyn Source> {
         .find(|source| source.about().id == id && platform::is_app_installed(source.about().app))
 }
 
-/// The size wren://migrate's sky shows a source's icon at, in points: its
-/// body 84, in the margin around it (pages/migrate/source-icon.tsx).
-const LARGE_ICON_SIZE: f64 = 112.0;
-
-/// Every source installed, with its app's icon, large enough for the sky.
-pub fn installed_sources() -> Vec<(&'static dyn Source, Vec<u8>)> {
+/// Every source installed, by name, with its app's icon at `size` points.
+pub fn installed_sources(size: f64) -> Vec<(&'static dyn Source, Vec<u8>)> {
     SOURCES
         .iter()
         .filter_map(|source| {
             Some((
                 *source,
-                platform::installed_app_icon(source.about().app, LARGE_ICON_SIZE)?,
+                platform::installed_app_icon(source.about().app, size)?,
             ))
         })
         .collect()

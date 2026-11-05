@@ -7,13 +7,48 @@
 
 use std::collections::HashMap;
 
+use rusqlite::Connection;
+
+use super::data::Favicons;
+use super::source::ReadError;
+
 /// The size a pin's favicon is kept at: 16 points, at 2x.
 const SIZE: i64 = 32;
 
-/// For each of `pages`, the key of the icon the source kept for it, from
-/// `kept`, the pages it kept icons for with each one's key; by the page
-/// itself, or else by another page of its site.
-pub fn match_pages<K: Copy>(
+/// The favicon `db` kept for each of `pages`. `kept` selects each page the
+/// source kept an image for, with its icon's key; `images` selects the
+/// images of the key `?1`, with their widths.
+pub fn read(
+    db: &Connection,
+    pages: &[String],
+    kept: &str,
+    images: &str,
+) -> Result<Favicons, ReadError> {
+    let kept = db
+        .prepare(kept)?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut images = db.prepare(images)?;
+    let mut icons = HashMap::new();
+    for (page, key) in match_pages(pages, kept) {
+        let found = images
+            .query_map([key], |row| {
+                Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, i64>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        if let Some(png) = best(found) {
+            icons.insert(page, png);
+        }
+    }
+    Ok(icons)
+}
+
+// For each of `pages`, the key of the icon the source kept for it, from
+// `kept`, the pages it kept icons for with each one's key; by the page
+// itself, or else by another page of its site.
+fn match_pages<K: Copy>(
     pages: &[String],
     kept: impl IntoIterator<Item = (String, K)>,
 ) -> HashMap<String, K> {
@@ -34,9 +69,9 @@ pub fn match_pages<K: Copy>(
         .collect()
 }
 
-/// Of an icon's images, with their widths, the one a pin keeps; none if
-/// none is a PNG.
-pub fn best(images: impl IntoIterator<Item = (Vec<u8>, i64)>) -> Option<Vec<u8>> {
+// Of an icon's images, with their widths, the one a pin keeps; none if
+// none is a PNG.
+fn best(images: impl IntoIterator<Item = (Vec<u8>, i64)>) -> Option<Vec<u8>> {
     let pngs: Vec<_> = images
         .into_iter()
         .filter(|(data, _)| is_png(data))
@@ -49,7 +84,8 @@ pub fn best(images: impl IntoIterator<Item = (Vec<u8>, i64)>) -> Option<Vec<u8>>
     fit.or(largest).map(|(data, _)| data.clone())
 }
 
-fn is_png(data: &[u8]) -> bool {
+/// Whether `data` is a PNG.
+pub fn is_png(data: &[u8]) -> bool {
     data.starts_with(b"\x89PNG\r\n\x1a\n")
 }
 

@@ -6,16 +6,14 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::Connection;
 use wren::HistoryEntry;
 
 use crate::import::data::{Bookmarks, Pin, PinPage, is_page};
-use crate::import::snapshot::Snapshot;
-use crate::import::source::ReadError;
-
-const BATCH: usize = 5_000;
+use crate::import::engines::unix_micros;
+use crate::import::snapshot::{self, Snapshot};
+use crate::import::source::{HISTORY_BATCH, ReadError, history_kept_since};
 
 // The roots, by their GUIDs.
 const TOOLBAR: &str = "toolbar_____";
@@ -24,48 +22,37 @@ const OTHER: &str = "unfiled_____";
 const MOBILE: &str = "mobile______";
 
 pub fn history(profile: &Path, batch: &mut dyn FnMut(Vec<HistoryEntry>)) -> Result<(), ReadError> {
-    let snapshot = Snapshot::of(&profile.join("places.sqlite"))?;
-    let mut query = snapshot.db.prepare(
+    Snapshot::of(&profile.join("places.sqlite"))?.read_in_batches(
         "SELECT url, title, visit_count, typed, last_visit_date FROM moz_places \
          WHERE hidden = 0 AND last_visit_date IS NOT NULL",
-    )?;
-    let mut rows = query.query([])?;
-    let mut entries = Vec::with_capacity(BATCH);
-    while let Some(row) = rows.next()? {
-        let url: String = row.get(0)?;
-        if !is_page(&url) {
-            continue;
-        }
-        let title: Option<String> = row.get(1)?;
-        let last_visit: i64 = row.get(4)?;
-        entries.push(HistoryEntry {
-            url,
-            title: title.filter(|title| !title.is_empty()),
-            visit_count: row.get(2)?,
-            typed_count: row.get(3)?,
-            last_visit_ms: last_visit / 1000,
-        });
-        if entries.len() == BATCH {
-            batch(std::mem::replace(&mut entries, Vec::with_capacity(BATCH)));
-        }
-    }
-    if !entries.is_empty() {
-        batch(entries);
-    }
-    Ok(())
+        HISTORY_BATCH,
+        batch,
+        |row| {
+            let url: String = row.get(0)?;
+            if !is_page(&url) {
+                return Ok(None);
+            }
+            let title: Option<String> = row.get(1)?;
+            let last_visit: i64 = row.get(4)?;
+            Ok(Some(HistoryEntry {
+                url,
+                title: title.filter(|title| !title.is_empty()),
+                visit_count: row.get(2)?,
+                typed_count: row.get(3)?,
+                last_visit_ms: last_visit / 1000,
+            }))
+        },
+    )
 }
 
+/// How many pages were visited in the time Wren keeps; Gecko's time is
+/// microseconds since 1970.
 pub fn history_count(db: &Connection) -> Result<usize, ReadError> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |since| since.as_micros() as i64);
-    let since = now - 90 * 24 * 60 * 60 * 1_000_000;
-    let count: i64 = db.query_row(
+    snapshot::count(
+        db,
         "SELECT COUNT(*) FROM moz_places WHERE hidden = 0 AND last_visit_date > ?1",
-        [since],
-        |row| row.get(0),
-    )?;
-    Ok(count as usize)
+        [unix_micros(history_kept_since())],
+    )
 }
 
 pub fn bookmark_count(db: &Connection) -> Result<usize, ReadError> {

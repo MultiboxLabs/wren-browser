@@ -7,15 +7,13 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, Row};
-use wren::{Cookie, CookieSameSite};
+use wren::Cookie;
 
 use super::{KeyItem, unix_ms};
-use crate::import::snapshot::Snapshot;
-use crate::import::source::ReadError;
+use crate::import::engines::same_site;
+use crate::import::snapshot::{self, Snapshot};
+use crate::import::source::{COOKIE_BATCH, ReadError};
 use crate::platform;
-
-/// How many cookies are handed over at once.
-const BATCH: usize = 1_000;
 
 /// Where its cookies are: in `Network/` since Chromium 96, or beside the
 /// rest before.
@@ -31,10 +29,7 @@ pub fn path(profile: &Path) -> PathBuf {
 /// How many sites have cookies, read with no key, so the user is asked for
 /// it only once they bring them over.
 pub fn count(db: &Connection) -> Result<usize, ReadError> {
-    let count: i64 = db.query_row("SELECT COUNT(DISTINCT host_key) FROM cookies", [], |row| {
-        row.get(0)
-    })?;
-    Ok(count as usize)
+    snapshot::count(db, "SELECT COUNT(DISTINCT host_key) FROM cookies", [])
 }
 
 pub fn read(
@@ -72,10 +67,7 @@ pub fn read(
             "0"
         },
     );
-    let mut query = db.prepare(&query)?;
-    let mut rows = query.query([])?;
-    let mut cookies = Vec::with_capacity(BATCH);
-    while let Some(row) = rows.next()? {
+    snapshot.read_in_batches(&query, COOKIE_BATCH, batch, |row| {
         let plain = String::from_utf8_lossy(bytes(row, 2)?).into_owned();
         let value = if plain.is_empty() {
             let sealed = bytes(row, 3)?;
@@ -83,10 +75,10 @@ pub fn read(
                 Some(String::new())
             } else {
                 platform::decrypt(&key, sealed).and_then(|opened| {
-                    let opened = if hashed && opened.len() >= 32 {
-                        opened[32..].to_vec()
-                    } else {
-                        opened
+                    // Since the file's version 24, a hash of its host first.
+                    let opened = match opened.get(32..) {
+                        Some(value) if hashed => value.to_vec(),
+                        _ => opened,
                     };
                     String::from_utf8(opened).ok()
                 })
@@ -95,10 +87,10 @@ pub fn read(
             Some(plain)
         };
         // One that does not open is left out.
-        let Some(value) = value else { continue };
+        let Some(value) = value else { return Ok(None) };
         let persistent: bool = row.get(11)?;
         let partition: String = row.get(12)?;
-        cookies.push(Cookie {
+        Ok(Some(Cookie {
             domain: row.get(0)?,
             name: row.get(1)?,
             value,
@@ -111,15 +103,8 @@ pub fn read(
             same_site: same_site(row.get(10)?),
             partition_site: (!partition.is_empty()).then_some(partition),
             partition_cross_site_ancestor: row.get(13)?,
-        });
-        if cookies.len() == BATCH {
-            batch(std::mem::replace(&mut cookies, Vec::with_capacity(BATCH)));
-        }
-    }
-    if !cookies.is_empty() {
-        batch(cookies);
-    }
-    Ok(())
+        }))
+    })
 }
 
 // A column's bytes, which some browsers keep as text and others as a blob,
@@ -137,16 +122,6 @@ fn columns(db: &Connection) -> Result<Vec<String>, ReadError> {
         .query_map([], |row| row.get(0))?
         .collect::<Result<_, _>>()?;
     Ok(names)
-}
-
-/// Chromium's `samesite`: -1 unspecified, 0 none, 1 lax, 2 strict.
-fn same_site(value: i64) -> CookieSameSite {
-    match value {
-        0 => CookieSameSite::None,
-        1 => CookieSameSite::Lax,
-        2 => CookieSameSite::Strict,
-        _ => CookieSameSite::Unspecified,
-    }
 }
 
 #[cfg(test)]

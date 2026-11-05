@@ -4,6 +4,8 @@
 
 use std::collections::HashMap;
 
+use serde::Serialize;
+
 /// A browser's bookmarks, as the pins they come over as: its bar's, as pins
 /// of their own, and the rest, in a folder (`OTHER_BOOKMARKS`).
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -74,15 +76,25 @@ pub struct Spaces {
     pub spaces: Vec<Space>,
 }
 
+/// How many spaces a source keeps, and their pins.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
+pub struct SpaceCount {
+    pub spaces: usize,
+    /// Pins, the favourites and those in folders too.
+    pub pins: usize,
+}
+
 impl Spaces {
-    /// How many pins there are, the favourites and those in folders too.
-    pub fn pin_count(&self) -> usize {
-        count_pins(&self.favorites)
-            + self
-                .spaces
-                .iter()
-                .map(|space| count_pins(&space.pins))
-                .sum::<usize>()
+    pub fn count(&self) -> SpaceCount {
+        SpaceCount {
+            spaces: self.spaces.len(),
+            pins: count_pins(&self.favorites)
+                + self
+                    .spaces
+                    .iter()
+                    .map(|space| count_pins(&space.pins))
+                    .sum::<usize>(),
+        }
     }
 
     /// Gives each pin's page the favicon its source kept for it.
@@ -190,16 +202,26 @@ pub struct PinPage {
 }
 
 impl PinPage {
-    /// A bookmark of `url`: its name, which the user sees and may change,
-    /// stays the pin's, as a bookmark's does, whatever the page is titled.
-    pub fn bookmark(name: &str, url: &str) -> PinPage {
-        let name = Some(name.trim()).filter(|name| !name.is_empty());
+    /// The page `url`, with the title the source last saw it with, and the
+    /// name the user gave it, if any; its title is its name, or else its
+    /// address, if the source kept none.
+    pub fn new(title: Option<&str>, name: Option<&str>, url: &str) -> PinPage {
+        fn given(text: Option<&str>) -> Option<&str> {
+            text.map(str::trim).filter(|text| !text.is_empty())
+        }
+        let name = given(name);
         PinPage {
-            title: name.unwrap_or(url).to_owned(),
+            title: given(title).or(name).unwrap_or(url).to_owned(),
             name: name.map(str::to_owned),
             url: url.to_owned(),
             favicon: None,
         }
+    }
+
+    /// A bookmark of `url`: its name, which the user sees and may change,
+    /// stays the pin's, as a bookmark's does, whatever the page is titled.
+    pub fn bookmark(name: &str, url: &str) -> PinPage {
+        PinPage::new(None, Some(name), url)
     }
 }
 
