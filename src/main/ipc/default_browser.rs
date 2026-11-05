@@ -4,8 +4,6 @@
 // System Settings is seen too; `defaultBrowser.changed` tells every window
 // either way.
 
-use std::rc::Rc;
-
 use serde::Serialize;
 use wren::{DefaultBrowserState, Error, MainThread, PageCall, WebView};
 
@@ -58,19 +56,13 @@ fn answer(call: PageCall, result: Result<DefaultBrowserState, Error>) {
 }
 
 /// Tells every window's page whether Wren is the default browser, as it
-/// changed: asked again, as Wren's change says only that it did.
-pub fn broadcast_default_browser(state: &Rc<State>, mt: MainThread) {
-    let state = Rc::downgrade(state);
-    mt.default_browser_state(move |result| {
-        let (Some(state), Ok(default)) = (state.upgrade(), result) else {
-            return;
-        };
-        let default = DefaultBrowser::of(default);
-        for window in state.windows.all() {
-            let _ = window
-                .page
-                .web_view
-                .send("defaultBrowser.changed", &default);
-        }
-    });
+/// changed (`State::check_default_browser`).
+pub fn broadcast_default_browser(state: &State, default: DefaultBrowserState) {
+    let default = DefaultBrowser::of(default);
+    for window in state.windows.all() {
+        let _ = window
+            .page
+            .web_view
+            .send("defaultBrowser.changed", &default);
+    }
 }

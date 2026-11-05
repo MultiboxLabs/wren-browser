@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use wren::{
-    App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
-    PopoverRequest, PopoverTrigger, Profile, ProfileExtensionsRequest, ProfileKind, QuitPrompt,
-    TabFields, WindowRequest,
+    App, Browser, BrowserType, Change, ChangeKind, DefaultBrowserState, MainThread, PopoverAnswer,
+    PopoverKind, PopoverRequest, PopoverTrigger, Profile, ProfileExtensionsRequest, ProfileKind,
+    QuitPrompt, TabFields, WindowRequest,
 };
 
 use crate::analytics::{self, Analytics, Event};
@@ -18,7 +18,7 @@ use crate::db::Db;
 use crate::extensions::{ad_block, components};
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
-use crate::pages::{SCHEME, Source, serve_page};
+use crate::pages::{self, SCHEME, Source, serve_page};
 use crate::password_manager;
 use crate::perf::Perf;
 use crate::pins;
@@ -62,6 +62,9 @@ pub struct State {
     pub updates: Updates,
     /// Links macOS asked the app to open before it could (windows/open_urls.rs).
     pub(crate) held_urls: RefCell<Vec<String>>,
+    /// Whether Wren is the default browser, as macOS said last; none before
+    /// it says (windows/mod.rs).
+    pub(crate) default_browser: Cell<Option<DefaultBrowserState>>,
 }
 
 impl State {
@@ -96,6 +99,7 @@ impl State {
             tab_switcher_keys: RefCell::default(),
             updates,
             held_urls: RefCell::default(),
+            default_browser: Cell::default(),
         }
     }
 
@@ -289,6 +293,7 @@ impl Wren {
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
         self.state.update_menu(mt);
+        self.state.check_default_browser(mt);
         menus::set_app_icon_menu(mt, &self.state);
         password_manager::ready(mt);
         components::ready(mt);
@@ -377,7 +382,7 @@ impl App for Wren {
             .iter()
             .any(|change| change.kind == ChangeKind::DefaultBrowser)
         {
-            ipc::broadcast_default_browser(state, mt);
+            state.check_default_browser(mt);
         }
         for change in changes {
             record_tab_crash(state, change);
@@ -459,6 +464,10 @@ impl App for Wren {
             }
             return;
         }
+        // macOS asks the user; the change that follows checks the item.
+        if id == menus::SET_DEFAULT_BROWSER {
+            return mt.set_as_default_browser(|_| {});
+        }
         if id == menus::RESET_ONBOARDING {
             return self.state.reset_onboarding(mt);
         }
@@ -480,6 +489,10 @@ impl App for Wren {
                 self.state.updates.check(&self.state, front.id);
             }
             return;
+        }
+        // In the window links open in, whatever window is key, a popup's too.
+        if id == menus::IMPORT {
+            return self.state.show_page(mt, &pages::MIGRATE);
         }
         // A window of the system's or a plain one, such as the About
         // panel, closes as it would in any app.

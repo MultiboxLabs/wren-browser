@@ -11,7 +11,10 @@ pub mod pin;
 mod site;
 mod tab;
 
-use wren::{ChromiumCommand as Command, MainThread, MenuItem, MenuKey, MenuModifiers, MenuRole};
+use wren::{
+    ChromiumCommand as Command, DefaultBrowser, DefaultBrowserState, MainThread, MenuItem, MenuKey,
+    MenuModifiers, MenuRole,
+};
 
 use crate::db::SpaceId;
 
@@ -33,6 +36,8 @@ pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const SHOW_DOWNLOADS: &str = "show-downloads";
 pub const SHOW_SETTINGS: &str = "show-settings";
+pub const SET_DEFAULT_BROWSER: &str = "set-default-browser";
+pub const IMPORT: &str = "import";
 pub const TOGGLE_UI_DEVTOOLS: &str = "toggle-ui-devtools";
 pub const RELOAD_UI: &str = "reload-ui";
 pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
@@ -65,11 +70,18 @@ const BLOCKED: [&str; 6] = [
 ];
 
 /// Sets the main menu, whose Spaces menu lists `spaces`, each by its ID and
-/// name, in the Library's order, with what `front` allows, and Check for
-/// Updates… if `updates`. Set again as the spaces change, as Warn Before
-/// Quitting does, and once the updater starts.
-pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front, updates: bool) {
-    if let Err(error) = mt.set_main_menu(&main_menu(mt, spaces, front, updates)) {
+/// name, in the Library's order, with what `front` allows, Check for
+/// Updates… if `updates`, and Set as Default Browser as `default` has it.
+/// Set again as the spaces change, as Warn Before Quitting does, and once
+/// the updater starts.
+pub fn set_main_menu(
+    mt: MainThread,
+    spaces: &[(SpaceId, String)],
+    front: Front,
+    updates: bool,
+    default: Option<DefaultBrowserState>,
+) {
+    if let Err(error) = mt.set_main_menu(&main_menu(mt, spaces, front, updates, default)) {
         eprintln!("Wren took no main menu: {error:?}");
     }
 }
@@ -78,7 +90,7 @@ pub fn set_main_menu(mt: MainThread, spaces: &[(SpaceId, String)], front: Front,
 /// back, in place, as it changes.
 pub fn enable_front(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) {
     let mut items = Vec::new();
-    take_front_items(main_menu(mt, spaces, front, true), &mut items);
+    take_front_items(main_menu(mt, spaces, front, true, None), &mut items);
     for item in items {
         if let Err(error) = mt.update_main_menu_item(&item) {
             eprintln!("Wren could not change a menu item: {error:?}");
@@ -89,11 +101,11 @@ pub fn enable_front(mt: MainThread, spaces: &[(SpaceId, String)], front: Front) 
 /// Sets the main menu onboarding has (onboarding.rs): the app's, editing
 /// and the window's, and nothing of the browser's, which is not the user's
 /// until they are through it.
-pub fn set_onboarding_menu(mt: MainThread) {
+pub fn set_onboarding_menu(mt: MainThread, default: Option<DefaultBrowserState>) {
     let mut menu = vec![
-        // Check for Updates… and Settings… are greyed out: no window
-        // answers them yet.
-        app_menu(mt, false, false),
+        // Check for Updates…, Settings… and Import are greyed out: no
+        // window answers them yet.
+        app_menu(mt, false, false, default),
         edit_menu(vec![], vec![]),
         window_menu(vec![]),
         help_menu(),
@@ -113,9 +125,10 @@ fn main_menu(
     spaces: &[(SpaceId, String)],
     front: Front,
     updates: bool,
+    default: Option<DefaultBrowserState>,
 ) -> Vec<MenuItem> {
     let mut menu = vec![
-        app_menu(mt, updates, true),
+        app_menu(mt, updates, true, default),
         MenuItem::submenu(
             "File",
             vec![
@@ -261,8 +274,14 @@ fn main_menu(
 }
 
 // The app's own menu, Wren, with Quit; Check for Updates… is greyed out
-// unless `updates`, and Settings… unless `settings`.
-fn app_menu(mt: MainThread, updates: bool, settings: bool) -> MenuItem {
+// unless `updates`, and Settings… and Import unless `windows`, a window
+// answering them.
+fn app_menu(
+    mt: MainThread,
+    updates: bool,
+    windows: bool,
+    default: Option<DefaultBrowserState>,
+) -> MenuItem {
     let warning = mt.quit_warning();
     MenuItem::submenu(
         "Wren",
@@ -277,7 +296,13 @@ fn app_menu(mt: MainThread, updates: bool, settings: bool) -> MenuItem {
             // The Library's settings, not chrome://settings.
             enabled(
                 keyed(SHOW_SETTINGS, "Settings…", ",", MenuModifiers::PRIMARY),
-                settings,
+                windows,
+            ),
+            default_browser_item(default),
+            // wren://migrate, in a tab of the window links open in.
+            enabled(
+                MenuItem::item(IMPORT, "Import from Another Browser…"),
+                windows,
             ),
             MenuItem::Separator,
             system(MenuRole::Services, None, vec![]),
@@ -299,6 +324,28 @@ fn app_menu(mt: MainThread, updates: bool, settings: bool) -> MenuItem {
             MenuItem::role(MenuRole::Quit),
         ],
     )
+}
+
+/// Checks Set as Default Browser, or not, in place, as `default` has it.
+pub fn set_default_browser_item(mt: MainThread, default: Option<DefaultBrowserState>) {
+    if let Err(error) = mt.update_main_menu_item(&default_browser_item(default)) {
+        eprintln!("Wren could not change a menu item: {error:?}");
+    }
+}
+
+// Asks macOS to make Wren the default browser, which asks the user. Checked
+// and greyed out once it is, with nothing left to do; greyed out where
+// policy keeps the user from it. Before macOS says, it may be chosen.
+fn default_browser_item(default: Option<DefaultBrowserState>) -> MenuItem {
+    let is_default = default.is_some_and(|default| default.state == DefaultBrowser::Yes);
+    MenuItem::Item {
+        id: SET_DEFAULT_BROWSER.into(),
+        label: "Set as Default Browser".into(),
+        enabled: !is_default && default.is_none_or(|default| default.can_set),
+        checked: is_default,
+        hidden: false,
+        key: None,
+    }
 }
 
 // Greys out the items `front` does not allow.
