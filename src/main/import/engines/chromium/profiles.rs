@@ -94,7 +94,9 @@ pub fn from_local_state(state: &Value, exists: impl Fn(&str) -> bool) -> Vec<Sou
 // The account's picture, its file's name in the profile's folder, where the
 // browser shows it: unless the user chose one of its own avatars instead.
 fn picture(info: &Value) -> Option<PathBuf> {
-    let file = info["gaia_picture_file_name"].as_str().filter(|file| !file.is_empty())?;
+    let file = info["gaia_picture_file_name"]
+        .as_str()
+        .filter(|file| !file.is_empty())?;
     let chose_avatar = info["is_using_default_avatar"].as_bool() == Some(false)
         && info["use_gaia_picture"].as_bool() != Some(true);
     (!chose_avatar).then(|| PathBuf::from(file))
@@ -126,6 +128,9 @@ mod tests {
             .map(|p| (p.id.as_str(), p.default_name, p.picture.is_some()))
             .collect();
         // Work's user chose an avatar over the account's picture.
-        assert_eq!(names, [("Default", true, true), ("Profile 1", false, false)]);
+        assert_eq!(
+            names,
+            [("Default", true, true), ("Profile 1", false, false)]
+        );
     }
 }
