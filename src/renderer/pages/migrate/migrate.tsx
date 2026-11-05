@@ -5,10 +5,10 @@
 // Components (`migrate`, ipc/migrate.ts); its state is state/migrate.ts.
 
 import { motion, MotionConfig } from "motion/react";
-import { type ReactNode, useLayoutEffect, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { migrate } from "@/ipc";
+import { iconUrl, migrate } from "@/ipc";
 import { type MigrateState, useMigrate } from "@/state/migrate";
 import { useSystemScheme } from "@/state/window";
 import { ExtensionsDialog } from "./extensions-dialog";
@@ -28,12 +28,20 @@ export function Migrate() {
   const [scrolled, setScrolled] = useState(false);
   const { phase, run, source, sources } = state;
   const flightSource = run && phase !== "choose" ? sources?.find(({ id }) => id === run.source) : source;
+  const shown = useShown(state.ready, flightSource?.icon);
 
+  // Nothing until it is all in; then it fades in at once.
+  if (!shown) return null;
   return (
     <MotionConfig reducedMotion="user">
       <TooltipProvider>
         {/* The sky stays; the column under it scrolls. */}
-        <main className="flex h-screen flex-col overflow-hidden">
+        <motion.main
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="flex h-screen flex-col overflow-hidden"
+        >
           <Sky source={flightSource} flight={flight(state)} />
           <div className="relative min-h-0 flex-1">
             <div
@@ -59,11 +67,42 @@ export function Migrate() {
               className="migrate-scroll-edge pointer-events-none absolute top-0 right-3.5 left-0 h-12"
             />
           </div>
-        </main>
+        </motion.main>
       </TooltipProvider>
     </MotionConfig>
   );
 }
+
+/** Longest the page stays blank, should what it waits for not come. */
+const SHOW_BY = 1500;
+
+// Whether the page shows: once it is `ready`, with its fonts and the
+// source's icon drawn too, so none of them swaps in after; or, whatever is
+// missing, after `SHOW_BY`. Once shown, it stays.
+function useShown(ready: boolean, icon: string | undefined) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(true), SHOW_BY);
+    return () => clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (!ready || shown) return;
+    let current = true;
+    const drawn = icon ? decoded(iconUrl(icon)) : Promise.resolve();
+    void Promise.all([document.fonts.ready, drawn]).then(() => current && setShown(true));
+    return () => {
+      current = false;
+    };
+  }, [ready, shown, icon]);
+  return shown;
+}
+
+// Once the image at `url` is ready to draw, or could not be.
+const decoded = (url: string) => {
+  const image = new Image();
+  image.src = url;
+  return image.decode().catch(() => {});
+};
 
 // How far the wren has come: the share of the run's things that has landed.
 function flight({ phase, run }: MigrateState): Flight {

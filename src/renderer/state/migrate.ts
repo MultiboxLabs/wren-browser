@@ -135,8 +135,13 @@ export function useMigrate() {
             ? "none"
             : "choose";
 
+  // The sources are in, so the sky has its source and the list its
+  // browsers from the start.
+  const ready = !!error || !!sources;
+
   return {
     phase,
+    ready,
     error,
     context,
     sources,
