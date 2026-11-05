@@ -5,12 +5,16 @@
 // may come while a profile's last session is being restored, which brings
 // forward what it had active: either is held, and opens once the window
 // has its Browser (`open_browser`) and nothing is being restored.
+//
+// The app's own pages a menu item shows open there too, or bring forward the
+// tab that has one already.
 
 use std::rc::Rc;
 
 use wren::MainThread;
 
 use crate::app::State;
+use crate::pages::Page;
 use crate::shell::BrowserWindow;
 use crate::tabs;
 
@@ -19,6 +23,31 @@ impl State {
     pub fn open_urls(self: &Rc<Self>, mt: MainThread, urls: &[String]) {
         self.held_urls.borrow_mut().extend_from_slice(urls);
         self.open_held_urls(mt);
+    }
+
+    /// Shows the app's own `page` where links open: the tab there on it, if
+    /// one is, or else a new one.
+    pub fn show_page(self: &Rc<Self>, mt: MainThread, page: &Page) {
+        let url = page.url();
+        let window = self.link_window();
+        let tab = window
+            .as_ref()
+            .and_then(|window| window.browser())
+            .and_then(|browser| {
+                browser
+                    .tabs()
+                    .into_iter()
+                    .find(|tab| tab.url().starts_with(&url))
+            });
+        match (window, tab) {
+            (Some(window), Some(tab)) => {
+                if let Err(error) = tab.activate() {
+                    eprintln!("Wren could not show {url}: {error:?}");
+                }
+                window.page.bring_forward();
+            }
+            _ => self.open_urls(mt, &[url]),
+        }
     }
 
     /// Opens the links held, if the app can now: in the window the user

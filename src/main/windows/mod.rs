@@ -23,6 +23,8 @@ mod request;
 mod session;
 mod switch;
 
+use std::rc::Rc;
+
 use wren::{MainThread, Profile};
 
 use crate::app::State;
@@ -108,12 +110,28 @@ impl State {
     /// they are now; or onboarding's, while it is open.
     pub fn update_menu(&self, mt: MainThread) {
         if self.onboarding.borrow().is_some() {
-            return menus::set_onboarding_menu(mt);
+            return menus::set_onboarding_menu(mt, self.default_browser.get());
         }
         let front = self.front_menu();
         self.menu_front.set(front);
         let updates = self.updates.available();
-        menus::set_main_menu(mt, &self.ordered_spaces(mt), front, updates);
+        let default = self.default_browser.get();
+        menus::set_main_menu(mt, &self.ordered_spaces(mt), front, updates, default);
+    }
+
+    /// Asks macOS whether Wren is the default browser, at startup and as it
+    /// changes, as Wren's change says only that it did: Set as Default
+    /// Browser is checked as it is, and every window's page is told.
+    pub fn check_default_browser(self: &Rc<Self>, mt: MainThread) {
+        let state = Rc::downgrade(self);
+        mt.default_browser_state(move |result| {
+            let (Some(state), Ok(default)) = (state.upgrade(), result) else {
+                return;
+            };
+            state.default_browser.set(Some(default));
+            menus::set_default_browser_item(mt, Some(default));
+            ipc::broadcast_default_browser(&state, default);
+        });
     }
 
     /// Greys out the main menu's items the window in front does not allow,
