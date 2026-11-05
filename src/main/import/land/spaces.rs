@@ -152,10 +152,11 @@ fn icon(icon: &SpaceIcon) -> String {
 // of it shows, light or dark, and its grain. With no colour, the profile's
 // own, as Wren gives a space it makes.
 fn theme(look: &Look, profile: &str) -> SpaceTheme {
+    let default = SpaceTheme::default_for(avatar(profile));
     let Some(&main) = look.colours.first() else {
-        return SpaceTheme::default_for(avatar(profile));
+        return default;
     };
-    let mut theme = SpaceTheme::default_for(avatar(profile));
+    let mut theme = default.clone();
     theme.primary = Hsb::of_srgb(main);
     theme.colors = look.colours.len().clamp(1, 3) as u8;
     theme.appearance = match look.dark {
@@ -165,9 +166,7 @@ fn theme(look: &Look, profile: &str) -> SpaceTheme {
     };
     theme.intensity = look.intensity.unwrap_or(theme.intensity);
     theme.noise = look.noise;
-    theme
-        .checked()
-        .unwrap_or_else(|_| SpaceTheme::default_for(avatar(profile)))
+    theme.checked().unwrap_or(default)
 }
 
 // Favourites have no folders: what was in one comes out of it.

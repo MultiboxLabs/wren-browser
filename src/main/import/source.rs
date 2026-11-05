@@ -8,10 +8,27 @@
 
 use std::io;
 use std::path::PathBuf;
+use std::time::{Duration, SystemTime};
 
 use wren::{Cookie, HistoryEntry};
 
-use super::data::{Bookmarks, Favicons, Spaces, StoreExtension};
+use super::data::{Bookmarks, Favicons, SpaceCount, Spaces, StoreExtension};
+
+/// How many history entries a reader hands over at once: one of Wren's
+/// `add_history` calls.
+pub const HISTORY_BATCH: usize = 5_000;
+
+/// How many cookies a reader hands over at once: one of Wren's
+/// `add_cookies` calls.
+pub const COOKIE_BATCH: usize = 1_000;
+
+/// How far back Wren keeps history, which is all a survey counts.
+const HISTORY_KEPT: Duration = Duration::from_secs(90 * 24 * 60 * 60);
+
+/// The time before which a visit is past what Wren keeps.
+pub fn history_kept_since() -> SystemTime {
+    SystemTime::now() - HISTORY_KEPT
+}
 
 /// Which browser it is.
 pub struct About {
@@ -98,10 +115,11 @@ impl From<serde_json::Error> for ReadError {
 /// in full; none of a thing it cannot say.
 #[derive(Debug, Default)]
 pub struct Survey {
-    /// Spaces, and their pins with the favourites.
-    pub spaces: Option<(usize, usize)>,
+    /// Spaces, and their pins with the favourites; none from a source that
+    /// keeps no spaces.
+    pub spaces: Option<SpaceCount>,
     pub bookmarks: usize,
-    /// Pages visited in the past 90 days, which is all Wren keeps.
+    /// Pages visited since `history_kept_since`.
     pub history: usize,
     /// Sites with cookies.
     pub cookies: usize,
@@ -160,8 +178,15 @@ pub trait Source: Sync {
     fn profiles(&self) -> Result<Vec<SourceProfile>, ReadError> {
         self.engine().profiles()
     }
+    /// Its engine's survey, and its spaces if it keeps them.
     fn survey(&self, profile: &SourceProfile) -> Survey {
-        self.engine().survey(profile)
+        let mut survey = self.engine().survey(profile);
+        if self.keeps_spaces()
+            && let Ok(spaces) = self.spaces(profile)
+        {
+            survey.spaces = Some(spaces.count());
+        }
+        survey
     }
     fn bookmarks(&self, profile: &SourceProfile) -> Result<Bookmarks, ReadError> {
         self.engine().bookmarks(profile)
@@ -192,5 +217,15 @@ pub trait Source: Sync {
     /// that keeps none. Their pages have no favicons: `favicons` gives them.
     fn spaces(&self, _profile: &SourceProfile) -> Result<Spaces, ReadError> {
         Ok(Spaces::default())
+    }
+}
+
+impl dyn Source {
+    /// Its real profile `id`, if it is still there.
+    pub fn profile(&self, id: &str) -> Result<Option<SourceProfile>, ReadError> {
+        Ok(self
+            .profiles()?
+            .into_iter()
+            .find(|profile| profile.id == id))
     }
 }

@@ -10,6 +10,7 @@ mod history;
 mod profiles;
 
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use wren::{Cookie, HistoryEntry};
 
@@ -58,14 +59,22 @@ impl Chromium {
     }
 }
 
+/// Microseconds from 1601, where Chromium's time starts, to 1970.
+const FROM_1601: i64 = 11_644_473_600_000_000;
+
 /// Chromium's time, microseconds since 1601, in milliseconds since 1970;
 /// 0 for none.
-pub fn unix_ms(time: i64) -> i64 {
+fn unix_ms(time: i64) -> i64 {
     if time <= 0 {
         0
     } else {
-        time / 1000 - 11_644_473_600_000
+        (time - FROM_1601) / 1000
     }
+}
+
+/// `time` in Chromium's time.
+fn chromium_time(time: SystemTime) -> i64 {
+    super::unix_micros(time) + FROM_1601
 }
 
 impl Engine for Chromium {

@@ -12,9 +12,9 @@ use std::fs;
 
 use serde_json::Value;
 
-use crate::import::data::{Look, Pin, PinPage, Space, SpaceIcon, Spaces, count_pins, is_page};
+use crate::import::data::{Look, Pin, PinPage, Space, SpaceIcon, Spaces, is_page, pruned};
 use crate::import::engines::gecko::{Gecko, mozlz4};
-use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
+use crate::import::source::{About, Engine, ReadError, Source, SourceProfile};
 
 pub struct Zen {
     gecko: Gecko,
@@ -35,16 +35,6 @@ impl Source for Zen {
         &self.gecko
     }
 
-    fn survey(&self, profile: &SourceProfile) -> Survey {
-        let mut survey = Engine::survey(&self.gecko, profile);
-        if let Ok(spaces) = self.spaces(profile)
-            && !spaces.spaces.is_empty()
-        {
-            survey.spaces = Some((spaces.spaces.len(), spaces.pin_count()));
-        }
-        survey
-    }
-
     fn keeps_spaces(&self) -> bool {
         true
     }
@@ -59,10 +49,12 @@ impl Source for Zen {
 
 pub fn from_sessions(sessions: &Value) -> Spaces {
     let list = |key: &str| sessions[key].as_array().cloned().unwrap_or_default();
-    let folders: HashMap<String, Value> = list("folders")
+    // In the file's order, which is the order folders in a folder keep.
+    let folders: Vec<Value> = list("folders")
         .into_iter()
-        .filter_map(|folder| Some((folder["id"].as_str()?.to_owned(), folder)))
+        .filter(|folder| folder["id"].is_string())
         .collect();
+    let is_folder = |id: &str| folders.iter().any(|folder| folder["id"] == id);
     // Each split of two, by its tabs' IDs.
     let mut splits: HashMap<String, (usize, Vec<String>, bool)> = HashMap::new();
     for (index, split) in list("splitViewData").iter().enumerate() {
@@ -91,15 +83,11 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
             tab["entries"].as_array()?.last()?
         };
         let url = entry["url"].as_str().filter(|url| is_page(url))?;
-        Some(PinPage {
-            title: entry["title"].as_str().unwrap_or(url).to_owned(),
-            name: tab["zenStaticLabel"]
-                .as_str()
-                .filter(|name| !name.trim().is_empty())
-                .map(str::to_owned),
-            url: url.to_owned(),
-            favicon: None,
-        })
+        Some(PinPage::new(
+            entry["title"].as_str(),
+            tab["zenStaticLabel"].as_str(),
+            url,
+        ))
     };
     let by_sync_id: HashMap<&str, &Value> = tabs
         .iter()
@@ -141,10 +129,7 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
         };
         if tab["zenEssential"].as_bool() == Some(true) {
             favorites.push(pin);
-        } else if let Some(folder) = tab["groupId"]
-            .as_str()
-            .filter(|id| folders.contains_key(*id))
-        {
+        } else if let Some(folder) = tab["groupId"].as_str().filter(|id| is_folder(id)) {
             in_folder.entry(folder.to_owned()).or_default().push(pin);
         } else if let Some(space) = tab["zenWorkspace"].as_str() {
             in_space.entry(space.to_owned()).or_default().push(pin);
@@ -153,24 +138,21 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
 
     // A folder, with the folders in it, then its pins.
     fn folder_pin(
-        id: &str,
-        folders: &HashMap<String, Value>,
+        folder: &Value,
+        folders: &[Value],
         in_folder: &mut HashMap<String, Vec<Pin>>,
     ) -> Pin {
-        let children: Vec<String> = folders
+        let id = folder["id"].as_str().unwrap_or_default();
+        let mut pins: Vec<Pin> = folders
             .iter()
-            .filter(|(_, folder)| folder["parentId"].as_str() == Some(id))
-            .map(|(child, _)| child.clone())
-            .collect();
-        let mut pins: Vec<Pin> = children
-            .iter()
+            .filter(|child| child["parentId"].as_str() == Some(id))
             .map(|child| folder_pin(child, folders, in_folder))
             .collect();
         pins.extend(in_folder.remove(id).unwrap_or_default());
         Pin::Folder {
-            name: folders[id]["name"].as_str().unwrap_or("Folder").to_owned(),
+            name: folder["name"].as_str().unwrap_or("Folder").to_owned(),
             pins,
-            open: folders[id]["collapsed"].as_bool() == Some(false),
+            open: folder["collapsed"].as_bool() == Some(false),
         }
     }
 
@@ -178,14 +160,12 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
         .iter()
         .map(|space| {
             let id = space["uuid"].as_str().unwrap_or_default();
-            let mut pins: Vec<Pin> = list("folders")
+            let mut pins: Vec<Pin> = folders
                 .iter()
                 .filter(|folder| {
                     folder["workspaceId"].as_str() == Some(id) && folder["parentId"].is_null()
                 })
-                .filter_map(|folder| folder["id"].as_str())
                 .map(|folder| folder_pin(folder, &folders, &mut in_folder))
-                .filter(|pin| matches!(pin, Pin::Folder { pins, .. } if count_pins(pins) > 0))
                 .collect();
             pins.extend(in_space.remove(id).unwrap_or_default());
             Space {
@@ -196,7 +176,7 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
                     .to_owned(),
                 icon: icon(space["icon"].as_str()),
                 look: look(&space["theme"]),
-                pins,
+                pins: pruned(pins),
             }
         })
         .collect();
@@ -291,5 +271,35 @@ mod tests {
             if page.url == "https://b.example/" && page.title == "B" && page.name.as_deref() == Some("Mine")));
         assert!(matches!(&work.pins[1], Pin::Split { stacked: false, .. }));
         assert_eq!(work.pins.len(), 2);
+    }
+
+    // Folders in a folder keep the file's order; one left empty goes.
+    #[test]
+    fn keeps_folders_in_order() {
+        let folder = |id: &str, parent: Option<&str>| json!({ "id": id, "name": id, "workspaceId": "w1", "parentId": parent });
+        let names = ["c", "a", "d", "b"];
+        let mut folders = vec![folder("top", None), folder("empty", Some("top"))];
+        folders.extend(names.iter().map(|name| folder(name, Some("top"))));
+        let tabs: Vec<Value> = names
+            .iter()
+            .map(|name| {
+                json!({ "pinned": true, "zenWorkspace": "w1", "groupId": name,
+                        "entries": [{ "url": format!("https://{name}.example/") }] })
+            })
+            .collect();
+        let sessions = json!({ "spaces": [{ "uuid": "w1", "name": "Work" }],
+                               "folders": folders, "tabs": tabs });
+        let spaces = from_sessions(&sessions);
+        let [Pin::Folder { pins, .. }] = &spaces.spaces[0].pins[..] else {
+            unreachable!()
+        };
+        let inner: Vec<&str> = pins
+            .iter()
+            .filter_map(|pin| match pin {
+                Pin::Folder { name, .. } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(inner, names);
     }
 }

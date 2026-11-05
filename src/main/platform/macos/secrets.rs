@@ -60,6 +60,13 @@ const ERR_SEC_USER_CANCELED: i32 = -128;
 const ERR_SEC_AUTH_FAILED: i32 = -25293;
 const ERR_SEC_INTERACTION_NOT_ALLOWED: i32 = -25308;
 
+/// How Chromium makes its key from the Keychain's password, on macOS.
+const SALT: &[u8] = b"saltysalt";
+const ROUNDS: u32 = 1003;
+/// What a value it encrypted starts with, before its ciphertext.
+const VERSION: &[u8] = b"v10";
+const IV: [u8; 16] = [b' '; 16];
+
 const K_CC_PBKDF2: u32 = 2;
 const K_CC_PRF_HMAC_SHA1: u32 = 1;
 const K_CC_DECRYPT: u32 = 1;
@@ -74,17 +81,21 @@ pub fn chromium_key(
     let Some(password) = keychain_password(service, account)? else {
         return Ok(None);
     };
-    let salt = b"saltysalt";
+    derive(&password).map(Some)
+}
+
+// The key Chromium makes from `password`.
+fn derive(password: &[u8]) -> Result<Key, String> {
     let mut key = [0u8; 16];
     let status = unsafe {
         CCKeyDerivationPBKDF(
             K_CC_PBKDF2,
             password.as_ptr(),
             password.len(),
-            salt.as_ptr(),
-            salt.len(),
+            SALT.as_ptr(),
+            SALT.len(),
             K_CC_PRF_HMAC_SHA1,
-            1003,
+            ROUNDS,
             key.as_mut_ptr(),
             key.len(),
         )
@@ -92,12 +103,11 @@ pub fn chromium_key(
     if status != 0 {
         return Err(format!("CommonCrypto could not make the key ({status})."));
     }
-    Ok(Some(Key(key)))
+    Ok(Key(key))
 }
 
 pub fn decrypt(key: &Key, value: &[u8]) -> Option<Vec<u8>> {
-    let sealed = value.strip_prefix(b"v10")?;
-    let iv = [b' '; 16];
+    let sealed = value.strip_prefix(VERSION)?;
     let mut out = vec![0u8; sealed.len() + 16];
     let mut moved = 0usize;
     let status = unsafe {
@@ -107,7 +117,7 @@ pub fn decrypt(key: &Key, value: &[u8]) -> Option<Vec<u8>> {
             K_CC_PKCS7_PADDING,
             key.0.as_ptr().cast(),
             key.0.len(),
-            iv.as_ptr().cast(),
+            IV.as_ptr().cast(),
             sealed.as_ptr().cast(),
             sealed.len(),
             out.as_mut_ptr().cast(),
@@ -168,25 +178,8 @@ mod tests {
     // version does not.
     #[test]
     fn decrypts_what_chromium_encrypts() {
-        let salt = b"saltysalt";
-        let mut key = [0u8; 16];
-        let password = b"peanuts";
-        let status = unsafe {
-            CCKeyDerivationPBKDF(
-                K_CC_PBKDF2,
-                password.as_ptr(),
-                password.len(),
-                salt.as_ptr(),
-                salt.len(),
-                K_CC_PRF_HMAC_SHA1,
-                1003,
-                key.as_mut_ptr(),
-                key.len(),
-            )
-        };
-        assert_eq!(status, 0);
+        let key = derive(b"peanuts").unwrap();
         let plain = b"a cookie's value";
-        let iv = [b' '; 16];
         let mut sealed = vec![0u8; plain.len() + 16];
         let mut moved = 0usize;
         let status = unsafe {
@@ -194,9 +187,9 @@ mod tests {
                 0,
                 K_CC_AES,
                 K_CC_PKCS7_PADDING,
-                key.as_ptr().cast(),
-                16,
-                iv.as_ptr().cast(),
+                key.0.as_ptr().cast(),
+                key.0.len(),
+                IV.as_ptr().cast(),
                 plain.as_ptr().cast(),
                 plain.len(),
                 sealed.as_mut_ptr().cast(),
@@ -206,9 +199,9 @@ mod tests {
         };
         assert_eq!(status, 0);
         sealed.truncate(moved);
-        let mut value = b"v10".to_vec();
+        let mut value = VERSION.to_vec();
         value.extend(sealed);
-        assert_eq!(decrypt(&Key(key), &value).as_deref(), Some(&plain[..]));
-        assert_eq!(decrypt(&Key(key), b"v11whatever"), None);
+        assert_eq!(decrypt(&key, &value).as_deref(), Some(&plain[..]));
+        assert_eq!(decrypt(&key, b"v11whatever"), None);
     }
 }

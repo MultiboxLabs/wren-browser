@@ -24,6 +24,9 @@ export type ProfileChoice = { on: boolean; landing: Landing };
 /** One thing, summed over the profiles switched on: how much of it there is. */
 export type ThingSummary = { thing: Thing; count: number; pins?: number };
 
+/** A survey's key: its source's and profile's IDs. */
+const surveyKey = (source: string, profile: string) => `${source}/${profile}`;
+
 export function useMigrate() {
   const [context, setContext] = useState<MigrateContext>();
   const [sources, setSources] = useState<MigrateSource[]>();
@@ -65,7 +68,7 @@ export function useMigrate() {
     for (const profile of source.profiles) {
       migrate
         .survey(source.id, profile.id)
-        .then((given) => setSurveys((all) => ({ ...all, [`${source.id}/${profile.id}`]: given })), fail);
+        .then((given) => setSurveys((all) => ({ ...all, [surveyKey(source.id, profile.id)]: given })), fail);
     }
   }, [source]);
   useEffect(() => {
@@ -89,7 +92,9 @@ export function useMigrate() {
   }, [survey, loadSources, sourceHidden]);
 
   const chosen = (source?.profiles ?? []).filter(({ id }) => profiles[id]?.on);
-  const chosenSurveys = chosen.map(({ id }) => surveys[`${source?.id}/${id}`]).filter(Boolean) as Survey[];
+  const chosenSurveys = source
+    ? chosen.map(({ id }) => surveys[surveyKey(source.id, id)]).filter((each): each is Survey => !!each)
+    : [];
   const surveyed = !!source && chosenSurveys.length === chosen.length;
   const needsAccess = sourceHidden || chosenSurveys.some((each) => each.access === "fullDiskAccess");
 

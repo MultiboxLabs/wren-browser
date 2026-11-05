@@ -13,20 +13,21 @@ use std::path::PathBuf;
 use wren::{Cookie, CookieSameSite};
 
 use super::unix_ms;
-use crate::import::source::ReadError;
+use crate::import::source::{COOKIE_BATCH, ReadError};
 use crate::platform;
-
-const BATCH: usize = 1_000;
 
 fn path() -> PathBuf {
     platform::home_dir()
         .join("Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies")
 }
 
+// Every cookie in the file.
+fn all() -> Result<Vec<Cookie>, ReadError> {
+    parse(&fs::read(path())?).ok_or(ReadError::Unreadable("not a cookie file".into()))
+}
+
 pub fn count() -> Result<usize, ReadError> {
-    let cookies =
-        parse(&fs::read(path())?).ok_or(ReadError::Unreadable("not a cookie file".into()))?;
-    Ok(cookies
+    Ok(all()?
         .iter()
         .map(|cookie| cookie.domain.trim_start_matches('.'))
         .collect::<HashSet<_>>()
@@ -34,9 +35,7 @@ pub fn count() -> Result<usize, ReadError> {
 }
 
 pub fn read(batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<(), ReadError> {
-    let cookies =
-        parse(&fs::read(path())?).ok_or(ReadError::Unreadable("not a cookie file".into()))?;
-    for chunk in cookies.chunks(BATCH) {
+    for chunk in all()?.chunks(COOKIE_BATCH) {
         batch(chunk.to_vec());
     }
     Ok(())
