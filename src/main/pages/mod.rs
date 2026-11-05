@@ -78,9 +78,54 @@ pub const MIGRATE: Page = Page {
     icons: true,
 };
 
-// A tab's typed wren://<host> stays on the app's scheme only for a host
-// `OWN_HOSTS` lists (src/renderer/utils/url.ts); keep the two together.
+// One for each folder of src/renderer/pages, which are what Vite builds and
+// what the renderer knows as the app's own (`__PAGES__`, vite.config.ts).
 const PAGES: [&Page; 4] = [&UI, &ONBOARDING, &GAME, &MIGRATE];
+
+// `FOLDERS`, the folders of src/renderer/pages, as build.rs finds them.
+include!(concat!(env!("OUT_DIR"), "/pages.rs"));
+
+const _: () = assert!(
+    same_hosts(&PAGES, FOLDERS),
+    "src/renderer/pages and `PAGES` differ: give each page's folder a `Page`"
+);
+
+/// Whether each page has a folder of its own: each folder is the host of just
+/// one page, and there are as many of each (no two folders share a name).
+const fn same_hosts(pages: &[&Page], folders: &[&str]) -> bool {
+    if pages.len() != folders.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < folders.len() {
+        let (mut j, mut on) = (0, 0);
+        while j < pages.len() {
+            on += same(pages[j].host, folders[i]) as usize;
+            j += 1;
+        }
+        if on != 1 {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+/// `a == b`, which a `const fn` cannot write.
+const fn same(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < a.len() {
+        if a[i] != b[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
 
 impl Page {
     pub fn url(&self) -> String {
