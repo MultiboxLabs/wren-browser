@@ -1,8 +1,8 @@
 // How the sidebar is shown, and what changes it: its button and the main
 // menu's Toggle Sidebar dock it or float it; floating, it is out while the
-// pointer is over it (or at the window's left edge, hover.ts) or something
-// it opened is open, and away otherwise. And its width, kept between runs,
-// and whether the Library is open in its place.
+// pointer is over it (or at the window's left edge, hover.ts), something it
+// opened is open, or the space has no tab, and away otherwise. And its
+// width, kept between runs, and whether the Library is open in its place.
 
 import { useEffect, useRef, useState } from "react";
 import { downloads, hasApp, menu, type SidebarState } from "@/ipc";
@@ -65,9 +65,14 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
     ];
     return () => stops.forEach((stop) => stop());
   }, []);
-  const bubbleOpen = useBrowser().showing.length > 0;
+  const { current, ready, showing } = useBrowser();
+  const bubbleOpen = showing.length > 0;
   const making = useSpace().newSpace !== null;
-  const held = opened || bubbleOpen || omniboxOnAddress || making || libraryOpen;
+  // A space with no tab shows no page, so the floating sidebar stays out
+  // until one opens. Before the app has said the tabs, it is not known to
+  // be empty; a page that has the window keeps it away.
+  const empty = ready && current === undefined && !pageFullScreen;
+  const held = opened || bubbleOpen || omniboxOnAddress || making || libraryOpen || empty;
   // Whether the pointer is over it, or at the window's left edge, which
   // brings it out.
   const pointer = useSidebarHover({
