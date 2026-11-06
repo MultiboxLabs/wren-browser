@@ -80,19 +80,32 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         Ok::<_, String>(())
     });
 
-    // Fails for the app's last space. The windows on it move to another of
-    // the profile's, or with none left, to the space used last, and its
-    // Browsers close with their tabs.
+    // Fails for the app's last space, and when a page's "Leave site?" keeps
+    // it. Its Browsers close with their tabs first; then the windows on it
+    // move to another of the profile's, or with none left, to the space used
+    // last.
     let weak = window.clone();
-    let _ = web_view.handle("spaces.delete", move |id: SpaceId| {
-        let state = weak.state()?;
-        let profile = state.db.space(id)?.ok_or("That space is gone.")?.profile;
-        state.db.delete_space(id)?;
-        let total = state.db.list_spaces()?.len();
-        state.analytics.record(Event::SpaceDeleted { total });
-        state.leave_gone_spaces(Some(&profile));
-        broadcast_spaces(&state);
-        Ok::<_, String>(())
+    let _ = web_view.handle_call("spaces.delete", move |call| {
+        let state = match weak.state() {
+            Ok(state) => state,
+            Err(error) => {
+                let _ = call.fail(error);
+                return;
+            }
+        };
+        let id = match call.value::<SpaceId>() {
+            Ok(id) => id,
+            Err(error) => {
+                let _ = call.fail(&error.to_string());
+                return;
+            }
+        };
+        state.delete_space(id, move |result| {
+            let _ = match result {
+                Ok(()) => call.answer_json(None),
+                Err(error) => call.fail(&error),
+            };
+        });
     });
 }
 

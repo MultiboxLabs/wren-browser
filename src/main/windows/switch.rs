@@ -5,9 +5,10 @@
 
 use std::rc::Rc;
 
-use wren::{Browser, MainThread};
+use wren::{Browser, Error, MainThread};
 
 use crate::app::State;
+use crate::analytics::Event;
 use crate::db::SpaceId;
 use crate::ipc;
 use crate::shell::{BrowserWindow, Place, WindowId};
@@ -99,15 +100,63 @@ impl State {
         window.page.bring_forward();
     }
 
+    /// Deletes `space` once its Browsers, in every window, have closed with
+    /// their tabs, all or none: a page's "Leave site?" asks first, its window
+    /// switching to the space to show it (`bring_forward`), and Stay keeps
+    /// the space. Then each window on it switches to the most recently used
+    /// space of its profile left. `done` hears how it ended. The app's last
+    /// space is refused before anything closes.
+    pub fn delete_space(
+        self: &Rc<Self>,
+        space: SpaceId,
+        done: impl FnOnce(Result<(), String>) + 'static,
+    ) {
+        let profile = match self.db.space(space) {
+            Ok(Some(row)) => row.profile,
+            Ok(None) => return done(Err("That space is gone.".into())),
+            Err(error) => return done(Err(error)),
+        };
+        match self.db.list_spaces() {
+            Ok(spaces) if spaces.len() <= 1 => {
+                return done(Err("Wren needs at least one space.".into()));
+            }
+            Ok(_) => {}
+            Err(error) => return done(Err(error)),
+        }
+        let place = Place::Space(space);
+        let browsers: Vec<Browser> = self
+            .windows
+            .all()
+            .iter()
+            .filter_map(|window| window.browser_of(&place))
+            .collect();
+        let state = Rc::downgrade(self);
+        let delete = move || {
+            let state = state.upgrade().ok_or("Wren is quitting.")?;
+            state.db.delete_space(space)?;
+            let total = state.db.list_spaces()?.len();
+            state.analytics.record(Event::SpaceDeleted { total });
+            state.leave_gone_spaces(Some(&profile));
+            ipc::broadcast_spaces(&state);
+            Ok(())
+        };
+        if browsers.is_empty() {
+            return done(delete());
+        }
+        Browser::close_all(&browsers, move |result| {
+            done(match result {
+                Ok(()) => delete(),
+                Err(Error::Cancelled) => Err("A page kept the space open.".into()),
+                Err(error) => Err(format!("Wren could not close the space's tabs: {error:?}")),
+            })
+        });
+    }
+
     /// Spaces were deleted, one alone or a profile's with it: each window
     /// on one switches to the most recently used space left, of `profile`
     /// if given (the deleted space's), and its Browsers of those spaces
-    /// close with their tabs.
-    ///
-    /// TODO: a page's "Leave site?" prompt can keep such a Browser open, with
-    /// its space deleted and no window to show it. Delete a space only once
-    /// its Browsers have closed, when Wren's `Browser::close` reports a page
-    /// cancelling it.
+    /// close with their tabs. A space deleted alone has none left
+    /// (`delete_space`); a profile's closed with the profile.
     pub fn leave_gone_spaces(&self, profile: Option<&str>) {
         let exists = |space| matches!(self.db.space(space), Ok(Some(_)));
         for window in self.windows.all() {
