@@ -84,7 +84,9 @@ export function Favorite({
         className={cn(
           "favorite relative grid h-11.75 place-items-center rounded-favorite",
           isSelected && "favorite-selected",
-          split && "favorite-split"
+          split && "favorite-split",
+          // A split's halves draw its fill, but for the selected one's.
+          split && !isSelected && "bg-transparent"
         )}
       >
         {isSelected && (
@@ -102,9 +104,28 @@ export function Favorite({
             </span>
           </>
         )}
-        <span className={cn("grid place-items-center", split ? "absolute inset-0 grid-cols-2" : "relative")}>
-          {icons}
-        </span>
+        {split ? (
+          // Two tiles, square where they face each other across the gap,
+          // each in the button's fill (`filled`'s --button-fill), as it
+          // changes under the pointer. Selected, the tile is filled whole,
+          // and the ring fills the gap (favorite.css).
+          <span className="absolute inset-0 grid grid-cols-2 gap-0.75">
+            {icons.map((icon, side) => (
+              <span
+                key={side}
+                className={cn(
+                  "grid place-items-center",
+                  side === 0 ? "rounded-l-favorite" : "rounded-r-favorite",
+                  !isSelected && "bg-(--button-fill)"
+                )}
+              >
+                {icon}
+              </span>
+            ))}
+          </span>
+        ) : (
+          <span className="relative grid place-items-center">{icons}</span>
+        )}
       </Button>
     </div>
   );

@@ -64,9 +64,11 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
     off: "enabled:not-data-[state=open]:hover:bg-hover enabled:not-data-[state=open]:active:bg-pressed data-[state=open]:bg-pressed",
     on: "bg-pressed"
   },
+  // Its fill is --button-fill, for what in it draws the fill in its place:
+  // a split favourite's halves, a gap between them.
   filled: {
-    off: "bg-fill enabled:not-data-[state=open]:hover:bg-hover enabled:not-data-[state=open]:active:bg-pressed data-[state=open]:bg-selected",
-    on: "bg-selected"
+    off: "bg-(--button-fill) [--button-fill:var(--color-fill)] enabled:not-data-[state=open]:hover:[--button-fill:var(--color-hover)] enabled:not-data-[state=open]:active:[--button-fill:var(--color-pressed)] data-[state=open]:[--button-fill:var(--color-selected)]",
+    on: "bg-(--button-fill) [--button-fill:var(--color-selected)]"
   },
   faint: {
     off: "bg-fill/60 enabled:not-data-[state=open]:hover:bg-hover enabled:not-data-[state=open]:active:bg-pressed data-[state=open]:bg-selected",

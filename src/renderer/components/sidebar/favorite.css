@@ -69,11 +69,9 @@
     linear-gradient(#000 0 0) content-box exclude,
     linear-gradient(#000 0 0);
 }
-/* A split's: its halves parted by a gap through the middle, which, as it
-   is selected, the ring fills, as if the gap were never there. */
-.favorite-split:not(.favorite-selected) {
-  mask-image: linear-gradient(to right, #000 calc(50% - 1.5px), transparent 0 calc(50% + 1.5px), #000 0);
-}
+/* A split's: its halves are two tiles with a gap between them
+   (favorite.tsx), which, as it is selected, the ring fills, as if the gap
+   were never there. */
 .favorite-split .favorite-ring {
   mask:
     linear-gradient(to right, transparent calc(50% - 1.5px), #000 0 calc(50% + 1.5px), transparent 0) add,
