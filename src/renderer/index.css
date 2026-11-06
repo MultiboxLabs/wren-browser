@@ -249,6 +249,28 @@ body,
   opacity: var(--glyph-4);
 }
 
+/* Liquid Glass (Wren's `-wren-glass`), for the UI's page alone, whose web
+   view is made with glass (pages/mod.rs). The glass fills the border box,
+   rounded by its largest corner radius (give it one: `rounded-panel`), and
+   takes the place of the background, border and shadow, which draw only
+   where Wren cannot draw glass: a blurred panel then. It follows the
+   element's color-scheme, and pales while the window is out of use. `glass`
+   is the regular glass, `glass-clear` the clearer one, and `glass-tint-*`
+   tints either toward a colour (`glass-tint-blue-500`, `glass-tint-[#f00]`). */
+@utility glass {
+  -wren-glass: regular;
+  background: light-dark(rgb(255 255 255 / 0.72), rgb(40 40 44 / 0.72));
+  backdrop-filter: blur(20px) saturate(1.6);
+}
+@utility glass-clear {
+  -wren-glass: clear;
+  background: light-dark(rgb(255 255 255 / 0.35), rgb(40 40 44 / 0.35));
+  backdrop-filter: blur(12px) saturate(1.4);
+}
+@utility glass-tint-* {
+  -wren-glass-tint: --value(--color-*, [color]);
+}
+
 /* The UI's page, its menus and tooltips among it (they are on <body>). */
 :root[data-scheme] body {
   color: var(--fg);

@@ -3,6 +3,8 @@
 // and dropped for the `text-white` after it. The build compiles `cn`'s
 // tables from this (cn-tables.ts); it is not part of the page.
 
+import { validators } from "cn/config";
+
 export default {
   extend: {
     classGroups: {
@@ -29,7 +31,10 @@ export default {
           ]
         }
       ],
-      shadow: [{ shadow: ["tooltip", "menu", "omnibox-chip", "raised", "field"] }]
+      shadow: [{ shadow: ["tooltip", "menu", "omnibox-chip", "raised", "field"] }],
+      // Liquid Glass (index.css): one kind of glass, and one tint, wins.
+      glass: ["glass", "glass-clear"],
+      "glass-tint": [{ "glass-tint": [validators.isAny] }]
     }
   }
 };
