@@ -275,6 +275,7 @@ body,
 }
 @utility glass-tint-* {
   -wren-glass-tint: --value(--color-*, [color]);
+  -wren-glass-tint: --alpha(--value(--color-*, [color]) / calc(--modifier(integer) * 1%));
 }
 
 /* The UI's page, its menus and tooltips among it (they are on <body>). */
