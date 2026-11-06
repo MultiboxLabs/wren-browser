@@ -31,6 +31,9 @@ pub struct Page {
     pub wheel_phases: bool,
     /// Its page may fetch the icons the app names to it (`icons::PATH`).
     pub icons: bool,
+    /// Its page may draw elements as Liquid Glass (`-wren-glass`), and its
+    /// `backdrop-filter` blurs draw beside the glass, with Core Animation.
+    pub glass: bool,
 }
 
 pub const UI: Page = Page {
@@ -41,6 +44,7 @@ pub const UI: Page = Page {
     in_tabs: false,
     wheel_phases: true,
     icons: true,
+    glass: true,
 };
 
 /// The window the user goes through before the app is theirs
@@ -53,6 +57,7 @@ pub const ONBOARDING: Page = Page {
     in_tabs: false,
     wheel_phases: false,
     icons: true,
+    glass: false,
 };
 
 pub const GAME: Page = Page {
@@ -63,6 +68,7 @@ pub const GAME: Page = Page {
     in_tabs: true,
     wheel_phases: false,
     icons: false,
+    glass: false,
 };
 
 /// Bringing the user's things over from another browser, in a tab. It calls
@@ -76,6 +82,7 @@ pub const MIGRATE: Page = Page {
     in_tabs: true,
     wheel_phases: false,
     icons: true,
+    glass: false,
 };
 
 // One for each folder of src/renderer/pages, which are what Vite builds and
@@ -145,6 +152,7 @@ impl Page {
             embeds_views: self.embeds_views,
             anchors: self.anchors,
             wheel_phases: self.wheel_phases,
+            glass: self.glass,
             drags_window: true,
             drag_area_clicks: true,
             transparent: true,
