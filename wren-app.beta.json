@@ -18,7 +18,7 @@
     }
   ],
   "resources": ["extensions/uBlock0.crx", "extensions/wren-components", "dist/LICENSES"],
-  "wren": "0.3.1",
+  "wren": "0.4.0",
   "frameworks": ["Frameworks/Sparkle.framework"],
   "infoPlist": {
     "SUEnableAutomaticChecks": true,

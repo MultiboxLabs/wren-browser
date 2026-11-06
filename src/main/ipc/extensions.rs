@@ -51,7 +51,9 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let _ = web_view.handle("extensions.setPinned", move |pin: Pin| {
         with_browser(&weak, |_, browser| {
             browser
-                .set_extension_action_pinned(&pin.id, pin.pinned)
+                .profile()
+                .ok_or("The Browser has no profile.")?
+                .set_extension_pinned(&pin.id, pin.pinned)
                 .map_err(failed)?;
             let pinned = pin.pinned;
             weak.state()?
