@@ -294,7 +294,6 @@ impl App for Wren {
     fn ready(&self, mt: MainThread) {
         self.state.update_menu(mt);
         self.state.check_default_browser(mt);
-        password_manager::ready(mt);
         components::ready(mt);
         ipc::handle_migrate(mt, &self.state);
         *self.state.tab_switcher_keys.borrow_mut() = ipc::watch_tab_switcher_keys(&self.state);
@@ -326,8 +325,6 @@ impl App for Wren {
         let settings = self.state.db.settings();
         let block_ads = settings.map_or(true, |settings| settings.block_ads_in_new_profiles);
         ad_block::on_install(request, block_ads);
-        // Wren's one word that a profile is loading.
-        password_manager::loading(&request.profile_id, request.kind);
     }
 
     // Required: Chromium opened a Browser of its own. A normal one, a
@@ -385,10 +382,12 @@ impl App for Wren {
         }
         for change in changes {
             record_tab_crash(state, change);
-            if change.kind == ChangeKind::ProfileClosed
-                && let Some(profile) = &change.profile
-            {
-                password_manager::closed(&profile.id());
+            if let Some(profile) = &change.profile {
+                match change.kind {
+                    ChangeKind::ProfileOpened => password_manager::opened(profile),
+                    ChangeKind::ProfileClosed => password_manager::closed(&profile.id()),
+                    _ => {}
+                }
             }
             // Its ad blocker may have been turned on or off.
             if change.kind == ChangeKind::Extensions
