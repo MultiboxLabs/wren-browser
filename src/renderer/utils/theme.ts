@@ -215,8 +215,8 @@ const NOISE_FACTOR = { grain: 0.3, sand: 0.15, denim: 0.25, tweed: 0.2 };
 const TEXTURE_IMAGES: Partial<Record<SpaceTheme["texture"], string>> = { grain };
 
 // About the flat colour of the window's blur, light or dark as the theme is,
-// which the theme is made to be over.
-const BLUR = { light: "rgb(236 236 236)", dark: "rgb(30 30 30)" };
+// which the theme is made to be over: its channels, for `rgb()`.
+const BLUR = { light: "236 236 236", dark: "30 30 30" };
 
 // How much of its colour a theme shows, of what the colour layer's opacity
 // says, so that it is not too vibrant: a little less of a dark theme's, which
@@ -264,10 +264,13 @@ function share(windowAspect: number, u: number, v: number) {
   return (windowAspect * u + v - (windowAspect + 1) / 2 + square) / (2 * square) / 0.75;
 }
 
-// That line as a CSS gradient's, for a box of `aspect` that draws the
-// window's gradient stretched to fit it: the gradient's angle, and where on
-// CSS's line through the box the first colour ends and the second is whole.
-function baseLine(aspect: number, windowAspect: number) {
+/**
+ * That line as a CSS gradient's, for a box of `aspect` that lays the theme's
+ * first two colours along it: the window's (of `windowAspect`), stretched to
+ * fit the box. The gradient's angle, and where on CSS's line through the box
+ * the first colour ends and the second is whole.
+ */
+export function themeLine(aspect: number, windowAspect = aspect) {
   // Stretched, the line runs (windowAspect / aspect, 1) in the box, down
   // being y. CSS's angle is clockwise from up, and its line spans the box.
   const angle = Math.atan2(windowAspect / aspect, -1);
@@ -305,31 +308,53 @@ export type ThemeLayout = {
   material?: number;
 };
 
-/**
- * The CSS of a theme's layers: an element each, stacked, filling a box laid
- * out as `layout` says.
- */
-export function themeStyle(
+// What a theme's layers are drawn in, laid out as `layout` says: whether it
+// is light or dark, the underlay, and each colour. Each colour is as clear as
+// intensity makes it, rather than the layer as a whole: the third, laid over
+// the others, adds to them where it shows.
+function layerColors(
   theme: SpaceTheme,
-  { aspect, window: windowAspect = aspect, active = true, material: blur = 0 }: ThemeLayout
-): ThemeStyle {
+  { active = true, material: blur = 0 }: Pick<ThemeLayout, "active" | "material">
+) {
   const scheme = contentScheme(theme);
-  const material: CSSProperties | null = blur > 0 ? { backgroundColor: BLUR[scheme], opacity: blur } : null;
   const over = blur > 0 ? "box" : "window";
   const which = active ? 0 : 1;
   const alpha = colorAlpha(theme) * CLARITY[over][scheme][which];
   const { rgb, [scheme]: amounts } = UNDERLAY[over];
-  const underlay: CSSProperties = { backgroundColor: `rgb(${rgb} / ${amounts[which]})` };
+  return {
+    scheme,
+    underlay: `rgb(${rgb} / ${amounts[which]})`,
+    color: (hsb: Hsb, share = 1) => colorCss(hsb, alpha * share)
+  };
+}
 
-  // Each colour is as clear as intensity makes it, rather than the layer as a
-  // whole: the third, laid over the others, adds to them where it shows.
-  const color = (hsb: Hsb, share = 1) => colorCss(hsb, alpha * share);
+/** The CSS of the theme's noise, over its colours, multiplied; none without noise. */
+export function themeNoise(theme: SpaceTheme): CSSProperties | null {
+  return theme.noise > 0
+    ? {
+        backgroundImage: `url(${TEXTURE_IMAGES[theme.texture] ?? grain})`,
+        backgroundSize: "128px",
+        mixBlendMode: "multiply",
+        opacity: theme.noise * NOISE_FACTOR[theme.texture]
+      }
+    : null;
+}
+
+/**
+ * The CSS of a theme's layers: an element each, stacked, filling a box laid
+ * out as `layout` says.
+ */
+export function themeStyle(theme: SpaceTheme, layout: ThemeLayout): ThemeStyle {
+  const { aspect, window: windowAspect = aspect, material: blur = 0 } = layout;
+  const { scheme, underlay, color } = layerColors(theme, layout);
+  const material: CSSProperties | null = blur > 0 ? { backgroundColor: `rgb(${BLUR[scheme]})`, opacity: blur } : null;
+
   const [first, second, third] = derivedColors(theme);
   const colors: CSSProperties = {};
   if (!second) {
     colors.backgroundColor = color(first);
   } else {
-    const line = baseLine(aspect, windowAspect);
+    const line = themeLine(aspect, windowAspect);
     const base = `linear-gradient(${line.angle} in oklab, ${color(first)} ${line.first}, ${color(second)} ${line.second})`;
     // The third colour is laid over it from clear at the top to full at the
     // bottom: its own colour, clear, so it never passes through black.
@@ -338,17 +363,32 @@ export function themeStyle(
       : base;
   }
 
-  const noise: CSSProperties | null =
-    theme.noise > 0
-      ? {
-          backgroundImage: `url(${TEXTURE_IMAGES[theme.texture] ?? grain})`,
-          backgroundSize: "128px",
-          mixBlendMode: "multiply",
-          opacity: theme.noise * NOISE_FACTOR[theme.texture]
-        }
-      : null;
+  return { material, underlay: { backgroundColor: underlay }, colors, noise: themeNoise(theme) };
+}
 
-  return { material, underlay, colors, noise };
+/**
+ * A theme's layers as colours, laid out as `layout` says, for a box whose
+ * colours tween from theme to theme (space-background.tsx): as `themeStyle`
+ * draws them, but every theme has every layer, clear where it has none, so
+ * that each colour can turn into another theme's. The stand-in for the blur
+ * has its opacity as its alpha; one colour is laid along `themeLine` as two
+ * of the same; and the third is laid over them from clear at the top to
+ * whole at the bottom.
+ */
+export function themeColors(
+  theme: SpaceTheme,
+  layout: Pick<ThemeLayout, "active" | "material">
+): { material: string; underlay: string; first: string; second: string; third: string } {
+  const blur = layout.material ?? 0;
+  const { scheme, underlay, color } = layerColors(theme, layout);
+  const [first, second = first, third] = derivedColors(theme);
+  return {
+    material: blur > 0 ? `rgb(${BLUR[scheme]} / ${blur})` : "transparent",
+    underlay,
+    first: color(first),
+    second: color(second),
+    third: third ? color(third) : "transparent"
+  };
 }
 
 /**

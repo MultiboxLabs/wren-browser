@@ -100,8 +100,8 @@ export function usePopupTheme(space: Space) {
 /**
  * Puts the window's look on <html>, so the colours made from it reach menus
  * and tooltips too: the space's colour, the scheme, whether the window is in
- * use, and whether it is full screen. The colour tweens as the background
- * fades, by the same key (`themeKey`).
+ * use, and whether it is full screen. The colour tweens as the background's
+ * colours do (components/space-background.css), as `themeKey` changes.
  */
 function useRootTheme(space: Space, scheme: "light" | "dark") {
   const active = useWindowActive();

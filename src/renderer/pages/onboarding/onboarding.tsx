@@ -206,8 +206,8 @@ const neutral = (scheme: "light" | "dark"): Space => ({
 });
 
 // The window as the first space's will be, in `theme`: as the space being
-// made, whose colours are drawn at once as the user picks them, not faded to
-// (`themeKey`).
+// made, whose colours are drawn at once as the user picks them, not tweened
+// to (`themeKey`).
 const themed = (theme: SpaceTheme): Space => ({
   ...personal,
   id: NEW_SPACE,

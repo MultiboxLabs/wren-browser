@@ -365,6 +365,7 @@ body,
 /* What a component draws, each beside it. They come after the theme above,
    whose palette they draw from. Their order is the cascade's: a later rule
    wins a tie, so a file moves only with care. */
+@import "./components/space-background.css";
 @import "./components/sidebar/sidebar.css";
 @import "./components/sidebar/favorite.css";
 @import "./components/ui/popover.css";

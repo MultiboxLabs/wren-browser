@@ -74,7 +74,7 @@ export type Space = {
 export const NEW_SPACE = -1;
 
 /**
- * What the window's colours fade with as it changes: its theme, as another
+ * What the window's colours tween with as it changes: its theme, as another
  * space's is shown or the shown one's is changed. The space being made keeps
  * one, as its colours are drawn at once as the user picks them.
  */

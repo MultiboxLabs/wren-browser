@@ -1,0 +1,113 @@
+/* The window's theme (space-background.tsx): its colours (`themeColors` in
+   utils/theme.ts), in use and out of use (`-idle`), each a colour, so that
+   as the theme changes each tweens from the last one's, as the space's
+   colour does (index.css); but not as the user picks it, which is drawn at
+   once. The window going in or out of use changes which of them show at
+   once, as the blur behind the window changes. */
+@property --theme-material {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-material-idle {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-underlay {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-underlay-idle {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-first {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-first-idle {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-second {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-second-idle {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-third {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+@property --theme-third-idle {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+.space-background {
+  transition-property:
+    --theme-material, --theme-material-idle, --theme-underlay, --theme-underlay-idle, --theme-first, --theme-first-idle,
+    --theme-second, --theme-second-idle, --theme-third, --theme-third-idle;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+  --shown-material: var(--theme-material);
+  --shown-underlay: var(--theme-underlay);
+  --shown-first: var(--theme-first);
+  --shown-second: var(--theme-second);
+  --shown-third: var(--theme-third);
+}
+:root[data-active="false"] .space-background {
+  --shown-material: var(--theme-material-idle);
+  --shown-underlay: var(--theme-underlay-idle);
+  --shown-first: var(--theme-first-idle);
+  --shown-second: var(--theme-second-idle);
+  --shown-third: var(--theme-third-idle);
+}
+:root[data-space-picked] .space-background,
+:root[data-space-picked] .space-background > * {
+  transition: none;
+}
+
+.space-background > * {
+  position: absolute;
+  inset: 0;
+}
+/* Under everything, over something other than the window's blur: a
+   stand-in for it. */
+.space-background-material {
+  background-color: var(--shown-material);
+}
+/* Under the colours: white, or over something else black. */
+.space-background-underlay {
+  background-color: var(--shown-underlay);
+}
+/* The first colour into the second, along the window's line, and the third
+   laid over them from clear at the top to whole at the bottom: its own
+   colour, clear, so it never passes through black. */
+.space-background-colors {
+  background-image:
+    linear-gradient(to bottom in oklab, color(from var(--shown-third) display-p3 r g b / 0), var(--shown-third)),
+    linear-gradient(
+      var(--theme-angle) in oklab,
+      var(--shown-first) var(--theme-from),
+      var(--shown-second) var(--theme-to)
+    );
+}
+/* Its strength tweens with the rest; it fades in as a theme with it comes. */
+.space-background-noise {
+  transition: opacity 0.2s ease-out;
+  @starting-style {
+    opacity: 0;
+  }
+}
