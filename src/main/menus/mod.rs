@@ -20,7 +20,7 @@ use crate::db::SpaceId;
 
 pub use download::show_download_menu;
 pub use group::{color_name, least_used_color, show_group_menu};
-pub use icon::set_app_icon_menu;
+pub use icon::set_icon_menu;
 pub use site::{show_permission_menu, show_site_menu};
 pub use tab::{ADD_FAVORITE, Keeps, PIN_TAB, show_tab_menu};
 

@@ -107,9 +107,12 @@ impl State {
     }
 
     /// Sets the main menu again, for its Spaces menu to list the spaces as
-    /// they are now; or onboarding's, while it is open.
+    /// they are now; or onboarding's, while it is open. The app icon's menu
+    /// follows onboarding too.
     pub fn update_menu(&self, mt: MainThread) {
-        if self.onboarding.borrow().is_some() {
+        let onboarding = self.onboarding.borrow().is_some();
+        menus::set_icon_menu(mt, onboarding);
+        if onboarding {
             return menus::set_onboarding_menu(mt, self.default_browser.get());
         }
         let front = self.front_menu();

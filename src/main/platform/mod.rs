@@ -11,9 +11,7 @@ use macos as current;
 
 mod apps;
 mod files;
-mod icon_menu;
 mod keyboard;
-mod main_thread;
 mod paths;
 mod property_list;
 mod secrets;
@@ -23,9 +21,7 @@ mod window;
 
 pub use apps::{installed_app_icon, is_app_installed};
 pub use files::{file_kind, file_thumbnail, file_type_icon};
-pub use icon_menu::{IconMenuItem, set_icon_menu};
 pub use keyboard::{Key, KeyWatch};
-pub use main_thread::after;
 pub use paths::{data_dir, home_dir, resources_dir};
 pub use property_list::read_property_list;
 pub use secrets::{chromium_key, decrypt};

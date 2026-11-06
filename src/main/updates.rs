@@ -84,6 +84,7 @@ impl Updates {
         let settings = state.db.settings().unwrap_or_default();
         let weak = Rc::downgrade(state);
         let updater = Updater::start(
+            mt,
             options(&settings),
             Box::new(move |updater_state| changed(&weak, updater_state)),
         );

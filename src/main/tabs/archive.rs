@@ -6,26 +6,25 @@
 use std::rc::{Rc, Weak};
 use std::time::{Duration, SystemTime};
 
-use wren::{Browser, BrowserTab, TabAlert, TabState};
+use wren::{Browser, BrowserTab, MainThread, TabAlert, TabState};
 
 use super::placeholder;
 use crate::analytics::Event;
 use crate::app::State;
-use crate::platform;
 
 const EVERY: Duration = Duration::from_secs(60);
 
 /// Archives what is due now, and then every minute while the app runs.
-pub fn start(state: &Rc<State>) {
-    look_over(Rc::downgrade(state));
+pub fn start(mt: MainThread, state: &Rc<State>) {
+    look_over(mt, Rc::downgrade(state));
 }
 
-fn look_over(state: Weak<State>) {
+fn look_over(mt: MainThread, state: Weak<State>) {
     let Some(strong) = state.upgrade() else {
         return;
     };
     archive_due(&strong);
-    platform::after(EVERY, move || look_over(state));
+    mt.after(EVERY, move |mt| look_over(mt, state));
 }
 
 /// Closes each tab of the windows' Browsers that has gone unused for longer

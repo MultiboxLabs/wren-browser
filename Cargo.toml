@@ -23,7 +23,6 @@ block2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["objc2-uniform-type-identifiers"] }
 objc2-foundation = "0.3"
 objc2-quartz-core = { version = "0.3", default-features = false, features = ["std", "CATransaction"] }
-dispatch2 = "0.3.1"
 objc2-quick-look-thumbnailing = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-core-foundation", "objc2-core-graphics", "QLThumbnailGenerator", "QLThumbnailGenerationRequest", "QLThumbnailRepresentation"] }
 objc2-core-graphics = { version = "0.3", default-features = false, features = ["std", "CGImage"] }
 objc2-uniform-type-identifiers = { version = "0.3", default-features = false, features = ["std", "UTType"] }

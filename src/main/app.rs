@@ -128,7 +128,7 @@ impl State {
             return mt.quit();
         }
         self.updates.start(self, mt);
-        tabs::archive::start(self);
+        tabs::archive::start(mt, self);
         // Restoring from now, while the profile opens: the windows wait for
         // their Browsers, which a link must not make first (open_urls.rs).
         self.restore_started();
@@ -294,7 +294,6 @@ impl App for Wren {
     fn ready(&self, mt: MainThread) {
         self.state.update_menu(mt);
         self.state.check_default_browser(mt);
-        menus::set_app_icon_menu(mt, &self.state);
         password_manager::ready(mt);
         components::ready(mt);
         ipc::handle_migrate(mt, &self.state);

@@ -16,17 +16,16 @@ mod driver;
 
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
-use std::time::Duration;
 
 use block2::RcBlock;
 use objc2::rc::{Allocated, Retained};
 use objc2::runtime::{AnyClass, AnyObject, AnyProtocol};
 use objc2::{ClassType, MainThreadMarker, msg_send};
 use objc2_foundation::{NSBundle, NSError, NSString, NSUserDefaults, ns_string};
+use wren::MainThread;
 
 use self::delegate::Delegate;
 use self::driver::Driver;
-use super::main_thread::after;
 use crate::platform::updater::{UpdaterOptions, UpdaterState};
 
 // SPUUserUpdateChoice.
@@ -44,6 +43,7 @@ type Reply = RcBlock<dyn Fn(isize)>;
 
 /// What the driver and the delegate share with `Updater`.
 struct Shared {
+    mt: MainThread,
     options: Cell<UpdaterOptions>,
     state: RefCell<UpdaterState>,
     /// The version of the update found.
@@ -72,7 +72,7 @@ impl Shared {
         // every piece that comes.
         if !self.telling.replace(true) {
             let shared = Rc::downgrade(self);
-            after(Duration::ZERO, move || {
+            self.mt.later(move |_| {
                 let Some(shared) = Weak::upgrade(&shared) else {
                     return;
                 };
@@ -107,7 +107,11 @@ pub struct Updater {
 }
 
 impl Updater {
-    pub fn start(options: UpdaterOptions, changed: Box<dyn Fn(&UpdaterState)>) -> Option<Updater> {
+    pub fn start(
+        mt: MainThread,
+        options: UpdaterOptions,
+        changed: Box<dyn Fn(&UpdaterState)>,
+    ) -> Option<Updater> {
         let mtm = MainThreadMarker::new()?;
         let bundle = NSBundle::mainBundle();
         // The manifest's, or a user default's, to test against a feed of
@@ -124,6 +128,7 @@ impl Updater {
         let class = load_sparkle(&bundle)?;
 
         let shared = Rc::new(Shared {
+            mt,
             options: Cell::new(options),
             state: RefCell::new(UpdaterState::Idle),
             version: RefCell::default(),

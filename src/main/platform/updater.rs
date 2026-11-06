@@ -2,6 +2,8 @@
 // checks on a schedule of its own and draws nothing of its own: what it is
 // doing is an `UpdaterState`, which the app shows (updates.rs).
 
+use wren::MainThread;
+
 use super::current;
 
 /// What the updater is doing.
@@ -47,8 +49,12 @@ impl Updater {
     /// The updater, started, or none if the app has no feed or the
     /// platform's updater is missing. `changed` hears each new state, and is
     /// never called from inside a call to the updater.
-    pub fn start(options: UpdaterOptions, changed: Box<dyn Fn(&UpdaterState)>) -> Option<Updater> {
-        current::updater::Updater::start(options, changed).map(Updater)
+    pub fn start(
+        mt: MainThread,
+        options: UpdaterOptions,
+        changed: Box<dyn Fn(&UpdaterState)>,
+    ) -> Option<Updater> {
+        current::updater::Updater::start(mt, options, changed).map(Updater)
     }
 
     pub fn state(&self) -> UpdaterState {
