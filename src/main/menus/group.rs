@@ -29,7 +29,7 @@ pub fn show_group_menu(
     let items = [
         MenuItem::item("new-tab", "New Tab in Group"),
         MenuItem::item("rename", "Rename Group…"),
-        MenuItem::submenu("Color", colors),
+        MenuItem::submenu("Colour", colors),
         MenuItem::Separator,
         MenuItem::item("ungroup", "Ungroup"),
         MenuItem::item("close", "Close Group"),

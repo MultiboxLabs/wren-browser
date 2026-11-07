@@ -68,7 +68,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
               }
             }}
             placeholder="Search"
-            aria-label="Search icons and emoji"
+            aria-label="Search Icons and Emoji"
             className="min-w-0 flex-1 bg-transparent text-menu-item text-fg outline-none placeholder:text-fg-3"
           />
           {query && (

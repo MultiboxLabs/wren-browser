@@ -119,8 +119,8 @@ export function NoiseDial({ doc, edit, end }: EditProps) {
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         {TEXTURES.length > 1 ? (
-          <Tooltip label="Cycle noise texture">
-            <button type="button" aria-label="Cycle noise texture" onClick={cycle} className={circle} />
+          <Tooltip label="Next Texture">
+            <button type="button" aria-label="Next Texture" onClick={cycle} className={circle} />
           </Tooltip>
         ) : (
           <span aria-hidden className={circle} />

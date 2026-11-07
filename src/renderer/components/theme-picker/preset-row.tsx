@@ -28,10 +28,10 @@ export function PresetRow({
   const { swatches } = PRESET_PAGES[page];
   return (
     <div className="flex items-center justify-between">
-      <Tooltip label="Move to previous preset page.">
+      <Tooltip label="Previous Colours">
         <button
           type="button"
-          aria-label="Move to previous preset page."
+          aria-label="Previous Colours"
           onClick={() => onPage((page + PAGE_COUNT - 1) % PAGE_COUNT)}
           className={PAGE_BUTTON}
         >
@@ -66,10 +66,10 @@ export function PresetRow({
           );
         })}
       </div>
-      <Tooltip label="Move to next preset page.">
+      <Tooltip label="Next Colours">
         <button
           type="button"
-          aria-label="Move to next preset page."
+          aria-label="Next Colours"
           onClick={() => onPage((page + 1) % PAGE_COUNT)}
           className={PAGE_BUTTON}
         >

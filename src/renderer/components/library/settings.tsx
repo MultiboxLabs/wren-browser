@@ -14,8 +14,8 @@ import { Empty, matches } from "./rows";
 export function Settings({ query, settings }: { query: string; settings: LibrarySettings }) {
   const rows = [
     {
-      name: "Archive tabs after",
-      about: "How long an unpinned tab can stay untouched before it is closed.",
+      name: "Archive Tabs After",
+      about: "How long a tab you haven’t pinned can go untouched before Wren closes it.",
       control: (
         <Menu
           checked={settings.values.archiveAfter}
@@ -37,7 +37,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
     {
       name: "Ad Blocker in New Profiles",
       about:
-        "Whether the ad blocker starts on in a profile you make. Each profile's can be turned on or off in Profiles.",
+        "Turn the ad blocker on in each profile you make from now on. Off, new profiles start without it. You can change it for each profile in Profiles.",
       control: (
         <Switch
           label="Ad Blocker in New Profiles"
@@ -59,7 +59,8 @@ export function Settings({ query, settings }: { query: string; settings: Library
     },
     {
       name: "Automatic Updates",
-      about: "Download new versions of Wren by themselves, and install them as it restarts or quits.",
+      about:
+        "Download new versions of Wren in the background, and install them when Wren restarts or quits. Off, Wren asks before it downloads one.",
       control: (
         <Switch
           label="Automatic Updates"
@@ -77,8 +78,8 @@ export function Settings({ query, settings }: { query: string; settings: Library
             // Never back to an older version: off, a beta stays until a release passes it.
             about:
               settings.values.channel === "beta"
-                ? "Get new versions of Wren before they are released to everyone. Turned off, Wren stays on this beta until the next release."
-                : "Get new versions of Wren before they are released to everyone.",
+                ? "Get new versions of Wren before they’re released to everyone. Off, Wren stays on this beta until the next release."
+                : "Get new versions of Wren before they’re released to everyone.",
             control: (
               <Switch
                 label="Beta Updates"
@@ -90,7 +91,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
         ]),
     {
       name: "Help Improve Wren",
-      about: "Send anonymous counts of which features you use, and crash reports. Never what you browse.",
+      about: "Send anonymous counts of which features you use, and crash reports. Wren never sends what you browse.",
       control: (
         <Switch
           label="Help Improve Wren"

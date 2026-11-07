@@ -70,7 +70,7 @@ function FindField({ find: { bar, request, claim } }: { find: FindState }) {
           find.set(event.target.value);
         }}
         onKeyDown={onKeyDown}
-        aria-label="Find in page"
+        aria-label="Find in Page"
         spellCheck={false}
         autoCapitalize="off"
         autoCorrect="off"

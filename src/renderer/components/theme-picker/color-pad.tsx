@@ -88,10 +88,10 @@ export function ColorPad({ doc, edit, end, top }: EditProps & { top: ReactNode }
       />
       <div className="absolute inset-x-0 top-2.5 cursor-default">{top}</div>
       <div className="absolute inset-x-0 bottom-3 flex cursor-default justify-center gap-5">
-        <Tooltip label="Remove color">
+        <Tooltip label="Remove Colour">
           <button
             type="button"
-            aria-label="Remove color"
+            aria-label="Remove Colour"
             disabled={theme.colors <= 1}
             onClick={() => setColors(theme.colors - 1)}
             className="grid size-7 place-items-center rounded-md opacity-65 outline-none enabled:hover:bg-current/15 enabled:hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current/50 disabled:opacity-25"
@@ -99,10 +99,10 @@ export function ColorPad({ doc, edit, end, top }: EditProps & { top: ReactNode }
             <Minus size={20} strokeWidth={1.5} />
           </button>
         </Tooltip>
-        <Tooltip label="Add color">
+        <Tooltip label="Add Colour">
           <button
             type="button"
-            aria-label="Add color"
+            aria-label="Add Colour"
             disabled={theme.colors >= MAX_COLORS}
             onClick={() => setColors(theme.colors + 1)}
             className="grid size-7 place-items-center rounded-md opacity-65 outline-none enabled:hover:bg-current/15 enabled:hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current/50 disabled:opacity-25"
