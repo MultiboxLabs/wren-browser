@@ -2,9 +2,9 @@
 
 <!-- What the change does, and why. Link the issue it fixes, if there is one. -->
 
-## How it was checked
+## How you checked it
 
-<!-- `bun run check` passes. Say what you did in the app to see it work. -->
+<!-- Run `bun run check`. Say what you did in Wren to see the change work. -->
 
 ## Contributor Licence Agreement
 
