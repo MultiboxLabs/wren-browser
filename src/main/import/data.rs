@@ -66,6 +66,8 @@ pub struct StoreExtension {
     pub icon: Option<Vec<u8>>,
     /// It is on in the source.
     pub enabled: bool,
+    /// Its place among the source's pinned extensions, if it is pinned there.
+    pub pinned: Option<usize>,
 }
 
 /// What a browser that keeps spaces keeps beyond its engine.

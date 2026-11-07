@@ -1,6 +1,6 @@
 // A Chromium profile's extensions from the Chrome Web Store: those its
 // preferences say came from the store, and not with the browser, with their
-// names and icons from their own copies on disk.
+// names and icons from their own copies on disk, and which it pins.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,12 +13,19 @@ use crate::import::source::ReadError;
 
 pub fn read(profile: &Path) -> Result<Vec<StoreExtension>, ReadError> {
     let mut settings = Map::new();
+    let mut pinned: Vec<String> = Vec::new();
     // On macOS they are in Secure Preferences; elsewhere, in Preferences.
     for file in ["Preferences", "Secure Preferences"] {
         let Ok(text) = fs::read_to_string(profile.join(file)) else {
             continue;
         };
         let prefs: Value = serde_json::from_str(&text)?;
+        if let Some(found) = prefs["extensions"]["pinned_extensions"].as_array() {
+            pinned = found
+                .iter()
+                .filter_map(|id| id.as_str().map(str::to_owned))
+                .collect();
+        }
         if let Some(found) = prefs["extensions"]["settings"].as_object() {
             for (id, value) in found {
                 settings
@@ -42,6 +49,7 @@ pub fn read(profile: &Path) -> Result<Vec<StoreExtension>, ReadError> {
                 name: name(&manifest, &folder)?,
                 icon: icon(&manifest, &folder),
                 enabled: enabled(setting),
+                pinned: pinned.iter().position(|each| each == id),
             })
         })
         .collect();

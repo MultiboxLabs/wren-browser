@@ -16,6 +16,7 @@ use crate::changes;
 use crate::channel::Channel;
 use crate::db::Db;
 use crate::extensions::{ad_block, components};
+use crate::import;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{self, SCHEME, Source, serve_page};
@@ -389,11 +390,13 @@ impl App for Wren {
                     _ => {}
                 }
             }
-            // Its ad blocker may have been turned on or off.
+            // Its ad blocker may have been turned on or off, and an extension
+            // brought over may now take its pin.
             if change.kind == ChangeKind::Extensions
                 && let Some(profile) = &change.profile
             {
                 ipc::broadcast_ad_block(state, profile);
+                import::pin_waiting_extensions(profile);
             }
             let Some(browser) = &change.browser else {
                 continue;

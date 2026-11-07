@@ -18,7 +18,7 @@ use wren::{CookieResult, MainThread, Profile, WebStoreInstallResult};
 
 use super::data::{Bookmarks, Spaces};
 use super::land::profiles::{self, Landing};
-use super::land::{bookmarks, spaces};
+use super::land::{bookmarks, extensions, spaces};
 use super::source::{ReadError, Source, SourceProfile, Survey};
 use crate::app::State;
 use crate::extensions::bridge;
@@ -391,36 +391,46 @@ fn next(mt: MainThread, id: u64) {
 }
 
 // Installs the extensions chosen that the step's route has, from the Chrome
-// Web Store, into its Wren profile.
+// Web Store, into its Wren profile, and pins those the source pinned.
 fn install_extensions(mt: MainThread, step: Step, to: &Profile) {
-    let ids: Vec<String> = with(step.run, |run| {
+    let chosen: Vec<(String, Option<usize>)> = with(step.run, |run| {
         run.routes[step.route]
             .survey
             .extensions
             .iter()
             .filter(|extension| run.extensions.contains(&extension.id))
-            .map(|extension| extension.id.clone())
+            .map(|extension| (extension.id.clone(), extension.pinned))
             .collect()
     })
     .unwrap_or_default();
-    if ids.is_empty() {
+    if chosen.is_empty() {
         return read_over(mt, step, None);
     }
     with(step.run, |run| run.pending += 1);
+    let ids: Vec<String> = chosen.iter().map(|(id, _)| id.clone()).collect();
     let names: Vec<&str> = ids.iter().map(String::as_str).collect();
+    let profile = to.clone();
     to.install_from_web_store(&names, move |result| {
         let installed = result
             .map(|results| {
-                let missing = results
+                let installed: Vec<bool> = results
                     .iter()
-                    .filter(|each| {
-                        !matches!(
+                    .map(|each| {
+                        matches!(
                             each,
                             WebStoreInstallResult::Installed
                                 | WebStoreInstallResult::AlreadyInstalled
                         )
                     })
-                    .count();
+                    .collect();
+                let mut pins: Vec<(usize, String)> = chosen
+                    .into_iter()
+                    .zip(&installed)
+                    .filter_map(|((id, pinned), installed)| installed.then_some((pinned?, id)))
+                    .collect();
+                pins.sort();
+                extensions::pin(&profile, pins.into_iter().map(|(_, id)| id).collect());
+                let missing = installed.iter().filter(|each| !**each).count();
                 if missing > 0 {
                     let are = plural(missing, "is", "are");
                     note(

@@ -7,8 +7,8 @@ use std::rc::Rc;
 
 use wren::{Browser, Error, MainThread};
 
-use crate::app::State;
 use crate::analytics::Event;
+use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
 use crate::shell::{BrowserWindow, Place, WindowId};
