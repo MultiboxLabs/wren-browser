@@ -1,5 +1,6 @@
 // The source's extensions from the Chrome Web Store, to choose which come
-// over. Chromium installs them without asking, so the page asks here.
+// over. Chromium installs them without asking, so wren://migrate and
+// onboarding ask here.
 
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";

@@ -3,8 +3,10 @@
 // menu). Until it is finished no browser window opens, the user's profile
 // is not opened, and the main menu has nothing of the browser's; the app
 // starts (`State::start`) once it is. Its page is pages/onboarding, which
-// says when the user is done (ipc/onboarding.rs).
+// says when the user is done (ipc/onboarding.rs). The user may bring their
+// things over from another browser in it, as on wren://migrate.
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use serde::Deserialize;
@@ -13,6 +15,8 @@ use wren::MainThread;
 use crate::app::State;
 use crate::db::{FirstSpace, SettingsChange};
 use crate::extensions::ad_block;
+use crate::import::Landing;
+use crate::import::run::{self, Plan, RunState};
 use crate::ipc;
 use crate::pages::ONBOARDING;
 use crate::platform::{PageWindow, TitleBarKind, WindowSize};
@@ -106,6 +110,92 @@ impl State {
             state.start(mt);
             drop(window);
         });
+    }
+
+    /// Starts bringing `plan` over from onboarding (ipc/migrate.rs), and
+    /// answers the run as it starts. Each profile lands in a new Wren
+    /// profile of its name, and the window hears how the run goes
+    /// (`migrate.progress`). Once the run has brought them over, the profile
+    /// Wren started on goes, if it has nothing of the user's, as on a first
+    /// run, and Wren Runtime starts on another (`Wren_OpenProfile(NULL)`).
+    /// The window hears that the run has finished only once it is gone, so
+    /// the app never starts on it.
+    pub(crate) fn import_in_onboarding(
+        self: &Rc<Self>,
+        mt: MainThread,
+        mut plan: Plan,
+    ) -> Result<RunState, String> {
+        if self.onboarding().is_none() {
+            return Err("Onboarding is over.".into());
+        }
+        // A profile the page would bring into the Wren profile of its name
+        // gets a new one of that name.
+        let listed = mt.profile_list();
+        for profile in &mut plan.profiles {
+            if let Landing::Existing { id } = &profile.landing
+                && let Some(existing) = listed.iter().find(|entry| &entry.id == id)
+            {
+                profile.landing = Landing::New {
+                    name: existing.name.clone(),
+                };
+            }
+        }
+        let state = Rc::downgrade(self);
+        let deleting = Cell::new(false);
+        let watch = Rc::new(move |run: &RunState| {
+            let Some(state) = state.upgrade() else { return };
+            if !run.finished || run.stopped {
+                state.tell_onboarding(run);
+            } else if !deleting.replace(true) {
+                state.delete_startup_profile(mt, run.clone());
+            }
+        });
+        run::start(self, None, plan, Some(watch))
+    }
+
+    // Deletes the profile Wren started on if it has nothing of the user's,
+    // then tells the window that `run` has finished, whether it went or not.
+    fn delete_startup_profile(self: &Rc<Self>, mt: MainThread, run: RunState) {
+        let state = self.clone();
+        mt.open_profile(None, move |result| {
+            let startup = match result {
+                Ok(startup) => startup,
+                Err(error) => {
+                    eprintln!("Wren could not open the profile it started on: {error:?}");
+                    return state.tell_onboarding(&run);
+                }
+            };
+            let id = startup.id();
+            let empty = state.db.profile_is_empty(&id).unwrap_or_else(|error| {
+                eprintln!("Wren could not read the profile it started on: {error}");
+                false
+            });
+            if !empty {
+                return state.tell_onboarding(&run);
+            }
+            let deleted = state.clone();
+            startup.delete(move |result| {
+                match result {
+                    Ok(()) => {
+                        if let Err(error) = deleted.db.forget_profile(&id) {
+                            eprintln!("Wren could not forget a profile: {error}");
+                        }
+                        deleted.db.sync_profiles(&mt.profile_list());
+                    }
+                    Err(error) => {
+                        eprintln!("Wren could not delete the profile it started on: {error:?}")
+                    }
+                }
+                deleted.tell_onboarding(&run);
+            });
+        });
+    }
+
+    // Tells the onboarding window how the run is going.
+    fn tell_onboarding(&self, run: &RunState) {
+        if let Some(page) = self.onboarding() {
+            let _ = page.web_view.send("migrate.progress", run);
+        }
     }
 
     /// Reset Onboarding: the app forgets that the user went through it, and

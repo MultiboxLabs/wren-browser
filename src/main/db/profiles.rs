@@ -57,6 +57,20 @@ impl Db {
             .map_err(sql)
     }
 
+    /// Whether the profile has nothing of the user's: no pins, in its spaces
+    /// or its favourites. A space Wren gave it may be there, empty.
+    pub fn profile_is_empty(&self, id: &str) -> Result<bool, String> {
+        if !self.favorites(id)?.is_empty() {
+            return Ok(false);
+        }
+        for space in self.list_spaces()? {
+            if space.profile == id && !self.space_pins(space.id)?.is_empty() {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     /// Deletes the profile, and with it its spaces.
     pub fn forget_profile(&self, id: &str) -> Result<(), String> {
         self.conn
@@ -191,6 +205,13 @@ mod tests {
         assert!(db.recent_space("a").unwrap().is_none());
         // The app's last space stays.
         assert!(db.delete_space(work.id).is_err());
+    }
+
+    #[test]
+    fn a_profile_with_only_the_space_wren_gave_it_is_empty() {
+        let db = db();
+        db.sync_profiles(&[entry("a", "Alpha")]);
+        assert!(db.profile_is_empty("a").unwrap());
     }
 
     #[test]

@@ -4,11 +4,11 @@
 // where its things go (`Destination`), as it is no choice of the user's.
 
 import { ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
 import { Switch } from "@/components/ui/switch";
-import { iconUrl, type Landing, type MigrateContext, type SourceProfile } from "@/ipc";
+import { ProfileAvatar } from "@/components/migrate/profile-avatar";
+import type { Landing, MigrateContext, SourceProfile } from "@/ipc";
 import type { ProfileChoice } from "@/state/migrate";
 import { Group, Row } from "./group";
 
@@ -26,7 +26,11 @@ export function Profiles({ profiles, choices, context, onChange }: Props) {
         const choice = choices[profile.id];
         if (!choice) return null;
         return (
-          <Row key={profile.id} icon={<Avatar name={profile.name} picture={profile.picture} />} name={profile.name}>
+          <Row
+            key={profile.id}
+            icon={<ProfileAvatar name={profile.name} picture={profile.picture} className="bg-(--space) text-white" />}
+            name={profile.name}
+          >
             <LandingMenu
               profile={profile}
               landing={choice.landing}
@@ -48,7 +52,10 @@ export function Destination({ profiles: [profile], choices, context, onChange }:
   if (!choice) return null;
   return (
     <Group>
-      <Row icon={<Avatar name={landingName(choice.landing, context)} />} name="Bring into">
+      <Row
+        icon={<ProfileAvatar name={landingName(choice.landing, context)} className="bg-(--space) text-white" />}
+        name="Bring into"
+      >
         <LandingMenu
           profile={profile}
           landing={choice.landing}
@@ -115,25 +122,5 @@ function LandingMenu({
         )
       }
     />
-  );
-}
-
-/** A profile's picture, as its browser shows it; or, with none to be had, its initial. */
-function Avatar({ name, picture }: { name: string; picture?: string }) {
-  const [broken, setBroken] = useState(false);
-  if (picture && !broken)
-    return (
-      <img
-        src={iconUrl(picture)}
-        alt=""
-        draggable={false}
-        onError={() => setBroken(true)}
-        className="size-6.5 shrink-0 rounded-full object-cover"
-      />
-    );
-  return (
-    <span className="grid size-6.5 shrink-0 place-items-center rounded-full bg-(--space) text-[12px] font-semibold text-white">
-      {name[0]}
-    </span>
   );
 }

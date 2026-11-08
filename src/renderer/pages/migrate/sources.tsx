@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { press } from "@/components/ui/press";
 import type { MigrateSource } from "@/ipc";
 import { cn } from "@/utils/cn";
-import { SourceIcon } from "./source-icon";
+import { SourceIcon } from "@/components/migrate/source-icon";
 
 export function Sources({
   sources,

@@ -1,10 +1,10 @@
 // Bringing the user's things over from the browser they use now: the
-// browsers installed, with Start Fresh after them to bring nothing. One that
-// keeps spaces brings them, so the user is not asked to make one after.
-// Only the choice is kept for now: nothing is imported yet.
+// browsers installed with something to bring, as wren://migrate lists them,
+// with Start Fresh after them to bring nothing. Picking one reads what its
+// profiles have, for the next step to choose from (bring.tsx).
 
 import { useState } from "react";
-import { iconUrl } from "@/ipc";
+import { SourceIcon } from "@/components/migrate/source-icon";
 import { cn } from "@/utils/cn";
 import { FreshIcon } from "@/pages/onboarding/option-icons";
 import { Row } from "@/pages/onboarding/row";
@@ -15,26 +15,21 @@ import type { StepProps } from "@/pages/onboarding/step";
 // mt-2, in the window's height less py-6); one more, and it scrolls.
 const FITS = 9;
 
-// Start Fresh's row, among the browsers'.
-const FRESH = "fresh";
-
-export function Import({ choices, browsers, next, back, finishing, last }: StepProps) {
-  const list = browsers ?? [];
-  // The row the user chose, here or before; or else, as the list comes, the
-  // first browser that keeps spaces, or the first.
-  const [picked, setPicked] = useState(choices.importFrom?.id);
-  const source =
-    picked === FRESH
-      ? undefined
-      : (list.find(({ id }) => id === picked) ?? list.find(({ spaces }) => spaces) ?? list[0]);
+export function Import({ choices, migrate, next, back, finishing, last }: StepProps) {
+  const list = migrate.sources ?? [];
+  // Start Fresh, if the user chose it before; or else the browser the state
+  // has, which starts as the first that keeps spaces, or the first.
+  const [fresh, setFresh] = useState(choices.importFrom === null);
+  const source = fresh ? undefined : migrate.source;
   const rows = list.length + 1;
   return (
     <Split
       title="Bring your things over"
       body="Your spaces, bookmarks and history, from the browser you use now."
       back={back}
-      go={() => next({ importFrom: source ?? null })}
+      go={() => next({ importFrom: source ?? null, spaces: false })}
       goLabel={source && `Import from ${source.name}`}
+      canGo={!!migrate.sources || !!migrate.error}
       last={last}
       finishing={finishing}
     >
@@ -50,14 +45,17 @@ export function Import({ choices, browsers, next, back, finishing, last }: StepP
         {list.map((browser) => (
           <Row
             key={browser.id}
-            icon={<img src={iconUrl(browser.icon)} alt="" className="size-10" />}
+            icon={<SourceIcon source={browser} size={40} />}
             name={browser.name}
-            detail={browser.spaces ? "Includes your spaces" : undefined}
+            detail={browser.keepsSpaces ? "Includes your spaces" : undefined}
             chosen={browser === source}
-            onChoose={() => setPicked(browser.id)}
+            onChoose={() => {
+              setFresh(false);
+              migrate.chooseSource(browser.id);
+            }}
           />
         ))}
-        {browsers && (
+        {(migrate.sources || migrate.error) && (
           <Row
             icon={
               // As large as an app's icon is inside its box, beside them.
@@ -69,7 +67,7 @@ export function Import({ choices, browsers, next, back, finishing, last }: StepP
             name="Start fresh"
             detail="Bring nothing over"
             chosen={!source}
-            onChoose={() => setPicked(FRESH)}
+            onChoose={() => setFresh(true)}
           />
         )}
       </div>

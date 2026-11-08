@@ -1,6 +1,9 @@
 // The onboarding window's own calls: src/main/ipc/onboarding.rs is the app's
-// side. Its window's calls are `appWindow`'s (window.ts), as any window's.
+// side. Its window's calls are `appWindow`'s (window.ts), as any window's,
+// and bringing things over, wren://migrate's (`onboardingMigrate`).
 
+import { hasApp } from "./app";
+import { migrateCalls } from "./migrate";
 import type { SpaceTheme } from "./spaces";
 
 /** A first space's icon and theme; null for what is not chosen. */
@@ -8,20 +11,10 @@ export type FirstSpace = { icon: string | null; theme: SpaceTheme | null };
 
 /** What the user chose in onboarding, which the app takes as they finish. */
 export type OnboardingChoices = {
-  /** Their first space's; neither if they chose none, as when their spaces come from another browser. */
+  /** Their first space's; neither when their spaces came from another browser, with icons and colours of their own. */
   space: FirstSpace;
   /** Whether ads and trackers are blocked: in every profile there is, and in each made after. */
   adBlock: boolean;
-};
-
-/** An installed browser the user may bring their things over from. */
-export type ImportSource = {
-  id: string;
-  name: string;
-  /** Its app's icon's ID, for `iconUrl`. */
-  icon: string;
-  /** It keeps tabs in spaces, which come over as spaces. */
-  spaces: boolean;
 };
 
 export const onboarding = {
@@ -30,8 +23,16 @@ export const onboarding = {
    * choice from; null before there is one, on a first run.
    */
   space: () => wren.invoke<{ icon: string; theme: SpaceTheme } | null>("onboarding.space"),
-  /** The browsers installed, by name. */
-  browsers: () => wren.invoke<ImportSource[]>("onboarding.browsers"),
   /** The user is done, with what they chose: the window closes, and the app starts. */
   finish: (choices: OnboardingChoices) => wren.invoke<null>("onboarding.finish", choices)
 };
+
+/**
+ * Bringing things over, as on wren://migrate. Each profile lands in a new
+ * one of its name, and the empty profile Wren started on goes once they
+ * have. With no app, every call fails, and nothing is heard.
+ */
+export const onboardingMigrate = migrateCalls({
+  invoke: (call, args) => (hasApp ? wren.invoke(call, args) : Promise.reject(new Error("There is no app."))),
+  on: (event, listener) => (hasApp ? wren.on(event, listener) : () => {})
+});

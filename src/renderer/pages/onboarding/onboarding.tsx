@@ -1,47 +1,55 @@
 // The onboarding window (src/main/onboarding.rs): what the user goes through
 // before the app is theirs, a step at a time, in the order of `STEPS`, but
-// for those what they chose makes no use of (a browser whose spaces come over
-// leaves no first space to make). The last step's button finishes it, with
-// what the user chose: the window closes, and the app starts. The window
-// starts as a clean slate (`Slate`); once the user picks their first space's theme,
-// it is drawn in it, as that space's window will be, its blur and buttons
-// too.
+// for those what they chose makes no use of (starting fresh brings nothing
+// over, and spaces that come over bring their own icons and colours, so the
+// first space's are not asked for). Bringing things over runs as soon as
+// the user has chosen what comes, as on wren://migrate (`useMigrate`). The
+// last step's button finishes it, with what the user chose: the window
+// closes, and the app starts. The window starts as a clean slate (`Slate`);
+// once the user picks their first space's theme, it is drawn in it, as that
+// space's window will be, its blur and buttons too.
 
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { hasApp, type ImportSource, onboarding, type SpaceTheme } from "@/ipc";
+import { hasApp, onboarding, onboardingMigrate, type SpaceTheme } from "@/ipc";
 import { SpaceBackground } from "@/components/space-background";
 import { DEFAULT_ICON } from "@/components/space-icon";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { type MigrateState, useMigrate } from "@/state/migrate";
 import { NEW_SPACE, personal, type Space } from "@/state/space";
 import { useShowWindow, useSystemScheme, useWindowTheme } from "@/state/window";
 import { contentScheme, defaultTheme, primaryHex } from "@/utils/theme";
 import type { Choices, Step } from "./step";
 import { GetStarted } from "./steps/get-started";
 import { Import } from "./steps/import";
+import { Bring } from "./steps/bring";
+import { Migrating } from "./steps/migrating";
 import { Icon } from "./steps/icon";
 import { Colour } from "./steps/colour";
 import { AdBlock } from "./steps/ad-block";
 import { DefaultBrowser } from "./steps/default-browser";
 
-// The first space's, which a browser whose spaces come over leaves none of.
-const making = ({ importFrom }: Choices) => !importFrom?.spaces;
-const ICON: Step = { Content: Icon, painted: false, shown: making };
-const COLOUR: Step = { Content: Colour, painted: true, shown: making };
+// What comes over, and its run, only from a browser.
+const importing = ({ importFrom }: Choices) => !!importFrom;
 
-// After it, drawn in the space's theme if the user made one.
-const AFTER: Step[] = [
+// The first space's icon and colour, unless spaces came over with their own.
+const making = ({ spaces }: Choices) => !spaces;
+
+// From the colour on, drawn in the space's theme, if the user chose one.
+const STEPS: Step[] = [
+  { Content: GetStarted, painted: false },
+  { Content: Import, painted: false },
+  { Content: Bring, painted: false, shown: importing },
+  { Content: Migrating, painted: false, shown: importing },
+  { Content: Icon, painted: false, shown: making },
+  { Content: Colour, painted: true, shown: making },
   { Content: AdBlock, painted: making },
   { Content: DefaultBrowser, painted: making }
 ];
 
-const STEPS: Step[] = [
-  { Content: GetStarted, painted: false },
-  { Content: Import, painted: false },
-  ICON,
-  COLOUR,
-  ...AFTER
-];
+// Whether `step` is drawn in the chosen theme, with what the user chose.
+const paintedFor = (step: Step, choices: Choices) =>
+  typeof step.painted === "function" ? step.painted(choices) : step.painted;
 
 // The steps for the user, with what they have chosen.
 const stepsFor = (choices: Choices) => STEPS.filter(({ shown }) => shown?.(choices) ?? true);
@@ -57,17 +65,17 @@ const FADE = { duration: 0.35, ease: "easeOut" } as const;
 export function Onboarding() {
   const [at, setAt] = useState({ index: 0, direction: 1 });
   const [choices, setChoices] = useState<Choices>({
-    importFrom: null,
+    spaces: false,
     icon: DEFAULT_ICON,
     theme: defaultTheme(),
     adBlock: true
   });
-  const [browsers, setBrowsers] = useState<ImportSource[] | undefined>(hasApp ? undefined : []);
+  const migrate = useMigrate(onboardingMigrate);
   // Whether the choices start where they should: the steps (and the window,
   // which shows with them) wait for it, so a picker never starts elsewhere.
   const [ready, setReady] = useState(!hasApp);
   // The first space's icon and theme, if it has them already, are where the
-  // choice starts; and the browsers installed are found before their step.
+  // choice starts.
   useEffect(() => {
     if (!hasApp) return;
     onboarding
@@ -77,10 +85,9 @@ export function Onboarding() {
         () => {}
       )
       .finally(() => setReady(true));
-    onboarding.browsers().then(setBrowsers, () => setBrowsers([]));
   }, []);
   const step = stepsFor(choices)[at.index];
-  const painted = typeof step.painted === "function" ? step.painted(choices) : step.painted;
+  const painted = paintedFor(step, choices);
   const scheme = useSystemScheme();
   const space = useMemo(() => (painted ? themed(choices.theme) : neutral(scheme)), [painted, choices.theme, scheme]);
   useWindowTheme(space);
@@ -111,7 +118,7 @@ export function Onboarding() {
             </motion.div>
           )}
         </AnimatePresence>
-        {ready && <Steps at={at} setAt={setAt} choices={choices} setChoices={setChoices} browsers={browsers} />}
+        {ready && <Steps at={at} setAt={setAt} choices={choices} setChoices={setChoices} migrate={migrate} />}
       </TooltipProvider>
     </MotionConfig>
   );
@@ -137,36 +144,45 @@ function Steps({
   setAt,
   choices,
   setChoices,
-  browsers
+  migrate
 }: {
   at: At;
   setAt: (at: At) => void;
   choices: Choices;
   setChoices: (choices: Choices) => void;
-  browsers: ImportSource[] | undefined;
+  migrate: MigrateState;
 }) {
   useShowWindow();
   const [finishing, setFinishing] = useState(false);
   const choose = (change: Partial<Choices>) => setChoices({ ...choices, ...change });
+  const steps = stepsFor(choices);
   // What the step chose decides the steps after it, so they are found anew.
+  // The next is the first after this one in `STEPS` that is for the user,
+  // whether this one still is or not (Skip leaves the run's behind).
   const next = (change: Partial<Choices> = {}) => {
     if (finishing) return;
     const chosen = { ...choices, ...change };
     setChoices(chosen);
-    const steps = stepsFor(chosen);
-    if (at.index < steps.length - 1) return setAt({ index: at.index + 1, direction: 1 });
+    const here = STEPS.indexOf(steps[at.index]);
+    const after = stepsFor(chosen);
+    const index = after.filter((step) => STEPS.indexOf(step) <= here).length;
+    if (index < after.length) return setAt({ index, direction: 1 });
     if (!hasApp) return;
     setFinishing(true);
-    // The first space's only if the user made it. Importing is to come.
-    const making = steps.includes(COLOUR);
-    const space = { icon: making ? chosen.icon : null, theme: making ? chosen.theme : null };
+    // The first space's only if the user made it.
+    const space = chosen.spaces ? { icon: null, theme: null } : { icon: chosen.icon, theme: chosen.theme };
     onboarding.finish({ space, adBlock: chosen.adBlock }).catch(() => setFinishing(false));
   };
   const back = at.index > 0 ? () => setAt({ index: at.index - 1, direction: -1 }) : undefined;
-  const steps = stepsFor(choices);
+  const backTo = (Content: Step["Content"]) => {
+    const index = steps.findIndex((step) => step.Content === Content);
+    if (index >= 0) setAt({ index, direction: -1 });
+  };
   const { Content } = steps[at.index];
+  const painted = paintedFor(steps[at.index], choices);
   return (
-    <div className="drag relative h-full overflow-hidden">
+    // On the clean slate, a switch takes the slate's warm light (onboarding.css).
+    <div data-slate={!painted || undefined} className="drag relative h-full overflow-hidden">
       <AnimatePresence mode="wait" initial={false} custom={at.direction}>
         <motion.div
           key={at.index}
@@ -185,9 +201,10 @@ function Steps({
           <Content
             choices={choices}
             choose={choose}
-            browsers={browsers}
+            migrate={migrate}
             next={next}
             back={back}
+            backTo={backTo}
             finishing={finishing}
             last={at.index === steps.length - 1}
           />

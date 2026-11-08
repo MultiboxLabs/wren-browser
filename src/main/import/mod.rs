@@ -1,57 +1,26 @@
-// Bringing the user's things over from the browser they used before:
-// wren://migrate (ipc/migrate.rs), and onboarding's list of the browsers
-// installed (onboarding.rs). Each source is a browser built on an engine
-// (source.rs, sources.rs); what it has is read on a thread of its own, and
-// landed in Wren on the main thread, one run at a time (run.rs, land/).
+// Bringing the user's things over from the browser they used before, on
+// wren://migrate and in onboarding (ipc/migrate.rs). Each source is a
+// browser built on an engine (source.rs, sources.rs); the pages list what
+// it has (listing.rs), read on a thread of its own, and it is landed in
+// Wren on the main thread, one run at a time (run.rs, land/).
 
 mod browsers;
 mod data;
 mod engines;
 mod favicons;
 mod land;
+pub mod listing;
 pub mod run;
 mod snapshot;
 mod source;
 mod sources;
 
-use serde::Serialize;
-
-use crate::pages::icons;
 use crate::platform;
 pub use data::SpaceCount;
 pub use land::extensions::retry as pin_waiting_extensions;
 pub use land::profiles::Landing;
 pub use source::{ReadError, Source, SourceProfile, Survey};
 use sources::SOURCES;
-
-/// An installed browser, as onboarding lists it.
-#[derive(Serialize)]
-pub struct Installed {
-    id: &'static str,
-    name: &'static str,
-    /// Its app's icon's ID (`iconUrl`).
-    icon: String,
-    spaces: bool,
-}
-
-/// The size its icon is listed at, in points.
-const ICON_SIZE: f64 = 40.0;
-
-/// The browsers installed, by name.
-pub fn installed() -> Vec<Installed> {
-    installed_sources(ICON_SIZE)
-        .into_iter()
-        .map(|(source, png)| {
-            let about = source.about();
-            Installed {
-                id: about.id,
-                name: about.name,
-                icon: icons::id(png),
-                spaces: source.keeps_spaces(),
-            }
-        })
-        .collect()
-}
 
 /// The source with `id`, if it is installed.
 pub fn source(id: &str) -> Option<&'static dyn Source> {

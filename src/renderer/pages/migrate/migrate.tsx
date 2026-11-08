@@ -11,7 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { iconUrl, migrate } from "@/ipc";
 import { type MigrateState, useMigrate } from "@/state/migrate";
 import { useSystemScheme } from "@/state/window";
-import { ExtensionsDialog } from "./extensions-dialog";
+import { ExtensionsDialog } from "@/components/migrate/extensions-dialog";
 import { Destination, Profiles } from "./profiles";
 import { type Flight, Sky } from "./sky";
 import { Sources } from "./sources";

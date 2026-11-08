@@ -8,7 +8,9 @@
 }
 
 /* Its clean slate: a veil over the window's blur, a faint warm light from
-   the top, and the line beside a step's choices. */
+   the top, and the line beside a step's choices. A switch on it is on in
+   the light's colour, Wren's warm orange, as on a space it is in the space's:
+   darker than the slate in light, lighter in dark (components/ui/switch.css). */
 :root[data-scheme="light"],
 :root[data-system-scheme="light"] [data-scheme="system"] {
   --slate-veil: rgb(248 247 245 / 0.72);
@@ -22,4 +24,10 @@
   --slate-veil: rgb(31 30 29 / 0.72);
   --slate-glow: rgb(255 150 70 / 0.12);
   --onboarding-divider: rgb(255 236 220 / 0.1);
+}
+:root[data-scheme="light"] [data-slate] {
+  --switch-on: oklch(0.7 0.17 60);
+}
+:root[data-scheme="dark"] [data-slate] {
+  --switch-on: oklch(0.76 0.15 65);
 }

@@ -1,5 +1,6 @@
 // The onboarding window's calls (onboarding.rs): those of its window, as any
-// page's, the default browser's, as the Library's, and its own.
+// page's, the default browser's, as the Library's, bringing things over, as
+// wren://migrate's (migrate.rs), and its own.
 // src/renderer/ipc/onboarding.ts is the page's side.
 
 use std::rc::{Rc, Weak};
@@ -7,9 +8,9 @@ use std::rc::{Rc, Weak};
 use wren::{MainThread, WebView};
 
 use super::default_browser;
+use super::migrate::handle_migrate_in;
 use super::window::{PageRef, handle_page};
 use crate::app::State;
-use crate::import;
 use crate::onboarding::Choices;
 use crate::platform::PageWindow;
 
@@ -44,11 +45,9 @@ pub fn handle_onboarding(web_view: &WebView, state: &Rc<State>, mt: MainThread) 
             .first_space()
     });
 
-    // The browsers installed, which the user may bring their things over
-    // from.
-    let _ = web_view.handle("onboarding.browsers", move |()| {
-        Ok::<_, String>(import::installed())
-    });
+    // The browsers to bring things over from, what each has, and the run
+    // that brings them, as on wren://migrate.
+    handle_migrate_in(web_view, state, mt);
 
     // Whether Wren is the default browser, and asking the user to make it
     // so, as the Library does (default_browser.rs).

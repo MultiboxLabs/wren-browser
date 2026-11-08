@@ -1,5 +1,6 @@
-// wren://migrate's calls, which go through Wren Components (tab-page.ts):
-// src/main/ipc/migrate.rs is the app's side.
+// The calls that bring things over from another browser, which wren://migrate
+// makes through Wren Components (tab-page.ts) and onboarding as any web view
+// does (`wren`): src/main/ipc/migrate.rs is the app's side of both.
 
 import { tabPage } from "./tab-page";
 
@@ -95,20 +96,34 @@ export type MigrateRun = {
   things: ThingProgress[];
   /** Every thing has landed or failed. */
   finished: boolean;
+  /** It stopped before bringing anything: the browser could not be read, or a profile could not be opened or made. */
+  stopped: boolean;
 };
 
-export const migrate = {
-  context: () => tabPage.invoke<MigrateContext>("migrate.context"),
-  /** The browsers installed that have a real profile, or whose profiles macOS keeps from Wren, by name. */
-  sources: () => tabPage.invoke<MigrateSource[]>("migrate.sources"),
-  /** What one of a source's profiles has. */
-  survey: (source: string, profile: string) => tabPage.invoke<Survey>("migrate.survey", { source, profile }),
-  /** Starts bringing it over; it fails while another run is going. */
-  start: (plan: MigratePlan) => tabPage.invoke<MigrateRun>("migrate.start", plan),
-  /** The run going or last finished, if there is one. */
-  run: () => tabPage.invoke<MigrateRun | null>("migrate.run"),
-  /** The run moved on. */
-  onProgress: (listener: (run: MigrateRun) => void) => tabPage.on<MigrateRun>("migrate.progress", listener),
-  /** Opens the system's settings where the user lets Wren read what macOS keeps from it. */
-  openAccessSettings: () => tabPage.invoke<null>("migrate.openAccessSettings")
+/** What carries a page's calls to the app: `wren`, or `tabPage` for a page in a tab. */
+type Link = {
+  invoke<Answer>(call: string, args?: unknown): Promise<Answer>;
+  on<Value>(event: string, listener: (value: Value) => void): () => void;
 };
+
+/** The calls, made through `link`. */
+export const migrateCalls = (link: Link) => ({
+  context: () => link.invoke<MigrateContext>("migrate.context"),
+  /** The browsers installed that have a real profile, or whose profiles macOS keeps from Wren, by name. */
+  sources: () => link.invoke<MigrateSource[]>("migrate.sources"),
+  /** What one of a source's profiles has. */
+  survey: (source: string, profile: string) => link.invoke<Survey>("migrate.survey", { source, profile }),
+  /** Starts bringing it over; it fails while another run is going. */
+  start: (plan: MigratePlan) => link.invoke<MigrateRun>("migrate.start", plan),
+  /** The run going or last finished, if there is one. */
+  run: () => link.invoke<MigrateRun | null>("migrate.run"),
+  /** The run moved on. */
+  onProgress: (listener: (run: MigrateRun) => void) => link.on<MigrateRun>("migrate.progress", listener),
+  /** Opens the system's settings where the user lets Wren read what macOS keeps from it. */
+  openAccessSettings: () => link.invoke<null>("migrate.openAccessSettings")
+});
+
+export type MigrateCalls = ReturnType<typeof migrateCalls>;
+
+/** wren://migrate's. */
+export const migrate = migrateCalls(tabPage);

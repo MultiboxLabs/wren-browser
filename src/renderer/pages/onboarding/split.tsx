@@ -14,8 +14,10 @@ export function Split({
   title,
   body,
   back,
+  backLabel,
   go,
   goLabel,
+  canGo = true,
   last,
   finishing,
   panelClassName,
@@ -24,17 +26,22 @@ export function Split({
   title: string;
   body: string;
   back?: () => void;
-  /** The default button, which Return presses too. */
+  /** What the button above the default one says, if not Back. */
+  backLabel?: string;
+  /** The default button, which Return presses too, while it can be pressed. */
   go: () => void;
   /** What it says, if not what a step's says by whether it is the last. */
   goLabel?: string;
+  /** Whether it can be pressed yet: what it goes on with is ready. */
+  canGo?: boolean;
   last: boolean;
   finishing: boolean;
   /** For the right half's box. */
   panelClassName?: string;
   children: ReactNode;
 }) {
-  useAnswerKeys(go, back);
+  const ready = canGo && !finishing;
+  useAnswerKeys(() => ready && go(), back);
   return (
     <div className="flex h-full">
       <div className="flex w-88 shrink-0 flex-col px-11 pt-20 pb-10">
@@ -50,10 +57,10 @@ export function Split({
         <motion.div {...rise(2)} className="mt-auto flex flex-col gap-2">
           {back && (
             <Button shape="large" className="w-full font-medium" onClick={back}>
-              Back
+              {backLabel ?? "Back"}
             </Button>
           )}
-          <GoButton className="w-full" disabled={finishing} onClick={go}>
+          <GoButton className="w-full" disabled={!ready} onClick={go}>
             {goLabel ?? (last ? "Start Browsing" : "Continue")}
           </GoButton>
         </motion.div>

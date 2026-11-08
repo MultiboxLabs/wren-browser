@@ -16,7 +16,7 @@ import { WrenTile } from "@/components/tile-icon";
 import type { MigrateSource } from "@/ipc";
 import { EASE_SLIDE } from "@/utils/motion";
 import { CloudSea } from "./cloud-sea";
-import { SourceIcon } from "./source-icon";
+import { SourceIcon } from "@/components/migrate/source-icon";
 
 /** Where the wren is: waiting, a share of the way, or landed. */
 export type Flight = "waiting" | number | "landed";

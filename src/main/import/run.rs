@@ -7,7 +7,8 @@
 // page's order, profile by profile. A thing is read on a thread of its own
 // and handed to the main thread in batches, where Wren takes it; the next
 // step starts once the last batch has landed. Every change goes to the
-// open migrate pages (`migrate.progress`).
+// open migrate pages (`migrate.progress`), and to what started the run
+// (`Watch`), as onboarding watches the run it starts.
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -75,7 +76,13 @@ pub struct RunState {
     pub source: String,
     pub things: Vec<ThingProgress>,
     pub finished: bool,
+    /// It stopped before bringing anything: the source could not be read,
+    /// or a profile could not be opened or made.
+    pub stopped: bool,
 }
+
+/// Told of every change to the run, after the open migrate pages are.
+pub type Watch = Rc<dyn Fn(&RunState)>;
 
 /// A source's profile, with what it has, and the Wren profile it lands in.
 struct Route {
@@ -101,8 +108,10 @@ struct Run {
     view: RunState,
     app: Weak<State>,
     source: &'static dyn Source,
-    /// The page's tab's Wren profile.
-    this: Profile,
+    /// The page's tab's Wren profile, which `Landing::This` names; none
+    /// where there is no such page, as in onboarding.
+    this: Option<Profile>,
+    watch: Option<Watch>,
     extensions: HashSet<String>,
     routes: Vec<Route>,
     /// The steps to come, each one thing of one route (by its index).
@@ -134,15 +143,26 @@ fn with<A>(id: u64, f: impl FnOnce(&mut Run) -> A) -> Option<A> {
     RUN.with(|run| run.borrow_mut().as_mut().filter(|run| run.id == id).map(f))
 }
 
+// Out of `RUN`'s borrow, as a watch may read the run.
 fn tell(id: u64) {
-    if let Some(view) = with(id, |run| run.view.clone()) {
-        bridge::send(&MIGRATE, "migrate.progress", &view);
+    let Some((view, watch)) = with(id, |run| (run.view.clone(), run.watch.clone())) else {
+        return;
+    };
+    bridge::send(&MIGRATE, "migrate.progress", &view);
+    if let Some(watch) = watch {
+        watch(&view);
     }
 }
 
-/// Starts bringing `plan` over into the Wren profile `this` (the page's
-/// tab's), and answers the run as it starts.
-pub fn start(app: &Rc<State>, this: Profile, plan: Plan) -> Result<RunState, String> {
+/// Starts bringing `plan` over, `Landing::This` into `this` (the page's
+/// tab's), and answers the run as it starts. `watch` is told of every
+/// change.
+pub fn start(
+    app: &Rc<State>,
+    this: Option<Profile>,
+    plan: Plan,
+    watch: Option<Watch>,
+) -> Result<RunState, String> {
     if current().is_some_and(|run| !run.finished) {
         return Err("Wren is already bringing things over.".into());
     }
@@ -170,6 +190,7 @@ pub fn start(app: &Rc<State>, this: Profile, plan: Plan) -> Result<RunState, Str
             })
             .collect(),
         finished: false,
+        stopped: false,
     };
     RUN.with(|run| {
         *run.borrow_mut() = Some(Run {
@@ -178,6 +199,7 @@ pub fn start(app: &Rc<State>, this: Profile, plan: Plan) -> Result<RunState, Str
             app: Rc::downgrade(app),
             source,
             this,
+            watch,
             extensions: plan.extensions.iter().cloned().collect(),
             routes: Vec::new(),
             steps: VecDeque::new(),
@@ -226,7 +248,7 @@ fn surveyed(
         Ok(_) => return fail_all(id, "None of those profiles are there now."),
         Err(error) => return fail_all(id, &error),
     };
-    let this = with(id, |run| {
+    let counted = with(id, |run| {
         for progress in &mut run.view.things {
             progress.total = read
                 .iter()
@@ -239,13 +261,12 @@ fn surveyed(
                 run.steps.push_back((route, *thing));
             }
         }
-        run.this.clone()
     });
-    let Some(this) = this else {
+    if counted.is_none() {
         return;
-    };
+    }
     tell(id);
-    land_profiles(mt, id, this, read.into_iter().collect());
+    land_profiles(mt, id, read.into_iter().collect());
 }
 
 fn total(survey: &Survey, thing: Thing, chosen: &HashSet<String>) -> usize {
@@ -262,33 +283,33 @@ fn total(survey: &Survey, thing: Thing, chosen: &HashSet<String>) -> usize {
     }
 }
 
-fn land_profiles(
-    mt: MainThread,
-    id: u64,
-    this: Profile,
-    mut left: VecDeque<(SourceProfile, Survey, Landing)>,
-) {
+fn land_profiles(mt: MainThread, id: u64, mut left: VecDeque<(SourceProfile, Survey, Landing)>) {
     let Some((from, survey, landing)) = left.pop_front() else {
         return next(mt, id);
     };
-    let Some(app) = with(id, |run| run.app.upgrade()).flatten() else {
+    let Some((Some(app), this)) = with(id, |run| (run.app.upgrade(), run.this.clone())) else {
         return;
     };
-    let again = this.clone();
-    profiles::resolve(mt, &app, &this, &landing, move |result| match result {
-        Ok((to, made)) => {
-            with(id, |run| {
-                run.routes.push(Route {
-                    from,
-                    survey,
-                    to,
-                    made,
-                })
-            });
-            land_profiles(mt, id, again, left);
-        }
-        Err(error) => fail_all(id, &error),
-    });
+    profiles::resolve(
+        mt,
+        &app,
+        this.as_ref(),
+        &landing,
+        move |result| match result {
+            Ok((to, made)) => {
+                with(id, |run| {
+                    run.routes.push(Route {
+                        from,
+                        survey,
+                        to,
+                        made,
+                    })
+                });
+                land_profiles(mt, id, left);
+            }
+            Err(error) => fail_all(id, &error),
+        },
+    );
 }
 
 fn fail_all(id: u64, why: &str) {
@@ -299,6 +320,7 @@ fn fail_all(id: u64, why: &str) {
         }
         run.steps.clear();
         run.view.finished = true;
+        run.view.stopped = true;
     });
     tell(id);
 }
@@ -423,13 +445,12 @@ fn install_extensions(mt: MainThread, step: Step, to: &Profile) {
                         )
                     })
                     .collect();
-                let mut pins: Vec<(usize, String)> = chosen
+                let pins = chosen
                     .into_iter()
                     .zip(&installed)
-                    .filter_map(|((id, pinned), installed)| installed.then_some((pinned?, id)))
+                    .filter_map(|(pin, installed)| installed.then_some(pin))
                     .collect();
-                pins.sort();
-                extensions::pin(&profile, pins.into_iter().map(|(_, id)| id).collect());
+                extensions::pin(&profile, pins);
                 let missing = installed.iter().filter(|each| !**each).count();
                 if missing > 0 {
                     let are = plural(missing, "is", "are");

@@ -19,16 +19,20 @@ pub enum Landing {
 }
 
 /// The profile `landing` names, opened, and whether it was made for this;
-/// `done` gets it later, from the event loop.
+/// `done` gets it later, from the event loop. `this` is the page's tab's,
+/// which `Landing::This` names: none where there is no such page.
 pub fn resolve(
     mt: MainThread,
     state: &Rc<State>,
-    this: &Profile,
+    this: Option<&Profile>,
     landing: &Landing,
     done: impl FnOnce(Result<(Profile, bool), String>) + 'static,
 ) {
     match landing {
-        Landing::This => done(Ok((this.clone(), false))),
+        Landing::This => done(
+            this.map(|this| (this.clone(), false))
+                .ok_or_else(|| "There is no profile here to bring things into.".into()),
+        ),
         Landing::Existing { id } => {
             if !mt.profile_list().iter().any(|entry| entry.id == *id) {
                 return done(Err("That profile is gone.".into()));

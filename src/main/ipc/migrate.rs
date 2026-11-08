@@ -1,103 +1,23 @@
-// wren://migrate's calls, which come through Wren Components
-// (extensions/bridge.rs), not `wren.invoke`: it is a page in a tab.
-// src/renderer/ipc/migrate.ts is the page's side. What reads another
-// browser's files does so on a thread, and answers from the main thread.
+// The calls that bring the user's things over from another browser, which
+// two pages make alike (`handle_calls`): wren://migrate, whose come through
+// Wren Components (extensions/bridge.rs) as it is a page in a tab
+// (`handle_migrate`), and onboarding's window, whose come as any web view's
+// (`handle_migrate_in`). Only where each page is, and how it starts a run,
+// differ. What they list is import/listing.rs's, and the run
+// import/run.rs's. src/renderer/ipc/migrate.ts is the pages' side.
 
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use wren::MainThread;
+use wren::{MainThread, Profile, WebView};
 
 use crate::app::State;
-use crate::extensions::bridge::{self, Call};
+use crate::extensions::bridge;
+use crate::import::listing;
 use crate::import::run::{self, Plan, RunState};
-use crate::import::{self, Landing, ReadError, SourceProfile, SpaceCount, Survey};
-use crate::pages::{MIGRATE, icons};
+use crate::pages::{MIGRATE, Page};
 use crate::platform::{self, Privacy};
-
-/// A profile of the user's in Wren.
-#[derive(Serialize)]
-struct WrenProfile {
-    id: String,
-    name: String,
-}
-
-/// Where the page is: whether its tab is incognito, the profile its tab is
-/// in (an incognito tab's original), and every profile there is, which the
-/// user's other profiles may land in.
-#[derive(Serialize)]
-struct Context {
-    incognito: bool,
-    profile: Option<WrenProfile>,
-    profiles: Vec<WrenProfile>,
-}
-
-/// The size the sky shows a source's icon at, in points: its body 84, in the
-/// margin around it (pages/migrate/source-icon.tsx).
-const SOURCE_ICON_SIZE: f64 = 112.0;
-
-/// What the user must allow for Wren to read what macOS keeps from it.
-const FULL_DISK_ACCESS: &str = "fullDiskAccess";
-
-/// A browser installed with a real profile, as the page lists it; or one
-/// whose profiles macOS keeps from Wren, with none until the user allows it.
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ListedSource {
-    id: &'static str,
-    name: &'static str,
-    /// Its app's icon's ID (`iconUrl`).
-    icon: String,
-    keeps_spaces: bool,
-    profiles: Vec<ListedProfile>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    access: Option<&'static str>,
-}
-
-#[derive(Serialize)]
-struct ListedProfile {
-    id: String,
-    name: String,
-    /// Where it lands unless the user says otherwise.
-    landing: Landing,
-    /// Its picture's ID (`iconUrl`), if it has one.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    picture: Option<String>,
-}
-
-/// What a profile has, as the page takes it: a thing it has none of is
-/// left out.
-#[derive(Serialize)]
-struct ListedSurvey {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    spaces: Option<SpaceCount>,
-    #[serde(skip_serializing_if = "is_zero")]
-    bookmarks: usize,
-    #[serde(skip_serializing_if = "is_zero")]
-    history: usize,
-    #[serde(skip_serializing_if = "is_zero")]
-    cookies: usize,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    extensions: Vec<ListedExtension>,
-    /// What the user must allow for Wren to read the rest.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    access: Option<&'static str>,
-}
-
-#[derive(Serialize)]
-struct ListedExtension {
-    id: String,
-    name: String,
-    /// Its icon's ID (`iconUrl`); empty if it has none.
-    icon: String,
-    enabled: bool,
-}
-
-fn is_zero(count: &usize) -> bool {
-    *count == 0
-}
 
 #[derive(Deserialize)]
 struct SurveyArgs {
@@ -105,211 +25,131 @@ struct SurveyArgs {
     profile: String,
 }
 
-thread_local! {
-    // The calls waiting on a thread's answer, which cannot leave the main
-    // thread.
-    static WAITING: RefCell<HashMap<u64, Call>> = RefCell::default();
-    static NEXT: Cell<u64> = const { Cell::new(0) };
+/// Where a call comes from: the profile its page is in, if any, and
+/// whether its tab is incognito.
+struct Here {
+    profile: Option<Profile>,
+    incognito: bool,
 }
 
-// Does `work` on a thread of its own, then answers `call` with `answer` on
-// the main thread.
-fn on_a_thread<T: Send + 'static>(
-    call: Call,
-    work: impl FnOnce() -> T + Send + 'static,
-    answer: impl FnOnce(MainThread, Call, T) + Send + 'static,
-) {
-    let id = NEXT.with(|next| next.replace(next.get() + 1));
-    WAITING.with(|waiting| waiting.borrow_mut().insert(id, call));
-    std::thread::spawn(move || {
-        let value = work();
-        let _ = wren::post_to_main_thread(move |mt| {
-            if let Some(call) = WAITING.with(|waiting| waiting.borrow_mut().remove(&id)) {
-                answer(mt, call, value);
+/// Answers a call, then or later: its value, or why there is none.
+type Answer<A> = Box<dyn FnOnce(Result<A, String>)>;
+
+/// What carries a page's calls to the app.
+trait Link {
+    /// Answers the page's call `name` with `handler`, given where the call
+    /// comes from and what the page passed as `V`.
+    fn on<V, A>(&self, name: &str, handler: impl Fn(Here, V, Answer<A>) + 'static)
+    where
+        V: DeserializeOwned + 'static,
+        A: Serialize + 'static;
+}
+
+/// A page in a tab, through Wren Components.
+impl Link for &'static Page {
+    fn on<V, A>(&self, name: &str, handler: impl Fn(Here, V, Answer<A>) + 'static)
+    where
+        V: DeserializeOwned + 'static,
+        A: Serialize + 'static,
+    {
+        bridge::handle_call(self, name, move |call| {
+            let here = Here {
+                profile: call.profile(),
+                incognito: call.incognito(),
+            };
+            match call.args::<V>() {
+                Ok(args) => handler(here, args, Box::new(move |result| call.answer(result))),
+                Err(error) => call.answer::<A>(Err(error)),
             }
         });
-    });
+    }
 }
 
-pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
-    bridge::handle(&MIGRATE, "migrate.context", move |call, ()| {
-        let profiles = wren_profiles(mt);
-        let id = call.profile().map(|profile| profile.id());
-        let profile = profiles
-            .iter()
-            .find(|profile| Some(&profile.id) == id.as_ref())
-            .map(|profile| WrenProfile {
-                id: profile.id.clone(),
-                name: profile.name.clone(),
+/// A window of the app's own, in no profile of the user's.
+impl Link for &WebView {
+    fn on<V, A>(&self, name: &str, handler: impl Fn(Here, V, Answer<A>) + 'static)
+    where
+        V: DeserializeOwned + 'static,
+        A: Serialize + 'static,
+    {
+        let _ = self.handle_call(name, move |call| {
+            let here = Here {
+                profile: None,
+                incognito: false,
+            };
+            let args = call.value::<V>();
+            // A page that went before its answer is no error.
+            let answer: Answer<A> = Box::new(move |result| {
+                let _ = match result {
+                    Ok(value) => call.answer(&value),
+                    Err(error) => call.fail(&error),
+                };
             });
-        Ok(Context {
-            incognito: call.incognito(),
-            profile,
-            profiles,
-        })
-    });
+            match args {
+                Ok(args) => handler(here, args, answer),
+                Err(error) => answer(Err(error.to_string())),
+            }
+        });
+    }
+}
 
-    // The browsers installed with a real profile, or whose profiles macOS
-    // keeps from Wren until the user allows it, each with its profiles
-    // and where each lands unless the user says otherwise. The apps' icons
-    // are drawn here; their profiles are read on a thread.
-    bridge::handle_call(&MIGRATE, "migrate.sources", move |call| {
-        let installed = import::installed_sources(SOURCE_ICON_SIZE);
-        let here = call.profile().map(|profile| profile.id());
-        let wren = wren_profiles(mt);
-        on_a_thread(
-            call,
-            move || {
-                installed
-                    .into_iter()
-                    .filter_map(|(source, icon)| {
-                        let (profiles, access) = match source.profiles() {
-                            Ok(found) if !found.is_empty() => (found, None),
-                            Err(ReadError::NoAccess) => (Vec::new(), Some(FULL_DISK_ACCESS)),
-                            _ => return None,
-                        };
-                        // Each with its picture's PNG, read here, off the
-                        // main thread.
-                        let profiles: Vec<_> = profiles
-                            .into_iter()
-                            .map(|profile| {
-                                let picture = profile
-                                    .picture
-                                    .as_ref()
-                                    .and_then(|file| std::fs::read(file).ok());
-                                (profile, picture)
-                            })
-                            .collect();
-                        Some((source, icon, profiles, access))
-                    })
-                    .collect::<Vec<_>>()
-            },
-            move |_, call, found| {
-                let listed: Vec<ListedSource> = found
-                    .into_iter()
-                    .map(|(source, icon, profiles, access)| {
-                        let about = source.about();
-                        ListedSource {
-                            id: about.id,
-                            name: about.name,
-                            icon: icons::id(icon),
-                            keeps_spaces: source.keeps_spaces(),
-                            profiles: profiles
-                                .into_iter()
-                                .map(|(profile, picture)| ListedProfile {
-                                    id: profile.id.clone(),
-                                    name: shown_name(&profile, about.name),
-                                    landing: landing(&profile, about.name, here.as_deref(), &wren),
-                                    picture: picture.map(icons::id),
-                                })
-                                .collect(),
-                            access,
-                        }
-                    })
-                    .collect();
-                call.answer(Ok(listed));
-            },
-        );
-    });
-
-    // What one of a source's profiles has.
-    bridge::handle_call(&MIGRATE, "migrate.survey", move |call| {
-        let args = match call.args::<SurveyArgs>() {
-            Ok(args) => args,
-            Err(error) => return call.answer::<()>(Err(error)),
-        };
-        let Some(source) = import::source(&args.source) else {
-            return call.answer::<()>(Err("That browser is not installed.".into()));
-        };
-        on_a_thread(
-            call,
-            move || {
-                let profile = source.profile(&args.profile).ok()??;
-                Some(source.survey(&profile))
-            },
-            |_, call, survey| match survey {
-                Some(survey) => call.answer(Ok(listed_survey(survey))),
-                None => call.answer::<()>(Err("That profile is not there now.".into())),
-            },
-        );
-    });
-
-    // Starts bringing it over, into the profile the page's tab is in.
-    let weak: Weak<State> = Rc::downgrade(state);
-    bridge::handle(&MIGRATE, "migrate.start", move |call, plan: Plan| {
-        if call.incognito() {
+/// wren://migrate's calls. A run lands `Landing::This` in the profile the
+/// page's tab is in.
+pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
+    let weak = Rc::downgrade(state);
+    handle_calls(&MIGRATE, mt, move |here, plan| {
+        if here.incognito {
             return Err("Open wren://migrate in a normal window to bring your things over.".into());
         }
         let state = weak.upgrade().ok_or("The app is closing.")?;
-        let this = call.profile().ok_or("The page's profile is gone.")?;
-        run::start(&state, this, plan)
+        let this = here.profile.ok_or("The page's profile is gone.")?;
+        run::start(&state, Some(this), plan, None)
+    });
+}
+
+/// Onboarding's calls. Its run lands each profile in a new one, and its
+/// progress comes to the window (`State::import_in_onboarding`).
+pub fn handle_migrate_in(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
+    let weak = Rc::downgrade(state);
+    handle_calls(web_view, mt, move |_, plan| {
+        let state = weak.upgrade().ok_or("The app is closing.")?;
+        state.import_in_onboarding(mt, plan)
+    });
+}
+
+// Every call, through `link`, with `start` to start a run.
+fn handle_calls(
+    link: impl Link,
+    mt: MainThread,
+    start: impl Fn(Here, Plan) -> Result<RunState, String> + 'static,
+) {
+    link.on("migrate.context", move |here, (), answer| {
+        answer(Ok(listing::context(
+            mt,
+            here.profile.as_ref(),
+            here.incognito,
+        )));
     });
 
-    bridge::handle(&MIGRATE, "migrate.run", |_, ()| {
-        Ok::<Option<RunState>, String>(run::current())
+    link.on("migrate.sources", move |here, (), answer| {
+        let here = here.profile.map(|profile| profile.id());
+        listing::sources(mt, here, move |listed| answer(Ok(listed)));
     });
 
-    bridge::handle(&MIGRATE, "migrate.openAccessSettings", |_, ()| {
+    link.on("migrate.survey", |_, args: SurveyArgs, answer| {
+        listing::survey(&args.source, args.profile, answer);
+    });
+
+    link.on("migrate.start", move |here, plan: Plan, answer| {
+        answer(start(here, plan));
+    });
+
+    link.on("migrate.run", |_, (), answer| {
+        answer(Ok::<Option<RunState>, String>(run::current()));
+    });
+
+    link.on("migrate.openAccessSettings", |_, (), answer| {
         platform::open_privacy_settings(Privacy::FullDiskAccess);
-        Ok(())
+        answer(Ok(()));
     });
-}
-
-fn wren_profiles(mt: MainThread) -> Vec<WrenProfile> {
-    mt.profile_list()
-        .into_iter()
-        .map(|entry| WrenProfile {
-            id: entry.id,
-            name: entry.name,
-        })
-        .collect()
-}
-
-// A profile the source named itself ("Person 1") is named for the source.
-fn shown_name(profile: &SourceProfile, source: &str) -> String {
-    if profile.default_name {
-        source.to_owned()
-    } else {
-        profile.name.clone()
-    }
-}
-
-// Where a profile lands unless the user says otherwise: a new Wren profile
-// of its name, or the one it came into before, of that name.
-fn landing(
-    profile: &SourceProfile,
-    source: &str,
-    here: Option<&str>,
-    wren: &[WrenProfile],
-) -> Landing {
-    let name = shown_name(profile, source);
-    match wren.iter().find(|existing| {
-        existing.name.eq_ignore_ascii_case(&name) && Some(existing.id.as_str()) != here
-    }) {
-        Some(existing) => Landing::Existing {
-            id: existing.id.clone(),
-        },
-        None => Landing::New { name },
-    }
-}
-
-// Its extensions' icons are named for the page to fetch.
-fn listed_survey(survey: Survey) -> ListedSurvey {
-    ListedSurvey {
-        spaces: survey.spaces.filter(|count| count.spaces > 0),
-        bookmarks: survey.bookmarks,
-        history: survey.history,
-        cookies: survey.cookies,
-        extensions: survey
-            .extensions
-            .into_iter()
-            .map(|extension| ListedExtension {
-                id: extension.id,
-                name: extension.name,
-                icon: extension.icon.map(icons::id).unwrap_or_default(),
-                enabled: extension.enabled,
-            })
-            .collect(),
-        access: survey.no_access.then_some(FULL_DISK_ACCESS),
-    }
 }

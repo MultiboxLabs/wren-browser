@@ -1,11 +1,13 @@
-// wren://migrate's state (pages/migrate): where the page is, the sources,
-// what the user chose of the one they picked, what its profiles have, and
-// the run. The run is the app's: a page that opens during one shows it.
+// The state of a page that brings things over (pages/migrate, and
+// onboarding's import steps): where the page is, the sources, what the user
+// chose of the one they picked, what its profiles have, and the run. The run
+// is the app's: a page that opens during one shows it.
 
 import { useCallback, useEffect, useState } from "react";
 import {
   type Landing,
   migrate,
+  type MigrateCalls,
   type MigrateContext,
   type MigrateRun,
   type MigrateSource,
@@ -27,7 +29,8 @@ export type ThingSummary = { thing: Thing; count: number; pins?: number };
 /** A survey's key: its source's and profile's IDs. */
 const surveyKey = (source: string, profile: string) => `${source}/${profile}`;
 
-export function useMigrate() {
+/** The state, with the page's `calls`: wren://migrate's unless given others, which must not change. */
+export function useMigrate(calls: MigrateCalls = migrate) {
   const [context, setContext] = useState<MigrateContext>();
   const [sources, setSources] = useState<MigrateSource[]>();
   const [error, setError] = useState<string>();
@@ -44,21 +47,21 @@ export function useMigrate() {
   const fail = (reason: Error) => setError(reason.message);
 
   const loadSources = useCallback(() => {
-    migrate.sources().then((given) => {
+    calls.sources().then((given) => {
       setSources(given);
       setSourceId((id) => id ?? (given.find((source) => source.keepsSpaces) ?? given[0])?.id);
     }, fail);
-  }, []);
+  }, [calls]);
 
   useEffect(() => {
-    migrate.context().then(setContext, fail);
+    calls.context().then(setContext, fail);
     loadSources();
-    migrate.run().then(setRun, fail);
-    return migrate.onProgress((given) => {
+    calls.run().then(setRun, fail);
+    return calls.onProgress((given) => {
       setRun(given);
       setSeenRun(false);
     });
-  }, [loadSources]);
+  }, [calls, loadSources]);
 
   const source = sources?.find(({ id }) => id === sourceId);
 
@@ -66,11 +69,11 @@ export function useMigrate() {
   const survey = useCallback(() => {
     if (!source) return;
     for (const profile of source.profiles) {
-      migrate
+      calls
         .survey(source.id, profile.id)
         .then((given) => setSurveys((all) => ({ ...all, [surveyKey(source.id, profile.id)]: given })), fail);
     }
-  }, [source]);
+  }, [calls, source]);
   useEffect(() => {
     if (!source) return;
     setProfiles(Object.fromEntries(source.profiles.map(({ id, landing }) => [id, { on: true, landing }])));
@@ -164,10 +167,15 @@ export function useMigrate() {
     storeExtensions,
     chosenExtensions,
     setExtensions,
+    /** What comes over, of what the profiles chosen have. */
+    things,
     canStart: surveyed && things.length > 0 && chosen.length > 0,
-    start: () =>
-      source &&
-      migrate
+    /** Starts the run; one from before is put away as it does, with what went wrong. */
+    start: () => {
+      if (!source) return;
+      setSeenRun(true);
+      setError(undefined);
+      return calls
         .start({
           source: source.id,
           profiles: chosen.map(({ id }) => ({ id, landing: profiles[id].landing })),
@@ -177,7 +185,8 @@ export function useMigrate() {
         .then((given) => {
           setRun(given);
           setSeenRun(false);
-        }, fail),
+        }, fail);
+    },
     run,
     again: () => setSeenRun(true)
   };

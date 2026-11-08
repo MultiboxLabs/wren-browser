@@ -1,4 +1,4 @@
-// Each thing wren://migrate brings over, as a tile icon
+// Each thing wren://migrate and onboarding bring over, as a tile icon
 // (.claude/skills/tile-icons): a white glyph, drawn in the tile's 100 units,
 // with what is inside it cut out.
 

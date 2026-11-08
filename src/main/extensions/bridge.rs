@@ -5,7 +5,7 @@
 // whose first message says which page it is, from Chromium; then the page's
 // calls, each answered, as `wren.invoke`'s are, and the app's messages to
 // it, as `wren.on` gets them. src/renderer/ipc/tab-page.ts is the page's
-// side, and ipc/<part>.rs registers each page's calls (`handle`).
+// side, and ipc/<part>.rs registers each page's calls (`handle_call`).
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -84,22 +84,6 @@ impl Drop for Call {
             send_to(self.port, &message);
         }
     }
-}
-
-/// Answers `page`'s call `name` with `handler`, at once, with what the page
-/// passed as `V`, as `WebView::handle` does a web view's.
-pub fn handle<V, A>(
-    page: &'static Page,
-    name: &str,
-    handler: impl Fn(&Call, V) -> Result<A, String> + 'static,
-) where
-    V: DeserializeOwned,
-    A: Serialize,
-{
-    handle_call(page, name, move |call| {
-        let result = call.args::<V>().and_then(|args| handler(&call, args));
-        call.answer(result);
-    });
 }
 
 /// Answers `page`'s call `name` with `handler`, which answers the `Call`
