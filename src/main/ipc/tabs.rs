@@ -1,10 +1,16 @@
 // The page's tabs: each of the window's Browsers' tabs, in order, with their
-// groups, splits and open pins, which the page asks for once ("browser.tabs")
-// and is sent again as they change (changes.rs). src/renderer/ipc/tabs.ts is
-// the page's side. The calls that act on tabs are in browser.rs.
+// groups, splits and open pins, which the page asks for once ("browser.tabs").
+// As Chromium changes them (changes.rs), each batch of changes tells the page
+// what it changed of each Browser (`TabChanges`): the tabs that changed, or
+// which tab is active, or the whole list again when its structure or order
+// changed. src/renderer/ipc/tabs.ts is the page's side. The calls that act on
+// tabs are in browser.rs.
 
 use serde::Serialize;
-use wren::{Browser, BrowserTab, TabAlert, TabCrash, TabGroup, TabSplit, WebView};
+use wren::{
+    Browser, BrowserTab, Change, ChangeKind, TabAlert, TabCrash, TabFields, TabGroup, TabSplit,
+    TabState, WebView,
+};
 
 use super::groups::Group;
 use super::splits::Split;
@@ -78,6 +84,26 @@ pub struct Tabs {
     links: Vec<Link>,
 }
 
+/// What "browser.tabsChanged" says: tabs of one of the window's Browsers
+/// whose fields changed, each whole, and its open pins, which a tab's
+/// address changes (`Link::away`).
+#[derive(Serialize)]
+struct TabsChanged {
+    /// The space they are the tabs of, as `Tabs::space`.
+    space: Option<SpaceId>,
+    tabs: Vec<Tab>,
+    links: Vec<Link>,
+}
+
+/// What "browser.activeChanged" says: another tab of one of the window's
+/// Browsers became active, the order of its tabs as it was.
+#[derive(Serialize)]
+struct ActiveChanged {
+    /// The space they are the tabs of, as `Tabs::space`.
+    space: Option<SpaceId>,
+    active: Option<i32>,
+}
+
 /// A pin open in the Browser: its tab, or a split pin's two, and whether
 /// each is away from the pin's page.
 #[derive(Serialize)]
@@ -95,6 +121,96 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let _ = web_view.handle("browser.tabs", move |()| {
         with_window(&weak, |window| Ok(every_tab_list(window)))
     });
+}
+
+/// The fields of a tab the list draws.
+fn drawn() -> TabFields {
+    TabFields::TITLE
+        | TabFields::URL
+        | TabFields::FAVICON
+        | TabFields::LOADING
+        | TabFields::HISTORY
+        | TabFields::CRASHED
+        | TabFields::ALERTS
+        | TabFields::MUTED
+        | structure()
+}
+
+/// The fields of a tab that change the list's structure: which rows there
+/// are, and which tabs are pins'.
+fn structure() -> TabFields {
+    TabFields::GROUP | TabFields::SPLIT | TabFields::PINNED
+}
+
+/// What one batch of Chromium's changes says of a Browser's tabs, heard
+/// change by change, then told to the page in as few messages as say it.
+#[derive(Default)]
+pub struct TabChanges {
+    // Tabs were added, removed or moved, or another became active.
+    listed: bool,
+    // The list's structure changed, or the tab in full screen.
+    whole: bool,
+    // The tabs whose fields the list draws changed.
+    changed: Vec<BrowserTab>,
+}
+
+impl TabChanges {
+    /// Hears one of the Browser's changes.
+    pub fn hear(&mut self, change: &Change) {
+        match change.kind {
+            ChangeKind::Tabs => self.listed = true,
+            ChangeKind::Group | ChangeKind::Split | ChangeKind::Fullscreen => self.whole = true,
+            ChangeKind::Tab => {
+                let Some(tab) = change.tab else { return };
+                if change.tab_fields.intersects(structure()) {
+                    self.whole = true;
+                } else if change.tab_fields.intersects(drawn()) && !self.changed.contains(&tab) {
+                    self.changed.push(tab);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Tells the page what the changes heard changed of `browser`'s tabs.
+    /// The whole list goes when its structure changed, or its tabs or their
+    /// order, or when the page has not been sent it yet, so has nothing to
+    /// change; it says all the rest. Otherwise, which tab is active, if
+    /// that changed, and the tabs that changed.
+    pub fn send(self, window: &BrowserWindow, browser: &Browser) {
+        if !self.listed && !self.whole && self.changed.is_empty() {
+            return;
+        }
+        let page = &window.page_tabs;
+        let reordered = || {
+            let ids: Vec<i32> = browser.tabs().into_iter().map(BrowserTab::id).collect();
+            !page.is_order(browser, &ids)
+        };
+        if self.whole || !page.has_order(browser) || (self.listed && reordered()) {
+            return send_tabs(window, browser);
+        }
+        let space = page_space(window.place_of(browser));
+        if self.listed {
+            let active = browser.active_tab().map(BrowserTab::id);
+            send_counted(
+                window,
+                "browser.activeChanged",
+                &ActiveChanged { space, active },
+            );
+        }
+        if !self.changed.is_empty() {
+            let changed = TabsChanged {
+                space,
+                tabs: self
+                    .changed
+                    .into_iter()
+                    .map(|tab| tab_of(window, tab, tab.state().ok()))
+                    .collect(),
+                links: links(browser),
+            };
+            send_counted(window, "browser.tabsChanged", &changed);
+        }
+    }
 }
 
 /// Tells the page the tabs changed: which there are, their order, a tab's
@@ -159,10 +275,12 @@ fn every_tab_list(window: &BrowserWindow) -> Vec<Tabs> {
     every
 }
 
+// The Browser's tabs, whole, which the page is sent: their IDs are kept as
+// the order the page has (`PageTabs::listed`).
 fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
     let mut groups: Vec<TabGroup> = Vec::new();
     let mut splits: Vec<TabSplit> = Vec::new();
-    let tabs = browser
+    let tabs: Vec<Tab> = browser
         .tabs()
         .into_iter()
         .map(|tab| {
@@ -175,29 +293,12 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
             if let Some(split) = split.filter(|split| !splits.contains(split)) {
                 splits.push(split);
             }
-            let alert = |alert| state.is_some_and(|state| state.alert_set().contains(alert));
-            Tab {
-                id: tab.id(),
-                title: tab.title(),
-                url: tab.url(),
-                favicon: window.page_tabs.favicon(tab),
-                loading: state.is_some_and(|state| state.loading),
-                can_go_back: state.is_some_and(|state| state.can_go_back),
-                can_go_forward: state.is_some_and(|state| state.can_go_forward),
-                crashed: state.is_some_and(|state| state.crash != TabCrash::None),
-                capturing_screen: alert(TabAlert::CAPTURING_SCREEN),
-                being_captured: alert(TabAlert::BEING_CAPTURED),
-                camera: alert(TabAlert::CAMERA),
-                microphone: alert(TabAlert::MICROPHONE),
-                audible: alert(TabAlert::AUDIBLE),
-                muted: state.is_some_and(|state| state.muted),
-                group: group.map(|group| group.to_string()),
-                split: split.map(|split| split.to_string()),
-                pinned: state.is_some_and(|state| state.pinned),
-                hidden: placeholder::is_placeholder(tab),
-            }
+            tab_of(window, tab, state)
         })
         .collect();
+    window
+        .page_tabs
+        .listed(browser, tabs.iter().map(|tab| tab.id).collect());
     Tabs {
         browser: Some(browser.id()),
         space: page_space(window.place_of(browser)),
@@ -208,6 +309,35 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
         groups: groups.into_iter().map(Group::new).collect(),
         splits: splits.into_iter().filter_map(Split::new).collect(),
         links: links(browser),
+    }
+}
+
+// A tab as the list draws it, with its state, read once by the caller.
+fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> Tab {
+    let alert = |alert| state.is_some_and(|state| state.alert_set().contains(alert));
+    Tab {
+        id: tab.id(),
+        title: tab.title(),
+        url: tab.url(),
+        favicon: window.page_tabs.favicon(tab),
+        loading: state.is_some_and(|state| state.loading),
+        can_go_back: state.is_some_and(|state| state.can_go_back),
+        can_go_forward: state.is_some_and(|state| state.can_go_forward),
+        crashed: state.is_some_and(|state| state.crash != TabCrash::None),
+        capturing_screen: alert(TabAlert::CAPTURING_SCREEN),
+        being_captured: alert(TabAlert::BEING_CAPTURED),
+        camera: alert(TabAlert::CAMERA),
+        microphone: alert(TabAlert::MICROPHONE),
+        audible: alert(TabAlert::AUDIBLE),
+        muted: state.is_some_and(|state| state.muted),
+        group: state
+            .and_then(|state| state.group)
+            .map(|group| group.to_string()),
+        split: state
+            .and_then(|state| state.split)
+            .map(|split| split.to_string()),
+        pinned: state.is_some_and(|state| state.pinned),
+        hidden: placeholder::is_placeholder(tab),
     }
 }
 

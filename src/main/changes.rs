@@ -1,7 +1,8 @@
 // What Chromium's changes mean for a window's page: each window takes the
 // changes of the Browser it shows in front, and tells its page what it draws.
 // Of its Browsers behind, it tells only their tabs, which the sidebar draws
-// as it swipes to their spaces.
+// as it swipes to their spaces. Each Browser's tabs are told once a batch,
+// in as few messages as say what changed (`ipc::TabChanges`).
 
 use wren::{Browser, Change, ChangeKind, TabFields};
 
@@ -28,8 +29,7 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
     let Some(browser) = window.browser() else {
         return false;
     };
-    let drawn = drawn();
-    let mut tabs_changed = false;
+    let mut tab_changes = ipc::TabChanges::default();
     // The site is the active tab's, which a switch or a navigation
     // changes as well as Chromium's word on it.
     let mut site_changed = false;
@@ -49,14 +49,12 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
         if change.browser.as_ref() != Some(&browser) {
             continue;
         }
+        tab_changes.hear(change);
         match change.kind {
             ChangeKind::Tabs => {
-                tabs_changed = true;
                 site_changed = true;
                 title_changed = true;
             }
-            // The tab in full screen is among them.
-            ChangeKind::Group | ChangeKind::Split | ChangeKind::Fullscreen => tabs_changed = true,
             ChangeKind::SidePanel => ipc::send_side_panel(window, &browser),
             ChangeKind::Site => site_changed = true,
             ChangeKind::ExtensionActions => extensions_changed = true,
@@ -74,7 +72,6 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
             ChangeKind::ModalDialog => ipc::send_blocked(window),
             ChangeKind::Tab => {
                 let Some(tab) = change.tab else { continue };
-                tabs_changed |= change.tab_fields.intersects(drawn);
                 let active = browser.active_tab() == Some(tab);
                 site_changed |= change.tab_fields.contains(TabFields::URL) && active;
                 title_changed |= change.tab_fields.contains(TabFields::TITLE) && active;
@@ -97,9 +94,7 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
             _ => {}
         }
     }
-    if tabs_changed {
-        ipc::send_tabs(window, &browser);
-    }
+    tab_changes.send(window, &browser);
     if site_changed {
         ipc::send_site(window, &browser);
     }
@@ -129,27 +124,11 @@ fn forget_closed_tabs(window: &BrowserWindow, changes: &[Change]) {
     }
 }
 
-/// What the sidebar draws of a tab.
-fn drawn() -> TabFields {
-    TabFields::TITLE
-        | TabFields::URL
-        | TabFields::FAVICON
-        | TabFields::LOADING
-        | TabFields::HISTORY
-        | TabFields::CRASHED
-        | TabFields::GROUP
-        | TabFields::SPLIT
-        | TabFields::PINNED
-        | TabFields::ALERTS
-        | TabFields::MUTED
-}
-
 /// Tells `window`'s page of the changes to the tabs of its Browsers behind
-/// the one in front, once a Browser however many changed.
+/// the one in front.
 fn apply_behind(window: &BrowserWindow, changes: &[Change]) {
     let front = window.browser();
-    let drawn = drawn();
-    let mut changed: Vec<Browser> = Vec::new();
+    let mut behind: Vec<(Browser, ipc::TabChanges)> = Vec::new();
     for change in changes {
         let Some(browser) = change.browser.as_ref() else {
             continue;
@@ -157,25 +136,21 @@ fn apply_behind(window: &BrowserWindow, changes: &[Change]) {
         if front.as_ref() == Some(browser) || !window.has_browser(browser) {
             continue;
         }
-        let tabs_changed = match change.kind {
-            ChangeKind::Tabs | ChangeKind::Group | ChangeKind::Split | ChangeKind::Fullscreen => {
-                true
-            }
-            ChangeKind::Tab => {
-                if let Some(tab) = change.tab
-                    && change.tab_fields.contains(TabFields::FAVICON)
-                {
-                    window.page_tabs.favicon_changed(tab);
-                }
-                change.tab_fields.intersects(drawn)
-            }
-            _ => false,
-        };
-        if tabs_changed && !changed.contains(browser) {
-            changed.push(browser.clone());
+        if let Some(tab) = change.tab
+            && change.tab_fields.contains(TabFields::FAVICON)
+        {
+            window.page_tabs.favicon_changed(tab);
         }
+        let at = match behind.iter().position(|(each, _)| each == browser) {
+            Some(at) => at,
+            None => {
+                behind.push((browser.clone(), ipc::TabChanges::default()));
+                behind.len() - 1
+            }
+        };
+        behind[at].1.hear(change);
     }
-    for browser in changed {
-        ipc::send_tabs(window, &browser);
+    for (browser, tab_changes) in behind {
+        tab_changes.send(window, &browser);
     }
 }

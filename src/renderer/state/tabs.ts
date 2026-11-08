@@ -3,7 +3,7 @@
 // in front (state/browser.tsx); the rest are there before the sidebar draws
 // their spaces beside the window's, so it never waits for them.
 
-import { type BrowserTab, type BrowserTabs, hasApp, tabs } from "@/ipc";
+import { type ActiveChanged, type BrowserTab, type BrowserTabs, hasApp, tabs, type TabsChanged } from "@/ipc";
 import { updateReceived } from "@/perf/measure";
 import { settle } from "@/utils/settle";
 
@@ -72,17 +72,21 @@ export class TabsStore {
     // A Browser's tabs heard before the answer are newer than the answer's.
     const heard = new Set<Key>();
     let live = true;
-    const stop = tabs.onList((said) => {
-      heard.add(said.space);
-      this.take([said]);
-    });
+    const stops = [
+      tabs.onList((said) => {
+        heard.add(said.space);
+        this.take([said]);
+      }),
+      tabs.onChanged((changed) => this.change(changed)),
+      tabs.onActive((changed) => this.activate(changed))
+    ];
     tabs.list().then(
       (every) => live && this.take(every.filter((said) => !heard.has(said.space))),
       () => {}
     );
     return () => {
       live = false;
-      stop();
+      stops.forEach((stop) => stop());
     };
   }
 
@@ -100,6 +104,31 @@ export class TabsStore {
       this.spaces.set(said.space, spaceTabs(settled));
       if (said.front) this.front = said.space;
     }
+    this.changed();
+  }
+
+  // A tab's change, or the active tab's, is for the tabs the page was last
+  // sent whole. The page ignores one for a space it has none of, or for a
+  // tab it doesn't have: that happens only for a change the page hears
+  // before the whole list it doesn't have yet, which says it too.
+  private change({ space, tabs: changed, links }: TabsChanged) {
+    const kept = this.spaces.get(space)?.said;
+    if (!kept) return;
+    updateReceived();
+    const byId = new Map(changed.map((tab) => [tab.id, tab]));
+    const list = kept.tabs.map((tab) => byId.get(tab.id) ?? tab);
+    this.update(space, { ...kept, tabs: settle(kept.tabs, list), links });
+  }
+
+  private activate({ space, active }: ActiveChanged) {
+    const kept = this.spaces.get(space)?.said;
+    if (!kept) return;
+    updateReceived();
+    this.update(space, { ...kept, active });
+  }
+
+  private update(space: Key, said: BrowserTabs) {
+    this.spaces.set(space, spaceTabs(said));
     this.changed();
   }
 
