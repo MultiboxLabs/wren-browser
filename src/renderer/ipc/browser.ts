@@ -1,36 +1,6 @@
-import type { TabGroup } from "./groups";
-import type { TabSplit } from "./splits";
-
-/** A tab as the sidebar draws it. */
-export type BrowserTab = {
-  id: number;
-  title: string;
-  url: string;
-  loading: boolean;
-  canGoBack: boolean;
-  canGoForward: boolean;
-  crashed: boolean;
-  /** Its page captures a window or a screen. */
-  capturingScreen: boolean;
-  /** Something captures its page, such as a call it is shared to. */
-  beingCaptured: boolean;
-  /** Its page records from the camera. */
-  camera: boolean;
-  /** Its page records from the microphone. */
-  microphone: boolean;
-  /** Its page plays sound, or just did, muted or not. */
-  audible: boolean;
-  /** Its sound is muted. */
-  muted: boolean;
-  /** Its group's ID, if it is in one. */
-  group: string | null;
-  /** Its split's ID, if it is in one. */
-  split: string | null;
-  /** Chromium has pinned it: it is a pin's, and not in the list. */
-  pinned: boolean;
-  /** It stands in for the Browser's tabs while it has none: a New Tab page the window neither lists nor shows. */
-  hidden: boolean;
-};
+// The calls that act on the window's tabs, and what the app says of a tab
+// beside the list: its favicon, the link under the pointer and its picture.
+// The tabs themselves, as the page draws them, are in tabs.ts.
 
 /** The address of the link under the pointer in a tab's page, or of the link with the keyboard; null for none. */
 export type TabStatus = { tab: number; link: string | null };
@@ -38,36 +8,10 @@ export type TabStatus = { tab: number; link: string | null };
 /** A new picture of a tab's page: the ID it is served at (`previewUrl`). */
 export type TabPreviewChanged = { tab: number; preview: string };
 
-/** The tabs of one of the window's Browsers, in its order, and which is active. */
-export type BrowserTabs = {
-  /** The Browser's ID, which names its side panel's element; null while its space has no Browser. */
-  browser: number | null;
-  /** The space they are the tabs of; null while the window has none yet. */
-  space: number | null;
-  /** They are the tabs of the space the window shows; the last said so are the window's, as they come before the window says it is on their space. */
-  front: boolean;
-  tabs: BrowserTab[];
-  active: number | null;
-  /** The tab whose page has the whole window, if one has. */
-  fullScreen: number | null;
-  /** The groups of `tabs`, in their order. */
-  groups: TabGroup[];
-  /** The splits of `tabs`, in their order. */
-  splits: TabSplit[];
-  /** The pins open in the Browser. */
-  links: PinLink[];
-};
-
-/** A pin open in the Browser: its tab, or a split pin's two, and whether each is away from the pin's page. */
-export type PinLink = { pin: number; tabs: number[]; away: boolean[] };
-
 /** What moves as one in the list, by one of its tabs' IDs: the tab, the split it is in, or its group. */
 export type TabUnit = { tab: number } | { split: number } | { group: number };
 
 export const browser = {
-  /** The tabs of each of the window's Browsers; "browser.tabs" says each one's again as they change. */
-  tabs: () => wren.invoke<BrowserTabs[]>("browser.tabs"),
-  onTabs: (listener: (tabs: BrowserTabs) => void) => wren.on<BrowserTabs>("browser.tabs", listener),
   /** A tab's favicon's icon ID (iconUrl), or null for none, for a tab of any of the window's Browsers. */
   favicon: (id: number) => wren.invoke<string | null>("tab.favicon", id),
   /** Hears which tab's favicon changed, to ask for it again. */

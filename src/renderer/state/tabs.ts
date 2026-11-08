@@ -1,11 +1,11 @@
 // The tabs of every Browser the window has open, each under its space, with
-// their favicons, as the app last said (ipc/browser.ts). The window's own
+// their favicons, as the app last said (ipc/tabs.ts). The window's own
 // are the last said to be in front (state/browser.tsx); the rest are there
 // before the sidebar draws their spaces beside the window's, so it never
 // waits for them. Favicons are kept by tab, so a tab moved to another space
 // keeps its own.
 
-import { browser, type BrowserTab, type BrowserTabs, hasApp } from "@/ipc";
+import { browser, type BrowserTab, type BrowserTabs, hasApp, tabs } from "@/ipc";
 import { updateReceived } from "@/perf/measure";
 import { settle } from "@/utils/settle";
 
@@ -81,12 +81,12 @@ export class TabsStore {
     // A Browser's tabs heard before the answer are newer than the answer's.
     const heard = new Set<Key>();
     let live = true;
-    const stopTabs = browser.onTabs((said) => {
+    const stopTabs = tabs.onList((said) => {
       heard.add(said.space);
       this.take([said]);
     });
     const stopFavicons = browser.onFavicon((id) => this.ask(id));
-    browser.tabs().then(
+    tabs.list().then(
       (every) => live && this.take(every.filter((said) => !heard.has(said.space))),
       () => {}
     );

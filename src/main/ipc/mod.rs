@@ -28,6 +28,7 @@ mod site;
 mod spaces;
 mod splits;
 mod tab_switcher;
+mod tabs;
 mod toast;
 mod update;
 mod window;
@@ -40,11 +41,11 @@ use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
 use crate::shell::{BrowserWindow, WindowId};
-use crate::tabs;
+use crate::tabs::is_new_tab;
 
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;
-pub use browser::{send_favicon, send_no_tabs_for, send_status, send_tabs};
+pub use browser::{send_favicon, send_status};
 pub use default_browser::broadcast_default_browser;
 pub use downloads::{
     downloads_changed, send_downloads, send_indicator, send_reveal, show_downloads_bubble,
@@ -64,6 +65,7 @@ pub use sidebar::check_sidebar_hover;
 pub use site::send_site;
 pub use spaces::broadcast_spaces;
 pub use tab_switcher::watch_tab_switcher_keys;
+pub use tabs::{send_no_tabs_for, send_tabs};
 pub use toast::{OwnToast, send_toast, show_toast};
 pub use update::{broadcast_update, send_open_update};
 pub use window::{send_blocked, send_choose_space, send_full_screen, show_active};
@@ -97,6 +99,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     sidebar::handle(web_view, window);
     settings::handle(web_view, window);
     browser::handle(web_view, window, mt);
+    tabs::handle(web_view, window);
     groups::handle(web_view, window, mt);
     splits::handle(web_view, window, mt);
     side_panel::handle(web_view, window);
@@ -139,7 +142,7 @@ pub fn send_browser(window: &BrowserWindow, browser: &Browser) {
 /// Tells the page its space has no Browser, or it is on none: no tabs, and
 /// nothing of one; then the space, as `send_browser` does.
 pub fn send_no_browser(window: &BrowserWindow) {
-    browser::send_no_tabs(window);
+    tabs::send_no_tabs(window);
     side_panel::send_no_side_panel(window);
     site::send_no_site(window);
     extensions::send_no_extensions(window);
@@ -205,7 +208,7 @@ fn menu_call<Id: DeserializeOwned>(
 // again.
 fn give_back_keyboard(browser: &Browser) {
     if let Some(tab) = browser.active_tab()
-        && !tabs::is_new_tab(&tab.url())
+        && !is_new_tab(&tab.url())
     {
         let _ = tab.focus();
     }
