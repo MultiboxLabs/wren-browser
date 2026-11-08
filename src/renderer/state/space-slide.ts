@@ -37,10 +37,16 @@ const SPACE_GAP = 24;
 export const spacing = (sidebar: HTMLElement) => sidebar.clientWidth + SPACE_GAP;
 
 const out = { duration: 0.08, ease: "easeIn" } as const;
-// Critically damped: in place in about 0.2s, without going past it. A space
-// chosen glides to it so, as quickly as a press wants.
-const spring = { type: "spring", stiffness: 1000, damping: 63 } as const;
-// A swipe's glide: critically damped too, with a response of 0.3s, so it
+// A space chosen glides to it as a press wants: from still, critically
+// damped, with a response of 0.25s, so it never goes past.
+const PRESS_RESPONSE = 0.25;
+const spring = {
+  type: "spring",
+  stiffness: ((2 * Math.PI) / PRESS_RESPONSE) ** 2,
+  damping: (4 * Math.PI) / PRESS_RESPONSE,
+  mass: 1
+} as const;
+// A swipe's glide: critically damped, with a response of 0.3s, so it
 // takes the fingers' speed and slows into place rather than snapping there.
 const RESPONSE = 0.3;
 const glide = {
@@ -201,7 +207,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
     if (held.current) return x.jump(0);
     // Not drawn: it slides in the short way.
     x.jump(Math.sign(now - was) * SLIDE);
-    void animate(x, 0, spring).then(rest);
+    void animate(x, 0, { ...spring, velocity: 0 }).then(rest);
   }, [current]);
 
   return {
@@ -251,7 +257,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
         setStrip([...stripNow.current.filter((each) => each.slot !== taken && each.id !== id), { slot, id }]);
       }
       setBeside(true);
-      glideToSlot(slot, spring, x.getVelocity());
+      glideToSlot(slot, spring, 0);
       then();
     },
     settle: () => {
@@ -259,7 +265,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       staying.current = false;
       held.current = false;
       target.current = { slot: 0, motion: spring };
-      void animate(x, 0, spring).then(rest);
+      void animate(x, 0, { ...spring, velocity: 0 }).then(rest);
     },
     stay: () => {
       staying.current = true;
