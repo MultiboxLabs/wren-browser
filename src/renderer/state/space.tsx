@@ -99,6 +99,9 @@ const drawn = (id: number, { name, icon, theme }: NewSpace): Space => ({
   scheme: contentScheme(theme)
 });
 
+/** One of the spaces, as the window draws it. */
+export const spaceOf = (entry: SpaceEntry): Space => drawn(entry.id, entry);
+
 /** A profile's off-the-record side is drawn all but black, whatever the profile's colour. */
 const OFF_THE_RECORD_THEME: SpaceTheme = { ...defaultTheme("#0c0c0d"), appearance: "dark", intensity: 1 };
 

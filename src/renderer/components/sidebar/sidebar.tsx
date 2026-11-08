@@ -7,12 +7,13 @@ import { Archive, Plus } from "lucide-react";
 import {
   AnimatePresence,
   motion,
+  type MotionValue,
   useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
   useTransform
 } from "motion/react";
-import { type RefObject, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { browser } from "@/ipc";
 import { Button } from "@/components/ui/button";
 import { AddressField } from "@/components/address/field";
@@ -37,8 +38,8 @@ import { BrowserOfSpace, useBrowser } from "@/state/browser";
 import { useDownloadIndicator } from "@/state/downloads";
 import { type LibrarySettings, useSettings } from "@/state/library";
 import { usePins } from "@/state/pins";
-import { useDrawnSpace, useSpace } from "@/state/space";
-import { SLIDE } from "@/state/space-slide";
+import { type Space, spaceOf, useDrawnSpace, useSpace } from "@/state/space";
+import { SLIDE, spacing } from "@/state/space-slide";
 
 export type SidebarProps = {
   /** Docked beside the page: its button hides it, rather than keeps it. */
@@ -88,16 +89,50 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
   );
 }
 
+/** Where a space's content is drawn: the window's (0), or beside it, the previous space's (-1) or the next one's (1). */
+type Page = -1 | 0 | 1;
+
+/** The most a space's content fades as it slides out with nothing beside it. */
+const FADED = 0.85;
+
 /**
- * The space `id`, a render after it changes: once the window has put the
- * space's look on the page (useWindowTheme, around the sidebar, in a layout
- * effect too), and still before it paints. What mounts for the space then
- * starts in its colours, rather than tweening from the last space's.
+ * A space's content at `page`, a sidebar's width and a gap from the
+ * window's for each page. One beside the window's takes no pointer, focus
+ * or VoiceOver. The window's fades only as it slides the short way a press
+ * makes, with nothing beside it; beside another, each stays whole.
  */
-function useThemedSpace(id: number) {
-  const [themed, setThemed] = useState(id);
-  useLayoutEffect(() => setThemed(id), [id]);
-  return themed;
+function SpacePage({
+  page,
+  x,
+  pitch,
+  fades,
+  children
+}: {
+  page: Page;
+  x: MotionValue<number>;
+  /** How far apart the pages are, in points. */
+  pitch: MotionValue<number>;
+  /** Whether it fades as it moves, read as it moves. */
+  fades: () => boolean;
+  children: ReactNode;
+}) {
+  const opacity = useTransform(x, (at) => (fades() ? 1 - Math.min(Math.abs(at) / SLIDE, 1) * FADED : 1));
+  const offset = useTransform(pitch, (apart) => page * apart);
+  return (
+    // Every page is laid out in the same place, and moved beside by a
+    // transform in points, which Motion takes out as it measures (it can't
+    // take out a `calc()`). So as the window switches to a page beside, nothing in it
+    // is laid out anywhere new, and its tiles and rows don't slide as if
+    // they had moved.
+    <motion.div
+      inert={page !== 0}
+      aria-hidden={page !== 0 || undefined}
+      style={{ opacity, x: offset }}
+      className="absolute inset-0 flex min-h-0 flex-col"
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visible }: SidebarProps) {
@@ -105,6 +140,16 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   // A swipe across the sidebar goes to the next space or the previous one;
   // the space being made is after the last.
   const area = useRef<HTMLDivElement>(null);
+  // How far apart the spaces' content is side by side, as the sidebar is wide.
+  const pitch = useMotionValue(0);
+  useLayoutEffect(() => {
+    const element = area.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => pitch.set(spacing(element)));
+    observer.observe(element);
+    pitch.set(spacing(element));
+    return () => observer.disconnect();
+  }, []);
   const at = newSpace ? spaces.length : spaces.findIndex(({ id }) => id === space.id);
   const neighbour = (by: 1 | -1) => (at < 0 ? undefined : spaces[at + by]);
   useSpaceSwipe(
@@ -117,9 +162,35 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
     }
   );
   const swipe = slide.x;
-  // The content fades as it slides away.
-  const fade = useTransform(swipe, (x) => 1 - Math.min(Math.abs(x) / SLIDE, 1) * 0.85);
-  const themed = useThemedSpace(space.id);
+  // The spaces beside the window's, drawn while a swipe moves the content.
+  const before = neighbour(-1);
+  const after = neighbour(1);
+  const pages = useMemo(
+    () =>
+      slide.beside
+        ? (
+            [
+              [-1, before],
+              [1, after]
+            ] as const
+          ).flatMap(([page, entry]) => (entry ? [{ page, space: spaceOf(entry) }] : []))
+        : [],
+    [slide.beside, before, after]
+  );
+  // Read as the content moves, not as it was drawn.
+  const besideNow = useRef(slide.beside);
+  besideNow.current = slide.beside;
+  const fades = () => !besideNow.current;
+  const content = (drawn: Space, page: Page) => (
+    // Each space's own, so one's tabs never leave or arrive in another's.
+    <SpaceColours space={drawn}>
+      <BrowserOfSpace space={drawn.id}>
+        <ListBelowContext value={page === 0 ? below : null}>
+          <SpaceContent omnibox={omnibox} address={page === 0 ? address : beside} settings={settings} />
+        </ListBelowContext>
+      </BrowserOfSpace>
+    </SpaceColours>
+  );
   const { current: active } = useBrowser();
   // Read once for every space's content, not again as each comes in.
   const settings = useSettings(true);
@@ -152,6 +223,8 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   );
   // Where a download that starts flies to.
   const library = useRef<HTMLDivElement>(null);
+  // The address field of a space beside the window's, which nothing opens over.
+  const beside = useRef<HTMLDivElement>(null);
 
   return (
     <div ref={area} className="relative flex h-full flex-col">
@@ -196,21 +269,19 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
         style={{ maskImage: mask, maskComposite: "intersect" }}
         className={cn("-mx-2 flex min-h-0 flex-1 flex-col overflow-x-clip px-2", newSpace && "no-drag")}
       >
-        <motion.div style={{ x: swipe, opacity: fade }} className="flex min-h-0 flex-1 flex-col">
-          {newSpace ? (
-            <NewSpaceForm state={newSpace} />
-          ) : (
-            themed === space.id && (
-              // Each space's own, so one's tabs never leave or arrive in another's.
-              <SpaceColours key={space.id} space={space}>
-                <BrowserOfSpace space={space.id}>
-                  <ListBelowContext value={below}>
-                    <SpaceContent omnibox={omnibox} address={address} settings={settings} />
-                  </ListBelowContext>
-                </BrowserOfSpace>
-              </SpaceColours>
-            )
-          )}
+        {/* Keyed by space, so a space's content drawn beside stays as it
+            is as the window switches to it, and only moves to the middle. */}
+        <motion.div style={{ x: swipe }} className="relative flex min-h-0 flex-1 flex-col">
+          {[
+            <SpacePage key={newSpace ? "new-space" : space.id} page={0} x={swipe} pitch={pitch} fades={fades}>
+              {newSpace ? <NewSpaceForm state={newSpace} /> : content(space, 0)}
+            </SpacePage>,
+            ...pages.map(({ page, space: drawn }) => (
+              <SpacePage key={drawn.id} page={page} x={swipe} pitch={pitch} fades={fades}>
+                {content(drawn, page)}
+              </SpacePage>
+            ))
+          ]}
         </motion.div>
       </motion.div>
 

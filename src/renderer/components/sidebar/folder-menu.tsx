@@ -4,12 +4,14 @@
 // most recently used first, each with when it was ("2 minutes ago"). The
 // search has the keyboard while the menu is open, from the tab's page too,
 // and gives it back as it goes; ↑ and ↓ move the highlight, and Enter, or a
-// press, opens the pin as a press on its row does.
+// press, opens the pin as a press on its row does. While the content slides
+// between spaces, the menu closes, and none opens.
 
 import { Search } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { type Pin, type PinFolder, pins as pinsIpc } from "@/ipc";
 import { useBrowser } from "@/state/browser";
+import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { ago, useNow } from "@/utils/now";
 import { HoverCard } from "@/components/ui/hover-card";
@@ -52,10 +54,15 @@ export function FolderMenu({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  // The content slides between spaces while the spaces beside are drawn.
+  const shown = enabled && !useSpace().slide.beside;
+  useEffect(() => {
+    if (!shown) setOpen(false);
+  }, [shown]);
   return (
     <HoverCard
-      open={open && enabled}
-      onOpenChange={(next) => setOpen(next && enabled)}
+      open={open && shown}
+      onOpenChange={(next) => setOpen(next && shown)}
       trigger={children}
       label={folder.name}
       align="center"

@@ -3,12 +3,12 @@
 // from wheel events, so it works wherever the page does.
 //
 // The content follows the fingers at half their pace, as if the spaces lay
-// side by side, a sidebar's width apart, and gives less and less past the
-// first and the last (state/space-slide.ts draws it). As the fingers lift it
-// goes on to a space: the one it was heading for, if it was still moving at
-// all, or else the nearer one; never further than the next along. If that is
-// another space, the window switches to it at once, as the content glides
-// there. With Reduced Motion nothing moves, and a swipe switches as it would.
+// side by side, a sidebar's width and a gap apart, and gives less and less
+// past the first and the last (state/space-slide.ts draws it). As the
+// fingers lift it goes on to the space nearest where its speed would carry
+// it, so a flick goes on and fingers that slow down at a space land there;
+// never further than the next along. If that is another space, the window
+// switches to it at once, as the content glides there. With Reduced Motion nothing moves, and a swipe switches as it would.
 //
 // The runtime tells the page where a trackpad's fingers are (`wrenPhase`),
 // so a swipe is from their landing to their lifting. Its first move decides
@@ -18,7 +18,7 @@
 // wheel, which has no phases, steps a space at a time as it turns sideways.
 
 import { type RefObject, useEffect, useRef } from "react";
-import type { SpaceSlide } from "@/state/space-slide";
+import { type SpaceSlide, spacing } from "@/state/space-slide";
 import { prefersReducedMotion } from "@/utils/motion";
 
 // How far the content moves for the fingers' scroll.
@@ -31,6 +31,9 @@ const GIVE_MOST = 255;
 // their last this many ms. Under this many points a second, it was still.
 const RECENT = 100;
 const STILL = 5;
+// Where the content is headed as the fingers lift: as far as it goes in this
+// many seconds at their speed.
+const CARRY = 0.3;
 // The lift comes up to this many ms after the fingers leave, while Chromium
 // waits to see whether a glide follows; when one does, just before it.
 const LATE_LIFT = 100;
@@ -68,9 +71,9 @@ const placeOf = (strip: Strip, shown: number) => {
 
 /**
  * The space the content goes to as the fingers lift from `at`, moving at
- * `speed`: the one ahead of it if it moves, or else the nearer. A swipe that
- * caught the content moving throws it again, to the space beyond it either
- * way.
+ * `speed`: the one nearest where that speed carries it, so a drift back as
+ * the fingers settle doesn't undo a swipe. A swipe that caught the content
+ * moving throws it again, to the space beyond it either way.
  */
 function landing({ pages, width }: Strip, at: number, speed: number, caught: boolean): Page {
   const away = pages.map((page) => page * width - at);
@@ -78,9 +81,12 @@ function landing({ pages, width }: Strip, at: number, speed: number, caught: boo
     0,
     away.findLastIndex((distance) => distance <= 0)
   );
-  const nearest = away.reduce((best, distance, index) => (Math.abs(distance) < Math.abs(away[best]) ? index : best), 0);
-  let index = nearest;
-  if (Math.abs(speed) >= STILL) index = caught ? behind + Math.sign(speed) : behind + (speed > 0 ? 1 : 0);
+  const headed = at + speed * CARRY;
+  let index = pages.reduce<number>(
+    (best, page, i) => (Math.abs(page * width - headed) < Math.abs(pages[best] * width - headed) ? i : best),
+    0
+  );
+  if (caught && Math.abs(speed) >= STILL) index = behind + Math.sign(speed);
   // Never further than a space either side of the one behind it.
   index = Math.min(Math.max(index, behind - 1, 0), behind + 1, pages.length - 1);
   return pages[index];
@@ -143,7 +149,7 @@ export function useSpaceSwipe(
 
     const strip = (): Strip => ({
       pages: ([-1, 0, 1] as const).filter((page) => page === 0 || latest.current.canStep(page)),
-      width: element.clientWidth
+      width: spacing(element)
     });
     // Takes the place from where the content is now: the window may have
     // switched to the space it was gliding to meanwhile, a width over.
