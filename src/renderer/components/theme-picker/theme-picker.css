@@ -1,0 +1,15 @@
+/* A knob of the theme picker's pad that comes once the pad is drawn
+   (color-pad.tsx): it grows from nothing where it is put. */
+.picker-knob-in {
+  animation: picker-knob-in 300ms var(--ease-out-strong);
+}
+@keyframes picker-knob-in {
+  from {
+    scale: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .picker-knob-in {
+    animation: none;
+  }
+}

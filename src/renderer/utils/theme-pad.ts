@@ -1,22 +1,26 @@
 // What the theme picker's colour pad does with a colour: where its knob is,
-// what colour a knob is at, and the editor state that holds between them.
+// what colour a knob is at, and the editor state that holds between them. The
+// pad works in HSL, though the theme keeps its colour as HSB.
 //
 // A knob is at a point in pad units, -1…1 from the centre with y pointing
 // down. Its angle is the colour's hue (red at 3 o'clock, turning clockwise)
-// and its distance from the centre its brightness, across a range around the
-// colour it opened on. Saturation is not on the pad: it is the one the colour
-// had when the picker opened or a preset was chosen. The appearance does not
-// change the colour: it is how the window draws it (utils/theme.ts).
+// and its distance from the centre its lightness, across a range around the
+// colour it opened on, darkest at the centre. Saturation is not on the pad.
+// It is the one the colour had when the picker opened or a preset was chosen.
+// The appearance does not change the colour. It is how the window draws it
+// (utils/theme.ts).
 
 import type { Hsb, SpaceTheme } from "@/ipc";
-import { hueOffsets, rotate } from "./theme";
+import { hueOffsets, isBlank, rotate } from "./theme";
+import type { PresetSwatch } from "./theme-presets";
 
 export type Point = { x: number; y: number };
 
 /** What the picker holds besides the theme. */
 export type Editor = {
+  /** HSL's. */
   saturation: number;
-  /** The brightness at the pad's centre and at its edge. */
+  /** The lightness at the pad's centre and at its edge. */
   lo: number;
   hi: number;
 };
@@ -24,36 +28,54 @@ export type Editor = {
 type Appearance = SpaceTheme["appearance"];
 
 // How far from the centre the edge of the range is, so a knob at full
-// brightness is not on the pad's very border.
+// lightness is not on the pad's very border.
 const EDGE = 0.99;
 
 const clamp = (value: number, low = 0, high = 1) => Math.min(high, Math.max(low, value));
 
-/** The editor state for a theme as the picker opens on it: the pad spans its brightness, and a little either side. */
-export function editorFor({ primary }: SpaceTheme): Editor {
-  const { saturation, brightness } = primary;
+// HSB's saturation and brightness as HSL's saturation and lightness, and back.
+function toHsl({ saturation, brightness }: Hsb) {
+  const lightness = brightness * (1 - saturation / 2);
+  const room = Math.min(lightness, 1 - lightness);
+  return { saturation: room === 0 ? 0 : (brightness - lightness) / room, lightness };
+}
+function fromHsl(hue: number, saturation: number, lightness: number): Hsb {
+  const brightness = lightness + saturation * Math.min(lightness, 1 - lightness);
+  return { hue, saturation: brightness === 0 ? 0 : 2 * (1 - lightness / brightness), brightness };
+}
+
+// The pad for a theme with no colour chosen: full saturation, from pure
+// colour at the centre out to a pastel at the edge. All of it is at full
+// brightness, brighter than any preset.
+const VIVID: Editor = { saturation: 1, lo: 0.5, hi: 0.75 };
+
+/**
+ * The editor state for a theme as the picker opens on it: the pad spans its
+ * lightness, and a quarter either side. A grey keeps a little saturation, so
+ * that it can be dragged to a colour. A blank theme gets `VIVID`, so
+ * the first press on the pad gives a bright colour.
+ */
+export function editorFor(theme: SpaceTheme): Editor {
+  if (isBlank(theme)) return VIVID;
+  const { saturation, lightness } = toHsl(theme.primary);
   return {
     saturation: Math.max(saturation, 0.01),
-    lo: Math.max(brightness - 0.25, 0.01),
-    hi: Math.min(brightness + 0.25, 0.97)
+    lo: Math.max(lightness - 0.25, 0.01),
+    hi: Math.min(lightness + 0.25, 0.97)
   };
 }
 
 /** Where a colour's knob is. */
-export function knobAt({ hue, brightness }: Hsb, { lo, hi }: Editor): Point {
-  const radius = hi === lo ? 0 : EDGE * clamp((brightness - lo) / (hi - lo));
-  const angle = hue * 2 * Math.PI;
+export function knobAt(color: Hsb, { lo, hi }: Editor): Point {
+  const radius = hi === lo ? 0 : EDGE * clamp((toHsl(color).lightness - lo) / (hi - lo));
+  const angle = color.hue * 2 * Math.PI;
   return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
 }
 
 /** The colour a knob at `point` stands for. */
 function colorAt({ x, y }: Point, { saturation, lo, hi }: Editor): Hsb {
   const turns = Math.atan2(y, x) / (2 * Math.PI);
-  return {
-    hue: ((turns % 1) + 1) % 1,
-    saturation,
-    brightness: lo + clamp(Math.hypot(x, y) / EDGE) * (hi - lo)
-  };
+  return fromHsl(((turns % 1) + 1) % 1, saturation, lo + clamp(Math.hypot(x, y) / EDGE) * (hi - lo));
 }
 
 /** What the picker edits: the theme, and the state held beside it. */
@@ -79,8 +101,19 @@ export function withAppearance({ theme, editor }: Doc, appearance: Appearance): 
   return { theme: { ...theme, appearance }, editor };
 }
 
-/** The doc with `color`, a preset, as its primary. */
-export function withPrimary({ theme }: Doc, color: Hsb): Doc {
-  const next = { ...theme, primary: color };
+/**
+ * The doc with `colors` colours, on the wheel it has. Down to one, which has
+ * no wheel, it goes back to complimentary, as a second colour then is.
+ */
+export function withColors({ theme, editor }: Doc, colors: number): Doc {
+  return { theme: { ...theme, colors, wheel: colors < 2 ? "complimentary" : theme.wheel }, editor };
+}
+
+/**
+ * The doc with a preset: its colour as the primary, and as many colours, on
+ * its wheel, as it has. The appearance, intensity and noise stay.
+ */
+export function withPreset({ theme }: Doc, { color, colors, wheel }: PresetSwatch): Doc {
+  const next = { ...theme, primary: color, colors, wheel };
   return { theme: next, editor: editorFor(next) };
 }

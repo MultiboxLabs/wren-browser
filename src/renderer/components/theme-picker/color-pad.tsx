@@ -1,53 +1,98 @@
-// The pad the theme's colours are placed on: one knob for each, which turn
-// round the centre for hue and move out from it for brightness (see
-// utils/theme-pad.ts). Dragging any of them moves them all, as they are
-// derived from the primary. A faint panel of fine dots, with what is given as
-// `top` over its top and the buttons for the number of colours over its foot.
+// The pad the theme's colours are placed on: a 340pt square of faint fine
+// dots, with the appearances over its top and the buttons for the number of
+// colours over its foot, and a knob for each colour. A knob turns round the
+// centre for hue and moves out from it for lightness (utils/theme-pad.ts).
+// Dragging any knob moves them all, as they are derived from the primary, and
+// it moves from where it was grabbed, so it doesn't jump to the pointer. A
+// press off the knobs takes the primary there: the knobs slide to it, then
+// follow the pointer if it drags on. A theme with no colour chosen has no
+// knobs, and the first press puts the primary's there, growing in.
 
 import { Minus, Plus } from "lucide-react";
-import { type KeyboardEvent, type PointerEvent, type ReactNode, useRef } from "react";
+import {
+  type ComponentProps,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+  useEffect,
+  useRef,
+  useState
+} from "react";
 import { cn } from "@/utils/cn";
-import { derivedColors, colorCss } from "@/utils/theme";
-import { dragKnob, knobAt, nudgeKnob, type Point } from "@/utils/theme-pad";
-import { Tooltip } from "@/components/ui/tooltip";
+import { cssEase, EASE_SLIDE } from "@/utils/motion";
+import { colorCss, derivedColors, isBlank } from "@/utils/theme";
+import { dragKnob, knobAt, nudgeKnob, type Point, withAppearance, withColors } from "@/utils/theme-pad";
+import { AppearanceButtons } from "./appearance-buttons";
 import type { EditProps } from "./edit";
+import { PickerButton } from "./picker-button";
 
 const MAX_COLORS = 3;
-// How far in from the panel's edge the knobs' range ends, so that the largest
-// knob, at the farthest, is whole.
-const INSET = 26;
 // How far an arrow key turns the hue, and moves out.
 const TURN = 2;
 const STEP = 0.02;
+// A knob lifting under the pointer, and a knob going where it is put while it
+// isn't held: a press off the knobs, a preset, an arrow key, undo.
+const LIFT = `200ms ${cssEase(EASE_SLIDE)}`;
+const SLIDE = `350ms ${cssEase(EASE_SLIDE)}`;
 
-export function ColorPad({ doc, edit, end, top }: EditProps & { top: ReactNode }) {
+export function ColorPad({ doc, edit, end }: EditProps) {
   const { theme, editor } = doc;
+  const blank = isBlank(theme);
+  const colors = blank ? [] : derivedColors(theme);
   const pad = useRef<HTMLDivElement>(null);
-  // The knob being dragged.
-  const dragging = useRef<number | null>(null);
+  // The knob being dragged, and how far from its centre it was grabbed.
+  const dragging = useRef<{ index: number; offset: Point } | null>(null);
+  // Whether a knob follows the pointer as it is, without sliding to it.
+  const [holding, setHolding] = useState(false);
+  // Whether any knob is under the pointer: they all lift together.
+  const [hovered, setHovered] = useState(false);
+  // Whether the pad has been drawn once. A knob that comes after (the first
+  // press on a blank pad, or a colour added) grows in. Those there as the
+  // picker opens don't, as the picker itself is coming in.
+  const drawn = useRef(false);
+  useEffect(() => {
+    drawn.current = true;
+  }, []);
 
   const pointAt = (event: PointerEvent): Point => {
     const box = pad.current!.getBoundingClientRect();
     return {
-      x: ((event.clientX - box.left - INSET) / (box.width - 2 * INSET)) * 2 - 1,
-      y: ((event.clientY - box.top - INSET) / (box.height - 2 * INSET)) * 2 - 1
+      x: ((event.clientX - box.left) / box.width) * 2 - 1,
+      y: ((event.clientY - box.top) / box.height) * 2 - 1
     };
+  };
+  const drag = (event: PointerEvent) => {
+    const { index, offset } = dragging.current!;
+    const { x, y } = pointAt(event);
+    edit(dragKnob(doc, index, { x: x - offset.x, y: y - offset.y }), true);
   };
   const down = (event: PointerEvent) => {
     // The buttons over the pad are their own.
-    if (event.button !== 0 || (event.target as HTMLElement).closest("button, [role=radiogroup]")) return;
-    // A press off the knobs takes the primary there.
-    const knob = (event.target as HTMLElement).closest<HTMLElement>("[data-knob]");
-    dragging.current = knob ? Number(knob.dataset.knob) : 0;
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    edit(dragKnob(doc, dragging.current, pointAt(event)), true);
+    const knob = (event.target as HTMLElement).closest<HTMLElement>("[data-knob]");
+    if (knob) {
+      const index = Number(knob.dataset.knob);
+      const at = knobAt(colors[index], editor);
+      const { x, y } = pointAt(event);
+      dragging.current = { index, offset: { x: x - at.x, y: y - at.y } };
+      setHolding(true);
+    } else {
+      // Not held yet, so the primary slides to the press. It is held from the
+      // first move on, or it would lag behind the pointer.
+      dragging.current = { index: 0, offset: { x: 0, y: 0 } };
+      drag(event);
+    }
   };
   const move = (event: PointerEvent) => {
-    if (dragging.current !== null) edit(dragKnob(doc, dragging.current, pointAt(event)), true);
+    if (!dragging.current) return;
+    setHolding(true);
+    drag(event);
   };
   const up = () => {
-    if (dragging.current === null) return;
+    if (!dragging.current) return;
     dragging.current = null;
+    setHolding(false);
     end();
   };
   const key = (event: KeyboardEvent, index: number) => {
@@ -65,9 +110,12 @@ export function ColorPad({ doc, edit, end, top }: EditProps & { top: ReactNode }
     event.preventDefault();
     edit(nudgeKnob(doc, index, turn, out));
   };
-  const setColors = (colors: number) => edit({ theme: { ...theme, colors }, editor });
 
-  const colors = derivedColors(theme);
+  // The knobs lift under the pointer and while held, and the buttons under
+  // them take no hover then, as a knob is what is in hand. A knob that goes
+  // (undo back to a blank theme) leaves without saying so, so hover counts
+  // only while there are knobs.
+  const lifted = (hovered && !blank) || holding;
   return (
     <div
       ref={pad}
@@ -75,68 +123,90 @@ export function ColorPad({ doc, edit, end, top }: EditProps & { top: ReactNode }
       onPointerMove={move}
       onPointerUp={up}
       onPointerCancel={up}
-      className="relative aspect-square w-full cursor-crosshair touch-none overflow-hidden rounded-[18px] bg-white/7"
+      className={cn("relative size-85 shrink-0 touch-none select-none", holding && "cursor-grabbing")}
     >
-      {/* The grid of dots the knobs sit over. */}
+      {/* The panel of dots the knobs sit over. The knobs may stand out of it. */}
       <div
         aria-hidden
-        className="absolute inset-0 opacity-[0.14]"
+        className="absolute inset-0 rounded-lg bg-(--picker-panel)"
         style={{
-          backgroundImage: "radial-gradient(circle, currentColor 0.6px, transparent 0.9px)",
-          backgroundSize: "4px 4px"
+          backgroundImage: "radial-gradient(circle, var(--picker-dots) 0.53px, transparent 0.75px)",
+          backgroundSize: "4.25px 4.25px"
         }}
       />
-      <div className="absolute inset-x-0 top-2.5 cursor-default">{top}</div>
-      <div className="absolute inset-x-0 bottom-3 flex cursor-default justify-center gap-5">
-        <Tooltip label="Remove Colour">
-          <button
-            type="button"
-            aria-label="Remove Colour"
-            disabled={theme.colors <= 1}
-            onClick={() => setColors(theme.colors - 1)}
-            className="grid size-7 place-items-center rounded-md opacity-65 outline-none enabled:hover:bg-current/15 enabled:hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current/50 disabled:opacity-25"
-          >
-            <Minus size={20} strokeWidth={1.5} />
-          </button>
-        </Tooltip>
-        <Tooltip label="Add Colour">
-          <button
-            type="button"
-            aria-label="Add Colour"
-            disabled={theme.colors >= MAX_COLORS}
-            onClick={() => setColors(theme.colors + 1)}
-            className="grid size-7 place-items-center rounded-md opacity-65 outline-none enabled:hover:bg-current/15 enabled:hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current/50 disabled:opacity-25"
-          >
-            <Plus size={20} strokeWidth={1.5} />
-          </button>
-        </Tooltip>
+      <div className="absolute inset-x-0 top-4">
+        <AppearanceButtons
+          appearance={theme.appearance}
+          quiet={lifted}
+          onChange={(appearance) => edit(withAppearance(doc, appearance))}
+        />
+      </div>
+      <div className="absolute inset-x-0 bottom-4 flex justify-center gap-2 text-(--picker-symbol)">
+        <PickerButton
+          label="Remove Colour"
+          disabled={theme.colors <= 1}
+          quiet={lifted}
+          onClick={() => edit(withColors(doc, theme.colors - 1))}
+        >
+          <Minus size={17} strokeWidth={2.25} />
+        </PickerButton>
+        <PickerButton
+          label="Add Colour"
+          disabled={blank || theme.colors >= MAX_COLORS}
+          quiet={lifted}
+          onClick={() => edit(withColors(doc, theme.colors + 1))}
+        >
+          <Plus size={17} strokeWidth={2.25} />
+        </PickerButton>
       </div>
       {/* Over the buttons, as the thing being moved: it is never hidden. */}
       {colors.map((color, index) => {
         const { x, y } = knobAt(color, editor);
+        const primary = index === 0;
+        const style: CSSProperties = {
+          left: `calc(50% + ${x} * 50%)`,
+          top: `calc(50% + ${y} * 50%)`,
+          zIndex: primary ? 2 : 1,
+          background: colorCss(color),
+          scale: lifted ? "1.1" : "1",
+          boxShadow: `0 ${lifted ? 4 : 2}px ${lifted ? 8 : 4}px var(--picker-shadow)`,
+          transition: [
+            `scale ${LIFT}`,
+            `box-shadow ${LIFT}`,
+            ...(holding ? [] : [`left ${SLIDE}`, `top ${SLIDE}`])
+          ].join()
+        };
         return (
-          <div
+          <Knob
             key={index}
+            grows={drawn.current}
             data-knob={index}
             role="slider"
             tabIndex={0}
-            aria-label={index === 0 ? "Primary Color" : `Color ${index + 1}`}
+            aria-label={primary ? "Primary Colour" : `Colour ${index + 1}`}
             aria-valuemin={0}
             aria-valuemax={360}
             aria-valuenow={Math.round(color.hue * 360)}
             onKeyDown={(event) => key(event, index)}
+            onPointerEnter={() => setHovered(true)}
+            onPointerLeave={() => setHovered(false)}
             className={cn(
-              "absolute -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-white outline-none focus-visible:ring-2 focus-visible:ring-white/60",
-              index === 0 ? "size-11 border-[5px]" : "size-8 border-4"
+              "absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-white outline-none focus-visible:ring-2 focus-visible:ring-white/60 motion-reduce:transition-none",
+              holding ? "cursor-grabbing" : "cursor-grab",
+              // A ring of 5pt (or 3pt) on the edge of a 45pt (or 27pt) disc.
+              primary ? "size-11.25 border-5" : "size-6.75 border-3"
             )}
-            style={{
-              left: `calc(50% + ${x} * (50% - ${INSET}px))`,
-              top: `calc(50% + ${y} * (50% - ${INSET}px))`,
-              background: colorCss(color)
-            }}
+            style={style}
           />
         );
       })}
     </div>
   );
+}
+
+// A knob, which grows in if it comes once the pad is drawn (`grows`, as it
+// mounts). The keyframes are in index.css.
+function Knob({ grows, className, ...props }: { grows: boolean } & ComponentProps<"div">) {
+  const [growing] = useState(grows);
+  return <div {...props} className={cn(className, growing && "picker-knob-in")} />;
 }

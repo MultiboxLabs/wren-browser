@@ -1,35 +1,47 @@
-// How strongly the colours show, as a slider: a capsule with a wave in it
-// that swells with the value, solid up to the thumb and faint after it, and a
-// tall pill for the thumb.
+// How strongly the colours show, as a slider: a faint capsule with a sine
+// wave along it that swells with the value, filled up to the thumb and faint
+// after it. The thumb is a white pill that grows with the value, and lifts
+// under the pointer or while it is dragged.
 
-import { type KeyboardEvent, type PointerEvent, useId, useRef } from "react";
+import { type KeyboardEvent, type PointerEvent, useId, useRef, useState } from "react";
+import { cn } from "@/utils/cn";
+import { cssEase, EASE_SLIDE } from "@/utils/motion";
 import type { EditProps } from "./edit";
 
-const WIDTH = 216;
-const HEIGHT = 56;
-const THUMB_WIDTH = 24;
+const WIDTH = 224;
+const HEIGHT = 44;
+// How far in from the ends the wave runs, and so the thumb.
+const PADDING = 8;
+const RUN = WIDTH - 2 * PADDING;
+// The wave's height either side of the middle at full intensity, and its
+// period: its sine runs a radian for every 2π points.
+const AMPLITUDE = 15;
+const PERIOD = 4 * Math.PI * Math.PI;
+// The thumb's width at none. It grows by the wave's amplitude, and is as tall
+// as the slider and as much again.
+const THUMB = 12;
 const TRACK_HEIGHT = 16;
-const LENGTH = 27;
-const SWELL = 11;
 const STEP = 0.05;
+const LIFT = `200ms ${cssEase(EASE_SLIDE)}`;
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
 export function IntensitySlider({ doc, edit, end }: EditProps) {
   const { intensity } = doc.theme;
   const track = useRef<SVGSVGElement>(null);
-  const dragging = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const clip = useId();
 
   const set = (value: number, ongoing = false) =>
     edit({ ...doc, theme: { ...doc.theme, intensity: clamp(value) } }, ongoing);
   const valueAt = (event: PointerEvent) => {
     const box = track.current!.getBoundingClientRect();
-    return (((event.clientX - box.left) / box.width) * WIDTH - THUMB_WIDTH / 2) / (WIDTH - THUMB_WIDTH);
+    return (((event.clientX - box.left) / box.width) * WIDTH - PADDING) / RUN;
   };
   const stop = () => {
-    if (!dragging.current) return;
-    dragging.current = false;
+    if (!dragging) return;
+    setDragging(false);
     end();
   };
   const key = (event: KeyboardEvent) => {
@@ -46,13 +58,16 @@ export function IntensitySlider({ doc, edit, end }: EditProps) {
     event.preventDefault();
   };
 
-  const amplitude = intensity * SWELL;
+  const amplitude = intensity * AMPLITUDE;
   let wave = "";
-  for (let x = 12; x <= WIDTH - 12; x += 2) {
-    const y = HEIGHT / 2 + amplitude * Math.sin(((x - 12) / LENGTH) * 2 * Math.PI);
-    wave += `${x === 12 ? "M" : "L"}${x},${y.toFixed(2)}`;
+  for (let x = 0; x <= RUN; x++) {
+    const y = HEIGHT / 2 + amplitude * Math.sin(Math.PI + (2 * Math.PI * x) / PERIOD);
+    wave += `${x === 0 ? "M" : "L"}${PADDING + x},${y.toFixed(2)}`;
   }
-  const thumb = THUMB_WIDTH / 2 + intensity * (WIDTH - THUMB_WIDTH);
+  const centre = PADDING + intensity * RUN;
+  const thumbWidth = THUMB + amplitude;
+  const thumbHeight = HEIGHT + amplitude;
+  const lifted = hovered || dragging;
   return (
     <svg
       ref={track}
@@ -66,49 +81,60 @@ export function IntensitySlider({ doc, edit, end }: EditProps) {
       height={HEIGHT}
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       onKeyDown={key}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
-        dragging.current = true;
+        setDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
         set(valueAt(event), true);
       }}
-      onPointerMove={(event) => dragging.current && set(valueAt(event), true)}
+      onPointerMove={(event) => dragging && set(valueAt(event), true)}
       onPointerUp={stop}
       onPointerCancel={stop}
-      className="shrink-0 cursor-pointer touch-none overflow-visible outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-current/40"
+      className={cn(
+        "shrink-0 touch-none overflow-visible outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-(--picker-foreground)",
+        dragging ? "cursor-grabbing" : "cursor-grab"
+      )}
     >
       <defs>
+        {/* What of the wave is filled: up to the thumb's near edge. */}
         <clipPath id={clip}>
-          <rect x={0} y={0} width={thumb} height={HEIGHT} />
+          <rect x={0} y={-HEIGHT} width={Math.max(centre - thumbWidth / 2, 0)} height={3 * HEIGHT} />
         </clipPath>
       </defs>
       <rect
-        x={0}
         y={(HEIGHT - TRACK_HEIGHT) / 2}
         width={WIDTH}
         height={TRACK_HEIGHT}
         rx={TRACK_HEIGHT / 2}
-        fill="currentColor"
-        opacity={0.12}
+        style={{ fill: "var(--picker-separator)" }}
+        opacity={0.5}
       />
-      <path d={wave} fill="none" stroke="currentColor" strokeOpacity={0.14} strokeWidth={5} strokeLinecap="round" />
+      <path d={wave} fill="none" strokeWidth={5} strokeLinecap="round" style={{ stroke: "var(--picker-separator)" }} />
       <path
         d={wave}
         fill="none"
-        stroke="currentColor"
-        strokeOpacity={0.3}
         strokeWidth={5}
         strokeLinecap="round"
         clipPath={`url(#${clip})`}
+        style={{ stroke: "var(--picker-foreground)" }}
       />
       <rect
-        x={thumb - THUMB_WIDTH / 2}
-        y={0}
-        width={THUMB_WIDTH}
-        height={HEIGHT}
-        rx={THUMB_WIDTH / 2}
+        x={centre - thumbWidth / 2}
+        y={(HEIGHT - thumbHeight) / 2}
+        width={thumbWidth}
+        height={thumbHeight}
+        rx={thumbWidth / 2}
         fill="white"
-        style={{ filter: "drop-shadow(0 1px 3px rgb(0 0 0 / 0.25))" }}
+        className="motion-reduce:transition-none"
+        style={{
+          transformBox: "fill-box",
+          transformOrigin: "center",
+          scale: lifted ? "1.1" : "1",
+          filter: `drop-shadow(0 ${lifted ? 4 : 2}px ${lifted ? 6 : 3}px var(--picker-shadow))`,
+          transition: `scale ${LIFT}, filter ${LIFT}`
+        }}
       />
     </svg>
   );

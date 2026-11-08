@@ -1,6 +1,7 @@
-// The picker for a space's theme, laid out as Arc's: the appearance on top, the
-// colour pad with its presets, then intensity at the bottom left and noise at
-// the bottom right. It is drawn with the theme it edits, so it previews it.
+// The picker for a space's theme: the colour pad, with the appearances over
+// its top, then the presets, then intensity at the bottom left and noise at
+// the bottom right. It is drawn with the theme it edits, so it previews it,
+// and its controls are light or dark as that theme is (palette.ts).
 //
 // `value` is where it starts: the picker keeps what it is editing, and tells
 // `onChange` of each change (a drag's too, as it goes). Undo and redo are ⌘Z
@@ -9,27 +10,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { SpaceTheme } from "@/ipc";
 import { cn } from "@/utils/cn";
-import { PRESET_PAGES } from "@/utils/theme";
-import { type Doc, editorFor, withAppearance } from "@/utils/theme-pad";
+import { contentScheme } from "@/utils/theme";
+import { type Doc, editorFor } from "@/utils/theme-pad";
+import { pageOf } from "@/utils/theme-presets";
 import { ThemeSwatch } from "@/components/theme-swatch";
-import { AppearanceButtons } from "./appearance-buttons";
 import { ColorPad } from "./color-pad";
 import { IntensitySlider } from "./intensity-slider";
 import { NoiseDial } from "./noise-dial";
+import { pickerPalette } from "./palette";
 import { PresetRow } from "./preset-row";
-
-// The page of presets the primary is on, or the first.
-function pageOf({ primary }: SpaceTheme) {
-  const found = PRESET_PAGES.findIndex(({ swatches }) =>
-    swatches.some(
-      ({ color }) =>
-        Math.abs(color.hue - primary.hue) < 0.005 &&
-        Math.abs(color.saturation - primary.saturation) < 0.005 &&
-        Math.abs(color.brightness - primary.brightness) < 0.005
-    )
-  );
-  return Math.max(found, 0);
-}
 
 export function ThemePicker({
   value,
@@ -89,24 +78,16 @@ export function ThemePicker({
     <ThemeSwatch
       as="div"
       theme={doc.theme}
-      className={cn("w-88 rounded-[26px] backdrop-blur-2xl", className)}
-      contentClassName="w-full gap-3.5 p-4"
+      className={cn("rounded-[16px] backdrop-blur-2xl", className)}
+      contentClassName="w-full"
     >
-      <ColorPad
-        doc={doc}
-        edit={edit}
-        end={end}
-        top={
-          <AppearanceButtons
-            appearance={doc.theme.appearance}
-            onChange={(appearance) => edit(withAppearance(doc, appearance))}
-          />
-        }
-      />
-      <PresetRow doc={doc} edit={edit} page={page} onPage={setPage} />
-      <div className="flex items-center justify-between">
-        <IntensitySlider doc={doc} edit={edit} end={end} />
-        <NoiseDial doc={doc} edit={edit} end={end} />
+      <div className="flex flex-col items-center gap-4 p-2" style={pickerPalette(contentScheme(doc.theme))}>
+        <ColorPad doc={doc} edit={edit} end={end} />
+        <PresetRow doc={doc} edit={edit} page={page} onPage={setPage} />
+        <div className="flex items-center gap-4 px-2 pb-1">
+          <IntensitySlider doc={doc} edit={edit} end={end} />
+          <NoiseDial doc={doc} edit={edit} end={end} />
+        </div>
       </div>
     </ThemeSwatch>
   );

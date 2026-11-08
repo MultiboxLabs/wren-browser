@@ -423,4 +423,5 @@ body,
 @import "./components/sidebar/update.css";
 @import "./components/ui/switch.css";
 @import "./components/theme-swatch.css";
+@import "./components/theme-picker/theme-picker.css";
 @import "./pages/onboarding/onboarding.css";
