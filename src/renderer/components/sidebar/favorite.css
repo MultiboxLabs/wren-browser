@@ -13,7 +13,13 @@
 :root[data-scheme="light"],
 [data-content-scheme="light"] {
   --favorite-selected: rgb(255 255 255 / 0.8);
-  --favorite-selected-unfocused: rgb(255 255 255 / 0.35);
+  /* Unfocused, a white ring would blur into the pale window: so the tile is
+     a paler pane of the window's colour, flat, edged by a grey ring. The
+     ring is drawn over the fill and at the ring's opacity, so its black is
+     set by eye against both. */
+  --favorite-selected-unfocused: rgb(255 255 255 / 0.45);
+  --favorite-ring-unfocused: rgb(0 0 0 / 0.18);
+  --favorite-shadow-unfocused: none;
   --favorite-glow: 0;
   --favorite-glow-hover: 0.05;
   /* Over the stronger fill, the ring needs more of its colour to show. */
@@ -23,6 +29,8 @@
 [data-content-scheme="dark"] {
   --favorite-selected: rgb(255 255 255 / 0.45);
   --favorite-selected-unfocused: rgb(255 255 255 / 0.18);
+  --favorite-ring-unfocused: rgb(255 255 255 / 0.5);
+  --favorite-shadow-unfocused: 0 1px 4px rgb(0 0 0 / 0.1);
   --favorite-glow: 0.08;
   --favorite-glow-hover: 0.12;
   --favorite-ring: 0.5;
@@ -81,15 +89,16 @@
     linear-gradient(#000 0 0);
 }
 /* Unfocused, as the window in the background pales, it takes none of the
-   icon's colours: a fill far fainter, no glow, and a ring of faint white. */
+   icon's colours: a fainter fill, no glow, and a ring of the scheme's own. */
 :root[data-active="false"] .favorite-selected {
   background: var(--favorite-selected-unfocused);
+  box-shadow: var(--favorite-shadow-unfocused);
 }
 :root[data-active="false"] .favorite-glow {
   opacity: 0;
 }
 :root[data-active="false"] .favorite-ring {
-  background: rgb(255 255 255 / 0.5);
+  background: var(--favorite-ring-unfocused);
 }
 :root[data-active="false"] .favorite-ring > :not(svg) {
   visibility: hidden;
