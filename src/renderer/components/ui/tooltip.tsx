@@ -2,6 +2,8 @@
 // system's neutral colours, light or dark as the system is (not the space),
 // below what they label.
 
+const TOOLTIPS_ENABLED = false;
+
 import { Tooltip as Radix, Slot } from "radix-ui";
 import { type ReactNode, useState } from "react";
 
@@ -24,6 +26,7 @@ export function TooltipProvider({ children }: { children: ReactNode }) {
  * focus, so it is only for what can't take focus, such as a row's title.
  */
 export function Tooltip({ label, lazy = false, children }: { label?: string; lazy?: boolean; children: ReactNode }) {
+  if (!TOOLTIPS_ENABLED) return children;
   const [entered, setEntered] = useState(false);
   if (!label) return children;
   if (lazy && !entered) return <Slot.Root onPointerEnter={() => setEntered(true)}>{children}</Slot.Root>;
