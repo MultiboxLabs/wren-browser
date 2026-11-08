@@ -13,7 +13,7 @@ import {
   useReducedMotion,
   useTransform
 } from "motion/react";
-import { type ReactNode, type RefObject, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { browser } from "@/ipc";
 import { Button } from "@/components/ui/button";
 import { AddressField } from "@/components/address/field";
@@ -89,8 +89,8 @@ function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReloa
   );
 }
 
-/** Where a space's content is drawn: the window's (0), or beside it, the previous space's (-1) or the next one's (1). */
-type Page = -1 | 0 | 1;
+/** Where a space's content is drawn: the window's (0), or a slot beside it, how many spaces over (negative before). */
+type Page = number;
 
 /** The most a space's content fades as it slides out with nothing beside it. */
 const FADED = 0.85;
@@ -163,28 +163,14 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   useSpaceSwipe(
     area,
     slide,
+    showNow,
     (by) => neighbour(by) !== undefined,
-    (by) => {
-      const next = neighbour(by);
-      if (next) showNow(next.id);
-    },
     (by) => {
       const next = neighbour(by);
       if (next) show(next.id);
     }
   );
   const swipe = slide.x;
-  // The spaces drawn beside the window's while the content moves (state/space.tsx).
-  const pages = useMemo(
-    () =>
-      (
-        [
-          [-1, drawnBeside.before],
-          [1, drawnBeside.after]
-        ] as const
-      ).flatMap(([page, drawn]) => (drawn ? [{ page, space: drawn }] : [])),
-    [drawnBeside]
-  );
   // Read as the content moves, not as it was drawn.
   const besideNow = useRef(slide.beside);
   besideNow.current = slide.beside;
@@ -284,7 +270,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
             <SpacePage key={newSpace ? "new-space" : space.id} page={0} x={swipe} pitch={pitch} fades={fades}>
               {newSpace ? <NewSpaceForm state={newSpace} /> : content(space, 0)}
             </SpacePage>,
-            ...pages.map(({ page, space: drawn }) => (
+            ...drawnBeside.map(({ slot: page, space: drawn }) => (
               <SpacePage key={drawn.id} page={page} x={swipe} pitch={pitch} fades={fades}>
                 {content(drawn, page)}
               </SpacePage>

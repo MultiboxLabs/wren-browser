@@ -17,24 +17,26 @@ import { type Space, useSpace } from "./space";
  */
 export function useSpaceBlend(): Space | null {
   const { slide, beside } = useSpace();
-  // The way the content moves: toward the space after (1), or before (-1).
-  const [side, setSide] = useState<-1 | 0 | 1>(0);
+  // The slot the strip moves toward: the nearest one beside, past where it
+  // has got, the way it has moved; 0 while it is in place.
+  const [toward, setToward] = useState(0);
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.toggleAttribute("data-space-sliding", slide.beside);
     if (!slide.beside) {
       root.style.setProperty("--blend", "0");
-      setSide(0);
+      setToward(0);
       return;
     }
     const follow = () => {
-      const [at, width] = [slide.x.get(), slide.pitch.get()];
-      root.style.setProperty("--blend", String(width > 0 ? Math.min(Math.abs(at) / width, 1) : 0));
-      setSide(Math.abs(at) < 0.5 ? 0 : at < 0 ? 1 : -1);
+      const width = slide.pitch.get();
+      const at = width > 0 ? -slide.x.get() / width : 0;
+      root.style.setProperty("--blend", String(Math.min(Math.abs(at), 1)));
+      setToward(Math.abs(at) < 0.01 ? 0 : Math.sign(at) * Math.max(1, Math.ceil(Math.abs(at))));
     };
     follow();
     const stops = [slide.x.on("change", follow), slide.pitch.on("change", follow)];
     return () => stops.forEach((stop) => stop());
   }, [slide.beside]);
-  return side === 1 ? beside.after : side === -1 ? beside.before : null;
+  return beside.find(({ slot }) => slot === toward)?.space ?? null;
 }

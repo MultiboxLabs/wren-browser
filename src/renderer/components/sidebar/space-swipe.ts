@@ -124,21 +124,21 @@ const hasPhases = "wrenPhase" in WheelEvent.prototype;
 const isTheirs = (event: WheelEvent) => event.ctrlKey || event.target instanceof HTMLInputElement;
 
 /**
- * Swipes over `area` move `slide`'s content. `canStep` says whether there is
- * a space that way (1 the next, -1 the previous), and `step` goes to it at
- * once, as a swipe has moved the content there; `glide` goes to it with the
- * content gliding there, for a mouse's wheel.
+ * Swipes over `area` move `slide`'s strip, among the spaces it draws beside
+ * the window's, and `go` switches the window to the space one lands on. A
+ * mouse's wheel goes a space at a time: `canStep` says whether there is a
+ * space that way (1 the next, -1 the previous), and `glide` goes to it.
  */
 export function useSpaceSwipe(
   area: RefObject<HTMLElement | null>,
   slide: SpaceSlide,
+  go: (id: number) => void,
   canStep: (by: 1 | -1) => boolean,
-  step: (by: 1 | -1) => void,
   glide: (by: 1 | -1) => void
 ) {
   // Read by the listener as they are now.
-  const latest = useRef({ canStep, step, glide });
-  latest.current = { canStep, step, glide };
+  const latest = useRef({ go, canStep, glide });
+  latest.current = { go, canStep, glide };
 
   useEffect(() => {
     const element = area.current;
@@ -151,7 +151,7 @@ export function useSpaceSwipe(
     const notch = { turned: 0, last: -Infinity, stepped: -Infinity };
 
     const strip = (): Strip => ({
-      pages: ([-1, 0, 1] as const).filter((page) => page === 0 || latest.current.canStep(page)),
+      pages: ([-1, 0, 1] as const).filter((page) => page === 0 || slide.drawnAt(page) !== undefined),
       width: slide.pitch.get()
     });
     // Takes the place from where the content is now: the window may have
@@ -177,8 +177,8 @@ export function useSpaceSwipe(
       const to = landing(now, shown, speed, lifted.caught);
       // It keeps its speed only going that way.
       const toward = Math.sign(to * now.width - shown) === Math.sign(speed);
-      slide.release(to, toward ? -speed : 0);
-      if (to !== 0) latest.current.step(to);
+      const landed = slide.release(to, toward ? -speed : 0);
+      if (landed !== undefined) latest.current.go(landed);
     };
 
     const move = (event: WheelEvent) => {

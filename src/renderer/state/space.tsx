@@ -136,14 +136,12 @@ type SpaceState = {
   showNow: (id: number) => void;
   /** How the sidebar's content moves as the space changes. */
   slide: SpaceSlide;
-  /** The spaces drawn beside the window's while the content moves between spaces. */
-  beside: Beside;
+  /** The spaces drawn beside the window's while the content moves between spaces (`slide.strip`). */
+  beside: DrawnBeside[];
 };
 
-/** The spaces drawn before (left of) and after (right of) the window's; null for none. */
-export type Beside = { before: Space | null; after: Space | null };
-
-const NONE_BESIDE: Beside = { before: null, after: null };
+/** A space drawn beside the window's, in its slot: how many spaces over, negative before. */
+export type DrawnBeside = { slot: number; space: Space };
 
 const SpaceContext = createContext<SpaceState | null>(null);
 
@@ -160,7 +158,8 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   // Where the window is among the spaces: the one being made is after the last.
   const at = making ? NEW_SPACE : current;
   const order = (id: number) => (id === NEW_SPACE ? spaces.length : spaces.findIndex((space) => space.id === id));
-  const slide = useSpaceSlide(at, order);
+  const ids = useMemo(() => spaces.map(({ id }) => id), [spaces]);
+  const slide = useSpaceSlide(at, ids, order);
   const newSpace = useNewSpace(making, listed, slide);
   const draft = newSpace.state?.draft;
   const entry = spaces.find(({ id }) => id === current);
@@ -182,24 +181,16 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
                 : { ...personal, id: current },
     [openedFrom, profile, profileEntry, draft, entry, current]
   );
-  // The spaces drawn beside the window's while the content moves between
-  // spaces: for a swipe, those before and after it, as the fingers may go
-  // either way; for a space chosen, only that one, on its side until the
-  // window is on it, and then the space it was chosen from on the other.
-  // Each is a space's content made at once, so none is drawn that needn't be.
-  const { beside: moving, chosen } = slide;
-  const beside = useMemo((): Beside => {
-    if (!moving) return NONE_BESIDE;
-    const place = at === null ? -1 : order(at);
-    const of = (entry: SpaceEntry | undefined) => (entry && entry.id !== at ? spaceOf(entry) : null);
-    const byId = (id: number | null) => spaces.find((entry) => entry.id === id);
-    const on = (side: 1 | -1) => {
-      if (!chosen) return place < 0 ? null : of(spaces[place + side]);
-      if (at !== chosen.to) return side === chosen.side ? of(byId(chosen.to)) : null;
-      return side === -chosen.side ? of(byId(chosen.from)) : null;
-    };
-    return { before: on(-1), after: on(1) };
-  }, [moving, chosen, at, spaces]);
+  // The spaces the strip draws beside the window's, as the window draws them.
+  const { strip } = slide;
+  const beside = useMemo(
+    () =>
+      strip.flatMap(({ slot, id }) => {
+        const found = id === at ? undefined : spaces.find((entry) => entry.id === id);
+        return found ? [{ slot, space: spaceOf(found) }] : [];
+      }),
+    [strip, spaces, at]
+  );
 
   // Which way `to` is from the window's space, by their order: 1 after, -1
   // before; null if either has no place.
@@ -211,11 +202,12 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const showNow = (id: number) => {
     if (hasApp) appWindow.showSpace(id).catch(slide.settle);
   };
+  // While the content moves, the window's space may be chosen again, to go
+  // back to it.
   const show = (id: number) => {
-    if (id === at) return;
-    const side = sideOf(id);
-    if (side === null) return showNow(id);
-    slide.glideTo({ from: at, to: id, side }, () => showNow(id));
+    if (id === at && !slide.beside) return;
+    if (sideOf(id) === null) return showNow(id);
+    slide.glideTo(id, () => showNow(id));
   };
   // The main menu's ⌃1 to ⌃9 come here, to glide as a press does.
   const latestShow = useRef(show);
