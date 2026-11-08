@@ -11,7 +11,7 @@ import { SpaceProvider, useSpace } from "@/state/space";
 import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "@/state/window";
 import { useSpaceBlend } from "@/state/space-blend";
 import { Omnibox } from "@/components/omnibox/omnibox";
-import { useShownOmnibox } from "@/components/omnibox/shown";
+import { useOpenForEmptyWindow, useShownOmnibox } from "@/components/omnibox/shown";
 import { SidePanel } from "@/components/side-panel";
 import { SpaceBackground } from "@/components/space-background";
 import { Sidebar } from "@/components/sidebar/sidebar";
@@ -63,7 +63,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   useWindowTheme(space, toward);
   useShowWindow();
 
-  const { id: browser, splits, active, fullScreen: fullScreenTab } = useTabShape();
+  const { id: browser, ready, splits, active, fullScreen: fullScreenTab } = useTabShape();
   const sidePanel = useSidePanel();
   // A page in full screen has the whole window: the sidebar and the side
   // panel make way for it, and come back as they were.
@@ -74,6 +74,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const second = useTab(split?.second);
   const address = useRef<HTMLDivElement>(null);
   const omnibox = useShownOmnibox(address, browser !== null);
+  useOpenForEmptyWindow(omnibox, ready, active);
   // The omnibox is the space's: it closes as the window switches.
   const lastSpace = useRef(space.id);
   useEffect(() => {
