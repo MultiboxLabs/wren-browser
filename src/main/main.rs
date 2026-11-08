@@ -30,6 +30,11 @@ use crate::channel::Channel;
 use crate::pages::{SCHEME, Source};
 use crate::perf::Perf;
 
+/// The name of the profile Chromium makes at the first launch, in place of
+/// the one Chromium would choose. The first space is named for it too
+/// (`default_space`).
+const STARTUP_PROFILE_NAME: &str = "Personal";
+
 fn main() {
     let channel = Channel::current();
     let perf = Perf::from_env(channel);
@@ -42,6 +47,7 @@ fn main() {
     // A performance run is a Dev build's, so its key is in memory too.
     let mut startup = Startup::new(data.to_string_lossy(), channel.keychain());
     startup.keychain_name = Some(channel::KEYCHAIN_NAME.into());
+    startup.startup_profile_name = Some(STARTUP_PROFILE_NAME.into());
     channel.brand(&mut startup);
     startup.schemes = vec![Scheme::new(
         SCHEME,
