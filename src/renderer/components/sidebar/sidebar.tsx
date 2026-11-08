@@ -117,7 +117,15 @@ function SpacePage({
   children: ReactNode;
 }) {
   const opacity = useTransform(x, (at) => (fades() ? 1 - Math.min(Math.abs(at) / SLIDE, 1) * FADED : 1));
-  const offset = useTransform(pitch, (apart) => page * apart);
+  // Set once the page has changed, not as it is drawn: Motion measures its
+  // tiles and rows before the change, taking out the offset it has then,
+  // which must still be the one on the page.
+  const offset = useMotionValue(page * pitch.get());
+  useLayoutEffect(() => {
+    const place = () => offset.set(page * pitch.get());
+    place();
+    return pitch.on("change", place);
+  }, [page]);
   return (
     // Every page is laid out in the same place, and moved beside by a
     // transform in points, which Motion takes out as it measures (it can't
@@ -136,12 +144,12 @@ function SpacePage({
 }
 
 export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visible }: SidebarProps) {
-  const { space, spaces, profile, newSpace, startNewSpace, showNow, slide } = useSpace();
+  const { space, spaces, profile, newSpace, startNewSpace, show, showNow, slide } = useSpace();
   // A swipe across the sidebar goes to the next space or the previous one;
   // the space being made is after the last.
   const area = useRef<HTMLDivElement>(null);
   // How far apart the spaces' content is side by side, as the sidebar is wide.
-  const pitch = useMotionValue(0);
+  const { pitch } = slide;
   useLayoutEffect(() => {
     const element = area.current;
     if (!element) return;
@@ -159,12 +167,27 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
     (by) => {
       const next = neighbour(by);
       if (next) showNow(next.id);
+    },
+    (by) => {
+      const next = neighbour(by);
+      if (next) show(next.id);
     }
   );
   const swipe = slide.x;
-  // The spaces beside the window's, drawn while a swipe moves the content.
-  const before = neighbour(-1);
-  const after = neighbour(1);
+  // The spaces beside the window's, drawn while the content moves between
+  // spaces: for a swipe, those before and after it, as the fingers may go
+  // either way; for a space chosen, only that one, on its side until the
+  // window is on it, and then the space it was chosen from on the other.
+  // Each drawn is a space's content made at once, so none more than needed.
+  const { chosen } = slide;
+  const entryOf = (id: number | null | undefined) => spaces.find((entry) => entry.id === id);
+  const drawnBeside = (side: 1 | -1) => {
+    if (!chosen) return neighbour(side);
+    if (space.id !== chosen.to) return side === chosen.side ? entryOf(chosen.to) : undefined;
+    return side === -chosen.side ? entryOf(chosen.from) : undefined;
+  };
+  const before = drawnBeside(-1);
+  const after = drawnBeside(1);
   const pages = useMemo(
     () =>
       slide.beside
@@ -173,9 +196,9 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
               [-1, before],
               [1, after]
             ] as const
-          ).flatMap(([page, entry]) => (entry ? [{ page, space: spaceOf(entry) }] : []))
+          ).flatMap(([page, entry]) => (entry && entry.id !== space.id ? [{ page, space: spaceOf(entry) }] : []))
         : [],
-    [slide.beside, before, after]
+    [slide.beside, before, after, space.id]
   );
   // Read as the content moves, not as it was drawn.
   const besideNow = useRef(slide.beside);

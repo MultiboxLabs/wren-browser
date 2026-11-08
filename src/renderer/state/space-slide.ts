@@ -13,6 +13,11 @@
 // From the fingers' first move until the content is back in place, the
 // sidebar draws the spaces beside the window's (`beside`), so a swipe shows
 // the next space's content as it uncovers it.
+//
+// A space chosen, by a press on the switcher or a shortcut, is drawn beside
+// the window's on the side its order puts it, however far along it is
+// (`chosen`), and the content glides there, quicker than a swipe's, the
+// window switching as it starts.
 
 import { animate, type MotionValue, useMotionValue } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -28,7 +33,8 @@ const SPACE_GAP = 24;
 export const spacing = (sidebar: HTMLElement) => sidebar.clientWidth + SPACE_GAP;
 
 const out = { duration: 0.08, ease: "easeIn" } as const;
-// Critically damped: in place in about 0.2s, without going past it.
+// Critically damped: in place in about 0.2s, without going past it. A space
+// chosen glides to it so, as quickly as a press wants.
 const spring = { type: "spring", stiffness: 1000, damping: 63 } as const;
 // A swipe's glide: critically damped too, with a response of 0.4s, so it
 // takes the fingers' speed and slows into place rather than snapping there.
@@ -39,14 +45,36 @@ const glide = {
   damping: (4 * Math.PI) / RESPONSE,
   mass: 1
 } as const;
+type Motion = typeof spring | typeof glide;
+
+/**
+ * A glide to a space chosen rather than swiped to: until the window is on
+ * `to`, it is drawn on `side` of the window's (1 after, -1 before); once it
+ * is, `from`, the space it was chosen from, is drawn on the other.
+ */
+export type ChosenGlide = { from: number | null; to: number; side: 1 | -1 };
 
 export type SpaceSlide = {
   /** The content's offset, which the sidebar draws and a swipe moves. */
   x: MotionValue<number>;
-  /** The sidebar draws the spaces beside the window's: fingers have taken the content, and it isn't back in place yet. */
+  /** How far apart the spaces' content is side by side, in points, which the sidebar keeps as it is wide. */
+  pitch: MotionValue<number>;
+  /** The sidebar draws the spaces beside the window's: the content moves between spaces, and isn't back in place yet. */
   beside: boolean;
-  /** Slides the content out toward `by` (1 the next space, -1 the previous), then runs `then`, unless another slide came first. */
+  /** The glide to a space chosen, until the content is back in place. */
+  chosen: ChosenGlide | null;
+  /**
+   * Slides the content out the short way toward `by` (1 the next space, -1
+   * the previous), then runs `then`, unless another slide came first: for
+   * the New Space form, which has nothing to draw beside before it starts.
+   */
   leave: (by: 1 | -1, then: () => void) => void;
+  /**
+   * Glides the content to a space chosen, drawn beside, and runs `then`
+   * (which switches the window to it) as it starts. One under way goes on
+   * from where it has got to.
+   */
+  glideTo: (target: ChosenGlide, then: () => void) => void;
   /** Springs the content back to its place: a switch that did not happen. */
   settle: () => void;
   /** The next space comes in place, without sliding: the one being made, once it is. */
@@ -59,11 +87,11 @@ export type SpaceSlide = {
   hold: () => boolean;
   /**
    * Fingers let go of the content: it glides from `velocity` (points a
-   * second) to the space `to` (1 the next, -1 the previous, 0 its own), the
-   * spaces `width` apart. For another space, the window is to switch to it,
-   * and the new space's content goes on with the glide.
+   * second) to the space `to` (1 the next, -1 the previous, 0 its own), as
+   * `glideTo` does. For another space, the window is to switch to it, and
+   * the new space's content goes on with the glide.
    */
-  release: (to: -1 | 0 | 1, width: number, velocity: number) => void;
+  release: (to: -1 | 0 | 1, velocity: number) => void;
 };
 
 /**
@@ -72,17 +100,38 @@ export type SpaceSlide = {
  */
 export function useSpaceSlide(current: number | null, order: (id: number) => number): SpaceSlide {
   const x = useMotionValue(0);
+  const pitch = useMotionValue(0);
   const turn = useRef(0);
   const staying = useRef(false);
-  // A glide toward another space, until the window is on it.
-  const gliding = useRef<{ to: 1 | -1; width: number } | null>(null);
+  // A glide toward another space, until the window is on it: a swipe's,
+  // toward the space beside, or one to the space chosen, `space`.
+  const gliding = useRef<{ to: 1 | -1; width: number; space?: number; motion: Motion } | null>(null);
   // Fingers hold the content: nothing else moves it.
   const held = useRef(false);
   const [beside, setBeside] = useState(false);
+  const [chosen, setChosen] = useState<ChosenGlide | null>(null);
   // Once the content is back in place, and nothing holds or moves it, the
   // spaces beside are no longer drawn.
   const rest = () => {
-    if (!held.current && !x.isAnimating() && Math.abs(x.get()) < 0.5) setBeside(false);
+    if (held.current || x.isAnimating() || Math.abs(x.get()) >= 0.5) return;
+    setBeside(false);
+    setChosen(null);
+  };
+
+  // The one glide a swipe's lift and a space chosen both make: the content
+  // glides with `motion` from `velocity` to the space on `side` (0 back to
+  // its place), which the window is to switch to, `space` if it was chosen;
+  // once it has, the new space's content goes on with the same motion. False
+  // if it can't move (Reduced Motion, a hidden page), when it stays.
+  const glideOff = (side: -1 | 0 | 1, motion: Motion, velocity: number, space?: number) => {
+    const width = pitch.get();
+    if (prefersReducedMotion() || document.hidden || width <= 0) {
+      gliding.current = null;
+      return false;
+    }
+    gliding.current = side === 0 ? null : { to: side, width, space, motion };
+    void animate(x, -side * width, { ...motion, velocity }).then(rest);
+    return true;
   };
 
   const previous = useRef(current);
@@ -91,8 +140,11 @@ export function useSpaceSlide(current: number | null, order: (id: number) => num
     previous.current = current;
     // The first space the window says it has comes as it is.
     if (from === null || current === null || from === current) return;
-    turn.current++;
     const glided = gliding.current;
+    // On the way to the space chosen, the window switched to another, one
+    // chosen before: the glide goes on.
+    if (glided?.space !== undefined && glided.space !== current) return;
+    turn.current++;
     gliding.current = null;
     if (staying.current) {
       staying.current = false;
@@ -104,13 +156,13 @@ export function useSpaceSlide(current: number | null, order: (id: number) => num
       x.jump(0);
       return rest();
     }
-    // The space a swipe glides to: its content is a width over from the old
-    // one's, and goes on from there as fast as that was going, unless the
-    // fingers have taken it meanwhile.
-    if (glided && Math.sign(now - was) === glided.to) {
+    // The space glided to: its content is a space over from the old one's,
+    // and goes on from there as fast as that was going, unless the fingers
+    // have taken it meanwhile.
+    if (glided && (glided.space === current || Math.sign(now - was) === glided.to)) {
       const velocity = x.getVelocity();
       x.jump(x.get() + glided.to * glided.width);
-      if (!held.current) void animate(x, 0, { ...glide, velocity }).then(rest);
+      if (!held.current) void animate(x, 0, { ...glided.motion, velocity }).then(rest);
       return;
     }
     if (held.current) return x.jump(0);
@@ -120,7 +172,9 @@ export function useSpaceSlide(current: number | null, order: (id: number) => num
 
   return {
     x,
+    pitch,
     beside,
+    chosen,
     leave: (by, then) => {
       held.current = false;
       gliding.current = null;
@@ -136,6 +190,15 @@ export function useSpaceSlide(current: number | null, order: (id: number) => num
       // Should the page stop drawing meanwhile, the switch is not held up.
       setTimeout(done, out.duration * 1000 + 150);
     },
+    glideTo: (target, then) => {
+      turn.current++;
+      held.current = false;
+      staying.current = false;
+      if (!glideOff(target.side, spring, x.getVelocity(), target.to)) return then();
+      setBeside(true);
+      setChosen(target);
+      then();
+    },
     settle: () => {
       turn.current++;
       staying.current = false;
@@ -149,18 +212,17 @@ export function useSpaceSlide(current: number | null, order: (id: number) => num
     hold: () => {
       held.current = true;
       setBeside(true);
+      // The fingers take the content among the spaces beside by order.
+      setChosen(null);
       const moving = x.isAnimating();
       x.stop();
       return moving;
     },
-    release: (to, width, velocity) => {
+    release: (to, velocity) => {
       held.current = false;
-      gliding.current = to === 0 ? null : { to, width };
-      if (prefersReducedMotion() || document.hidden) {
-        x.jump(0);
-        return rest();
-      }
-      void animate(x, -to * width, { ...glide, velocity }).then(rest);
+      if (glideOff(to, glide, velocity)) return;
+      x.jump(0);
+      rest();
     }
   };
 }

@@ -27,15 +27,19 @@ import { identitiesOf, PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pin
 
 /**
  * `selected`: the selected tab's ID, unless none is. `ref` is its tile's, as
- * the grid takes a tile that goes out of its layout (`popLayout`).
+ * the grid takes a tile that goes out of its layout (`popLayout`). `order`
+ * is the favourites' (`listOrder`): a tile slides to a new place only as it
+ * changes.
  */
 export function Favorite({
   pin,
+  order,
   selected,
   actions,
   ref
 }: {
   pin: Exclude<Pin, PinFolder>;
+  order: string;
   selected?: number;
   actions: PinActions;
   ref?: Ref<HTMLDivElement>;
@@ -144,6 +148,7 @@ export function Favorite({
     <motion.div
       ref={ref}
       layout={still ? undefined : "position"}
+      layoutDependency={order}
       initial={moving ? false : { opacity: 0, ...scaleTo(still, 0.95) }}
       animate={{ opacity: 1, ...scaleTo(still, 1), transition: TILE_IN }}
       exit={{ opacity: 0, transition: TILE_OUT }}

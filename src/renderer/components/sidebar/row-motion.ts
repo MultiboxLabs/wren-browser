@@ -44,6 +44,14 @@ export const CONTROL_OUT: Transition = {
 /** A pin or a favourite sliding to its new place in its list, as another comes, goes or moves. */
 export const REORDER: Transition = { duration: 0.22, ease: EASE_OUT };
 
+/**
+ * A list's order, which its rows' and tiles' slides are measured by
+ * (Motion's `layoutDependency`): only as what is in it, or its order,
+ * changes. Drawn again for anything else, such as the sidebar moving the
+ * space's content as it switches spaces, nothing in it slides.
+ */
+export const listOrder = (items: { id: number | string }[]) => items.map(({ id }) => id).join(" ");
+
 /** A tile, or the favourites' box, fading (and a tile scaling) in and out. */
 export const TILE_IN: Transition = { duration: 0.16, ease: EASE_OUT };
 export const TILE_OUT: Transition = { duration: 0.16, ease: FADE_OUT };

@@ -18,7 +18,7 @@
 // wheel, which has no phases, steps a space at a time as it turns sideways.
 
 import { type RefObject, useEffect, useRef } from "react";
-import { type SpaceSlide, spacing } from "@/state/space-slide";
+import type { SpaceSlide } from "@/state/space-slide";
 import { prefersReducedMotion } from "@/utils/motion";
 
 // How far the content moves for the fingers' scroll.
@@ -125,17 +125,20 @@ const isTheirs = (event: WheelEvent) => event.ctrlKey || event.target instanceof
 
 /**
  * Swipes over `area` move `slide`'s content. `canStep` says whether there is
- * a space that way (1 the next, -1 the previous), and `step` goes to it.
+ * a space that way (1 the next, -1 the previous), and `step` goes to it at
+ * once, as a swipe has moved the content there; `glide` goes to it with the
+ * content gliding there, for a mouse's wheel.
  */
 export function useSpaceSwipe(
   area: RefObject<HTMLElement | null>,
   slide: SpaceSlide,
   canStep: (by: 1 | -1) => boolean,
-  step: (by: 1 | -1) => void
+  step: (by: 1 | -1) => void,
+  glide: (by: 1 | -1) => void
 ) {
   // Read by the listener as they are now.
-  const latest = useRef({ canStep, step });
-  latest.current = { canStep, step };
+  const latest = useRef({ canStep, step, glide });
+  latest.current = { canStep, step, glide };
 
   useEffect(() => {
     const element = area.current;
@@ -149,7 +152,7 @@ export function useSpaceSwipe(
 
     const strip = (): Strip => ({
       pages: ([-1, 0, 1] as const).filter((page) => page === 0 || latest.current.canStep(page)),
-      width: spacing(element)
+      width: slide.pitch.get()
     });
     // Takes the place from where the content is now: the window may have
     // switched to the space it was gliding to meanwhile, a width over.
@@ -174,7 +177,7 @@ export function useSpaceSwipe(
       const to = landing(now, shown, speed, lifted.caught);
       // It keeps its speed only going that way.
       const toward = Math.sign(to * now.width - shown) === Math.sign(speed);
-      slide.release(to, now.width, toward ? -speed : 0);
+      slide.release(to, toward ? -speed : 0);
       if (to !== 0) latest.current.step(to);
     };
 
@@ -215,7 +218,7 @@ export function useSpaceSwipe(
       const by = notch.turned > 0 ? 1 : -1;
       notch.turned = 0;
       notch.stepped = at;
-      if (latest.current.canStep(by)) slide.leave(by, () => latest.current.step(by));
+      if (latest.current.canStep(by)) latest.current.glide(by);
     };
 
     const onWheel = (event: WheelEvent) => {

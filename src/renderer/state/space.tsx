@@ -130,7 +130,7 @@ type SpaceState = {
   startNewSpace: (profile?: string) => void;
   /** Moves a space to `index` among every space; rejects if the app can't. */
   moveSpace: (id: number, index: number) => Promise<void>;
-  /** Brings a space forward in the window, the old one's content sliding out first. */
+  /** Brings a space forward in the window, the content gliding to it, drawn beside the old one's. */
   show: (id: number) => void;
   /** Brings a space forward at once: a swipe, whose fingers slid the old one out. */
   showNow: (id: number) => void;
@@ -176,26 +176,34 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
     [openedFrom, profile, profileEntry, draft, entry, current]
   );
 
-  // The content slides out toward `to`'s place, then `then` runs; at once
-  // if either has no place.
-  const leaveFor = (to: number, then: () => void) => {
+  // Which way `to` is from the window's space, by their order: 1 after, -1
+  // before; null if either has no place.
+  const sideOf = (to: number) => {
     const [from, next] = [at === null ? -1 : order(at), order(to)];
-    if (from < 0 || next < 0) return then();
-    slide.leave(next > from ? 1 : -1, then);
+    return from < 0 || next < 0 ? null : next > from ? 1 : -1;
   };
   // A switch that fails leaves the content where it was.
   const showNow = (id: number) => {
     if (hasApp) appWindow.showSpace(id).catch(slide.settle);
   };
   const show = (id: number) => {
-    if (id !== at) leaveFor(id, () => showNow(id));
+    if (id === at) return;
+    const side = sideOf(id);
+    if (side === null) return showNow(id);
+    slide.glideTo({ from: at, to: id, side }, () => showNow(id));
   };
-  // The main menu's ⌃1 to ⌃9 come here, to slide as a press does.
+  // The main menu's ⌃1 to ⌃9 come here, to glide as a press does.
   const latestShow = useRef(show);
   latestShow.current = show;
   useEffect(() => (hasApp ? appWindow.onChooseSpace((id) => latestShow.current(id)) : undefined), []);
   const startNewSpace = (profile?: string) => {
-    if (!making) leaveFor(NEW_SPACE, () => newSpace.start(profile ?? entry?.profile));
+    if (making) return;
+    const start = () => newSpace.start(profile ?? entry?.profile);
+    // The form has nothing to draw before it starts: the content slides out
+    // the short way, and the form in.
+    const side = sideOf(NEW_SPACE);
+    if (side === null) start();
+    else slide.leave(side, start);
   };
 
   return (

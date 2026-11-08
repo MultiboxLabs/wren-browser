@@ -18,7 +18,7 @@ import { Favorite } from "./favorite";
 import type { PinActions } from "./pin-actions";
 import { usePinDrop } from "./pin-drop";
 import { favoritesLandingAt } from "./pin-landing";
-import { REORDER, TILE_IN, TILE_OUT } from "./row-motion";
+import { listOrder, REORDER, TILE_IN, TILE_OUT } from "./row-motion";
 
 /**
  * `read`: whether the favourites have been read, before which the box is
@@ -46,6 +46,8 @@ export function Favorites({
     landingAt: (element, dragging, x, y) => favoritesLandingAt(element, favorites, dragging, x, y),
     enabled: keeps
   });
+
+  const order = listOrder(favorites);
 
   if (favorites.length === 0) {
     const tip = keeps && read && settings.read && !settings.values.favoritesTipDismissed;
@@ -83,7 +85,10 @@ export function Favorites({
             the others close up as it does. */}
         <AnimatePresence initial={false} mode="popLayout">
           {favorites.map(
-            (pin) => pin.kind !== "folder" && <Favorite key={pin.id} pin={pin} selected={selected} actions={actions} />
+            (pin) =>
+              pin.kind !== "folder" && (
+                <Favorite key={pin.id} pin={pin} order={order} selected={selected} actions={actions} />
+              )
           )}
         </AnimatePresence>
         {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}

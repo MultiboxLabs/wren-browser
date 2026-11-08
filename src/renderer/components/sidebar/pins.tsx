@@ -22,7 +22,7 @@ import { FoldingRows, foldRow } from "./folding";
 import type { PinActions } from "./pin-actions";
 import { usePeek } from "./peeks";
 import { pinBody, pinDrag } from "./pin-drop";
-import { useStrike } from "./row-motion";
+import { listOrder, useStrike } from "./row-motion";
 import {
   Appear,
   CloseButton,
@@ -88,22 +88,27 @@ export function pinTitle(pin: Exclude<Pin, PinFolder>, open: PinTab[] = []) {
     .join(" | ");
 }
 
-/** Pins, coming and going as the list's tabs do (`Appear`); no row's layout is motion's to animate. */
+/**
+ * Pins, coming and going as the list's tabs do (`Appear`), which moves the
+ * rows below without Motion's layout; a row slides to a new place only as
+ * the pins' order changes (`listOrder`).
+ */
 export function PinRows({ pins, ...props }: PinProps & { pins: Pin[] }) {
+  const order = listOrder(pins);
   return (
     <AnimatePresence initial={false} presenceAffectsLayout={false}>
       {pins.map((pin) => (
-        <PinItem key={pin.id} pin={pin} {...props} />
+        <PinItem key={pin.id} pin={pin} order={order} {...props} />
       ))}
     </AnimatePresence>
   );
 }
 
-/** A pin's row in its list, coming and going as the list's rows do. */
-function PinItem({ pin, ...props }: PinProps & { pin: Pin }) {
+/** A pin's row in its list, coming and going as the list's rows do, and sliding as its list's `order` changes. */
+function PinItem({ pin, order, ...props }: PinProps & { pin: Pin; order: string }) {
   const open = usePinTabs(pin);
   return (
-    <Appear identities={identitiesOf(pin, open)} reorders>
+    <Appear identities={identitiesOf(pin, open)} reorders={order}>
       <PinBody pin={pin} {...props} />
     </Appear>
   );
