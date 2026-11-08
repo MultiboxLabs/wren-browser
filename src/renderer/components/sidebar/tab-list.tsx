@@ -10,7 +10,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Favicon } from "@/components/favicon";
 import { SpaceIcon } from "@/components/space-icon";
 import type { OmniboxState } from "@/components/omnibox/shown";
-import { useBrowser } from "@/state/browser";
+import { type TabShape, useTab, useTabShape } from "@/state/browser";
 import { type Tab, useDrawnSpace, useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { DropMarkView } from "./drop-mark";
@@ -76,7 +76,7 @@ export function TabList({
   const holdUntil = useHoldUntil();
   const { profile } = useSpace();
   const space = useDrawnSpace();
-  const { listed: tabs, groups: tabGroups, splits, current } = useBrowser();
+  const { listed: tabs, groups: tabGroups, splits, active } = useTabShape();
   const [renaming, setRenaming] = useState<string | null>(null);
   // The spaces whose pinned tabs are folded up, as long as the window is open.
   const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());
@@ -95,7 +95,7 @@ export function TabList({
   const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join(), space.id);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
-  useRevealActive(scroller, current?.id);
+  useRevealActive(scroller, active ?? undefined);
   const { above } = useListEdges(scroller, content);
   // What is dropped on the space's heading is pinned first; on the pins, it
   // lands among them (pin-landing.ts), first as well with none drawn, as
@@ -106,7 +106,7 @@ export function TabList({
     folders: true,
     enabled: !profile
   });
-  const selected = newTabOpen ? undefined : current?.id;
+  const selected = newTabOpen || active === null ? undefined : active;
   const actions: ListActions = {
     splits,
     onSelect: selectTab,
@@ -325,14 +325,16 @@ function SpaceHeading({
 }
 
 function TabRow({
-  tab,
+  id,
   indent,
   closable,
   selected,
   onSelect,
   onClose,
   onTabMenu
-}: ListProps & { tab: Tab; indent?: number; closable?: boolean }) {
+}: ListProps & { id: number; indent?: number; closable?: boolean }) {
+  const tab = useTab(id);
+  if (!tab) return null;
   return (
     <Row
       selected={tab.id === selected}
@@ -356,9 +358,9 @@ function TabRow({
 // The Browser's tabs as the list shows them: in runs outside any group, and
 // in runs under a group's heading. Chromium keeps a group's tabs together,
 // and a split's two. `start` is the index of a run's first tab among all.
-type Entry = { group?: TabGroup; tabs: Tab[]; start: number };
+type Entry = { group?: TabGroup; tabs: TabShape[]; start: number };
 
-function entries(tabs: Tab[], groups: TabGroup[]): Entry[] {
+function entries(tabs: TabShape[], groups: TabGroup[]): Entry[] {
   const list: Entry[] = [];
   tabs.forEach((tab, index) => {
     const last = list[list.length - 1];
@@ -374,11 +376,11 @@ function entries(tabs: Tab[], groups: TabGroup[]): Entry[] {
  * index among all; a split's `lead` is that tab, which keeps the row.
  */
 type BrowserRowItem =
-  | { split?: undefined; tab: Tab; start: number }
-  | { split: TabSplit; first: Tab; second: Tab; lead: Tab; start: number };
+  | { split?: undefined; tab: TabShape; start: number }
+  | { split: TabSplit; first: TabShape; second: TabShape; lead: TabShape; start: number };
 
 /** `start`: the index among all the tabs of the first of `tabs`. */
-function rows(tabs: Tab[], splits: TabSplit[], start: number): BrowserRowItem[] {
+function rows(tabs: TabShape[], splits: TabSplit[], start: number): BrowserRowItem[] {
   const list: BrowserRowItem[] = [];
   tabs.forEach((tab, index) => {
     const split = splits.find((split) => split.id === tab.split);
@@ -406,17 +408,20 @@ const rowUnit = (scope: string, row: BrowserRowItem): Unit =>
 function BrowserRow(props: ListProps & { row: BrowserRowItem; indent?: number }) {
   const { row } = props;
   return row.split ? (
-    <SplitRow {...props} split={row.split} first={row.first} second={row.second} />
+    <SplitRow {...props} first={row.first.id} second={row.second.id} />
   ) : (
-    <TabRow {...props} tab={row.tab} closable />
+    <TabRow {...props} id={row.tab.id} closable />
   );
 }
 
 // A split's two tabs side by side in one row, as they show in the window:
 // one tab to the list, hovered whole with both close buttons, though a
 // press on either half selects that half's tab.
-function SplitRow(props: ListProps & { split: TabSplit; first: Tab; second: Tab; indent?: number }) {
-  const { first, second, selected } = props;
+function SplitRow(props: ListProps & { first: number; second: number; indent?: number }) {
+  const { selected } = props;
+  const first = useTab(props.first);
+  const second = useTab(props.second);
+  if (!first || !second) return null;
   const active = first.id === selected || second.id === selected;
   return (
     <SplitFrame active={active} indent={props.indent}>
@@ -451,10 +456,9 @@ const selectedIn = (row: BrowserRowItem, selected: Tab["id"] | undefined) =>
   tabsOf(row).some((tab) => tab.id === selected) ? selected : undefined;
 
 /**
- * A row of the Browser's list as a unit of it. The app sends its tabs whole
- * when any changes, so it is drawn again only when what it shows does: its
- * tabs (kept as the same objects while they are, state/browser.tsx), its
- * place, or the selection in it.
+ * A row of the Browser's list as a unit of it, drawn again only when its
+ * tabs, its place or the selection in it change. Its tabs draw themselves
+ * again as their titles and states change (`useTab`).
  */
 const UnitRow = memo(
   function UnitRow({
@@ -489,7 +493,7 @@ const UnitRow = memo(
     before.className === after.className &&
     before.row.start === after.row.start &&
     before.row.split === after.row.split &&
-    tabsOf(before.row).every((tab, index) => tab === tabsOf(after.row)[index])
+    tabsOf(before.row).every((tab, index) => tab.id === tabsOf(after.row)[index].id)
 );
 
 /** Chromium's group colours, made to read on the space's colour. */
@@ -518,7 +522,7 @@ function GroupRows({
   actions: ListActions;
   selected?: Tab["id"];
   group: TabGroup;
-  members: Tab[];
+  members: TabShape[];
   start: number;
 }) {
   const Chevron = group.collapsed ? ChevronRight : ChevronDown;

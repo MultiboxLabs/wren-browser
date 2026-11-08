@@ -12,7 +12,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { browser, hasApp, previewUrl, tabSwitcher } from "@/ipc";
 import type { BrowserTab, TabSplit } from "@/ipc";
-import { useBrowser } from "@/state/browser";
+import { useBrowser, useTabShape } from "@/state/browser";
 import { useWindowActive } from "@/state/window";
 import { cn } from "@/utils/cn";
 import { scaleTo } from "@/utils/motion";
@@ -33,7 +33,9 @@ type Switching = {
 };
 
 export function TabSwitcher() {
-  const { tabs, splits, space } = useBrowser();
+  // Only its cards read the tabs, so it draws again as they change only
+  // while it shows.
+  const { space } = useTabShape();
   const recent = useRecentTabs();
   const active = useWindowActive();
   // The switcher as the last key left it, which the next key reads: two
@@ -93,8 +95,6 @@ export function TabSwitcher() {
   }, [active]);
   useEffect(() => close(true), [space]);
 
-  // The tabs closed since it opened are left out.
-  const byId = new Map(tabs.map((tab) => [tab.id, tab]));
   const selected = shown?.tabs[shown.selected];
   return (
     <AnimatePresence>
@@ -113,25 +113,32 @@ export function TabSwitcher() {
             transition={{ duration: 0.12, ease: [0.2, 0.9, 0.3, 1] }}
             className="tab-switcher pointer-events-auto flex max-w-full gap-1 overflow-x-auto p-3 scrollbar-none"
           >
-            {shown.tabs.map((id) => {
-              const tab = byId.get(id);
-              if (!tab) return null;
-              const split = splits.find((split) => split.id === tab.split);
-              return (
-                <Card
-                  key={id}
-                  tabs={cardTabs(tab, split, byId)}
-                  stacked={split?.stacked ?? false}
-                  selected={id === selected}
-                  onChoose={() => go(id, true)}
-                />
-              );
-            })}
+            <Cards ids={shown.tabs} selected={selected} onChoose={(id) => go(id, true)} />
           </motion.div>
         </div>
       )}
     </AnimatePresence>
   );
+}
+
+/** A card for each of tabs `ids`, but those closed since it opened. */
+function Cards({ ids, selected, onChoose }: { ids: number[]; selected?: number; onChoose: (id: number) => void }) {
+  const { tabs, splits } = useBrowser();
+  const byId = new Map(tabs.map((tab) => [tab.id, tab]));
+  return ids.map((id) => {
+    const tab = byId.get(id);
+    if (!tab) return null;
+    const split = splits.find((split) => split.id === tab.split);
+    return (
+      <Card
+        key={id}
+        tabs={cardTabs(tab, split, byId)}
+        stacked={split?.stacked ?? false}
+        selected={id === selected}
+        onChoose={() => onChoose(id)}
+      />
+    );
+  });
 }
 
 // The tabs a card shows: its tab's split's two, in their order, or its one.

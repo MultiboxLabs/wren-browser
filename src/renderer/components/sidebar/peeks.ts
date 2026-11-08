@@ -7,7 +7,7 @@
 
 import { createContext, useContext } from "react";
 import type { Pin } from "@/ipc";
-import { useBrowser } from "@/state/browser";
+import { useTabShape } from "@/state/browser";
 import { pinIdentity } from "./arrival";
 import { nextPeeking, type Peeking, usePeekings } from "./folding";
 
@@ -29,7 +29,7 @@ export const usePeek = (container: Container) => useContext(PeeksContext).get(co
  * `open`. `selected` is the selected tab's ID, unless none is.
  */
 export function usePeeks(pins: Pin[], open: boolean, selected?: number): Peeks {
-  const { links } = useBrowser();
+  const { links } = useTabShape();
   const opened = new Set(links.map((link) => link.pin));
   const active = selected === undefined ? undefined : links.find((link) => link.tabs.includes(selected))?.pin;
 

@@ -10,7 +10,7 @@
 import { Search } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { type Pin, type PinFolder, pins as pinsIpc } from "@/ipc";
-import { useBrowser } from "@/state/browser";
+import { useTabShape } from "@/state/browser";
 import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { ago, useNow } from "@/utils/now";
@@ -82,8 +82,8 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
   const now = useNow();
   // The pin whose tab the window shows is in use now, whenever its last
   // use was kept.
-  const { links, current } = useBrowser();
-  const active = links.find((link) => current && link.tabs.includes(current.id))?.pin;
+  const { links, active: activeTab } = useTabShape();
+  const active = links.find((link) => activeTab !== null && link.tabs.includes(activeTab))?.pin;
   const usedAt = (pin: PagePin) => (pin.id === active ? now : pin.lastActive);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);

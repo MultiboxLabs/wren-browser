@@ -21,7 +21,7 @@ export function PopupWindow({ popup }: { popup: WindowPopup }) {
   const { space } = useSpace();
   usePopupTheme(space);
   useShowWindow();
-  const { tabs, current, fullScreen } = useBrowser();
+  const { current, fullScreen } = useBrowser();
   const blocked = useWindowBlocked();
   const shown = fullScreen ?? current;
 
@@ -30,7 +30,7 @@ export function PopupWindow({ popup }: { popup: WindowPopup }) {
       {popup.address && !fullScreen && <AddressBar tab={current} />}
       <main className="flex min-h-0 flex-1">
         {shown ? (
-          <TabView tab={shown} tabs={tabs} fullScreen={fullScreen !== undefined} bare />
+          <TabView tab={shown} fullScreen={fullScreen !== undefined} bare />
         ) : (
           <div className="no-drag min-w-0 flex-1 bg-card" />
         )}

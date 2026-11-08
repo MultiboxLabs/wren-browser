@@ -13,7 +13,7 @@ import { AnimatePresence } from "motion/react";
 import { Favicon } from "@/components/favicon";
 import { Tooltip } from "@/components/ui/tooltip";
 import { browser, type BrowserTab, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from "@/ipc";
-import { useBrowser } from "@/state/browser";
+import { useTab, useTabShape } from "@/state/browser";
 import { cn } from "@/utils/cn";
 import { FolderIcon } from "./folder-icon";
 import { FolderMenu } from "./folder-menu";
@@ -48,13 +48,13 @@ export type PinTab = { tab: BrowserTab; away: boolean };
 
 /** The open tabs of a pin, in its order; none while it is unopened. */
 export function usePinTabs(pin: Pin): PinTab[] {
-  const { links, tabs } = useBrowser();
+  const { links } = useTabShape();
   const link = links.find((link) => link.pin === pin.id);
+  // A pin has a tab, or a split pin two.
+  const first = useTab(link?.tabs[0]);
+  const second = useTab(link?.tabs[1]);
   if (!link) return [];
-  const found = link.tabs.map((id, side) => {
-    const tab = tabs.find((tab) => tab.id === id);
-    return tab && { tab, away: link.away[side] };
-  });
+  const found = [first, second].slice(0, link.tabs.length).map((tab, side) => tab && { tab, away: link.away[side] });
   return found.every((each) => each !== undefined) ? found : [];
 }
 

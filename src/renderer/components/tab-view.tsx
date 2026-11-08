@@ -20,19 +20,20 @@ const SIDE_MIN = 160;
 export function TabView({
   tab,
   split,
-  tabs,
+  first,
+  second,
   fullScreen = false,
   bare = false
 }: {
   tab: BrowserTab;
+  /** The split `tab` is in, if any, and its two tabs. */
   split?: TabSplit;
-  tabs: BrowserTab[];
+  first?: BrowserTab;
+  second?: BrowserTab;
   fullScreen?: boolean;
   /** Edge to edge, with no card round it nor loading bar over it: a popup's. */
   bare?: boolean;
 }) {
-  const first = split && tabs.find((each) => each.id === split.first);
-  const second = split && tabs.find((each) => each.id === split.second);
   if (fullScreen || bare || !split || !first || !second)
     return <TabPane tab={tab} active fullScreen={fullScreen} bare={bare} className="flex-1" />;
   return <SplitPanes split={split} first={first} second={second} active={tab.id} />;

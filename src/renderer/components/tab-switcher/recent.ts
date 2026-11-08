@@ -6,7 +6,7 @@
 // five used last are given.
 
 import { useLayoutEffect, useRef } from "react";
-import { useBrowser } from "@/state/browser";
+import { useReadTabs, useTabShape } from "@/state/browser";
 
 /** How many of them the switcher shows. */
 const MOST_RECENT = 5;
@@ -17,21 +17,23 @@ const MOST_RECENT = 5;
  * so a listener keeps it.
  */
 export function useRecentTabs() {
-  const { space, current, tabs } = useBrowser();
+  const { space, active } = useTabShape();
   // Each space's tabs, last used first; closed ones too, until the next read.
   const used = useRef(new Map<number, number[]>());
-  const now = useRef({ space, tabs });
+  // The tabs as they are when read, which a change to them doesn't draw again.
+  const readTabs = useReadTabs();
+  const readNow = useRef(readTabs);
   useLayoutEffect(() => {
-    now.current = { space, tabs };
-  }, [space, tabs]);
+    readNow.current = readTabs;
+  });
   useLayoutEffect(() => {
-    if (space === null || !current) return;
+    if (space === null || active === null) return;
     const list = used.current.get(space) ?? [];
-    used.current.set(space, [current.id, ...list.filter((id) => id !== current.id)]);
-  }, [space, current?.id]);
+    used.current.set(space, [active, ...list.filter((id) => id !== active)]);
+  }, [space, active]);
 
   const read = useRef(() => {
-    const { space, tabs } = now.current;
+    const { space, tabs } = readNow.current();
     if (space === null) return [];
     const open = new Set(tabs.map((tab) => tab.id));
     const kept = (used.current.get(space) ?? []).filter((id) => open.has(id));

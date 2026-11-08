@@ -4,7 +4,7 @@ import { hasApp, type SidebarState } from "@/ipc";
 import { HoldContext } from "@/components/ui/hold";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ResizeHandle } from "@/components/ui/resize-handle";
-import { BrowserProvider, useBrowser, useSidePanel } from "@/state/browser";
+import { BrowserProvider, useSidePanel, useTab, useTabShape } from "@/state/browser";
 import { DownloadsProvider } from "@/state/downloads";
 import { PinsProvider } from "@/state/pins";
 import { SpaceProvider, useSpace } from "@/state/space";
@@ -63,11 +63,15 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   useWindowTheme(space, toward);
   useShowWindow();
 
-  const { id: browser, splits, tabs, current, fullScreen } = useBrowser();
+  const { id: browser, splits, active, fullScreen: fullScreenTab } = useTabShape();
   const sidePanel = useSidePanel();
   // A page in full screen has the whole window: the sidebar and the side
   // panel make way for it, and come back as they were.
-  const shown = fullScreen ?? current;
+  const fullScreen = fullScreenTab !== null;
+  const shown = useTab(fullScreenTab ?? active);
+  const split = splits.find((split) => split.id === shown?.split);
+  const first = useTab(split?.first);
+  const second = useTab(split?.second);
   const address = useRef<HTMLDivElement>(null);
   const omnibox = useShownOmnibox(address, browser !== null);
   // The omnibox is the space's: it closes as the window switches.
@@ -82,11 +86,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   useEffect(() => {
     if (blocked) omnibox.done();
   }, [blocked]);
-  const sidebar = useSidebarPresentation(
-    saved,
-    omnibox.shown !== null && omnibox.shown.place !== "center",
-    fullScreen !== undefined
-  );
+  const sidebar = useSidebarPresentation(saved, omnibox.shown !== null && omnibox.shown.place !== "center", fullScreen);
 
   return (
     // The downloads the window lists, and the Library button's indicator.
@@ -99,12 +99,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
 
         <main className={cn("flex min-w-0 flex-1", !fullScreen && "py-2.5 pr-2.5")}>
           {shown ? (
-            <TabView
-              tab={shown}
-              split={splits.find((split) => split.id === shown.split)}
-              tabs={tabs}
-              fullScreen={fullScreen !== undefined}
-            />
+            <TabView tab={shown} split={split} first={first} second={second} fullScreen={fullScreen} />
           ) : (
             <div className="card empty no-drag min-w-0 flex-1" />
           )}
@@ -117,7 +112,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
         )}
         <motion.aside
           // Kept while hidden, so it slides away and back as it was.
-          inert={sidebar.presentation === "hidden" || fullScreen !== undefined}
+          inert={sidebar.presentation === "hidden" || fullScreen}
           style={sidebar.motion.box}
           className={cn("fixed pl-2", !sidebar.open && "no-drag", fullScreen && "hidden")}
           onPointerEnter={sidebar.enter}

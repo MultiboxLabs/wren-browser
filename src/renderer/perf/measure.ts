@@ -24,19 +24,19 @@ export function updateReceived() {
   if (measuring) received ??= performance.now();
 }
 
-/** BrowserProvider is rendering, the update with it if one has come. */
+/** The window's tabs are rendering (`TabsOf` in state/browser.tsx), the update with them if one has come. */
 export function updateRendering() {
   if (measuring && received !== null) rendering ??= performance.now();
 }
 
 /**
- * When the message BrowserProvider is committing came; null when it
- * renders for something else. Read in a layout effect below it, which runs
- * before BrowserProvider's.
+ * When the message the window's tabs are committing for came; null when they
+ * render for something else. Read in a layout effect below them, which runs
+ * before theirs.
  */
 export const receivedAt = () => received;
 
-/** BrowserProvider's commit is done. */
+/** The window's tabs' commit is done. */
 export function updateCommitted() {
   if (!measuring) return;
   commits++;
@@ -49,7 +49,7 @@ export function updateCommitted() {
 /** The updates since the last call. */
 export const takeUpdates = () => updates.splice(0);
 
-/** How many times BrowserProvider has committed since the last call. */
+/** How many times the window's tabs have committed since the last call. */
 export function takeCommits() {
   const taken = commits;
   commits = 0;

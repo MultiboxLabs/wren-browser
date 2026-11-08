@@ -23,7 +23,7 @@ export type PerfResults = {
    * message to the commit, and `bytes` the size of a message of tabs, as
    * the app counts them. `messages` is how many messages of tabs came, in
    * how many `batches` of Chromium's changes, and `commits` how many times
-   * BrowserProvider committed.
+   * the window's tabs committed.
    */
   updates: Frames & {
     perSecond: number;

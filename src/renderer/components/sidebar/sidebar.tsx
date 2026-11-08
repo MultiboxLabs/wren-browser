@@ -34,7 +34,7 @@ import { SpaceSwitcher } from "./space-switcher";
 import { ListBelowContext } from "./list-edge";
 import { TabList } from "./tab-list";
 import { UpdateCard } from "./update";
-import { BrowserOfSpace, useBrowser } from "@/state/browser";
+import { BrowserOfSpace, useTab, useTabShape } from "@/state/browser";
 import { useDownloadIndicator } from "@/state/downloads";
 import { type LibrarySettings, useSettings } from "@/state/library";
 import { usePins } from "@/state/pins";
@@ -183,7 +183,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
       </BrowserOfSpace>
     </SpaceColours>
   );
-  const { current: active } = useBrowser();
+  const active = useTab(useTabShape().active);
   // Read once for every space's content, not again as each comes in.
   const settings = useSettings(true);
   const indicator = useDownloadIndicator();
@@ -325,13 +325,14 @@ type SpaceContentProps = Pick<SidebarProps, "omnibox" | "address"> & { settings:
 function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
   const { profile } = useSpace();
   const space = useDrawnSpace();
-  const { current, ready } = useBrowser();
+  const { active, ready } = useTabShape();
+  const current = useTab(active);
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
   const { actions, dialog } = usePinActions(pins.toggleFolder);
   // The tab drawn selected, as a pin's or a favourite's too; none while the
   // omnibox for a new tab is open.
-  const selected = omnibox.shown?.target === "new-tab" ? undefined : current?.id;
+  const selected = omnibox.shown?.target === "new-tab" || active === null ? undefined : active;
   // The space's pins and the settings are mostly read before it is shown
   // (state/pins.tsx, and the sidebar's), but may not be yet, nor its tabs,
   // as it comes in. Once they are, what shows them is made anew, so what is

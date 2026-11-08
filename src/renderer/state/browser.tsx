@@ -4,6 +4,11 @@
 // find (find.tsx). Each is a context of its own, so a change to one draws
 // only what reads it. The sidebar draws each space's content with that
 // space's Browser (`BrowserOfSpace`).
+//
+// Of the tabs, what draws the list or one tab reads the Browser's shape
+// (`useTabShape`) and each tab on its own (`useTab`), so a tab's change
+// draws only what shows that tab. `useBrowser` gives every tab whole, for
+// what shows them all, and draws again for any tab's change.
 
 import {
   createContext,
@@ -33,7 +38,9 @@ import {
 } from "@/ipc";
 import { updateCommitted, updateRendering } from "@/perf/measure";
 import { FindProvider } from "./find";
-import { type SpaceTabs, TabsStore } from "./tabs";
+import { type BrowserShape, type Key, type SpaceTabs, type TabShape, TabsStore } from "./tabs";
+
+export type { BrowserShape, TabShape };
 
 /** A Browser's tabs, as the app last said. */
 type BrowserState = {
@@ -58,13 +65,19 @@ type BrowserState = {
   splits: TabSplit[];
   /** The pins open in the Browser, each with its tabs. */
   links: PinLink[];
-  /** The active tab. */
+  /** The active tab, and its ID. */
   current?: BrowserTab;
+  active: number | null;
   /** The tab whose page has the whole window, if one has. */
   fullScreen?: BrowserTab;
 };
 
+/** Where the tabs under it are read: the store, and which space's. */
+type TabSource = { store: TabsStore; read: () => SpaceTabs | undefined };
+
 const BrowserContext = createContext<BrowserState | null>(null);
+const ShapeContext = createContext<BrowserShape | null>(null);
+const SourceContext = createContext<TabSource | null>(null);
 const TabsContext = createContext<TabsStore | null>(null);
 const SidePanelContext = createContext<SidePanelState | null>(null);
 const ShowingContext = createContext<string[]>([]);
@@ -86,29 +99,72 @@ function ofTabs(space: number | null, tabs: SpaceTabs | undefined): BrowserState
     splits: said?.splits ?? none,
     links: said?.links ?? none,
     current: tabs?.current,
+    active: tabs?.shape.active ?? null,
     fullScreen: tabs?.fullScreen
   };
 }
 
+/** The shape of a Browser whose tabs are not said. */
+const noShape = (space: Key): BrowserShape => ({
+  id: null,
+  space,
+  ready: false,
+  listed: none,
+  groups: none,
+  splits: none,
+  links: none,
+  active: null,
+  fullScreen: null
+});
+
+/**
+ * Provides a Browser's tabs, read from `read`, to what is under it. The
+ * window's are `measured`: a performance run times how long the app's word
+ * on them takes to show.
+ */
+function TabsOf({
+  store,
+  read,
+  space,
+  measured = false,
+  children
+}: {
+  store: TabsStore;
+  read: () => SpaceTabs | undefined;
+  space: Key;
+  measured?: boolean;
+  children: ReactNode;
+}) {
+  if (measured) updateRendering();
+  useLayoutEffect(() => {
+    if (measured) updateCommitted();
+  });
+  const tabs = useSyncExternalStore(store.subscribe, read);
+  return (
+    <SourceContext value={{ store, read }}>
+      <ShapeContext value={tabs?.shape ?? noShape(space)}>
+        <BrowserContext value={ofTabs(space, tabs)}>{children}</BrowserContext>
+      </ShapeContext>
+    </SourceContext>
+  );
+}
+
 export function BrowserProvider({ children }: { children: ReactNode }) {
-  // How long the app's word on the tabs takes to show, in a performance run.
-  updateRendering();
-  useLayoutEffect(updateCommitted);
   const [store] = useState(() => new TabsStore());
   useEffect(() => store.follow(), []);
   // Only the window's tabs: another space's changing leaves the window as it is.
-  const tabs = useSyncExternalStore(store.subscribe, store.window);
+  const hasTabs = useSyncExternalStore(store.subscribe, () => store.window() !== undefined);
   const panel = useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
   const showing = useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? none;
   return (
     <TabsContext value={store}>
-      <BrowserContext value={ofTabs(null, tabs)}>
-        <SidePanelContext value={panel?.open && tabs ? panel : null}>
+      <TabsOf store={store} read={store.window} space={null} measured>
+        <SidePanelContext value={panel?.open && hasTabs ? panel : null}>
           <ShowingContext value={showing}>
             <FindProvider>{children}</FindProvider>
           </ShowingContext>
         </SidePanelContext>
-      </BrowserContext>
+      </TabsOf>
     </TabsContext>
   );
 }
@@ -121,15 +177,62 @@ export function BrowserProvider({ children }: { children: ReactNode }) {
 export function BrowserOfSpace({ space, children }: { space: number; children: ReactNode }) {
   const store = useContext(TabsContext);
   if (!store) throw new Error("BrowserOfSpace is used outside a BrowserProvider");
-  const tabs = useSyncExternalStore(store.subscribe, () => store.get(space));
-  return <BrowserContext value={ofTabs(space, tabs)}>{children}</BrowserContext>;
+  return (
+    <TabsOf store={store} read={() => store.get(space)} space={space}>
+      {children}
+    </TabsOf>
+  );
 }
 
-/** The window's Browser, from the BrowserProvider around it, or the space's, under a `BrowserOfSpace`. */
+/**
+ * The window's Browser, from the BrowserProvider around it, or the space's,
+ * under a `BrowserOfSpace`, with every tab whole: what reads it draws again
+ * for any tab's change. What draws one tab reads it with `useTab`.
+ */
 export function useBrowser() {
   const state = useContext(BrowserContext);
   if (!state) throw new Error("useBrowser is used outside a BrowserProvider");
   return state;
+}
+
+/** The Browser's shape, as `useBrowser`'s Browser: the same while only its tabs' titles and states change. */
+export function useTabShape() {
+  const shape = useContext(ShapeContext);
+  if (!shape) throw new Error("useTabShape is used outside a BrowserProvider");
+  return shape;
+}
+
+/**
+ * Reads the Browser's space and tabs, as `useBrowser`'s Browser, as they
+ * are when it is called: for a handler, as what calls it doesn't draw
+ * again as they change.
+ */
+export function useReadTabs() {
+  const source = useContext(SourceContext);
+  if (!source) throw new Error("useReadTabs is used outside a BrowserProvider");
+  const { read } = source;
+  return () => {
+    const tabs = read();
+    return { space: tabs?.said.space ?? null, tabs: tabs?.tabs ?? none };
+  };
+}
+
+/**
+ * Tab `id` of the Browser, as `useBrowser`'s Browser, drawn again only as
+ * it changes; none for no ID. A tab that goes is kept as it was last, for
+ * a row that leaves to draw it as it does.
+ */
+export function useTab(id: number | null | undefined) {
+  const source = useContext(SourceContext);
+  if (!source) throw new Error("useTab is used outside a BrowserProvider");
+  const { store, read } = source;
+  const tab = useSyncExternalStore(
+    (listener) => (id == null ? () => {} : store.subscribeTab(id, listener)),
+    () => (id == null ? undefined : read()?.byId.get(id))
+  );
+  const [last, setLast] = useState({ id, tab });
+  if (tab && tab !== last.tab) setLast({ id, tab });
+  return tab ?? (last.id === id ? last.tab : undefined);
 }
 
 /** The window's open side panel, if one is. */
