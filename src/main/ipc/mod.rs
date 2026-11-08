@@ -44,7 +44,7 @@ use crate::tabs;
 
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;
-pub use browser::{send_favicon, send_status, send_tabs};
+pub use browser::{send_favicon, send_no_tabs_for, send_status, send_tabs};
 pub use default_browser::broadcast_default_browser;
 pub use downloads::{
     downloads_changed, send_downloads, send_indicator, send_reveal, show_downloads_bubble,

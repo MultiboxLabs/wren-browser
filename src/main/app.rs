@@ -427,7 +427,6 @@ impl App for Wren {
                     }
                     if pins::follow_tab_changes(state, browser)
                         && let Some(window) = state.windows.of(browser)
-                        && window.browser().as_ref() == Some(browser)
                     {
                         ipc::send_tabs(&window, browser);
                     }
@@ -765,6 +764,8 @@ impl App for Wren {
         if place.is_some() && place == window.place() {
             ipc::send_no_browser(&window);
             self.state.update_title(&window);
+        } else if let Some(place) = place {
+            ipc::send_no_tabs_for(&window, &place);
         }
     }
 }

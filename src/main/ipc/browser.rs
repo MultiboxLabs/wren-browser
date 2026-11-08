@@ -67,7 +67,8 @@ struct Status {
     link: Option<String>,
 }
 
-/// The tabs of the Browser in front, in its order, and which is active.
+/// The tabs of one of the window's Browsers, in its order, and which is
+/// active.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tabs {
@@ -77,6 +78,10 @@ pub struct Tabs {
     /// The space they are the tabs of, so the page never shows them as
     /// another's while it switches; a window on a profile's made-up one.
     space: Option<SpaceId>,
+    /// They are the tabs of the place in front, which the window shows. The
+    /// page takes the last tabs said so as the window's, as they come
+    /// before the window says it is on their space.
+    front: bool,
     tabs: Vec<Tab>,
     active: Option<i32>,
     /// The tab whose page has the whole window, if one has.
@@ -155,18 +160,26 @@ struct MoveToSpace {
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
-    // The tabs; "browser.tabs" says when they change.
+    // The tabs of each of the window's Browsers, and none for its place in
+    // front if that has no Browser and none on the way; "browser.tabs"
+    // says when one's change.
     let weak = window.clone();
     let _ = web_view.handle("browser.tabs", move |()| {
-        with_browser(&weak, |window, browser| Ok(tab_list(window, browser)))
+        with_window(&weak, |window| Ok(every_tab_list(window)))
     });
 
-    // A tab's favicon's icon ID, or null; "tab.favicon" says when it
-    // changes.
+    // A tab's favicon's icon ID, or null, for a tab of any of the
+    // window's Browsers; "tab.favicon" says when it changes.
     let weak = window.clone();
     let _ = web_view.handle("tab.favicon", move |id: i32| {
-        with_browser(&weak, |_, browser| {
-            Ok(tab(mt, browser, id)?.favicon_png().map(icons::id))
+        with_window(&weak, |window| {
+            let tab = BrowserTab::from_id(mt, id)
+                .filter(|tab| {
+                    tab.browser()
+                        .is_some_and(|browser| window.has_browser(&browser))
+                })
+                .ok_or("There is no such tab.")?;
+            Ok(tab.favicon_png().map(icons::id))
         })
     });
 
@@ -380,17 +393,51 @@ pub fn send_tabs(window: &BrowserWindow, browser: &Browser) {
 
 /// Tells the page there are no tabs: its space has no Browser.
 pub fn send_no_tabs(window: &BrowserWindow) {
-    let none = Tabs {
+    let _ = window
+        .page
+        .web_view
+        .send("browser.tabs", &no_tabs(page_space(window.place()), true));
+}
+
+/// Tells the page that `place`, behind the one in front, has no tabs: its
+/// Browser has closed.
+pub fn send_no_tabs_for(window: &BrowserWindow, place: &Place) {
+    let _ = window.page.web_view.send(
+        "browser.tabs",
+        &no_tabs(page_space(Some(place.clone())), false),
+    );
+}
+
+// The tabs of a space without a Browser, in front or not.
+fn no_tabs(space: Option<SpaceId>, front: bool) -> Tabs {
+    Tabs {
         browser: None,
-        space: page_space(window.place()),
+        space,
+        front,
         tabs: Vec::new(),
         active: None,
         full_screen: None,
         groups: Vec::new(),
         splits: Vec::new(),
         links: Vec::new(),
-    };
-    let _ = window.page.web_view.send("browser.tabs", &none);
+    }
+}
+
+// The tabs of each of the window's Browsers. Its place in front without
+// one has none, unless one is on the way: the page waits for its tabs.
+fn every_tab_list(window: &BrowserWindow) -> Vec<Tabs> {
+    let mut every: Vec<Tabs> = window
+        .browsers()
+        .iter()
+        .map(|browser| tab_list(window, browser))
+        .collect();
+    if let Some(place) = window.place()
+        && window.browser().is_none()
+        && !window.is_opening(&place)
+    {
+        every.push(no_tabs(page_space(Some(place)), true));
+    }
+    every
 }
 
 /// Tells the page a tab's favicon changed, for it to ask again.
@@ -457,6 +504,7 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
     Tabs {
         browser: Some(browser.id()),
         space: page_space(window.place_of(browser)),
+        front: window.is_front(browser),
         tabs,
         active: browser.active_tab().map(BrowserTab::id),
         full_screen: browser.fullscreen_tab().map(BrowserTab::id),

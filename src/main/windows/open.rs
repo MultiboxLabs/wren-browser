@@ -372,6 +372,8 @@ impl State {
         if window.is_front(browser) {
             ipc::send_browser(window, browser);
             self.update_title(window);
+        } else {
+            ipc::send_tabs(window, browser);
         }
         self.save_window(window);
     }

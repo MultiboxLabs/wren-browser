@@ -367,9 +367,7 @@ pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), Str
                 }
             });
             // Nothing of its tabs changed to tell the page they are home.
-            if window.browser().as_ref() == Some(&each) {
-                crate::ipc::send_tabs(&window, &each);
-            }
+            crate::ipc::send_tabs(&window, &each);
         }
     }
     crate::ipc::broadcast_pins(state);

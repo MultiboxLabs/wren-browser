@@ -38,12 +38,14 @@ export type TabStatus = { tab: number; link: string | null };
 /** A new picture of a tab's page: the ID it is served at (`previewUrl`). */
 export type TabPreviewChanged = { tab: number; preview: string };
 
-/** The tabs of the window's Browser in front, in its order, and which is active. */
+/** The tabs of one of the window's Browsers, in its order, and which is active. */
 export type BrowserTabs = {
-  /** The Browser's ID, which names its side panel's element; null while the window's space has no Browser. */
+  /** The Browser's ID, which names its side panel's element; null while its space has no Browser. */
   browser: number | null;
   /** The space they are the tabs of; null while the window has none yet. */
   space: number | null;
+  /** They are the tabs of the space the window shows; the last said so are the window's, as they come before the window says it is on their space. */
+  front: boolean;
   tabs: BrowserTab[];
   active: number | null;
   /** The tab whose page has the whole window, if one has. */
@@ -63,10 +65,10 @@ export type PinLink = { pin: number; tabs: number[]; away: boolean[] };
 export type TabUnit = { tab: number } | { split: number } | { group: number };
 
 export const browser = {
-  /** Fails until the window has its Browser; "browser.tabs" follows once it does. */
-  tabs: () => wren.invoke<BrowserTabs>("browser.tabs"),
+  /** The tabs of each of the window's Browsers; "browser.tabs" says each one's again as they change. */
+  tabs: () => wren.invoke<BrowserTabs[]>("browser.tabs"),
   onTabs: (listener: (tabs: BrowserTabs) => void) => wren.on<BrowserTabs>("browser.tabs", listener),
-  /** A tab's favicon's icon ID (iconUrl), or null for none. */
+  /** A tab's favicon's icon ID (iconUrl), or null for none, for a tab of any of the window's Browsers. */
   favicon: (id: number) => wren.invoke<string | null>("tab.favicon", id),
   /** Hears which tab's favicon changed, to ask for it again. */
   onFavicon: (listener: (id: number) => void) => wren.on<number>("tab.favicon", listener),

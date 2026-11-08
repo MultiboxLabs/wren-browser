@@ -1,9 +1,15 @@
-import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore
+} from "react";
 import {
   anchors,
-  browser,
-  type BrowserTab,
-  type BrowserTabs,
   type ExtensionAction,
   extensions,
   find,
@@ -21,11 +27,10 @@ import {
   type Toast,
   toast
 } from "@/ipc";
-import { updateCommitted, updateReceived, updateRendering } from "@/perf/measure";
-import { settle } from "@/utils/settle";
+import { updateCommitted, updateRendering } from "@/perf/measure";
+import { type BrowserTabWithFavicon, type SpaceTabs, TabsStore } from "./tabs";
 
-/** A tab of the Browser, with its favicon once the app has given it. */
-export type BrowserTabWithFavicon = BrowserTab & { favicon?: string | null };
+export type { BrowserTabWithFavicon };
 
 /**
  * The window's Browser, as the app last said: what more than one part of
@@ -37,7 +42,7 @@ type BrowserState = {
    * window has its Browser, and outside the app (Vite in a browser).
    */
   id: number | null;
-  /** The space its tabs are of, as the app said with them. */
+  /** The space its tabs are of, as the app said with them; null until they are said. */
   space: number | null;
   /** Whether its tabs have been said; until then it has none to show. */
   ready: boolean;
@@ -78,60 +83,65 @@ export type FindState = {
 };
 
 const BrowserContext = createContext<BrowserState | null>(null);
+const TabsContext = createContext<TabsStore | null>(null);
 
-export function BrowserProvider({ children }: { children: ReactNode }) {
-  // How long the app's word on the tabs takes to show, in a performance run.
-  updateRendering();
-  useLayoutEffect(updateCommitted);
-  const { said: tabs, list } = useTabs();
-  const panel = useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
-  const showing = useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
-  const find = useFind();
-  const state: BrowserState = {
-    id: tabs?.browser ?? null,
-    space: tabs?.space ?? null,
-    ready: !!tabs,
+/** What a Browser's tabs give its state: none, and not ready, while they are not said. */
+function ofTabs(space: number | null, tabs: SpaceTabs | undefined) {
+  const said = tabs?.said;
+  const list = tabs?.list ?? [];
+  return {
+    id: said?.browser ?? null,
+    space: said?.space ?? space,
+    ready: !!said,
     // The New Tab page that stands in while there is no tab is not listed;
     // this, and `current` below, are the page's one check for an empty
     // space, as `BrowserWindow::browser_with_tabs` is the app's.
     tabs: list.filter((tab) => !tab.hidden),
     listed: list.filter((tab) => !tab.hidden && !tab.pinned),
-    groups: tabs?.groups ?? [],
-    splits: tabs?.splits ?? [],
-    links: tabs?.links ?? [],
+    groups: said?.groups ?? [],
+    splits: said?.splits ?? [],
+    links: said?.links ?? [],
     // The New Tab page standing in is not shown either: the window shows no tab.
-    current: list.find((tab) => tab.id === tabs?.active && !tab.hidden),
-    fullScreen: list.find((tab) => tab.id === tabs?.fullScreen),
+    current: list.find((tab) => tab.id === said?.active && !tab.hidden),
+    fullScreen: list.find((tab) => tab.id === said?.fullScreen)
+  };
+}
+
+export function BrowserProvider({ children }: { children: ReactNode }) {
+  // How long the app's word on the tabs takes to show, in a performance run.
+  updateRendering();
+  useLayoutEffect(updateCommitted);
+  const [store] = useState(() => new TabsStore());
+  useEffect(() => store.follow(), []);
+  // Only the window's tabs: another space's changing leaves the window as it is.
+  const tabs = useSyncExternalStore(store.subscribe, store.window);
+  const panel = useFromApp<SidePanelState>(sidePanel.state, sidePanel.onState);
+  const showing = useFromApp<string[]>(anchors.showing, anchors.onShowing) ?? [];
+  const find = useFind();
+  const state: BrowserState = {
+    ...ofTabs(null, tabs),
     sidePanel: panel?.open && tabs ? panel : null,
     showing,
     find
   };
-  return <BrowserContext value={state}>{children}</BrowserContext>;
+  return (
+    <TabsContext value={store}>
+      <BrowserContext value={state}>{children}</BrowserContext>
+    </TabsContext>
+  );
 }
 
 /**
- * The Browser of one space, for what draws that space's content: as the
- * window switches, the app says the new space's tabs before the space, so
- * the old space's content keeps its own last tabs until it goes, and the
- * new one's never has the old one's.
+ * The Browser of one space, for what draws that space's content: its own
+ * tabs, whichever space the window is on, and none, not ready, until they
+ * are said. The rest is the window's.
  */
 export function BrowserOfSpace({ space, children }: { space: number; children: ReactNode }) {
+  const store = useContext(TabsContext);
+  if (!store) throw new Error("BrowserOfSpace is used outside a BrowserProvider");
   const state = useBrowser();
-  const own = useRef<BrowserState | null>(null);
-  if (state.space === space) own.current = state;
-  const shown = own.current ?? {
-    ...state,
-    space,
-    ready: false,
-    id: null,
-    tabs: [],
-    listed: [],
-    groups: [],
-    splits: [],
-    links: [],
-    current: undefined
-  };
-  return <BrowserContext value={shown}>{children}</BrowserContext>;
+  const tabs = useSyncExternalStore(store.subscribe, () => store.get(space));
+  return <BrowserContext value={{ ...state, ...ofTabs(space, tabs) }}>{children}</BrowserContext>;
 }
 
 /** The window's Browser, from the BrowserProvider around it. */
@@ -155,86 +165,6 @@ function useFind(): FindState | null {
   };
   return bar ? { bar, request, claim } : null;
 }
-
-/** The window's tabs, each with its favicon, as the app last said. */
-type Tabs = {
-  /** The app's word, with its groups and splits settled. Null until the app has said. */
-  said: BrowserTabs | null;
-  /** Its tabs with their favicons, settled. */
-  list: BrowserTabWithFavicon[];
-  favicons: Record<number, string | null>;
-};
-
-/**
- * The window's tabs and their favicons, as the app last said. A tab, group
- * or split the app says again as it was is kept as the object it was
- * (utils/settle.ts), so what draws it is left as it is.
- */
-function useTabs() {
-  const [tabs, setTabs] = useState<Tabs>({ said: null, list: [], favicons: {} });
-  const asked = useRef(new Set<number>());
-
-  useEffect(
-    () =>
-      hasApp
-        ? follow(browser.tabs, browser.onTabs, (said) => {
-            updateReceived(said);
-            setTabs((tabs) => ({
-              ...tabs,
-              said: {
-                ...said,
-                groups: settle(tabs.said?.groups, said.groups),
-                splits: settle(tabs.said?.splits, said.splits)
-              },
-              list: withFavicons(tabs.list, said.tabs, tabs.favicons)
-            }));
-          })
-        : undefined,
-    []
-  );
-
-  // Each tab's favicon, asked for once it is new and again when it changes.
-  const ask = (id: number) =>
-    browser.favicon(id).then(
-      (favicon) => {
-        updateReceived(favicon);
-        setTabs((tabs) => {
-          const favicons = { ...tabs.favicons, [id]: favicon };
-          return { ...tabs, favicons, list: withFavicons(tabs.list, tabs.said?.tabs ?? [], favicons) };
-        });
-      },
-      () => {}
-    );
-  useEffect(() => (hasApp ? browser.onFavicon(ask) : undefined), []);
-  useEffect(() => {
-    if (!tabs.said) return;
-    const open = new Set(tabs.said.tabs.map((tab) => tab.id));
-    for (const id of open) {
-      if (!asked.current.has(id)) {
-        asked.current.add(id);
-        ask(id);
-      }
-    }
-    // Forgets the closed tabs'.
-    const closed = [...asked.current].filter((id) => !open.has(id));
-    if (closed.length) {
-      closed.forEach((id) => asked.current.delete(id));
-      setTabs((tabs) => ({
-        ...tabs,
-        favicons: Object.fromEntries(Object.entries(tabs.favicons).filter(([id]) => open.has(Number(id))))
-      }));
-    }
-  }, [tabs.said]);
-
-  return tabs;
-}
-
-/** `tabs` with their favicons, settled against `previous`. */
-const withFavicons = (previous: BrowserTabWithFavicon[], tabs: BrowserTab[], favicons: Record<number, string | null>) =>
-  settle(
-    previous,
-    tabs.map((tab) => ({ ...tab, favicon: favicons[tab.id] }))
-  );
 
 /** The active tab's site, as the app last said; null before it has shown a page. */
 export const useSite = () => useFromApp<Site | null>(site.state, site.onState) ?? null;
