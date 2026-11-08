@@ -7,7 +7,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { DownloadIndicator } from "@/ipc";
-import { scaleTo } from "@/utils/motion";
+import { EASE_OUT, scaleTo } from "@/utils/motion";
 import { ProgressRing } from "./progress-ring";
 
 // How long the filled ring shows before it goes, in milliseconds.
@@ -32,10 +32,10 @@ export function Indicator({ indicator }: { indicator: DownloadIndicator | null }
       {shown && (
         <motion.span
           aria-label={`${shown.inProgress} ${shown.inProgress === 1 ? "Download" : "Downloads"} in Progress`}
-          initial={{ opacity: 0, ...scaleTo(still, 0.4) }}
+          initial={{ opacity: 0, ...scaleTo(still, 0.8) }}
           animate={{ opacity: 1, ...scaleTo(still, 1) }}
-          exit={{ opacity: 0, ...scaleTo(still, 0.4) }}
-          transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+          exit={{ opacity: 0, ...scaleTo(still, 0.8) }}
+          transition={{ duration: 0.2, ease: EASE_OUT }}
           className="pointer-events-none absolute -top-1.5 -right-1.5"
         >
           <ProgressRing fraction={fraction} size={17} />

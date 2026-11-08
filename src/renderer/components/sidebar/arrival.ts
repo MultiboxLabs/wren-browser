@@ -26,8 +26,7 @@ import {
   useRef,
   useState
 } from "react";
-import { prefersReducedMotion } from "@/utils/motion";
-import { EASE_OUT_CSS } from "./row-motion";
+import { cssEase, EASE_OUT, prefersReducedMotion } from "@/utils/motion";
 
 /** As long as the place an identity left is kept, for what draws it next. */
 const DEPARTED_MS = 300;
@@ -36,7 +35,7 @@ const DEPARTED_MS = 300;
 const MIN_SLIDE = 8;
 
 // Long enough to follow a tab across the sidebar.
-const SLIDE = { duration: 220, easing: EASE_OUT_CSS } as const;
+const SLIDE = { duration: 220, easing: cssEase(EASE_OUT) } as const;
 
 /** What draws a tab of the Browser. */
 export const tabIdentity = (id: number) => `tab:${id}`;

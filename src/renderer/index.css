@@ -57,6 +57,12 @@ body,
 
   --shadow-tooltip: 0 2px 8px rgb(0 0 0 / 0.15);
   --shadow-menu: 0 6px 20px rgb(0 0 0 / 0.2);
+
+  /* Curves, as utils/motion.ts has them for Motion: what comes or goes,
+     and a fade away. Not --ease-out, which would change Tailwind's own
+     ease-out everywhere it is used. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-leave: cubic-bezier(0, 0, 0.58, 1);
 }
 
 @theme inline {

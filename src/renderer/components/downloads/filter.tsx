@@ -10,6 +10,7 @@ import { type ReactNode, useState } from "react";
 import type { ProfileEntry } from "@/ipc";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
+import { EASE_OUT } from "@/utils/motion";
 
 export type DownloadsFilter = ReturnType<typeof useDownloadsFilter>;
 
@@ -108,7 +109,7 @@ export function FilterBar({ filter }: { filter: DownloadsFilter }) {
   );
 }
 
-const ease = { duration: 0.2, ease: [0.23, 1, 0.32, 1] } as const;
+const ease = { duration: 0.2, ease: EASE_OUT } as const;
 
 // What unfolds as it comes, pushing what is under it down, and folds away
 // as it goes; with Reduced Motion it fades.

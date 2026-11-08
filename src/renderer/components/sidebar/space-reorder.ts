@@ -18,12 +18,13 @@ import {
   useRef,
   useState
 } from "react";
+import { cssEase, EASE_SLIDE } from "@/utils/motion";
 import { useEdgeScroll } from "./edge-scroll";
 
 /** How far the pointer goes before a press is a drag. */
 const THRESHOLD = 4;
 const SLIDE_MS = 180;
-const SLIDE = `transform ${SLIDE_MS}ms cubic-bezier(0.25, 1, 0.5, 1)`;
+const SLIDE = `transform ${SLIDE_MS}ms ${cssEase(EASE_SLIDE)}`;
 
 /** A space's place along the row's content, its scroll counted in. */
 type Slot = { left: number; right: number };

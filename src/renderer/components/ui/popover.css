@@ -55,14 +55,14 @@
     inset 0 0 0 1px var(--popover-highlight),
     var(--popover-shadow);
   transform-origin: var(--radix-popover-content-transform-origin, var(--radix-hover-card-content-transform-origin));
-  animation: popover-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  animation: popover-in 0.16s var(--ease-out-strong);
 }
 .popover-deep {
   --popover-shadow: 0 0 0 0.5px var(--popover-edge), 0 14px 36px rgb(0 0 0 / 0.34);
   background: var(--popover-deep);
 }
 .popover[data-state="closed"] {
-  animation: popover-out 0.1s ease-in forwards;
+  animation: popover-out 0.1s var(--ease-leave) forwards;
 }
 @keyframes popover-in {
   from {
@@ -83,7 +83,7 @@
   }
   .popover[data-state="closed"] {
     animation-name: popover-fade-out;
-    animation-timing-function: ease-in;
+    animation-timing-function: var(--ease-leave);
   }
 }
 @keyframes popover-fade-in {

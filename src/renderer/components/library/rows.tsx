@@ -8,6 +8,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Button, type Icon as IconType } from "@/components/ui/button";
 import { press } from "@/components/ui/press";
 import { cn } from "@/utils/cn";
+import { EASE_OUT } from "@/utils/motion";
 
 /** Whether `query`, already lowercased, is in any of `texts`. */
 export const matches = (query: string, ...texts: (string | undefined)[]) =>
@@ -130,7 +131,7 @@ function ActionRow({ label, icon: Icon, danger, disabled, trailing, onPress }: R
 // `AnimatePresence`, for its exit.
 export function RowActions({ actions }: { actions: RowAction[] }) {
   const still = useReducedMotion();
-  const ease = { duration: 0.2, ease: [0.23, 1, 0.32, 1] } as const;
+  const ease = { duration: 0.2, ease: EASE_OUT } as const;
   return (
     <motion.div
       initial={{ opacity: 0, ...(still ? {} : { height: 0 }) }}

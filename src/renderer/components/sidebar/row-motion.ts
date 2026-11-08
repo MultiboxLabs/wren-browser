@@ -3,11 +3,9 @@
 
 import type { Transition } from "motion/react";
 import { useRef } from "react";
-import { prefersReducedMotion } from "@/utils/motion";
+import { cssEase, EASE_OUT, prefersReducedMotion } from "@/utils/motion";
 
-/** A strong ease-out: fast from the start, so the change is seen at once, and settling gently. */
-export const EASE_OUT = [0.23, 1, 0.32, 1] as const;
-export const EASE_OUT_CSS = `cubic-bezier(${EASE_OUT.join(", ")})`;
+const EASE_OUT_CSS = cssEase(EASE_OUT);
 
 /** A gentle ease for a fade out, which a strong ease-out would end in its first frames. */
 const FADE_OUT = [0.25, 0.1, 0.25, 1] as const;

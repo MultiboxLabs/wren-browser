@@ -21,6 +21,7 @@ import { useDialogTurn } from "./dialog-turn";
 import { useHoldWhile } from "./hold";
 import { useWindowBlocked } from "@/state/window";
 import { cn } from "@/utils/cn";
+import { EASE_LEAVE, EASE_OUT } from "@/utils/motion";
 
 /** The dialog's default button. */
 export type DialogAction = {
@@ -88,8 +89,8 @@ export function Dialog(props: DialogProps) {
 // the first two frames, and the dialog would seem to vanish rather than go.
 // Out is still quicker than in: the answer is given, and the window should
 // be back soon.
-const IN = { duration: 0.2, ease: [0.23, 1, 0.32, 1] as const };
-const OUT = { duration: 0.16, ease: [0, 0, 0.58, 1] as const };
+const IN = { duration: 0.2, ease: EASE_OUT };
+const OUT = { duration: 0.16, ease: EASE_LEAVE };
 
 // How long a press may wait before the default button says it is working. A
 // quicker answer closes the dialog with no change to it at all, not a flash

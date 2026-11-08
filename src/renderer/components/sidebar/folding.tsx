@@ -22,12 +22,12 @@
 import { AnimatePresence, frame, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
+import { EASE_DRAWER } from "@/utils/motion";
 import { ArrivalScope } from "./arrival";
 import { ROW_IN, ROW_OUT } from "./row-motion";
 import { ROW_GAP } from "./rows";
 
-// Moving off at once, and settling long and smooth, as a sheet does on iOS.
-export const FOLD = { duration: 0.26, ease: [0.32, 0.72, 0, 1] } as const;
+export const FOLD = { duration: 0.26, ease: EASE_DRAWER } as const;
 const FOLD_MS = FOLD.duration * 1000;
 
 // What a peek takes: the gap its row brings, and the row (`h-9`).

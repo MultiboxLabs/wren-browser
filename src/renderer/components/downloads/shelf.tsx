@@ -12,6 +12,7 @@ import { analytics, downloads, hasApp } from "@/ipc";
 import { useHoldWhile } from "@/components/ui/hold";
 import { lastChanged, newestFirst, useDownloads } from "@/state/downloads";
 import { ago, useNow } from "@/utils/now";
+import { EASE_OUT } from "@/utils/motion";
 import { statusLine } from "./format";
 import { DownloadRow } from "./row";
 
@@ -28,7 +29,7 @@ const SHOWN_BY_ITSELF_FOR = 5000;
 // How far above the shelf the content starts to fade, in points.
 const FADE = 48;
 
-const ease = { duration: 0.2, ease: [0.23, 1, 0.32, 1] } as const;
+const ease = { duration: 0.2, ease: EASE_OUT } as const;
 
 export type ShelfState = ReturnType<typeof useShelf>;
 

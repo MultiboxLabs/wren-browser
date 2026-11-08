@@ -18,6 +18,7 @@ import { useHoldWhile } from "@/components/ui/hold";
 import { browser } from "@/ipc";
 import { type Update, useUpdate } from "@/state/update";
 import { cn } from "@/utils/cn";
+import { EASE_OUT } from "@/utils/motion";
 
 // How long the pointer rests on it before it opens, and how long after it
 // leaves that it closes, in milliseconds: passing over it on the way to the
@@ -27,7 +28,7 @@ const OPEN_AFTER = 120;
 const CLOSE_AFTER = 300;
 const ASKED_FOR = 6000;
 
-const ease = { duration: 0.24, ease: [0.23, 1, 0.32, 1] } as const;
+const ease = { duration: 0.24, ease: EASE_OUT } as const;
 
 // Its line's height, in points.
 const LINE = 26;

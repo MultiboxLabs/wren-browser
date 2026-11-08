@@ -11,6 +11,7 @@
 
 import { animate, type MotionValue, useMotionValue, useReducedMotion } from "motion/react";
 import { useLayoutEffect, useState } from "react";
+import { EASE_DRAWER, EASE_OUT } from "@/utils/motion";
 
 /** The width of the Library's rail, by which the sidebar widens. */
 export const LIBRARY_RAIL = 88;
@@ -33,28 +34,26 @@ const BUTTONS_ON_RAIL = { x: (LIBRARY_RAIL + 8 - 60) / 2 - 13, y: 7 };
 
 // What comes or goes eases out: fast at first, as the press that moved it.
 // The rail pushes the list and the page as a drawer does.
-const easeOut = [0.23, 1, 0.32, 1] as const;
-const drawer = [0.32, 0.72, 0, 1] as const;
-
+//
 // When each step starts and how long it takes, in seconds, each way. The
 // steps overlap, so the motion is one movement rather than a staircase of
 // small ones; closing is quicker, as the response to a press back.
 const steps = {
   opening: {
-    sidebar: { delay: 0, duration: 0.14, ease: easeOut },
-    list: { delay: 0.03, duration: 0.26, ease: easeOut },
-    rail: { delay: 0.06, duration: 0.28, ease: drawer }
+    sidebar: { delay: 0, duration: 0.14, ease: EASE_OUT },
+    list: { delay: 0.03, duration: 0.26, ease: EASE_OUT },
+    rail: { delay: 0.06, duration: 0.28, ease: EASE_DRAWER }
   },
   closing: {
-    rail: { delay: 0, duration: 0.22, ease: drawer },
-    list: { delay: 0, duration: 0.16, ease: easeOut },
-    sidebar: { delay: 0.06, duration: 0.24, ease: easeOut }
+    rail: { delay: 0, duration: 0.22, ease: EASE_DRAWER },
+    list: { delay: 0, duration: 0.16, ease: EASE_OUT },
+    sidebar: { delay: 0.06, duration: 0.24, ease: EASE_OUT }
   }
 } as const;
 
 // With reduced motion, nothing slides: the list and the sidebar's content
 // only cross-fade, and the rail is in or out at once.
-const fade = { duration: 0.15, ease: easeOut } as const;
+const fade = { duration: 0.15, ease: EASE_OUT } as const;
 
 export type LibraryMotion = {
   /** Open, 1, or closed, 0, from the start of each way: the window's buttons follow it. */

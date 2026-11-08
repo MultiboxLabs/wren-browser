@@ -17,13 +17,13 @@ import { Button } from "@/components/ui/button";
 import { SpaceIcon } from "@/components/space-icon";
 import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
-import { scaleTo } from "@/utils/motion";
+import { EASE_SLIDE, scaleTo } from "@/utils/motion";
 import { useSpaceDrop } from "./space-drop";
 import { useSpaceReorder } from "./space-reorder";
 
 // The room between two spaces.
 const GAP = 2;
-const transition = { duration: 0.18, ease: [0.25, 1, 0.5, 1] } as const;
+const transition = { duration: 0.18, ease: EASE_SLIDE } as const;
 
 export function SpaceSwitcher() {
   const { space, spaces, profile, newSpace, moveSpace, show } = useSpace();
@@ -117,9 +117,9 @@ function Appear({ children }: { children: ReactNode }) {
       className="flex shrink-0 justify-center"
     >
       <motion.div
-        initial={{ opacity: 0, ...scaleTo(still, 0.5) }}
+        initial={{ opacity: 0, ...scaleTo(still, 0.8) }}
         animate={{ opacity: 1, ...scaleTo(still, 1) }}
-        exit={{ opacity: 0, ...scaleTo(still, 0.5) }}
+        exit={{ opacity: 0, ...scaleTo(still, 0.8) }}
         transition={transition}
         className="flex shrink-0"
       >

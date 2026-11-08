@@ -8,7 +8,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Key, ReactNode } from "react";
 import { press } from "./press";
 import { cn } from "@/utils/cn";
-import { scaleTo } from "@/utils/motion";
+import { EASE_LEAVE, scaleTo } from "@/utils/motion";
 
 /** What a toast shows. Another `key` replaces it, and comes in afresh. */
 export type ToastContent = {
@@ -30,11 +30,11 @@ export function Toast({ toast, className }: { toast: ToastContent | null; classN
         <motion.div
           key={toast.key}
           role="status"
-          initial={{ opacity: 0, ...scaleTo(still, 0.6) }}
+          initial={{ opacity: 0, ...scaleTo(still, 0.9) }}
           animate={{ opacity: 1, ...scaleTo(still, 1) }}
-          exit={{ opacity: 0, ...scaleTo(still, 0.8), transition: { duration: 0.12, ease: "easeIn" } }}
+          exit={{ opacity: 0, ...scaleTo(still, 0.9), transition: { duration: 0.12, ease: EASE_LEAVE } }}
           transition={{
-            scale: { type: "spring", duration: 0.35, bounce: 0.3 },
+            scale: { type: "spring", duration: 0.35, bounce: 0.2 },
             opacity: { duration: 0.1, ease: "easeOut" }
           }}
           style={{ transformOrigin: "top center" }}

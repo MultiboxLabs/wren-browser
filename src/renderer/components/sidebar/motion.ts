@@ -12,6 +12,7 @@ import {
 import { useEffect, useLayoutEffect } from "react";
 import { appWindow, hasApp } from "@/ipc";
 import { LIBRARY_RAIL, type LibraryMotion, windowButtonsShift } from "@/components/library/motion";
+import { EASE_SLIDE } from "@/utils/motion";
 
 /**
  * How the sidebar is shown: docked beside the page (anchored), or, as it
@@ -35,7 +36,7 @@ const SHADOW_REACH = 32;
 // Brisk enough to use all day: most of the way there at once, settled in
 // 0.15s. Not a spring, whose long tail keeps the page reflowing after the
 // sidebar looks still.
-const transition = { duration: 0.15, ease: [0.25, 1, 0.5, 1] } as const;
+const transition = { duration: 0.15, ease: EASE_SLIDE } as const;
 
 /** The floating sidebar's right edge, from the window's left, for its width (its padding not in it). */
 export function floatingRight(width: number) {

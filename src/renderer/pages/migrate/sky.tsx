@@ -14,6 +14,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { WrenMark } from "@/components/icons";
 import { WrenTile } from "@/components/tile-icon";
 import type { MigrateSource } from "@/ipc";
+import { EASE_SLIDE } from "@/utils/motion";
 import { CloudSea } from "./cloud-sea";
 import { SourceIcon } from "./source-icon";
 
@@ -55,7 +56,7 @@ function wrenAt(flight: Flight) {
 }
 
 // How the wren moves from one place to the next; the arc's gap moves with it.
-const MOVE = { duration: 0.9, ease: [0.25, 1, 0.5, 1] } as const;
+const MOVE = { duration: 0.9, ease: EASE_SLIDE } as const;
 
 // The gap in the arc around the wren, so no dot shows through it.
 const GAP = 34;
