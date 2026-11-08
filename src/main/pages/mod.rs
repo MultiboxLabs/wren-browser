@@ -85,9 +85,22 @@ pub const MIGRATE: Page = Page {
     glass: false,
 };
 
+/// Wren's controls, colours and type in a tab, drawn on a theme the page
+/// picks, for working on how they look.
+pub const DESIGN: Page = Page {
+    host: "design",
+    messages: false,
+    embeds_views: false,
+    anchors: false,
+    in_tabs: true,
+    wheel_phases: false,
+    icons: false,
+    glass: false,
+};
+
 // One for each folder of src/renderer/pages, which are what Vite builds and
 // what the renderer knows as the app's own (`__PAGES__`, vite.config.ts).
-const PAGES: [&Page; 4] = [&UI, &ONBOARDING, &GAME, &MIGRATE];
+const PAGES: [&Page; 5] = [&UI, &ONBOARDING, &GAME, &MIGRATE, &DESIGN];
 
 // `FOLDERS`, the folders of src/renderer/pages, as build.rs finds them.
 include!(concat!(env!("OUT_DIR"), "/pages.rs"));

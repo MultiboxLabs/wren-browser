@@ -130,7 +130,8 @@ const wren: Glyph = (id) => {
 
 /** Each of Wren's own pages that shows in a tab with the wren for its icon, by its host. */
 export const OWN_PAGE_GLYPHS: Record<string, Glyph> = {
-  migrate: wren
+  migrate: wren,
+  design: wren
 };
 
 /** A site with no icon of its own: a globe. The one glyph here in lines, as a
