@@ -7,7 +7,7 @@
    window is flat then. */
 .peek {
   --peek-edge: rgb(255 255 255 / 0.3);
-  backdrop-filter: blur(40px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
   box-shadow: 0 8px 24px rgb(0 0 0 / calc(0.25 * var(--peek, 1)));
 }
 :root[data-scheme="light"] .peek {
