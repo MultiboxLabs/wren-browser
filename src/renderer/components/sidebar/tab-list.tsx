@@ -347,7 +347,7 @@ function TabRow({
     >
       <Favicon url={tab.url} icon={tab.favicon} />
       <TabAlert tab={tab} />
-      <Tooltip label={tab.title}>
+      <Tooltip label={tab.title} lazy>
         <span className="min-w-0 flex-1 truncate">{tab.title}</span>
       </Tooltip>
       {closable && <CloseButton onClose={() => onClose(tab)} />}
@@ -438,7 +438,7 @@ function SplitRow(props: ListProps & { first: number; second: number; indent?: n
         >
           <Favicon url={tab.url} icon={tab.favicon} />
           <TabAlert tab={tab} />
-          <Tooltip label={tab.title}>
+          <Tooltip label={tab.title} lazy>
             <span className="min-w-0 flex-1 truncate">{tab.title}</span>
           </Tooltip>
           <CloseButton onClose={() => props.onClose(tab)} />

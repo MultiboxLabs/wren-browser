@@ -201,7 +201,7 @@ function PinLabel({
     <>
       <PinPageIcon page={page} open={open} />
       <TabAlert tab={open?.tab} />
-      <Tooltip label={title}>
+      <Tooltip label={title} lazy>
         <span className="min-w-0 flex-1 truncate" onClick={renameClick}>
           {title}
         </span>
@@ -311,7 +311,7 @@ function AwayTitle({
         /
       </span>
       <span className="-ml-1.25 flex min-w-0 flex-1 flex-col leading-tight peer-hover/back:ml-0">
-        <Tooltip label={title}>
+        <Tooltip label={title} lazy>
           <span className="truncate" onClick={renameClick}>
             {title}
           </span>
