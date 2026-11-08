@@ -15,13 +15,15 @@ use crate::pins;
 use crate::shell::{BrowserWindow, Place};
 use crate::tabs::placeholder;
 
-/// A tab as the sidebar draws it. Its favicon comes apart ("tab.favicon").
+/// A tab as the sidebar draws it.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tab {
     id: i32,
     title: String,
     url: String,
+    /// Its favicon's icon ID (`iconUrl`), if it has one.
+    favicon: Option<String>,
     loading: bool,
     can_go_back: bool,
     can_go_forward: bool,
@@ -115,7 +117,7 @@ pub fn send_no_tabs_for(window: &BrowserWindow, place: &Place) {
 }
 
 // Sends the page a message of its tabs, whose size a performance run counts.
-pub(super) fn send_counted<V: Serialize>(window: &BrowserWindow, name: &str, value: &V) {
+fn send_counted<V: Serialize>(window: &BrowserWindow, name: &str, value: &V) {
     let Ok(json) = serde_json::to_string(value) else {
         return;
     };
@@ -178,6 +180,7 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
                 id: tab.id(),
                 title: tab.title(),
                 url: tab.url(),
+                favicon: window.page_tabs.favicon(tab),
                 loading: state.is_some_and(|state| state.loading),
                 can_go_back: state.is_some_and(|state| state.can_go_back),
                 can_go_forward: state.is_some_and(|state| state.can_go_forward),

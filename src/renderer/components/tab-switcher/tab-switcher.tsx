@@ -11,8 +11,8 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { browser, hasApp, previewUrl, tabSwitcher } from "@/ipc";
-import type { TabSplit } from "@/ipc";
-import { type BrowserTabWithFavicon, useBrowser } from "@/state/browser";
+import type { BrowserTab, TabSplit } from "@/ipc";
+import { useBrowser } from "@/state/browser";
 import { useWindowActive } from "@/state/window";
 import { cn } from "@/utils/cn";
 import { scaleTo } from "@/utils/motion";
@@ -135,7 +135,7 @@ export function TabSwitcher() {
 }
 
 // The tabs a card shows: its tab's split's two, in their order, or its one.
-function cardTabs(tab: BrowserTabWithFavicon, split: TabSplit | undefined, byId: Map<number, BrowserTabWithFavicon>) {
+function cardTabs(tab: BrowserTab, split: TabSplit | undefined, byId: Map<number, BrowserTab>) {
   const first = split && byId.get(split.first);
   const second = split && byId.get(split.second);
   return first && second ? [first, second] : [tab];
@@ -149,7 +149,7 @@ function Card({
   selected,
   onChoose
 }: {
-  tabs: BrowserTabWithFavicon[];
+  tabs: BrowserTab[];
   stacked: boolean;
   selected: boolean;
   onChoose: () => void;
@@ -199,7 +199,7 @@ function Card({
  * comes, as it does for one out of date or the tab shown. Its icon while
  * there is none, or if it fails to load.
  */
-function TabPreview({ tab, iconSize }: { tab: BrowserTabWithFavicon; iconSize: number }) {
+function TabPreview({ tab, iconSize }: { tab: BrowserTab; iconSize: number }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!hasApp) return;

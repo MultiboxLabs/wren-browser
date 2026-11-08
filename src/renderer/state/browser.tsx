@@ -16,6 +16,7 @@ import {
 } from "react";
 import {
   anchors,
+  type BrowserTab,
   type ExtensionAction,
   extensions,
   follow,
@@ -32,9 +33,7 @@ import {
 } from "@/ipc";
 import { updateCommitted, updateRendering } from "@/perf/measure";
 import { FindProvider } from "./find";
-import { type BrowserTabWithFavicon, type SpaceTabs, TabsStore } from "./tabs";
-
-export type { BrowserTabWithFavicon };
+import { type SpaceTabs, TabsStore } from "./tabs";
 
 /** A Browser's tabs, as the app last said. */
 type BrowserState = {
@@ -48,21 +47,21 @@ type BrowserState = {
   /** Whether its tabs have been said; until then it has none to show. */
   ready: boolean;
   /** Its tabs, in its order. */
-  tabs: BrowserTabWithFavicon[];
+  tabs: BrowserTab[];
   /**
    * The tabs the sidebar's list shows, in its order: those Chromium has not
    * pinned, which are pins' (the app's `tabs::listed`). The list's indices
    * are among these.
    */
-  listed: BrowserTabWithFavicon[];
+  listed: BrowserTab[];
   groups: TabGroup[];
   splits: TabSplit[];
   /** The pins open in the Browser, each with its tabs. */
   links: PinLink[];
   /** The active tab. */
-  current?: BrowserTabWithFavicon;
+  current?: BrowserTab;
   /** The tab whose page has the whole window, if one has. */
-  fullScreen?: BrowserTabWithFavicon;
+  fullScreen?: BrowserTab;
 };
 
 const BrowserContext = createContext<BrowserState | null>(null);

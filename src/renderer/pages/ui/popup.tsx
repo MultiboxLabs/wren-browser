@@ -7,12 +7,12 @@
 // the system is, as its title bar is.
 
 import { LoaderCircle } from "lucide-react";
-import type { WindowPopup } from "@/ipc";
+import type { BrowserTab, WindowPopup } from "@/ipc";
 import { PageInfoButton } from "@/components/address/page-info";
 import { QuitDialog } from "@/components/quit-dialog";
 import { TabView } from "@/components/tab-view";
 import { BrowserToast } from "@/components/toast";
-import { type BrowserTabWithFavicon, useBrowser } from "@/state/browser";
+import { useBrowser } from "@/state/browser";
 import { useSpace } from "@/state/space";
 import { usePopupTheme, useShowWindow, useWindowBlocked } from "@/state/window";
 import { addressParts, isNewTab } from "@/utils/url";
@@ -45,7 +45,7 @@ export function PopupWindow({ popup }: { popup: WindowPopup }) {
 // through), as a toolbar is; a press that misses page info moves the
 // window. The app makes the window as much taller than the page asked as
 // this is (ADDRESS_BAR, windows/popup.rs): keep the two together.
-function AddressBar({ tab }: { tab?: BrowserTabWithFavicon }) {
+function AddressBar({ tab }: { tab?: BrowserTab }) {
   const url = tab && !isNewTab(tab.url) ? tab.url : "";
   const { host, rest } = addressParts(url);
   return (

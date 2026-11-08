@@ -12,8 +12,8 @@ import { Minus, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { Favicon } from "@/components/favicon";
 import { Tooltip } from "@/components/ui/tooltip";
-import { browser, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from "@/ipc";
-import { type BrowserTabWithFavicon, useBrowser } from "@/state/browser";
+import { browser, type BrowserTab, type Pin, type PinFolder, type PinPage, pins as pinsIpc } from "@/ipc";
+import { useBrowser } from "@/state/browser";
 import { cn } from "@/utils/cn";
 import { FolderIcon } from "./folder-icon";
 import { FolderMenu } from "./folder-menu";
@@ -44,7 +44,7 @@ type PinProps = {
 };
 
 /** A pin's tab or a split pin's two, while it is open in the window's Browser, each with whether it is away. */
-export type PinTab = { tab: BrowserTabWithFavicon; away: boolean };
+export type PinTab = { tab: BrowserTab; away: boolean };
 
 /** The open tabs of a pin, in its order; none while it is unopened. */
 export function usePinTabs(pin: Pin): PinTab[] {
@@ -283,7 +283,7 @@ function AwayTitle({
 }: {
   page: PinPage;
   title: string;
-  tab: BrowserTabWithFavicon;
+  tab: BrowserTab;
   inset: keyof typeof BACK_INSET;
   onBack: () => void;
   onRename: () => void;

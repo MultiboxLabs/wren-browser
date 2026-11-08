@@ -11,6 +11,8 @@ export type BrowserTab = {
   id: number;
   title: string;
   url: string;
+  /** Its favicon's icon ID (`iconUrl`), or null for none. */
+  favicon: string | null;
   loading: boolean;
   canGoBack: boolean;
   canGoForward: boolean;

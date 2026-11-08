@@ -23,6 +23,7 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
 }
 
 fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
+    forget_closed_tabs(window, changes);
     apply_behind(window, changes);
     let Some(browser) = window.browser() else {
         return false;
@@ -78,7 +79,7 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
                 site_changed |= change.tab_fields.contains(TabFields::URL) && active;
                 title_changed |= change.tab_fields.contains(TabFields::TITLE) && active;
                 if change.tab_fields.contains(TabFields::FAVICON) {
-                    ipc::send_favicon(window, tab);
+                    window.page_tabs.favicon_changed(tab);
                 }
                 if change.tab_fields.contains(TabFields::STATUS) {
                     ipc::send_status(window, tab);
@@ -113,10 +114,26 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
     title_changed
 }
 
-/// What the sidebar draws of a tab, besides its favicon.
+// What the window keeps of the tabs that closed, or left its Browsers, goes
+// with the batch that says so.
+fn forget_closed_tabs(window: &BrowserWindow, changes: &[Change]) {
+    let closed = changes.iter().any(|change| {
+        change.kind == ChangeKind::Tabs
+            && change
+                .browser
+                .as_ref()
+                .is_some_and(|browser| window.has_browser(browser))
+    });
+    if closed {
+        window.page_tabs.forget_closed(&window.browsers());
+    }
+}
+
+/// What the sidebar draws of a tab.
 fn drawn() -> TabFields {
     TabFields::TITLE
         | TabFields::URL
+        | TabFields::FAVICON
         | TabFields::LOADING
         | TabFields::HISTORY
         | TabFields::CRASHED
@@ -148,7 +165,7 @@ fn apply_behind(window: &BrowserWindow, changes: &[Change]) {
                 if let Some(tab) = change.tab
                     && change.tab_fields.contains(TabFields::FAVICON)
                 {
-                    ipc::send_favicon(window, tab);
+                    window.page_tabs.favicon_changed(tab);
                 }
                 change.tab_fields.intersects(drawn)
             }

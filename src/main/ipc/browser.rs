@@ -1,19 +1,17 @@
 // The calls a page makes that act on its Browser's tabs: open, switch, close,
 // move, split and their menus, and what the app says of a tab beside the
-// list: its favicon, the link under the pointer and its picture. The tabs
+// list: the link under the pointer and its picture. The tabs
 // themselves, as the page draws them, are in tabs.rs.
 
 use serde::{Deserialize, Serialize};
 use wren::{Browser, BrowserTab, MainThread, TabGroup, TabStatus, WebView};
 
-use super::tabs::send_counted;
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser, with_window};
 use crate::analytics::{Event, SplitFrom, TabFrom};
 use crate::app::State;
 use crate::clipboard;
 use crate::db::SpaceId;
 use crate::menus::{self, ADD_FAVORITE, Keeps, PIN_TAB};
-use crate::pages::icons;
 use crate::pins::{self, PinTarget};
 use crate::shell::{BrowserWindow, Place};
 use crate::tabs;
@@ -91,21 +89,6 @@ struct MoveToSpace {
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
-    // A tab's favicon's icon ID, or null, for a tab of any of the
-    // window's Browsers; "tab.favicon" says when it changes.
-    let weak = window.clone();
-    let _ = web_view.handle("tab.favicon", move |id: i32| {
-        with_window(&weak, |window| {
-            let tab = BrowserTab::from_id(mt, id)
-                .filter(|tab| {
-                    tab.browser()
-                        .is_some_and(|browser| window.has_browser(&browser))
-                })
-                .ok_or("There is no such tab.")?;
-            Ok(tab.favicon_png().map(icons::id))
-        })
-    });
-
     // The address of the link under the pointer in a tab's page, or null;
     // "tab.status" says when it changes.
     let weak = window.clone();
@@ -303,11 +286,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             })
         });
     }
-}
-
-/// Tells the page a tab's favicon changed, for it to ask again.
-pub fn send_favicon(window: &BrowserWindow, tab: BrowserTab) {
-    send_counted(window, "tab.favicon", &tab.id());
 }
 
 /// Tells the page the link under the pointer in a tab's page changed.

@@ -1,5 +1,5 @@
 // The calls that act on the window's tabs, and what the app says of a tab
-// beside the list: its favicon, the link under the pointer and its picture.
+// beside the list: the link under the pointer and its picture.
 // The tabs themselves, as the page draws them, are in tabs.ts.
 
 /** The address of the link under the pointer in a tab's page, or of the link with the keyboard; null for none. */
@@ -12,10 +12,6 @@ export type TabPreviewChanged = { tab: number; preview: string };
 export type TabUnit = { tab: number } | { split: number } | { group: number };
 
 export const browser = {
-  /** A tab's favicon's icon ID (iconUrl), or null for none, for a tab of any of the window's Browsers. */
-  favicon: (id: number) => wren.invoke<string | null>("tab.favicon", id),
-  /** Hears which tab's favicon changed, to ask for it again. */
-  onFavicon: (listener: (id: number) => void) => wren.on<number>("tab.favicon", listener),
   /** The address of the link under the pointer in a tab's page, or null. */
   status: (id: number) => wren.invoke<string | null>("tab.status", id),
   /** Hears a tab's link under the pointer change; a tab its Browser does not show has none. */
