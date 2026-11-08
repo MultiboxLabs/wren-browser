@@ -51,6 +51,12 @@ const glide = {
 } as const;
 type Motion = typeof spring | typeof glide;
 
+/**
+ * How near, in spaces, a slot is to where the strip has got for its space to
+ * be in sight: any less of it than a twentieth showing isn't.
+ */
+const IN_SIGHT = 0.95;
+
 /** A space drawn beside the window's: its ID, and its slot, how many spaces over (negative before). */
 export type Slotted = { slot: number; id: number };
 
@@ -216,16 +222,24 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       staying.current = false;
       if (still()) return then();
       const { current: window, order } = latest.current;
-      // Drawn beside the space showing most, on the side its order puts it,
-      // past any drawn there already; or where it is drawn.
-      const showing = Math.round(-x.get() / pitch.get());
+      // Drawn next to the space showing most, on the side its order puts
+      // it, in place of a space drawn there that is out of sight (one just
+      // left, as its glide settles), but past one in sight. Where it is
+      // drawn already, only if that is in sight or next to the space
+      // showing: not past a space still drawn from a glide that settles.
+      const at = -x.get() / pitch.get();
+      const inSight = (slot: number) => Math.abs(at - slot) < IN_SIGHT;
+      const showing = Math.round(at);
       const shown = showing === 0 ? window : drawnAt(showing);
-      let slot = id === window ? 0 : stripNow.current.find((drawn) => drawn.id === id)?.slot;
+      const drawn = stripNow.current.find((each) => each.id === id)?.slot;
+      const near = drawn !== undefined && (inSight(drawn) || Math.abs(drawn - showing) <= 1);
+      let slot = id === window ? 0 : near ? drawn : undefined;
       if (slot === undefined) {
         const way = shown === null || shown === undefined ? 1 : Math.sign(order(id) - order(shown)) || 1;
         slot = showing + way;
-        while (slot === 0 || drawnAt(slot) !== undefined) slot += way;
-        setStrip([...stripNow.current, { slot, id }]);
+        while (slot === 0 || (drawnAt(slot) !== undefined && inSight(slot))) slot += way;
+        const taken = slot;
+        setStrip([...stripNow.current.filter((each) => each.slot !== taken && each.id !== id), { slot, id }]);
       }
       setBeside(true);
       glideToSlot(slot, spring, x.getVelocity());
