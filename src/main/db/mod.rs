@@ -29,7 +29,7 @@ pub use onboarding::FirstSpace;
 pub use pins::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow};
 pub use profiles::avatar;
 pub use settings::{Settings, SettingsChange};
-pub use spaces::{NewSpace, SpaceChange, SpaceId, SpaceRow};
+pub use spaces::{DEFAULT_ICON, NewSpace, SpaceChange, SpaceId, SpaceRow};
 pub use theme::{Appearance, Hsb, SpaceTheme};
 pub use windows::{SavedWindow, WindowFrame};
 

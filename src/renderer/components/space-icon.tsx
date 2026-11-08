@@ -1,8 +1,8 @@
-// A space's icon: a Lucide icon from the catalog (icon-picker/catalog.ts),
-// named `lucide:<name>`, or an emoji. A window on a profile draws one of its
-// own.
+// A space's icon: an icon from the catalog (icon-picker/catalog.ts), named
+// `lucide:<name>`, or an emoji. A window on a profile draws one of its own.
 
-import { CircleUserRound, HatGlasses, Orbit } from "lucide-react";
+import { CircleUserRound, HatGlasses } from "lucide-react";
+import { DotIcon } from "./icons";
 import { SPACE_GLYPHS } from "./icon-picker/catalog";
 import type { Icon } from "./ui/button";
 
@@ -18,8 +18,8 @@ const PROFILE_ICONS: Record<string, Icon> = {
 export const PROFILE_ICON = `${PREFIX}circle-user-round`;
 export const OFF_THE_RECORD_ICON = `${PREFIX}hat-glasses`;
 
-/** What a new space has. */
-export const DEFAULT_ICON = `${PREFIX}orbit`;
+/** What a new space has: a dot, as the space switcher shows one being made. */
+export const DEFAULT_ICON = `${PREFIX}dot`;
 
 const segmenter = new Intl.Segmenter();
 
@@ -40,5 +40,5 @@ export function SpaceIcon({ icon, size = 18, strokeWidth = 2 }: { icon: string; 
       </span>
     );
   }
-  return <Orbit size={size} strokeWidth={strokeWidth} />;
+  return <DotIcon size={size} />;
 }

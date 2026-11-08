@@ -4,7 +4,7 @@
 
 use wren::ProfileListEntry;
 
-use super::spaces::NewSpace;
+use super::spaces::{DEFAULT_ICON, NewSpace};
 use super::theme::SpaceTheme;
 use super::{Db, sql};
 
@@ -31,7 +31,7 @@ pub(super) fn default_space(profile: &ProfileListEntry) -> NewSpace {
             "" => "Space".to_owned(),
             name => name.to_owned(),
         },
-        icon: "lucide:orbit".to_owned(),
+        icon: DEFAULT_ICON.to_owned(),
         theme: SpaceTheme::default_for(avatar(&profile.id)),
     }
 }

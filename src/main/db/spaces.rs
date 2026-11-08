@@ -11,6 +11,10 @@ use super::{Db, sql};
 /// A space's ID, its row's.
 pub type SpaceId = i64;
 
+/// What a space has when no icon is chosen for it: a dot, as the page draws a
+/// space being made.
+pub const DEFAULT_ICON: &str = "lucide:dot";
+
 /// A space as it is kept, and as the page has it.
 #[derive(Clone, Debug, Serialize)]
 pub struct SpaceRow {

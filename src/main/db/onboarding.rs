@@ -93,6 +93,7 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::FirstSpace;
+    use crate::db::DEFAULT_ICON;
     use crate::db::test_db as db;
     use crate::db::theme::SpaceTheme;
     use wren::ProfileListEntry;
@@ -143,7 +144,7 @@ mod tests {
         db.set_first_space(chosen).unwrap();
         // What was not chosen, it keeps.
         let space = db.first_space().unwrap().unwrap();
-        assert_eq!(space.icon.as_deref(), Some("lucide:orbit"));
+        assert_eq!(space.icon.as_deref(), Some(DEFAULT_ICON));
         assert_eq!(space.theme, Some(theme));
         assert_eq!(db.take_first_space(), FirstSpace::default());
     }

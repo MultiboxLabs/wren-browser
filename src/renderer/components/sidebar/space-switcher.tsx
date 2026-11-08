@@ -14,7 +14,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useLayoutEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { SpaceIcon } from "@/components/space-icon";
+import { DEFAULT_ICON, SpaceIcon } from "@/components/space-icon";
 import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { EASE_SLIDE, scaleTo } from "@/utils/motion";
@@ -87,7 +87,7 @@ export function SpaceSwitcher() {
         {newSpace && (
           <Appear key="new">
             <Button
-              icon={<span className="size-1.75 rounded-full bg-current" />}
+              icon={<SpaceIcon icon={DEFAULT_ICON} size={15} />}
               iconTone="inherit"
               label="New Space"
               data-current

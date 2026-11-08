@@ -8,13 +8,11 @@ use std::rc::Rc;
 use super::imported;
 use crate::app::State;
 use crate::db::{
-    Added, Appearance, Hsb, ImportedPin, ImportedSpace, NamedPin, NewSpace, SpaceTheme, avatar,
+    Added, Appearance, DEFAULT_ICON, Hsb, ImportedPin, ImportedSpace, NamedPin, NewSpace,
+    SpaceTheme, avatar,
 };
 use crate::import::data::{Look, Pin, SpaceIcon, Spaces};
 use crate::ipc;
-
-/// A space with no icon of its own has Wren's.
-const DEFAULT_ICON: &str = "lucide:orbit";
 
 /// The sources' own names for their icons, as Lucide's (`lucide:<name>`).
 /// A name is matched by its first word ("star.fill" is "star").

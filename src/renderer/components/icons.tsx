@@ -84,6 +84,18 @@ export const BackIcon = (props: Props) => <Arrow {...props} />;
 export const ForwardIcon = (props: Props) => <Arrow {...props} flip />;
 
 /**
+ * A dot, filled: a space's icon until one is chosen (space-icon.tsx). It is
+ * 7 points across at 15, as the space switcher's dot for a space being made.
+ */
+export function DotIcon({ size = 15 }: Props) {
+  return (
+    <svg aria-hidden width={size} height={size} viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
  * Down: an arrow pointing down, as heavy as 12-point semibold text. Its
  * shaft and head are one path, so drawn in a translucent colour they show
  * as one shape, not brighter where they meet.

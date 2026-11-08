@@ -20,7 +20,7 @@ import {
   type WindowProfile,
   type WindowSpace
 } from "@/ipc";
-import { OFF_THE_RECORD_ICON, PROFILE_ICON } from "@/components/space-icon";
+import { DEFAULT_ICON, OFF_THE_RECORD_ICON, PROFILE_ICON } from "@/components/space-icon";
 import { contentScheme, defaultTheme, primaryHex } from "@/utils/theme";
 import { useProfiles, useSpaces } from "./library";
 import { NO_PROFILE_COLOR, type NewSpaceState, type SpaceDraft, useNewSpace } from "./new-space";
@@ -83,7 +83,7 @@ export const themeKey = ({ id, theme }: Space) => (id === NEW_SPACE ? "new-space
 export const personal: Space = {
   id: 0,
   name: "Personal",
-  icon: "lucide:orbit",
+  icon: DEFAULT_ICON,
   theme: defaultTheme("#6f00ff"),
   color: "#6f00ff",
   scheme: "dark"

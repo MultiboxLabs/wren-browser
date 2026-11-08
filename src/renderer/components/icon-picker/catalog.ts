@@ -1,7 +1,8 @@
 // The icons a space can have, and the emoji the pickers offer, sorted into
 // categories, each with the words it is found by. A Lucide icon is kept as
 // `lucide:<name>`, an emoji as itself (space-icon.tsx). Each Lucide icon is
-// imported by name, so the build keeps only these.
+// imported by name, so the build keeps only these. The dot, a new space's
+// icon, is Wren's own (icons.tsx), kept by Lucide's name for one.
 
 import {
   Apple,
@@ -149,6 +150,7 @@ import {
   Wrench,
   Zap
 } from "lucide-react";
+import { DotIcon } from "@/components/icons";
 import type { Icon } from "@/components/ui/button";
 
 /** One choice: a Lucide icon or an emoji, as a space keeps it. */
@@ -512,6 +514,7 @@ export const CATEGORIES: Category[] = [
     label: "Symbols",
     glyph: Sparkles,
     icons: [
+      icon("dot", DotIcon, "circle default symbols"),
       icon("star", Star, "symbols"),
       icon("sparkles", Sparkles, "symbols"),
       icon("zap", Zap, "lightning fast symbols"),
