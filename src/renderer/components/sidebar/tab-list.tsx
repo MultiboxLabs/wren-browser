@@ -5,9 +5,11 @@ import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { memo, type ReactNode, useRef, useState } from "react";
 import { browser, type GroupColor, groups, type Pin, type TabGroup, type TabSplit } from "@/ipc";
+import { Button } from "@/components/ui/button";
 import { useHoldUntil } from "@/components/ui/hold";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Favicon } from "@/components/favicon";
+import { DownIcon } from "@/components/icons";
 import { SpaceIcon } from "@/components/space-icon";
 import type { OmniboxState } from "@/components/omnibox/shown";
 import { type TabShape, useTab, useTabShape } from "@/state/browser";
@@ -166,8 +168,21 @@ export function TabList({
             <AnimatePresence initial={false}>
               {pinned.length > 0 && (
                 <Appear key="separator" className="-mb-1.25">
-                  <div className="px-2.5 pt-1.75 pb-3">
-                    <div className="h-px bg-separator" />
+                  {/* Clear sits on the line's end, its text where the line
+                      would end, taking none of the line's room. */}
+                  <div className="flex items-center gap-1 px-2.5 pt-1.75 pb-3">
+                    <div className="h-px flex-1 bg-separator" />
+                    {tabs.length > 0 && (
+                      <Button
+                        variant="bare"
+                        shape="none"
+                        icon={<DownIcon />}
+                        className="-my-2.5 -mr-1.5 inline-flex h-5 items-center gap-1 px-1.5 text-subtitle font-semibold transition-colors duration-100"
+                        onClick={() => browser.clear()}
+                      >
+                        Clear
+                      </Button>
+                    )}
                   </div>
                 </Appear>
               )}

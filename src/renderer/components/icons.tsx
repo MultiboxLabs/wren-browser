@@ -83,6 +83,25 @@ function Arrow({ size = 17, flip }: Props & { flip?: boolean }) {
 export const BackIcon = (props: Props) => <Arrow {...props} />;
 export const ForwardIcon = (props: Props) => <Arrow {...props} flip />;
 
+/**
+ * Down: an arrow pointing down, as heavy as 12-point semibold text. Its
+ * shaft and head are one path, so drawn in a translucent colour they show
+ * as one shape, not brighter where they meet.
+ */
+export function DownIcon({ size = 12, strokeWidth = 1.4 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden>
+      <path
+        d="M6 1.75v8.5M2.5 6.75 6 10.25l3.5-3.5"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** Reload: a circle open at the top right, with its arrowhead at the top. */
 export function ReloadIcon({ size = 15 }: Props) {
   return (

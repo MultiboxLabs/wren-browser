@@ -27,6 +27,8 @@ export const browser = {
   onPreviewChanged: (listener: (changed: TabPreviewChanged) => void) =>
     wren.on<TabPreviewChanged>("tabs.previewChanged", listener),
   close: (id: number) => wren.invoke<null>("tabs.close", id),
+  /** Closes the list's tabs but the active one, or the active one when it is the only one; the pins stay. */
+  clear: () => wren.invoke<null>("tabs.clear"),
   setMuted: (id: number, muted: boolean) => wren.invoke<null>("tabs.setMuted", { id, muted }),
   /**
    * Moves a unit so its first tab is at an index among all the tabs. A moved

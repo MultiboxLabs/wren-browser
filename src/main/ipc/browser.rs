@@ -160,6 +160,13 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
+    // The list's tabs closed but the active one, or the active one alone
+    // (`tabs::clear`).
+    let weak = window.clone();
+    let _ = web_view.handle("tabs.clear", move |()| {
+        with_browser(&weak, |_, browser| tabs::clear(browser).map_err(failed))
+    });
+
     // A tab, or its split's or its group's, moved to an index in the list;
     // "browser.tabs" says where it landed.
     let weak = window.clone();

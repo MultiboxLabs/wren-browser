@@ -18,9 +18,11 @@ export type Icon = ComponentType<{ size?: number; strokeWidth?: number; classNam
  * `raised`, a bezel standing on a popover; `prominent`, the space's colour,
  * for the default button of a dialog; `bright`, white, for what a card on
  * the window asks to be done; `solid`, near black (near white in dark), for
- * the one thing a page in a tab asks, where colour is the page's own.
+ * the one thing a page in a tab asks, where colour is the page's own;
+ * `bare`, no fill at all, its text dim and brightening under the pointer,
+ * for a small action set in a line, such as the one on the list's separator.
  */
-export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent" | "bright" | "solid";
+export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent" | "bright" | "solid" | "bare";
 
 /**
  * Its size and corners: `square`, a toolbar's 28 points; `text`, as tall,
@@ -40,7 +42,7 @@ type ButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
   iconSize?: number;
   /**
    * The icon's tone: the variant's (`plain` dim, as a toolbar's;
-   * `prominent` and `bright` their text's; the rest full), or the text's
+   * `prominent`, `bright`, `solid` and `bare` their text's; the rest full), or the text's
    * colour, for a coloured button.
    */
   iconTone?: "dim" | "full" | "inherit";
@@ -96,6 +98,11 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
   solid: {
     off: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] enabled:active:brightness-90 disabled:opacity-45",
     on: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] brightness-90"
+  },
+  // Brightening to the glyphs' colour, solid: white (black in light).
+  bare: {
+    off: "text-fg-3 enabled:hover:text-(--glyph) data-[state=open]:text-(--glyph)",
+    on: "text-(--glyph)"
   }
 };
 
@@ -132,7 +139,7 @@ export function Button({
   // scales, but reports the box it rests in: what hangs off it must not move
   // as it scales.
   const opens = rest["aria-haspopup"] !== undefined;
-  const coloured = variant === "prominent" || variant === "bright" || variant === "solid";
+  const coloured = variant === "prominent" || variant === "bright" || variant === "solid" || variant === "bare";
   const tone = tones[iconTone ?? (variant === "plain" ? "dim" : coloured ? "inherit" : "full")];
   return (
     <Tooltip label={label}>

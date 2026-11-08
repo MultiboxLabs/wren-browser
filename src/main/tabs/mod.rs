@@ -100,6 +100,19 @@ pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
     Ok(())
 }
 
+/// Clears the list: closes its tabs but the active one, or the active one
+/// when it is the only one. The placeholder stays, as the list does not show
+/// it, and so do the pins, which are not the list's.
+pub fn clear(browser: &Browser) -> Result<(), Error> {
+    let active = browser.active_tab();
+    let tabs: Vec<_> = listed(browser)
+        .into_iter()
+        .filter(|tab| !placeholder::is_placeholder(*tab))
+        .collect();
+    let others: Vec<_> = tabs.iter().copied().filter(|tab| Some(*tab) != active).collect();
+    close(browser, if others.is_empty() { &tabs } else { &others })
+}
+
 /// What keeps tabs together in the sidebar's list: a group's, or a split's.
 #[derive(Clone, Copy, PartialEq)]
 enum Together {
