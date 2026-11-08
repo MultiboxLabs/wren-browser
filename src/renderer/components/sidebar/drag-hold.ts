@@ -3,12 +3,13 @@
 // not reach what is under a drag region. A press that does not become a drag
 // lets go at its release; a drag is let go of where it ends.
 //
-// A drag's end is heard here, not where it started: what was dragged may
+// The end is heard here, not where the press started, and more ways than
+// one, as a missed end leaves the window unmovable. What was dragged may
 // have gone from the page meanwhile (a tab whose space the window left for
 // another, as the drag waited on that one's button), and then hears no
-// `dragend`. A drop on the page says so, and otherwise the pointer's first
-// move after the drag, with its button up, as the page hears none of its
-// moves during one.
+// `dragend`; a control-click's menu takes the release. So the pointer's
+// first move with its button up lets go too, as does a menu or the window
+// losing focus.
 
 let held: AbortController | null = null;
 let ends: (() => void)[] = [];
@@ -23,13 +24,10 @@ export function holdForDrag() {
   // After what took the drop or the drag's end, which may ask what it carried.
   window.addEventListener("dragend", releaseDrag, { signal });
   window.addEventListener("drop", releaseDrag, { signal });
-  // A move with the button down may come still, before the drag has begun.
-  const moved = (event: PointerEvent) => event.buttons === 0 && releaseDrag();
-  window.addEventListener("dragstart", () => window.addEventListener("pointermove", moved, { signal }), {
-    signal,
-    capture: true,
-    once: true
-  });
+  // Moves with the button down come before a drag begins, and none during it.
+  window.addEventListener("pointermove", (event) => event.buttons === 0 && releaseDrag(), { signal });
+  window.addEventListener("contextmenu", releaseDrag, { signal });
+  window.addEventListener("blur", releaseDrag, { signal });
 }
 
 /** Runs `then` once the drag held now ends, or at once if none is held. */
