@@ -9,9 +9,10 @@ body,
 }
 
 /* The browser's own UI (wren://ui), and Wren's other pages. Its colours
-   come from the space: the page sets --space, and data-scheme (light or
-   dark, the space's appearance) and data-active (whether the window is in
-   use) on <html>. The space's scheme is the window's alone: what is over
+   come from the space: the page sets --space-own (which becomes --space,
+   mixed with another's as the sidebar moves between spaces), and
+   data-scheme (light or dark, the space's appearance) and data-active
+   (whether the window is in use) on <html>. The space's scheme is the window's alone: what is over
    the window (menus, tooltips, popovers, dialogs, the omnibox, the find bar)
    takes the system's, as the platform's own do. Such a surface says so with
    data-scheme="system", and boot.tsx puts the system's on <html> as
@@ -98,6 +99,14 @@ body,
 
 :root {
   transition: --space 0.2s ease-out;
+  /* The window's space's colour (state/window.ts), mixed with the one the
+     sidebar's content moves toward by how far it has got
+     (state/space-blend.ts). */
+  --space: color-mix(
+    in oklab,
+    var(--space-own, transparent),
+    var(--space-to, var(--space-own, transparent)) calc(var(--blend, 0) * 100%)
+  );
   /* The space's colour as the window shows it, for what is drawn of it
      alone (the window itself is drawn with the whole theme, in
      components/space-background.tsx). To calm a saturated one, lower its
@@ -109,7 +118,8 @@ body,
   --window-corner: 0px;
 }
 
-:root[data-space-picked] {
+:root[data-space-picked],
+:root[data-space-sliding] {
   transition: none;
 }
 

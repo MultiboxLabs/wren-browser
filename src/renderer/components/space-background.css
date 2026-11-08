@@ -63,19 +63,47 @@
   transition-timing-function: ease-out;
   --shown-material: var(--theme-material);
   --shown-underlay: var(--theme-underlay);
-  --shown-first: var(--theme-first);
-  --shown-second: var(--theme-second);
-  --shown-third: var(--theme-third);
+  /* Its colours mixed with those of the space the sidebar's content moves
+     toward (`-to`), by how far it has got (--blend, state/space-blend.ts);
+     its blur's stand-in and underlay, which are its light or dark, not. */
+  --shown-first: color-mix(
+    in oklab,
+    var(--theme-first),
+    var(--theme-first-to, var(--theme-first)) calc(var(--blend, 0) * 100%)
+  );
+  --shown-second: color-mix(
+    in oklab,
+    var(--theme-second),
+    var(--theme-second-to, var(--theme-second)) calc(var(--blend, 0) * 100%)
+  );
+  --shown-third: color-mix(
+    in oklab,
+    var(--theme-third),
+    var(--theme-third-to, var(--theme-third)) calc(var(--blend, 0) * 100%)
+  );
 }
 :root[data-active="false"] .space-background {
   --shown-material: var(--theme-material-idle);
   --shown-underlay: var(--theme-underlay-idle);
-  --shown-first: var(--theme-first-idle);
-  --shown-second: var(--theme-second-idle);
-  --shown-third: var(--theme-third-idle);
+  --shown-first: color-mix(
+    in oklab,
+    var(--theme-first-idle),
+    var(--theme-first-idle-to, var(--theme-first-idle)) calc(var(--blend, 0) * 100%)
+  );
+  --shown-second: color-mix(
+    in oklab,
+    var(--theme-second-idle),
+    var(--theme-second-idle-to, var(--theme-second-idle)) calc(var(--blend, 0) * 100%)
+  );
+  --shown-third: color-mix(
+    in oklab,
+    var(--theme-third-idle),
+    var(--theme-third-idle-to, var(--theme-third-idle)) calc(var(--blend, 0) * 100%)
+  );
 }
 :root[data-space-picked] .space-background,
-:root[data-space-picked] .space-background > * {
+:root[data-space-picked] .space-background > *,
+:root[data-space-sliding] .space-background {
   transition: none;
 }
 

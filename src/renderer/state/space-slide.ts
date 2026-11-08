@@ -36,9 +36,9 @@ const out = { duration: 0.08, ease: "easeIn" } as const;
 // Critically damped: in place in about 0.2s, without going past it. A space
 // chosen glides to it so, as quickly as a press wants.
 const spring = { type: "spring", stiffness: 1000, damping: 63 } as const;
-// A swipe's glide: critically damped too, with a response of 0.4s, so it
+// A swipe's glide: critically damped too, with a response of 0.3s, so it
 // takes the fingers' speed and slows into place rather than snapping there.
-const RESPONSE = 0.4;
+const RESPONSE = 0.3;
 const glide = {
   type: "spring",
   stiffness: ((2 * Math.PI) / RESPONSE) ** 2,

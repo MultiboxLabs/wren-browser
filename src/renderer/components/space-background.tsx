@@ -26,10 +26,13 @@ const FLAT = 1;
 
 export function SpaceBackground({
   space,
+  toward = null,
   material = false,
   className
 }: {
   space: Space;
+  /** The space the sidebar's content moves toward, whose colours are mixed in (state/space-blend.ts). */
+  toward?: Space | null;
   /** Over something other than the window's blur: a stand-in for it is under the theme. */
   material?: boolean;
   className?: string;
@@ -38,9 +41,10 @@ export function SpaceBackground({
   const aspect = useAspect(box);
   // In use and out of use, both: the window going in or out of use shows the
   // other at once (space-background.css), rather than tweening to it.
-  const shown = (active: boolean) =>
-    themeColors(space.theme, { active, material: !material ? 0 : active ? MATERIAL : FLAT });
-  const [inUse, idle] = [shown(true), shown(false)];
+  const shown = (theme: Space["theme"], active: boolean) =>
+    themeColors(theme, { active, material: !material ? 0 : active ? MATERIAL : FLAT });
+  const [inUse, idle] = [shown(space.theme, true), shown(space.theme, false)];
+  const [towardInUse, towardIdle] = toward ? [shown(toward.theme, true), shown(toward.theme, false)] : [];
   const line = themeLine(aspect);
   const noise = themeNoise(space.theme);
   const style = {
@@ -54,6 +58,12 @@ export function SpaceBackground({
     "--theme-second-idle": idle.second,
     "--theme-third": inUse.third,
     "--theme-third-idle": idle.third,
+    "--theme-first-to": towardInUse?.first,
+    "--theme-first-idle-to": towardIdle?.first,
+    "--theme-second-to": towardInUse?.second,
+    "--theme-second-idle-to": towardIdle?.second,
+    "--theme-third-to": towardInUse?.third,
+    "--theme-third-idle-to": towardIdle?.third,
     "--theme-angle": line.angle,
     "--theme-from": line.first,
     "--theme-to": line.second

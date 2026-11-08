@@ -9,6 +9,7 @@ import { DownloadsProvider } from "@/state/downloads";
 import { PinsProvider } from "@/state/pins";
 import { SpaceProvider, useSpace } from "@/state/space";
 import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "@/state/window";
+import { useSpaceBlend } from "@/state/space-blend";
 import { Omnibox } from "@/components/omnibox/omnibox";
 import { useShownOmnibox } from "@/components/omnibox/shown";
 import { SidePanel } from "@/components/side-panel";
@@ -58,7 +59,8 @@ export function App() {
 // The browser's window: the sidebar, the page, and the side panel.
 function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const { space } = useSpace();
-  useWindowTheme(space);
+  const toward = useSpaceBlend();
+  useWindowTheme(space, toward);
   useShowWindow();
 
   const { id: browser, splits, tabs, current, fullScreen, sidePanel } = useBrowser();
@@ -89,7 +91,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     // The downloads the window lists, and the Library button's indicator.
     <DownloadsProvider>
       {/* Before the window's content, which is positioned so that it is over it. */}
-      <SpaceBackground space={space} className="fixed inset-0" />
+      <SpaceBackground space={space} toward={toward} className="fixed inset-0" />
       <div inert={blocked} className="drag relative flex h-full">
         {/* The room left of the page: the docked sidebar is over it. */}
         {!fullScreen && <motion.div style={{ width: sidebar.motion.slot }} className="shrink-0" />}
@@ -121,7 +123,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           onPointerLeave={sidebar.leave}
         >
           <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel">
-            <SpaceBackground space={space} material className="absolute inset-0 rounded-[inherit]" />
+            <SpaceBackground space={space} toward={toward} material className="absolute inset-0 rounded-[inherit]" />
           </motion.div>
           {/* What the sidebar opens holds it out while it floats. */}
           <HoldContext value={sidebar.hold}>

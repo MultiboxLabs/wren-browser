@@ -136,7 +136,14 @@ type SpaceState = {
   showNow: (id: number) => void;
   /** How the sidebar's content moves as the space changes. */
   slide: SpaceSlide;
+  /** The spaces drawn beside the window's while the content moves between spaces. */
+  beside: Beside;
 };
+
+/** The spaces drawn before (left of) and after (right of) the window's; null for none. */
+export type Beside = { before: Space | null; after: Space | null };
+
+const NONE_BESIDE: Beside = { before: null, after: null };
 
 const SpaceContext = createContext<SpaceState | null>(null);
 
@@ -175,6 +182,24 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
                 : { ...personal, id: current },
     [openedFrom, profile, profileEntry, draft, entry, current]
   );
+  // The spaces drawn beside the window's while the content moves between
+  // spaces: for a swipe, those before and after it, as the fingers may go
+  // either way; for a space chosen, only that one, on its side until the
+  // window is on it, and then the space it was chosen from on the other.
+  // Each is a space's content made at once, so none is drawn that needn't be.
+  const { beside: moving, chosen } = slide;
+  const beside = useMemo((): Beside => {
+    if (!moving) return NONE_BESIDE;
+    const place = at === null ? -1 : order(at);
+    const of = (entry: SpaceEntry | undefined) => (entry && entry.id !== at ? spaceOf(entry) : null);
+    const byId = (id: number | null) => spaces.find((entry) => entry.id === id);
+    const on = (side: 1 | -1) => {
+      if (!chosen) return place < 0 ? null : of(spaces[place + side]);
+      if (at !== chosen.to) return side === chosen.side ? of(byId(chosen.to)) : null;
+      return side === -chosen.side ? of(byId(chosen.from)) : null;
+    };
+    return { before: on(-1), after: on(1) };
+  }, [moving, chosen, at, spaces]);
 
   // Which way `to` is from the window's space, by their order: 1 after, -1
   // before; null if either has no place.
@@ -217,7 +242,8 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
         moveSpace,
         show,
         showNow,
-        slide
+        slide,
+        beside
       }}
     >
       {children}

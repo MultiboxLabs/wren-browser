@@ -2,7 +2,7 @@
 // swiping left, and the previous one swiping right. It is the page's own,
 // from wheel events, so it works wherever the page does.
 //
-// The content follows the fingers at half their pace, as if the spaces lay
+// The content follows the fingers at their pace, as if the spaces lay
 // side by side, a sidebar's width and a gap apart, and gives less and less
 // past the first and the last (state/space-slide.ts draws it). As the
 // fingers lift it goes on to the space nearest where its speed would carry
@@ -22,7 +22,7 @@ import type { SpaceSlide } from "@/state/space-slide";
 import { prefersReducedMotion } from "@/utils/motion";
 
 // How far the content moves for the fingers' scroll.
-const PACE = 0.5;
+const PACE = 1;
 // Past the first or last space, the content gives this share of the way the
 // fingers take it at first, less and less after, and never this many points.
 const GIVE = 0.15;

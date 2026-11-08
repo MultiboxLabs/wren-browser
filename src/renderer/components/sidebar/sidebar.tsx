@@ -38,7 +38,7 @@ import { BrowserOfSpace, useBrowser } from "@/state/browser";
 import { useDownloadIndicator } from "@/state/downloads";
 import { type LibrarySettings, useSettings } from "@/state/library";
 import { usePins } from "@/state/pins";
-import { type Space, spaceOf, useDrawnSpace, useSpace } from "@/state/space";
+import { type Space, useDrawnSpace, useSpace } from "@/state/space";
 import { SLIDE, spacing } from "@/state/space-slide";
 
 export type SidebarProps = {
@@ -144,7 +144,7 @@ function SpacePage({
 }
 
 export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visible }: SidebarProps) {
-  const { space, spaces, profile, newSpace, startNewSpace, show, showNow, slide } = useSpace();
+  const { space, spaces, profile, newSpace, startNewSpace, show, showNow, slide, beside: drawnBeside } = useSpace();
   // A swipe across the sidebar goes to the next space or the previous one;
   // the space being made is after the last.
   const area = useRef<HTMLDivElement>(null);
@@ -174,31 +174,16 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
     }
   );
   const swipe = slide.x;
-  // The spaces beside the window's, drawn while the content moves between
-  // spaces: for a swipe, those before and after it, as the fingers may go
-  // either way; for a space chosen, only that one, on its side until the
-  // window is on it, and then the space it was chosen from on the other.
-  // Each drawn is a space's content made at once, so none more than needed.
-  const { chosen } = slide;
-  const entryOf = (id: number | null | undefined) => spaces.find((entry) => entry.id === id);
-  const drawnBeside = (side: 1 | -1) => {
-    if (!chosen) return neighbour(side);
-    if (space.id !== chosen.to) return side === chosen.side ? entryOf(chosen.to) : undefined;
-    return side === -chosen.side ? entryOf(chosen.from) : undefined;
-  };
-  const before = drawnBeside(-1);
-  const after = drawnBeside(1);
+  // The spaces drawn beside the window's while the content moves (state/space.tsx).
   const pages = useMemo(
     () =>
-      slide.beside
-        ? (
-            [
-              [-1, before],
-              [1, after]
-            ] as const
-          ).flatMap(([page, entry]) => (entry && entry.id !== space.id ? [{ page, space: spaceOf(entry) }] : []))
-        : [],
-    [slide.beside, before, after, space.id]
+      (
+        [
+          [-1, drawnBeside.before],
+          [1, drawnBeside.after]
+        ] as const
+      ).flatMap(([page, drawn]) => (drawn ? [{ page, space: drawn }] : [])),
+    [drawnBeside]
   );
   // Read as the content moves, not as it was drawn.
   const besideNow = useRef(slide.beside);

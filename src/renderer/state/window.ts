@@ -78,11 +78,12 @@ export function useFullScreen() {
 /**
  * A browser window's look, its space's: on the page (`useRootTheme`), and
  * on the window around it, whose blur and buttons the app draws in the
- * space's scheme.
+ * space's scheme. `toward`: the space the sidebar's content moves toward,
+ * whose colour is mixed in (state/space-blend.ts).
  */
-export function useWindowTheme(space: Space) {
+export function useWindowTheme(space: Space, toward: Space | null = null) {
   const { scheme } = space;
-  useRootTheme(space, scheme);
+  useRootTheme(space, scheme, toward);
   useEffect(() => {
     if (hasApp) appWindow.setDark(scheme === "dark");
   }, [scheme]);
@@ -94,16 +95,18 @@ export function useWindowTheme(space: Space) {
  * system draws it; the space's colour is its accents'.
  */
 export function usePopupTheme(space: Space) {
-  useRootTheme(space, useSystemScheme());
+  useRootTheme(space, useSystemScheme(), null);
 }
 
 /**
  * Puts the window's look on <html>, so the colours made from it reach menus
- * and tooltips too: the space's colour, the scheme, whether the window is in
- * use, and whether it is full screen. The colour tweens as the background's
- * colours do (components/space-background.css), as `themeKey` changes.
+ * and tooltips too: the space's colour (`--space-own`, which index.css mixes
+ * with `toward`'s, `--space-to`, into `--space`), the scheme, whether the
+ * window is in use, and whether it is full screen. The colour tweens as the
+ * background's colours do (components/space-background.css), as `themeKey`
+ * changes.
  */
-function useRootTheme(space: Space, scheme: "light" | "dark") {
+function useRootTheme(space: Space, scheme: "light" | "dark", toward: Space | null) {
   const active = useWindowActive();
   const fullScreen = useFullScreen();
   // The colour tweens (index.css), unless the user picks it: then its key
@@ -114,8 +117,13 @@ function useRootTheme(space: Space, scheme: "light" | "dark") {
     const root = document.documentElement;
     root.toggleAttribute("data-space-picked", drawn.current === key);
     drawn.current = key;
-    root.style.setProperty("--space", cssColor(space.color));
+    root.style.setProperty("--space-own", cssColor(space.color));
   }, [key, space.color]);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (toward) root.style.setProperty("--space-to", cssColor(toward.color));
+    else root.style.removeProperty("--space-to");
+  }, [toward?.color]);
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.dataset.scheme = scheme;
