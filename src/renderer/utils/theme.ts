@@ -132,11 +132,10 @@ const BLUR = { light: "236 236 236", dark: "30 30 30" };
 // says, so that it is not too vibrant: a little less of a dark theme's, which
 // its underlay lifts, and less of a light one's, the window's by a quarter,
 // and much less out of use, to be as light as it can. Each is [in use, out of
-// use]. The window is over the blur; a box is over something else (the
-// floating sidebar).
+// use]. The window is over the blur; the floating sidebar is over the page.
 const CLARITY = {
   window: { light: [0.75, 0.5], dark: [0.96, 0.96] },
-  box: { light: [0.8, 0.8], dark: [0.96, 0.96] }
+  floating: { light: [0.8, 0.8], dark: [0.96, 0.96] }
 };
 
 // What is under the colours, as [in use, out of use]: white over the window's
@@ -147,7 +146,7 @@ const CLARITY = {
 // darker; a little more of it out of use.
 const UNDERLAY = {
   window: { rgb: "255 255 255", light: [0.2, 1], dark: [0.18, 0.8] },
-  box: { rgb: "0 0 0", light: [0.2, 0.25], dark: [0.08, 0.14] }
+  floating: { rgb: "0 0 0", light: [0.2, 0.25], dark: [0.08, 0.14] }
 };
 
 export type ThemeStyle = {
@@ -216,18 +215,21 @@ export type ThemeLayout = {
    * through the theme: none for the window itself, which is over the blur.
    */
   material?: number;
+  /**
+   * Drawn as the floating sidebar is, with layers of its own made to be over
+   * the page. Without it, the layers are the window's, so that a swatch over
+   * a stand-in for the blur shows the colours as the window does.
+   */
+  floating?: boolean;
 };
 
 // What a theme's layers are drawn in, laid out as `layout` says: whether it
 // is light or dark, the underlay, and each colour. Each colour is as clear as
 // intensity makes it, rather than the layer as a whole: the third, laid over
 // the others, adds to them where it shows.
-function layerColors(
-  theme: SpaceTheme,
-  { active = true, material: blur = 0 }: Pick<ThemeLayout, "active" | "material">
-) {
+function layerColors(theme: SpaceTheme, { active = true, floating = false }: Pick<ThemeLayout, "active" | "floating">) {
   const scheme = contentScheme(theme);
-  const over = blur > 0 ? "box" : "window";
+  const over = floating ? "floating" : "window";
   const which = active ? 0 : 1;
   const alpha = colorAlpha(theme) * CLARITY[over][scheme][which];
   const { rgb, [scheme]: amounts } = UNDERLAY[over];
@@ -287,7 +289,7 @@ export function themeStyle(theme: SpaceTheme, layout: ThemeLayout): ThemeStyle {
  */
 export function themeColors(
   theme: SpaceTheme,
-  layout: Pick<ThemeLayout, "active" | "material">
+  layout: Pick<ThemeLayout, "active" | "material" | "floating">
 ): { material: string; underlay: string; first: string; second: string; third: string } {
   const blur = layout.material ?? 0;
   const { scheme, underlay, color } = layerColors(theme, layout);

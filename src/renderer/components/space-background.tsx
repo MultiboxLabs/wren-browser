@@ -42,7 +42,7 @@ export function SpaceBackground({
   // In use and out of use, both: the window going in or out of use shows the
   // other at once (space-background.css), rather than tweening to it.
   const shown = (theme: Space["theme"], active: boolean) =>
-    themeColors(theme, { active, material: !material ? 0 : active ? MATERIAL : FLAT });
+    themeColors(theme, { active, material: !material ? 0 : active ? MATERIAL : FLAT, floating: material });
   const [inUse, idle] = [shown(space.theme, true), shown(space.theme, false)];
   const [towardInUse, towardIdle] = toward ? [shown(toward.theme, true), shown(toward.theme, false)] : [];
   const line = themeLine(aspect);
