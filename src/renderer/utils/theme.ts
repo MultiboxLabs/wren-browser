@@ -77,6 +77,15 @@ export function defaultTheme(hex?: string): SpaceTheme {
  */
 export const isBlank = ({ primary }: SpaceTheme) => primary.brightness < 0.005;
 
+/**
+ * The primary colour as the theme is drawn: its own, but white for a blank
+ * theme in the light appearance, as black is no light colour. It is still
+ * blank, so the picker shows no knobs.
+ */
+function drawnPrimary(theme: SpaceTheme): Hsb {
+  return isBlank(theme) && theme.appearance === "light" ? { hue: 0, saturation: 0, brightness: 1 } : theme.primary;
+}
+
 // --- Colours ----------------------------------------------------------------
 
 export const rotate = (color: Hsb, degrees: number): Hsb => ({
@@ -94,11 +103,12 @@ export function hueOffsets({ colors, wheel }: Pick<SpaceTheme, "colors" | "wheel
 
 /** The theme's colours, as many as it has: the primary, then the others derived from it. */
 export function derivedColors(theme: SpaceTheme): Hsb[] {
-  return hueOffsets(theme).map((offset) => rotate(theme.primary, offset));
+  const primary = drawnPrimary(theme);
+  return hueOffsets(theme).map((offset) => rotate(primary, offset));
 }
 
 /** The theme's primary colour, as "#rrggbb" in Display P3. */
-export const primaryHex = (theme: SpaceTheme) => rgbToHex(hsbToRgb(theme.primary));
+export const primaryHex = (theme: SpaceTheme) => rgbToHex(hsbToRgb(drawnPrimary(theme)));
 
 /**
  * What the theme is drawn on, for the icons and text over it: its appearance,

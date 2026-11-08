@@ -109,7 +109,11 @@ pub fn clear(browser: &Browser) -> Result<(), Error> {
         .into_iter()
         .filter(|tab| !placeholder::is_placeholder(*tab))
         .collect();
-    let others: Vec<_> = tabs.iter().copied().filter(|tab| Some(*tab) != active).collect();
+    let others: Vec<_> = tabs
+        .iter()
+        .copied()
+        .filter(|tab| Some(*tab) != active)
+        .collect();
     close(browser, if others.is_empty() { &tabs } else { &others })
 }
 

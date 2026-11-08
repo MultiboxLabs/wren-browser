@@ -100,6 +100,13 @@ impl SpaceTheme {
         }
     }
 
+    /// A theme whose colour hasn't been chosen: black, as a space Wren makes
+    /// starts. The renderer draws it white in the light appearance, and its
+    /// picker shows it blank (`isBlank` in utils/theme.ts).
+    pub fn blank() -> SpaceTheme {
+        SpaceTheme::default_for("#000000")
+    }
+
     /// The theme with every number in range, or why it can't be.
     pub fn checked(mut self) -> Result<SpaceTheme, String> {
         self.primary = Hsb {

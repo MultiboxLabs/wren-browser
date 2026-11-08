@@ -9,7 +9,7 @@ use super::imported;
 use crate::app::State;
 use crate::db::{
     Added, Appearance, DEFAULT_ICON, Hsb, ImportedPin, ImportedSpace, NamedPin, NewSpace,
-    SpaceTheme, avatar,
+    SpaceTheme,
 };
 use crate::import::data::{Look, Pin, SpaceIcon, Spaces};
 use crate::ipc;
@@ -104,7 +104,7 @@ pub fn land(
             space: NewSpace {
                 name: space.name,
                 icon: icon(&space.icon),
-                theme: theme(&space.look, profile),
+                theme: theme(&space.look),
             },
             pins: space.pins.into_iter().map(imported).collect(),
         })
@@ -147,16 +147,15 @@ fn icon(icon: &SpaceIcon) -> String {
 }
 
 // Its theme, drawn as its source drew it: its main colour exactly, how much
-// of it shows, light or dark, and its grain. With no colour, the profile's
-// own, as Wren gives a space it makes.
-fn theme(look: &Look, profile: &str) -> SpaceTheme {
-    let default = SpaceTheme::default_for(avatar(profile));
-    let Some(&main) = look.colours.first() else {
-        return default;
-    };
+// of it shows, light or dark, and its grain. With no colour, it is blank, as
+// a space Wren makes starts: black, or white in the light appearance.
+fn theme(look: &Look) -> SpaceTheme {
+    let default = SpaceTheme::blank();
     let mut theme = default.clone();
-    theme.primary = Hsb::of_srgb(main);
-    theme.colors = look.colours.len().clamp(1, 3) as u8;
+    if let Some(&main) = look.colours.first() {
+        theme.primary = Hsb::of_srgb(main);
+        theme.colors = look.colours.len().clamp(1, 3) as u8;
+    }
     theme.appearance = match look.dark {
         Some(true) => Appearance::Dark,
         Some(false) => Appearance::Light,
