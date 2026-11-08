@@ -57,7 +57,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { isNewTab } from "@/utils/url";
 import { InsecureIcon, PageInfoIcon } from "@/components/icons";
 import { type SidePanelId, sidePanels } from "@/components/side-panel";
-import { useBrowser, useSite } from "@/state/browser";
+import { useShowing, useSidePanel, useSite } from "@/state/browser";
 import type { Tab } from "@/state/space";
 import { cn } from "@/utils/cn";
 
@@ -86,7 +86,7 @@ export function PageInfoButton({
   const site = useSite();
   // A button is pressed while what it opens is open: the popover, or one
   // of Chromium's bubbles hanging off its mark.
-  const { showing } = useBrowser();
+  const showing = useShowing();
   const [open, setOpen] = useState(false);
   // A bubble of Chromium's that opens below the button closes the popover.
   const anchored = showing.includes("page-info");
@@ -139,7 +139,7 @@ function PageInfo({
   popup: boolean;
   onClose: () => void;
 }) {
-  const openPanel = useBrowser().sidePanel?.id;
+  const openPanel = useSidePanel()?.id;
   return (
     <div className="flex w-66 flex-col p-2.5">
       <div className="grid grid-cols-4 grid-rows-[40px] gap-2">

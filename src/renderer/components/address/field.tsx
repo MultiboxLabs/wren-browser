@@ -12,7 +12,7 @@ import { type ExtensionAction, extensions } from "@/ipc";
 import { Anchor } from "@/components/ui/anchor";
 import { Button } from "@/components/ui/button";
 import { address, isNewTab } from "@/utils/url";
-import { useBrowser, useExtensionActions } from "@/state/browser";
+import { useExtensionActions, useShowing } from "@/state/browser";
 import { ExtensionIcon, PageInfoButton } from "./page-info";
 import type { Tab } from "@/state/space";
 
@@ -33,7 +33,7 @@ export function AddressField({
   const actions = useExtensionActions();
   // A button is pressed while what it opens is open: one of Chromium's
   // bubbles hanging off its mark.
-  const { showing } = useBrowser();
+  const showing = useShowing();
   return (
     // Lit while its address is hovered, as a favourite is; its own buttons
     // light themselves.

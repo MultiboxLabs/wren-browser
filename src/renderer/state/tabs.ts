@@ -12,8 +12,40 @@ import { settle } from "@/utils/settle";
 /** A tab of a Browser, with its favicon once the app has given it. */
 export type BrowserTabWithFavicon = BrowserTab & { favicon?: string | null };
 
-/** One Browser's tabs: the app's word, its groups and splits settled, and its tabs with their favicons. */
-export type SpaceTabs = { said: BrowserTabs; list: BrowserTabWithFavicon[] };
+/**
+ * One Browser's tabs: the app's word, its groups and splits settled, its
+ * tabs with their favicons, and what the page reads of them, worked out
+ * once as they change, so each is the same array until then.
+ */
+export type SpaceTabs = {
+  said: BrowserTabs;
+  list: BrowserTabWithFavicon[];
+  /**
+   * The tabs the page shows: all but the New Tab page that stands in while
+   * the Browser has none. This, and `current`, are the page's one check for
+   * an empty space, as `BrowserWindow::browser_with_tabs` is the app's.
+   */
+  tabs: BrowserTabWithFavicon[];
+  /** Those the sidebar's list shows: the tabs Chromium has not pinned, which are pins'. */
+  listed: BrowserTabWithFavicon[];
+  /** The active tab, unless it is the New Tab page standing in: the window then shows no tab. */
+  current?: BrowserTabWithFavicon;
+  /** The tab whose page has the whole window, if one has. */
+  fullScreen?: BrowserTabWithFavicon;
+};
+
+/** A Browser's tabs, from the app's word and its tabs with their favicons. */
+function spaceTabs(said: BrowserTabs, list: BrowserTabWithFavicon[]): SpaceTabs {
+  const tabs = list.filter((tab) => !tab.hidden);
+  return {
+    said,
+    list,
+    tabs,
+    listed: tabs.filter((tab) => !tab.pinned),
+    current: tabs.find((tab) => tab.id === said.active),
+    fullScreen: list.find((tab) => tab.id === said.fullScreen)
+  };
+}
 
 /** Whose tabs: a space's ID, or null for the window while it shows no space. */
 type Key = number | null;
@@ -70,14 +102,12 @@ export class TabsStore {
     for (const said of every) {
       updateReceived();
       const kept = this.spaces.get(said.space);
-      this.spaces.set(said.space, {
-        said: {
-          ...said,
-          groups: settle(kept?.said.groups, said.groups),
-          splits: settle(kept?.said.splits, said.splits)
-        },
-        list: this.withFavicons(kept?.list, said.tabs)
-      });
+      const settled = {
+        ...said,
+        groups: settle(kept?.said.groups, said.groups),
+        splits: settle(kept?.said.splits, said.splits)
+      };
+      this.spaces.set(said.space, spaceTabs(settled, this.withFavicons(kept?.list, said.tabs)));
       if (said.front) this.front = said.space;
     }
     this.askNew();
@@ -109,7 +139,7 @@ export class TabsStore {
         for (const [space, tabs] of this.spaces) {
           if (!tabs.said.tabs.some((tab) => tab.id === id)) continue;
           const list = this.withFavicons(tabs.list, tabs.said.tabs);
-          if (list !== tabs.list) this.spaces.set(space, { ...tabs, list });
+          if (list !== tabs.list) this.spaces.set(space, spaceTabs(tabs.said, list));
         }
         this.changed();
       },

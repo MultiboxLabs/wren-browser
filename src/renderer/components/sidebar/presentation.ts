@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { downloads, hasApp, menu, type SidebarState } from "@/ipc";
-import { useBrowser } from "@/state/browser";
+import { useBrowser, useShowing } from "@/state/browser";
 import { useSpace } from "@/state/space";
 import { useHolds } from "@/components/ui/hold";
 import type { LibraryReveal } from "@/components/library/library";
@@ -65,7 +65,8 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
     ];
     return () => stops.forEach((stop) => stop());
   }, []);
-  const { current, ready, showing } = useBrowser();
+  const { current, ready } = useBrowser();
+  const showing = useShowing();
   const bubbleOpen = showing.length > 0;
   const making = useSpace().newSpace !== null;
   // A space with no tab shows no page, so the floating sidebar stays out

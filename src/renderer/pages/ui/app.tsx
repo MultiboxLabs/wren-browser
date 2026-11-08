@@ -4,7 +4,7 @@ import { hasApp, type SidebarState } from "@/ipc";
 import { HoldContext } from "@/components/ui/hold";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ResizeHandle } from "@/components/ui/resize-handle";
-import { BrowserProvider, useBrowser } from "@/state/browser";
+import { BrowserProvider, useBrowser, useSidePanel } from "@/state/browser";
 import { DownloadsProvider } from "@/state/downloads";
 import { PinsProvider } from "@/state/pins";
 import { SpaceProvider, useSpace } from "@/state/space";
@@ -63,7 +63,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   useWindowTheme(space, toward);
   useShowWindow();
 
-  const { id: browser, splits, tabs, current, fullScreen, sidePanel } = useBrowser();
+  const { id: browser, splits, tabs, current, fullScreen } = useBrowser();
+  const sidePanel = useSidePanel();
   // A page in full screen has the whole window: the sidebar and the side
   // panel make way for it, and come back as they were.
   const shown = fullScreen ?? current;

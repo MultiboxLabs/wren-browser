@@ -9,12 +9,12 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import { find } from "@/ipc";
-import { type FindState, useBrowser } from "@/state/browser";
+import { type FindState, useFind } from "@/state/find";
 import { scaleTo } from "@/utils/motion";
 
 /** The bar of the find open on `tab`, if one is: with that tab alone, as Chrome's is. */
 export function FindBar({ tab }: { tab: number }) {
-  const { find: open } = useBrowser();
+  const open = useFind();
   return <AnimatePresence>{open?.request?.tab === tab && <FindField find={open} />}</AnimatePresence>;
 }
 
