@@ -161,12 +161,12 @@ export function TabList({
           <div ref={content} className="relative flex min-h-full flex-col gap-1.25">
             <PinnedSection pinned={pinned} selected={selected} actions={pinActions} open={pinnedOpen} drop={pinDrop} />
 
-            {/* Only between the pins and the tabs: with no pins, the heading needs
-            none. It comes and goes as a row does, from nothing: as it does,
-            it takes back the list's gap after it, which its own room makes
-            up once it is in. */}
+            {/* Over the tabs while there are pins over it or tabs to clear
+            under it: with neither, the heading needs none. It comes and goes
+            as a row does, from nothing: as it does, it takes back the list's
+            gap after it, which its own room makes up once it is in. */}
             <AnimatePresence initial={false}>
-              {pinned.length > 0 && (
+              {(pinned.length > 0 || tabs.length > 0) && (
                 <Appear key="separator" className="-mb-1.25">
                   {/* Clear sits on the line's end, its text where the line
                       would end, taking none of the line's room. */}
