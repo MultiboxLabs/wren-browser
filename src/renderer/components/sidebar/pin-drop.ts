@@ -14,7 +14,7 @@
 import type { DragEvent, PointerEvent } from "react";
 import { useState } from "react";
 import { type Pin, type PinTarget, pins } from "@/ipc";
-import { useSpace } from "@/state/space";
+import { useDrawnSpace } from "@/state/space";
 import { noteDrop } from "./arrival";
 import { holdForDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
@@ -119,7 +119,7 @@ export function usePinDrop({
   folders?: boolean;
   enabled?: boolean;
 }) {
-  const { space } = useSpace();
+  const space = useDrawnSpace();
   const [landing, setLanding] = useState<PinLanding | null>(null);
   // A tab pin's row a tab would split with makes room for it.
   const makeRoom = useDropSide();

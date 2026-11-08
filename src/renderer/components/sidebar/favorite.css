@@ -10,7 +10,8 @@
    dark and only on hover in light; and a 2px ring of that glow. Blurred from
    a favicon, the glow's size, its blur and the ring's opacity are set by
    eye. */
-:root[data-scheme="light"] {
+:root[data-scheme="light"],
+[data-content-scheme="light"] {
   --favorite-selected: rgb(255 255 255 / 0.8);
   --favorite-selected-unfocused: rgb(255 255 255 / 0.35);
   --favorite-glow: 0;
@@ -18,7 +19,8 @@
   /* Over the stronger fill, the ring needs more of its colour to show. */
   --favorite-ring: 0.7;
 }
-:root[data-scheme="dark"] {
+:root[data-scheme="dark"],
+[data-content-scheme="dark"] {
   --favorite-selected: rgb(255 255 255 / 0.45);
   --favorite-selected-unfocused: rgb(255 255 255 / 0.18);
   --favorite-glow: 0.08;

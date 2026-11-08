@@ -15,14 +15,16 @@ body,
    the window (menus, tooltips, popovers, dialogs, the omnibox, the find bar)
    takes the system's, as the platform's own do. Such a surface says so with
    data-scheme="system", and boot.tsx puts the system's on <html> as
-   data-system-scheme; the palettes are its, from that element down.
+   data-system-scheme; the palettes are its, from that element down. A
+   space's content drawn while the window shows another says its own with
+   data-content-scheme and --space on its element.
 
    This file is the theme every page shares: its sizes, its palette, and how
    a page of controls behaves. What is a component's own (its sizes, its
    colours in light and dark, and its rules) is in a file beside it, imported
    at the end, in the order the cascade needs. A component's palette takes
-   the same two selectors as the palette here, so it is light or dark as
-   what it is drawn on is. */
+   the same selectors as the palette here, so it is light or dark as what
+   it is drawn on is. */
 
 /* Sizes. Spacing is Tailwind's scale, a step of 4px (h-9 is 36px, gap-1.25
    is 5px); the root's font size is never changed, so it stays 4px. Corners,
@@ -117,6 +119,22 @@ body,
   --space-shown: oklch(from var(--space) 0.58 calc(c * 0.5) h);
 }
 
+/* A space's content drawn on the window while it shows another, as the
+   sidebar draws the spaces beside the window's (sidebar/space-colours.tsx):
+   its own colour and scheme, which the palettes below, and each
+   component's, make their colours from again. */
+[data-content-scheme] {
+  transition: --space 0.2s ease-out;
+  --space-shown: oklch(from var(--space) l calc(c * 0.92) h);
+  color: var(--fg);
+}
+:root[data-space-picked] [data-content-scheme] {
+  transition: none;
+}
+:root[data-active="false"] [data-content-scheme] {
+  --space-shown: oklch(from var(--space) 0.58 calc(c * 0.5) h);
+}
+
 :root[data-platform="mac"] {
   --window-buttons: 72px;
   /* The window's own corners, as the system draws them. */
@@ -137,6 +155,7 @@ body,
    disabled (fg-4). They are the same focused or not; the window pales by
    itself when unfocused (see --space-shown). */
 :root[data-scheme="light"],
+[data-content-scheme="light"],
 :root[data-system-scheme="light"] [data-scheme="system"] {
   color-scheme: light;
   /* Button's solid: near black, its text white. */
@@ -177,6 +196,7 @@ body,
 }
 
 :root[data-scheme="dark"],
+[data-content-scheme="dark"],
 :root[data-system-scheme="dark"] [data-scheme="system"] {
   color-scheme: dark;
   /* Button's solid: near white, its text near black. */
@@ -209,6 +229,7 @@ body,
 }
 
 :root[data-scheme],
+[data-content-scheme],
 :root[data-system-scheme] [data-scheme="system"] {
   /* A default button (Button's prominent): the space's colour, deep enough
      for white text on it. */

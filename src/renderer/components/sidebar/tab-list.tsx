@@ -11,7 +11,7 @@ import { Favicon } from "@/components/favicon";
 import { SpaceIcon } from "@/components/space-icon";
 import type { OmniboxState } from "@/components/omnibox/shown";
 import { useBrowser } from "@/state/browser";
-import { type Tab, useSpace } from "@/state/space";
+import { type Tab, useDrawnSpace, useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { useGroupKeys, useRowKeys } from "./keys";
@@ -74,7 +74,8 @@ export function TabList({
 }) {
   // A tab's or a group's menu holds the floating sidebar out until it closes.
   const holdUntil = useHoldUntil();
-  const { space, profile } = useSpace();
+  const { profile } = useSpace();
+  const space = useDrawnSpace();
   const { listed: tabs, groups: tabGroups, splits, current } = useBrowser();
   const [renaming, setRenaming] = useState<string | null>(null);
   // The spaces whose pinned tabs are folded up, as long as the window is open.
@@ -294,7 +295,7 @@ function SpaceHeading({
   onToggle: () => void;
   dropping: boolean;
 }) {
-  const { space } = useSpace();
+  const space = useDrawnSpace();
   return (
     <Row
       still

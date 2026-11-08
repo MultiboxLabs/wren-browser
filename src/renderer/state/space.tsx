@@ -220,3 +220,24 @@ export function useSpace() {
   if (!state) throw new Error("useSpace is used outside a SpaceProvider");
   return state;
 }
+
+const DrawnSpaceContext = createContext<Space | null>(null);
+
+/**
+ * Says which space what is under it draws: a space's content in the
+ * sidebar, which may be a space beside the window's.
+ */
+export function DrawnSpace({ space, children }: { space: Space; children: ReactNode }) {
+  return <DrawnSpaceContext value={space}>{children}</DrawnSpaceContext>;
+}
+
+/**
+ * The space the content around it draws (`DrawnSpace`), or else the
+ * window's. Content reads its space from here, not `useSpace().space`, as
+ * the sidebar draws the spaces beside the window's too.
+ */
+export function useDrawnSpace() {
+  const drawnSpace = useContext(DrawnSpaceContext);
+  const { space } = useSpace();
+  return drawnSpace ?? space;
+}

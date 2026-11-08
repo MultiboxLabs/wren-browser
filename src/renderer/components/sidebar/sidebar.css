@@ -32,10 +32,12 @@
 /* The hairline where the sidebar's list is cut off, while it goes on below
    (list-edge.ts). */
 :root[data-scheme="light"],
+[data-content-scheme="light"],
 :root[data-system-scheme="light"] [data-scheme="system"] {
   --list-edge: rgb(0 0 0 / 0.06);
 }
 :root[data-scheme="dark"],
+[data-content-scheme="dark"],
 :root[data-system-scheme="dark"] [data-scheme="system"] {
   --list-edge: rgb(255 255 255 / 0.08);
 }

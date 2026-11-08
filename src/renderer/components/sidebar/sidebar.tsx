@@ -27,6 +27,7 @@ import { ArrivalScope } from "./arrival";
 import { Favorites } from "./favorites";
 import { usePinActions } from "./pin-actions";
 import { NewSpaceForm } from "./new-space";
+import { SpaceColours } from "./space-colours";
 import { useSpaceSwipe } from "./space-swipe";
 import { SpaceSwitcher } from "./space-switcher";
 import { ListBelowContext } from "./list-edge";
@@ -36,7 +37,7 @@ import { BrowserOfSpace, useBrowser } from "@/state/browser";
 import { useDownloadIndicator } from "@/state/downloads";
 import { type LibrarySettings, useSettings } from "@/state/library";
 import { usePins } from "@/state/pins";
-import { useSpace } from "@/state/space";
+import { useDrawnSpace, useSpace } from "@/state/space";
 import { SLIDE } from "@/state/space-slide";
 
 export type SidebarProps = {
@@ -201,11 +202,13 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
           ) : (
             themed === space.id && (
               // Each space's own, so one's tabs never leave or arrive in another's.
-              <BrowserOfSpace key={space.id} space={space.id}>
-                <ListBelowContext value={below}>
-                  <SpaceContent omnibox={omnibox} address={address} settings={settings} />
-                </ListBelowContext>
-              </BrowserOfSpace>
+              <SpaceColours key={space.id} space={space}>
+                <BrowserOfSpace space={space.id}>
+                  <ListBelowContext value={below}>
+                    <SpaceContent omnibox={omnibox} address={address} settings={settings} />
+                  </ListBelowContext>
+                </BrowserOfSpace>
+              </SpaceColours>
             )
           )}
         </motion.div>
@@ -257,7 +260,8 @@ type SpaceContentProps = Pick<SidebarProps, "omnibox" | "address"> & { settings:
 
 /** What the sidebar shows of the space, below its toolbar: the address, the favourites, the pins and the tabs. */
 function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
-  const { space, profile } = useSpace();
+  const { profile } = useSpace();
+  const space = useDrawnSpace();
   const { current, ready } = useBrowser();
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);

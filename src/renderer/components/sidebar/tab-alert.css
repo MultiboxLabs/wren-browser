@@ -9,6 +9,7 @@
 }
 
 :root[data-scheme="light"],
+[data-content-scheme="light"],
 :root[data-system-scheme="light"] [data-scheme="system"] {
   --alert-screen: oklch(0.5 0.2 255);
   --alert-captured: oklch(0.52 0.21 25);
@@ -16,6 +17,7 @@
   --alert-microphone: oklch(0.56 0.15 70);
 }
 :root[data-scheme="dark"],
+[data-content-scheme="dark"],
 :root[data-system-scheme="dark"] [data-scheme="system"] {
   --alert-screen: oklch(0.84 0.11 255);
   --alert-captured: oklch(0.82 0.12 25);
