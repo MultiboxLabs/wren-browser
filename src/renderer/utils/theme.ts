@@ -305,7 +305,7 @@ export function themeColors(
  * The layers that fill a popover's arrow so that it is of a picker's colour
  * where it meets the picker, a swatch of a window of `windowAspect` (its width
  * over its height): the stand-in for the blur and the underlay, then the
- * colour the gradient has at the middle of the edge the arrow is on (`side`
+ * colours the gradient has at the middle of the edge the arrow is on (`side`
  * is the popover's side of its trigger: its arrow is on the opposite edge of
  * it).
  */
@@ -315,16 +315,19 @@ export function arrowFill(
   side: "top" | "right" | "bottom" | "left"
 ): { color: string; opacity: number }[] {
   const { material, underlay } = themeStyle(theme, { aspect: windowAspect, material: 1 });
-  const [first, second] = derivedColors(theme).map((color) => colorCss(color));
-  let color = first;
-  if (second) {
-    // The edge's middle, across and down the picker.
-    const [u, v] = { bottom: [0.5, 0], top: [0.5, 1], right: [0, 0.5], left: [1, 0.5] }[side];
-    color = `color-mix(in oklab, ${first}, ${second} ${(clamp(share(windowAspect, u, v)) * 100).toFixed(1)}%)`;
-  }
+  const [first, second, third] = derivedColors(theme).map((color) => colorCss(color));
+  // The edge's middle, across and down the picker.
+  const [u, v] = { bottom: [0.5, 0], top: [0.5, 1], right: [0, 0.5], left: [1, 0.5] }[side];
+  const color = second
+    ? `color-mix(in oklab, ${first}, ${second} ${(clamp(share(windowAspect, u, v)) * 100).toFixed(1)}%)`
+    : first;
+  const alpha = colorAlpha(theme);
   return [
     { color: String(material?.backgroundColor), opacity: 1 },
     { color: String(underlay.backgroundColor), opacity: 1 },
-    { color, opacity: colorAlpha(theme) }
+    { color, opacity: alpha },
+    // The third colour, laid over the others from clear at the top to whole
+    // at the bottom (`themeStyle`): as much of it as there is that far down.
+    ...(third ? [{ color: third, opacity: alpha * v }] : [])
   ];
 }
