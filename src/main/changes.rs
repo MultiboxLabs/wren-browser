@@ -12,6 +12,17 @@ use crate::shell::BrowserWindow;
 /// answers whether the window's title may have changed with them: the
 /// active tab's title, or which tab is active, or whether one is.
 pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
+    // A performance run counts the batches that send the page its tabs.
+    let Some(counts) = &window.perf_counts else {
+        return apply_batch(window, changes);
+    };
+    let before = counts.messages();
+    let title_changed = apply_batch(window, changes);
+    counts.batch_done(before);
+    title_changed
+}
+
+fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
     apply_behind(window, changes);
     let Some(browser) = window.browser() else {
         return false;

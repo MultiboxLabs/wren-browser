@@ -13,6 +13,7 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
+use crate::perf::PageCounts;
 use crate::platform::{PageWindow, TitleBarKind, WindowSize};
 use crate::shell::{BrowserWindow, Place, Popup, WindowId};
 use crate::tabs::placeholder;
@@ -150,8 +151,16 @@ impl State {
                 window.full_screen_finished(full_screen);
             }
         });
-        self.windows
-            .add(BrowserWindow::new(id, key, page, place, framed, popup));
+        let perf_counts = self.perf.as_ref().map(|_| PageCounts::default());
+        self.windows.add(BrowserWindow::new(
+            id,
+            key,
+            page,
+            place,
+            framed,
+            popup,
+            perf_counts,
+        ));
         let window = self.windows.get(id)?;
         // Named for its place until a tab is in front, or should none come.
         self.update_title(&window);

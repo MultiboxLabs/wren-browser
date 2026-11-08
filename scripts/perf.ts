@@ -136,7 +136,18 @@ function report(results: PerfResults) {
       `${ms(results.updates.work.max)} max; latency ${ms(results.updates.latency.p95)} p95; ` +
       `${(results.updates.bytes.p50 / 1024).toFixed(1)} KB p50`
   );
-  console.log(`  selecting: ${ms(results.select.p50)} p50, ${ms(results.select.max)} max`);
+  console.log(
+    `  ${results.updates.messages} messages of tabs in ${results.updates.batches} batches; ` +
+      `${results.updates.commits} commits`
+  );
+  const { idle, busy } = results.channel;
+  console.log(`  channel: ${ms(idle.p50)} p50 idle, ${ms(busy.p50)} p50 busy, ${ms(busy.p95)} p95 busy`);
+  const { select } = results;
+  console.log(`  selecting: ${ms(select.p50)} p50, ${ms(select.max)} max`);
+  console.log(
+    `    p95: answered ${ms(select.call.p95)}, heard ${ms(select.heard.p95)}, ` +
+      `then rendered ${ms(select.render.p95)}`
+  );
   console.log(`  scrolling: ${results.scroll.frames} frames, ${results.scroll.dropped} dropped`);
   if (results.heapMB !== null) console.log(`  heap: ${results.heapMB.toFixed(1)} MB`);
   console.log();

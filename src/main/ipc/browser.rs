@@ -385,27 +385,31 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
 /// Tells the page the tabs changed: which there are, their order, a tab's
 /// title, address, or state, or which is active.
 pub fn send_tabs(window: &BrowserWindow, browser: &Browser) {
-    let _ = window
-        .page
-        .web_view
-        .send("browser.tabs", &tab_list(window, browser));
+    send_counted(window, "browser.tabs", &tab_list(window, browser));
 }
 
 /// Tells the page there are no tabs: its space has no Browser.
 pub fn send_no_tabs(window: &BrowserWindow) {
-    let _ = window
-        .page
-        .web_view
-        .send("browser.tabs", &no_tabs(page_space(window.place()), true));
+    let tabs = no_tabs(page_space(window.place()), true);
+    send_counted(window, "browser.tabs", &tabs);
 }
 
 /// Tells the page that `place`, behind the one in front, has no tabs: its
 /// Browser has closed.
 pub fn send_no_tabs_for(window: &BrowserWindow, place: &Place) {
-    let _ = window.page.web_view.send(
-        "browser.tabs",
-        &no_tabs(page_space(Some(place.clone())), false),
-    );
+    let tabs = no_tabs(page_space(Some(place.clone())), false);
+    send_counted(window, "browser.tabs", &tabs);
+}
+
+// Sends the page a message of its tabs, whose size a performance run counts.
+fn send_counted<V: Serialize>(window: &BrowserWindow, name: &str, value: &V) {
+    let Ok(json) = serde_json::to_string(value) else {
+        return;
+    };
+    if let Some(counts) = &window.perf_counts {
+        counts.sent(json.len());
+    }
+    let _ = window.page.web_view.send_json(name, Some(&json));
 }
 
 // The tabs of a space without a Browser, in front or not.
@@ -442,7 +446,7 @@ fn every_tab_list(window: &BrowserWindow) -> Vec<Tabs> {
 
 /// Tells the page a tab's favicon changed, for it to ask again.
 pub fn send_favicon(window: &BrowserWindow, tab: BrowserTab) {
-    let _ = window.page.web_view.send("tab.favicon", &tab.id());
+    send_counted(window, "tab.favicon", &tab.id());
 }
 
 /// Tells the page the link under the pointer in a tab's page changed.

@@ -12,6 +12,14 @@ export type PerfConfig = {
   manual: boolean;
 };
 
+/** What the page has been sent of its tabs since it last asked. */
+export type PerfCounts = {
+  /** The length of each message of tabs, in bytes of JSON. */
+  bytes: number[];
+  /** How many batches of Chromium's changes sent the page any. */
+  batches: number;
+};
+
 /** What the page reports, each a line of the run's output. */
 export type PerfEntry =
   | { kind: "results"; results: PerfResults }
@@ -23,6 +31,10 @@ export const perf = {
   /** Null outside a run. */
   config: () => wren.invoke<PerfConfig | null>("perf.config"),
   report: (entry: PerfEntry) => wren.invoke<null>("perf.report", entry),
+  /** Answers at once, to time the channel by. */
+  ping: () => wren.invoke<null>("perf.ping"),
+  /** What the page has been sent since the last call, which starts the counts again. */
+  counts: () => wren.invoke<PerfCounts>("perf.counts"),
   /** Ends the run: the app quits. */
   done: () => wren.invoke<null>("perf.done")
 };

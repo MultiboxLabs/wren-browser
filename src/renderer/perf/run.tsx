@@ -7,23 +7,29 @@
 // from the call, and scrolling moves the list on the page's main thread. A
 // manual run leaves the window to the user and reports what Chromium times
 // of their input instead.
+//
+// The page only takes timestamps while it measures: the app counts what it
+// sends (perf.counts), so the run's own work doesn't add to its figures.
 
 import { useEffect, useLayoutEffect } from "react";
 import { browser, perf, type PerfConfig } from "@/ipc";
 import { useBrowser } from "@/state/browser";
 import type { PerfResults, Stats } from "./budgets";
-import { observeFrames, startMeasuring, takeLongestFrame, takeUpdates } from "./measure";
+import { observeFrames, receivedAt, startMeasuring, takeCommits, takeLongestFrame, takeUpdates } from "./measure";
 
 type BrowserState = ReturnType<typeof useBrowser>;
 
-// The window's Browser as the page last committed it, and what waits on it.
+// The window's Browser as the page last committed it, when the message it
+// committed for came, and what waits on it.
 let state: BrowserState | null = null;
+let heardAt: number | null = null;
 const waiting = new Set<() => void>();
 
 export function PerfRun({ config }: { config: PerfConfig }) {
   const current = useBrowser();
   useLayoutEffect(() => {
     state = current;
+    heardAt = receivedAt();
     waiting.forEach((wake) => wake());
   });
   useEffect(() => {
@@ -36,6 +42,7 @@ async function run(config: PerfConfig) {
   startMeasuring();
   observeFrames(config.manual ? (what, ms) => void perf.report({ kind: "slow", what, ms }) : undefined);
   const before = (await until((state) => state.id !== null)).tabs.length;
+  const idle = await pinging(50, 10);
 
   // Opening the tabs, as a restored session would, one after another.
   takeLongestFrame();
@@ -50,16 +57,24 @@ async function run(config: PerfConfig) {
   // The titles change in the background.
   const refreshRate = 1000 / median(await frameIntervals(500));
   takeUpdates();
+  takeCommits();
+  await perf.counts();
   takeLongestFrame();
   await sleep(config.seconds * 1000);
   const heard = takeUpdates();
+  const commits = takeCommits();
+  const counts = await perf.counts();
   const updates = {
     perSecond: heard.length / config.seconds,
     work: stats(heard.map((update) => update.work)),
     latency: stats(heard.map((update) => update.latency)),
-    bytes: stats(heard.map((update) => update.bytes)),
+    bytes: stats(counts.bytes),
+    messages: counts.bytes.length,
+    batches: counts.batches,
+    commits,
     longestFrame: takeLongestFrame()
   };
+  const channel = { idle, busy: await pinging(50, 50) };
 
   const select = { ...(await selecting(20)), longestFrame: takeLongestFrame() };
   const scroll = { ...(await scrolling(3000, 1000 / refreshRate)), longestFrame: takeLongestFrame() };
@@ -69,6 +84,7 @@ async function run(config: PerfConfig) {
     refreshRate,
     open,
     updates,
+    channel,
     select,
     scroll,
     heapMB: heap === undefined ? null : heap / 2 ** 20
@@ -77,9 +93,24 @@ async function run(config: PerfConfig) {
   await perf.done();
 }
 
-/** Selects `count` tabs across the list, timing each from the call to its frame. */
-async function selecting(count: number) {
+/** Times `count` calls that do nothing, `gap` milliseconds apart. */
+async function pinging(count: number, gap: number) {
   const times: number[] = [];
+  for (let step = 0; step < count; step++) {
+    const start = performance.now();
+    await perf.ping();
+    times.push(performance.now() - start);
+    await sleep(gap);
+  }
+  return stats(times);
+}
+
+/**
+ * Selects `count` tabs across the list, timing each from the call to its
+ * frame, and to the app's answer and its word on the tabs on the way.
+ */
+async function selecting(count: number) {
+  const [times, calls, heard, renders]: number[][] = [[], [], [], []];
   for (let step = 0; step < count; step++) {
     const { tabs, current } = state!;
     // Across the list, never the tab already selected.
@@ -87,12 +118,18 @@ async function selecting(count: number) {
     if (tab.id === current?.id) tab = tabs[(tabs.indexOf(tab) + 1) % tabs.length];
     const start = performance.now();
     await browser.activate(tab.id);
+    calls.push(performance.now() - start);
     await until((state) => state.current?.id === tab.id, 5000);
+    // The tab is selected only once the app says so, in a message.
+    const selected = heardAt ?? performance.now();
     await framePainted();
-    times.push(performance.now() - start);
+    const painted = performance.now();
+    times.push(painted - start);
+    heard.push(selected - start);
+    renders.push(painted - selected);
     await sleep(100);
   }
-  return stats(times);
+  return { ...stats(times), call: stats(calls), heard: stats(heard), render: stats(renders) };
 }
 
 /** Scrolls the tab list from top to bottom over `ms`, counting the frames that came late. */

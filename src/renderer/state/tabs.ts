@@ -68,7 +68,7 @@ export class TabsStore {
   private take(every: BrowserTabs[]) {
     if (!every.length) return;
     for (const said of every) {
-      updateReceived(said);
+      updateReceived();
       const kept = this.spaces.get(said.space);
       this.spaces.set(said.space, {
         said: {
@@ -104,7 +104,7 @@ export class TabsStore {
   private ask(id: number) {
     browser.favicon(id).then(
       (favicon) => {
-        updateReceived(favicon);
+        updateReceived();
         this.favicons.set(id, favicon);
         for (const [space, tabs] of this.spaces) {
           if (!tabs.said.tabs.some((tab) => tab.id === id)) continue;

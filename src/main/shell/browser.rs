@@ -23,6 +23,7 @@ use super::sidebar_hover::SidebarHover;
 use super::tag::Tag;
 use crate::db::SpaceId;
 use crate::downloads;
+use crate::perf::PageCounts;
 use crate::platform::PageWindow;
 use crate::tabs::placeholder;
 
@@ -105,12 +106,16 @@ pub struct BrowserWindow {
     downloads_sent: RefCell<Option<Vec<downloads::Item>>>,
     history_sent: RefCell<Option<Vec<downloads::Item>>>,
     popup: Option<Popup>,
+    /// What its page is sent, counted during a performance run (perf.rs).
+    pub perf_counts: Option<PageCounts>,
 }
 
 impl BrowserWindow {
     /// `place`: none for the window that waits for its first Browser.
     /// `framed`: the window has its frame already, from the database, and a
     /// Browser's does not move it. `popup`: it is a popup's window.
+    /// `perf_counts`: this is a performance run, which counts what the page
+    /// is sent.
     pub fn new(
         id: WindowId,
         key: String,
@@ -118,6 +123,7 @@ impl BrowserWindow {
         place: Option<Place>,
         framed: bool,
         popup: Option<Popup>,
+        perf_counts: Option<PageCounts>,
     ) -> BrowserWindow {
         BrowserWindow {
             id,
@@ -137,6 +143,7 @@ impl BrowserWindow {
             downloads_sent: RefCell::default(),
             history_sent: RefCell::default(),
             popup,
+            perf_counts,
         }
     }
 

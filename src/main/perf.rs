@@ -2,11 +2,15 @@
 // of its settings in WREN_PERF; the page reads them, runs its scenarios
 // against the sidebar (src/renderer/perf/), and reports here, one JSON line
 // at a time, to the file the settings name. Only a Dev build takes it.
+// During a run, each window counts what its page is sent (`PageCounts`), so
+// the page measures the channel without doing the work itself.
 
+use std::cell::RefCell;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::PathBuf;
 
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::channel::Channel;
@@ -47,5 +51,44 @@ impl Perf {
             .append(true)
             .open(&self.output)?;
         writeln!(file, "{entry}")
+    }
+}
+
+/// What a window's page has been sent of its tabs during a run, which the
+/// page reads and clears ("perf.counts").
+#[derive(Default)]
+pub struct PageCounts(RefCell<Counts>);
+
+#[derive(Default, Serialize)]
+pub struct Counts {
+    /// The length of each message of tabs, in bytes of JSON.
+    bytes: Vec<usize>,
+    /// How many batches of Chromium's changes sent the page any.
+    batches: u32,
+}
+
+impl PageCounts {
+    /// A message of tabs went to the page, of `bytes`.
+    pub fn sent(&self, bytes: usize) {
+        self.0.borrow_mut().bytes.push(bytes);
+    }
+
+    /// How many messages of tabs have gone since the last `take`.
+    pub fn messages(&self) -> usize {
+        self.0.borrow().bytes.len()
+    }
+
+    /// A batch of changes is done: it counts if the page has been sent
+    /// more than `before` messages since it started.
+    pub fn batch_done(&self, before: usize) {
+        let mut counts = self.0.borrow_mut();
+        if counts.bytes.len() > before {
+            counts.batches += 1;
+        }
+    }
+
+    /// The counts so far, starting again from none.
+    pub fn take(&self) -> Counts {
+        self.0.take()
     }
 }

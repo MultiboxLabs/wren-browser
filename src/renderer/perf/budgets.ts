@@ -20,11 +20,29 @@ export type PerfResults = {
   /**
    * The app's word on the tabs or a favicon, while the tabs' titles change:
    * `work` is the page's from rendering to the commit, `latency` from the
-   * message to the commit, and `bytes` the size of a message.
+   * message to the commit, and `bytes` the size of a message of tabs, as
+   * the app counts them. `messages` is how many messages of tabs came, in
+   * how many `batches` of Chromium's changes, and `commits` how many times
+   * BrowserProvider committed.
    */
-  updates: Frames & { perSecond: number; work: Stats; latency: Stats; bytes: Stats };
-  /** From switching to a tab to the frame that shows it selected. */
-  select: Frames & Stats;
+  updates: Frames & {
+    perSecond: number;
+    work: Stats;
+    latency: Stats;
+    bytes: Stats;
+    messages: number;
+    batches: number;
+    commits: number;
+  };
+  /** A call that does nothing, from the page to the app and back, before the tabs open and while their titles change. */
+  channel: { idle: Stats; busy: Stats };
+  /**
+   * From switching to a tab to the frame that shows it selected, and where
+   * that goes: `call` until the app answers, `heard` until the page hears
+   * the tabs with the new one active, both from the switch, and `render`
+   * from then to the frame.
+   */
+  select: Frames & Stats & { call: Stats; heard: Stats; render: Stats };
   /** Scrolling the list from top to bottom. */
   scroll: Frames & { frames: number; dropped: number };
   /** The page's JavaScript heap after opening the tabs, if Chromium says. */

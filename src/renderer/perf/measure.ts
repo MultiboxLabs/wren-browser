@@ -1,16 +1,17 @@
 // What a performance run (run.ts) measures as the page goes: the app's
 // updates, from the message to React's commit, and Chromium's long frames.
 // Each does nothing until a run starts it, so the page outside one only
-// pays for a check.
+// pays for a check. Each takes a timestamp and no more, so measuring adds
+// nothing to what it measures; the app counts the messages' sizes.
 
 let measuring = false;
 
-/** An update from the app, in milliseconds, and its message's size. */
-export type Update = { work: number; latency: number; bytes: number };
+/** An update from the app, in milliseconds. */
+export type Update = { work: number; latency: number };
 
 let received: number | null = null;
 let rendering: number | null = null;
-let bytes = 0;
+let commits = 0;
 const updates: Update[] = [];
 
 /** Starts the measures; a run calls it before it opens its tabs. */
@@ -18,11 +19,9 @@ export function startMeasuring() {
   measuring = true;
 }
 
-/** The app's message has come, with what it says. */
-export function updateReceived(value: unknown) {
-  if (!measuring) return;
-  received ??= performance.now();
-  bytes += JSON.stringify(value)?.length ?? 0;
+/** The app's message has come. */
+export function updateReceived() {
+  if (measuring) received ??= performance.now();
 }
 
 /** BrowserProvider is rendering, the update with it if one has come. */
@@ -30,17 +29,32 @@ export function updateRendering() {
   if (measuring && received !== null) rendering ??= performance.now();
 }
 
+/**
+ * When the message BrowserProvider is committing came; null when it
+ * renders for something else. Read in a layout effect below it, which runs
+ * before BrowserProvider's.
+ */
+export const receivedAt = () => received;
+
 /** BrowserProvider's commit is done. */
 export function updateCommitted() {
-  if (!measuring || received === null) return;
+  if (!measuring) return;
+  commits++;
+  if (received === null) return;
   const now = performance.now();
-  updates.push({ work: now - (rendering ?? now), latency: now - received, bytes });
+  updates.push({ work: now - (rendering ?? now), latency: now - received });
   received = rendering = null;
-  bytes = 0;
 }
 
 /** The updates since the last call. */
 export const takeUpdates = () => updates.splice(0);
+
+/** How many times BrowserProvider has committed since the last call. */
+export function takeCommits() {
+  const taken = commits;
+  commits = 0;
+  return taken;
+}
 
 // Chromium's long animation frame, of 50 ms or more; not in TypeScript's DOM
 // types yet.
