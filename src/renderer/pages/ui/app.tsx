@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, MotionConfig } from "motion/react";
+import { motion, MotionConfig } from "motion/react";
 import { useEffect, useRef } from "react";
 import { hasApp, type SidebarState } from "@/ipc";
 import { HoldContext } from "@/components/ui/hold";
@@ -162,16 +162,14 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
         <BrowserToast />
         <QuitDialog />
         <TabSwitcher />
-        <AnimatePresence>
-          {omnibox.shown && (
-            <Omnibox
-              key={omnibox.shown.key}
-              target={omnibox.shown.target}
-              place={omnibox.shown.place}
-              onDone={omnibox.done}
-            />
-          )}
-        </AnimatePresence>
+        {omnibox.shown && (
+          <Omnibox
+            key={omnibox.shown.key}
+            target={omnibox.shown.target}
+            place={omnibox.shown.place}
+            onDone={omnibox.done}
+          />
+        )}
         {/* Over all else, the window's own. */}
         <Updated />
       </div>

@@ -8,14 +8,12 @@
 // quick ⌘Tab does. Escape, leaving the window or switching spaces closes
 // it, and the active tab stays.
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { browser, hasApp, previewUrl, tabSwitcher } from "@/ipc";
 import type { BrowserTab, TabSplit } from "@/ipc";
 import { useBrowser, useTabShape } from "@/state/browser";
 import { useWindowActive } from "@/state/window";
 import { cn } from "@/utils/cn";
-import { scaleTo } from "@/utils/motion";
 import { host } from "@/utils/url";
 import { Favicon } from "@/components/favicon";
 import { useRecentTabs } from "./recent";
@@ -43,7 +41,6 @@ export function TabSwitcher() {
   const switching = useRef<Switching | null>(null);
   const [shown, setShown] = useState<Switching | null>(null);
   const opened = useRef(0);
-  const still = useReducedMotion();
 
   const set = (next: Switching | null) => {
     switching.current = next;
@@ -97,27 +94,22 @@ export function TabSwitcher() {
 
   const selected = shown?.tabs[shown.selected];
   return (
-    <AnimatePresence>
-      {shown && visible && (
-        // Over everything, the page too, but takes no clicks around it.
-        <div className="no-drag pointer-events-none fixed inset-0 z-40 grid place-items-center p-10">
-          <motion.div
-            key={shown.key}
-            role="listbox"
-            aria-label="Tabs"
-            // Over the window: light or dark as the system is, not the space.
-            data-scheme="system"
-            initial={{ opacity: 0, ...scaleTo(still, 0.98) }}
-            animate={{ opacity: 1, ...scaleTo(still, 1) }}
-            exit={{ opacity: 0, transition: { duration: 0.08, ease: "easeIn" } }}
-            transition={{ duration: 0.12, ease: [0.2, 0.9, 0.3, 1] }}
-            className="tab-switcher pointer-events-auto flex max-w-full gap-1 overflow-x-auto p-3 scrollbar-none"
-          >
-            <Cards ids={shown.tabs} selected={selected} onChoose={(id) => go(id, true)} />
-          </motion.div>
+    shown &&
+    visible && (
+      // Over everything, the page too, but takes no clicks around it.
+      <div className="no-drag pointer-events-none fixed inset-0 z-40 grid place-items-center p-10">
+        <div
+          key={shown.key}
+          role="listbox"
+          aria-label="Tabs"
+          // Over the window: light or dark as the system is, not the space.
+          data-scheme="system"
+          className="tab-switcher pointer-events-auto flex max-w-full gap-1 overflow-x-auto p-3 scrollbar-none"
+        >
+          <Cards ids={shown.tabs} selected={selected} onChoose={(id) => go(id, true)} />
         </div>
-      )}
-    </AnimatePresence>
+      </div>
+    )
   );
 }
 

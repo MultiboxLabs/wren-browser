@@ -7,7 +7,7 @@
 // list's items.ts's, and when it is open shown.ts's.
 
 import { Search } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { OmniboxTarget } from "@/ipc";
 import { SEARCH_PLACEHOLDER } from "@/components/address/field";
@@ -17,7 +17,6 @@ import type { OmniboxTabs } from "./items";
 import { OmniboxIcon, OmniboxRow } from "./row";
 import { useBrowser } from "@/state/browser";
 import { cn } from "@/utils/cn";
-import { scaleTo } from "@/utils/motion";
 
 /** Where the omnibox is: at the address field's top left, or, without it in view, in the middle of the window. */
 export type OmniboxPlace = { left: number; top: number } | "center";
@@ -71,7 +70,7 @@ export function Omnibox({
   // the space's colour (.omnibox-pulse), and a slight dip in scale and
   // back. Both run on the compositor, so the page's work as the mode starts
   // cannot make them stutter: the glow by its layers' opacity, the dip by
-  // the `scale` property, apart from the transform Motion opens it with.
+  // the `scale` property.
   const panel = useRef<HTMLDivElement>(null);
   const dip = useRef<Animation>(null);
   const still = useReducedMotion();
@@ -95,22 +94,16 @@ export function Omnibox({
       className="no-drag fixed inset-0 z-40"
       onPointerDown={(event) => event.target === event.currentTarget && close()}
     >
-      <motion.div
+      <div
         ref={panel}
         role="dialog"
         aria-label={target === "new-tab" ? "New Tab" : "Open Location"}
         // Over the window: light or dark as the system is, not the space.
         data-scheme="system"
-        initial={{ opacity: 0, ...scaleTo(still, 0.98) }}
-        animate={{ opacity: 1, ...scaleTo(still, 1) }}
-        exit={{ opacity: 0, ...scaleTo(still, 0.98), transition: { duration: 0.08, ease: "easeIn" } }}
-        transition={{ duration: 0.14, ease: [0.2, 0.9, 0.3, 1] }}
         style={{
           width: `min(${size.width}px, 100vw - 40px)`,
           maxHeight: `min(${size.maxHeight}px, 100vh - 40px)`,
-          ...(anchored
-            ? { left: place.left, top: place.top, transformOrigin: "top left" }
-            : { top: `max(20px, 50% - ${size.maxHeight / 2}px)`, transformOrigin: "top center" })
+          ...(anchored ? { left: place.left, top: place.top } : { top: `max(20px, 50% - ${size.maxHeight / 2}px)` })
         }}
         // Not clipped: the pulse's glow spreads out past its edges.
         className={cn("omnibox absolute isolate flex flex-col", !anchored && "left-1/2 -translate-x-1/2")}
@@ -201,7 +194,7 @@ export function Omnibox({
             </div>
           </>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }
