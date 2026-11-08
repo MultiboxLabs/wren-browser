@@ -1,8 +1,9 @@
 // The icon picker, which every place that chooses a space's icon uses: the
 // sidebar's New Space, the Library's Edit Space and onboarding. Search
-// first, then Icons or Emoji, every category one after another, two full
-// rows of eight each, and a bar of the categories at the bottom that shows
-// which one is in view and jumps to one.
+// first, then Icons or Emoji, every category one after another, in rows of
+// as many as fit, and a bar of the categories at the bottom that shows
+// which one is in view and jumps to one. A category's sixteen fill two rows
+// of eight on a popover, and one row of sixteen across onboarding's step.
 
 import { Search, X } from "lucide-react";
 import { motion } from "motion/react";
@@ -18,7 +19,16 @@ const KINDS: { kind: Kind; label: string }[] = [
   { kind: "emoji", label: "Emoji" }
 ];
 
-export function IconPicker({ value, onChange }: { value: string; onChange: (icon: string) => void }) {
+export function IconPicker({
+  value,
+  onChange,
+  className
+}: {
+  value: string;
+  onChange: (icon: string) => void;
+  /** For its box: its size, where it is not on a popover. */
+  className?: string;
+}) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>(value.startsWith("lucide:") || !value ? "icons" : "emoji");
   const [inView, setInView] = useState(0);
@@ -49,7 +59,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (icon
   };
 
   return (
-    <div className="flex h-96 w-80 flex-col">
+    <div className={cn("flex h-96 w-80 flex-col", className)}>
       <div className="flex flex-col gap-2 px-3 pt-3 pb-1.5">
         <label className="flex h-7 items-center gap-1.5 rounded-[8px] bg-fill px-2">
           <Search size={13} strokeWidth={2.25} className="shrink-0 glyph-3" />
@@ -183,7 +193,9 @@ function Section({
       <h3 data-section className="px-2.5 pt-2.5 pb-1 text-caption font-semibold text-fg-3">
         {label}
       </h3>
-      <div className="grid grid-cols-8">
+      {/* Each at least 34px, so a wider picker shows more of them, not
+          bigger ones. */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(34px,1fr))]">
         {choices.map((choice) => {
           const chosen = choice.value === value;
           return (

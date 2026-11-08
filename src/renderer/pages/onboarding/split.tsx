@@ -65,28 +65,20 @@ export function Split({
           </GoButton>
         </motion.div>
       </div>
-      {/* Divided from the left by a line as the window's own edge is drawn. */}
+      {/* Divided from the left by a line as the window's own edge is drawn.
+          It runs on past the window's right edge, farther than a step slides
+          (`SLIDE`, onboarding.tsx), so a step sliding in or out never shows
+          the window bare beside it; its padding keeps what is in it where it
+          would be. */}
       <motion.div
         {...rise(1)}
         className={cn(
-          "no-drag flex min-w-0 flex-1 flex-col justify-center border-l border-(--onboarding-divider) bg-fill px-12",
+          "no-drag -mr-8 flex min-w-0 flex-1 flex-col justify-center border-l border-(--onboarding-divider) bg-fill pr-20 pl-12",
           panelClassName
         )}
       >
         {children}
       </motion.div>
     </div>
-  );
-}
-
-/**
- * What a step chooses with, on a card as a popover is, as the main window
- * shows it (`.popover-card` in components/ui/popover.css): light or dark with the system.
- */
-export function Card({ children }: { children: ReactNode }) {
-  return (
-    <motion.div {...rise(3)} data-scheme="system" className="popover-card">
-      {children}
-    </motion.div>
   );
 }

@@ -10,7 +10,7 @@
 // space's window will be, its blur and buttons too.
 
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { hasApp, onboarding, onboardingMigrate, type SpaceTheme } from "@/ipc";
 import { SpaceBackground } from "@/components/space-background";
 import { DEFAULT_ICON } from "@/components/space-icon";
@@ -71,21 +71,6 @@ export function Onboarding() {
     adBlock: true
   });
   const migrate = useMigrate(onboardingMigrate);
-  // Whether the choices start where they should: the steps (and the window,
-  // which shows with them) wait for it, so a picker never starts elsewhere.
-  const [ready, setReady] = useState(!hasApp);
-  // The first space's icon and theme, if it has them already, are where the
-  // choice starts.
-  useEffect(() => {
-    if (!hasApp) return;
-    onboarding
-      .space()
-      .then(
-        (space) => space && setChoices((choices) => ({ ...choices, ...space })),
-        () => {}
-      )
-      .finally(() => setReady(true));
-  }, []);
   const step = stepsFor(choices)[at.index];
   const painted = paintedFor(step, choices);
   const scheme = useSystemScheme();
@@ -118,7 +103,7 @@ export function Onboarding() {
             </motion.div>
           )}
         </AnimatePresence>
-        {ready && <Steps at={at} setAt={setAt} choices={choices} setChoices={setChoices} migrate={migrate} />}
+        <Steps at={at} setAt={setAt} choices={choices} setChoices={setChoices} migrate={migrate} />
       </TooltipProvider>
     </MotionConfig>
   );
@@ -182,7 +167,9 @@ function Steps({
   const painted = paintedFor(steps[at.index], choices);
   return (
     // On the clean slate, a switch takes the slate's warm light (onboarding.css).
-    <div data-slate={!painted || undefined} className="drag relative h-full overflow-hidden">
+    // Clipped, not hidden: a field that takes focus while its step slides in,
+    // partly past the window's edge, would scroll a hidden overflow to show it.
+    <div data-slate={!painted || undefined} className="drag relative h-full overflow-clip">
       <AnimatePresence mode="wait" initial={false} custom={at.direction}>
         <motion.div
           key={at.index}

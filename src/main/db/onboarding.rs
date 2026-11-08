@@ -49,16 +49,6 @@ impl Db {
         }
     }
 
-    /// The icon and theme of the space the user's first window opens on:
-    /// the one used last, if there is one yet; none on a first run, before
-    /// the first space is made.
-    pub fn first_space(&self) -> Result<Option<FirstSpace>, String> {
-        Ok(self.most_recent_space()?.map(|space| FirstSpace {
-            icon: Some(space.icon),
-            theme: Some(space.theme),
-        }))
-    }
-
     /// Gives the first space what was chosen for it: the space used last,
     /// if there is one, or else the first that is made
     /// (`take_first_space`).
@@ -123,10 +113,12 @@ mod tests {
             icon: Some("lucide:leaf".into()),
             theme: Some(SpaceTheme::default_for("#0a84ff")),
         };
-        assert_eq!(db.first_space().unwrap(), None);
+        assert!(db.most_recent_space().unwrap().is_none());
         db.set_first_space(chosen.clone()).unwrap();
         db.sync_profiles(&[entry()]);
-        assert_eq!(db.first_space().unwrap(), Some(chosen));
+        let space = db.most_recent_space().unwrap().unwrap();
+        assert_eq!(Some(space.icon), chosen.icon);
+        assert_eq!(Some(space.theme), chosen.theme);
         // Only the first: the choice is used up.
         assert_eq!(db.take_first_space(), FirstSpace::default());
     }
@@ -143,9 +135,9 @@ mod tests {
         };
         db.set_first_space(chosen).unwrap();
         // What was not chosen, it keeps.
-        let space = db.first_space().unwrap().unwrap();
-        assert_eq!(space.icon.as_deref(), Some(DEFAULT_ICON));
-        assert_eq!(space.theme, Some(theme));
+        let space = db.most_recent_space().unwrap().unwrap();
+        assert_eq!(space.icon, DEFAULT_ICON);
+        assert_eq!(space.theme, theme);
         assert_eq!(db.take_first_space(), FirstSpace::default());
     }
 }

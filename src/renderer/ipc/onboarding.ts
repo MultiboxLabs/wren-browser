@@ -18,11 +18,6 @@ export type OnboardingChoices = {
 };
 
 export const onboarding = {
-  /**
-   * The icon and theme of the space the first window opens on, to start the
-   * choice from; null before there is one, on a first run.
-   */
-  space: () => wren.invoke<{ icon: string; theme: SpaceTheme } | null>("onboarding.space"),
   /** The user is done, with what they chose: the window closes, and the app starts. */
   finish: (choices: OnboardingChoices) => wren.invoke<null>("onboarding.finish", choices)
 };

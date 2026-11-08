@@ -1,7 +1,9 @@
 // The picker for a space's theme: the colour pad, with the appearances over
 // its top, then the presets, then intensity at the bottom left and noise at
 // the bottom right. It is drawn with the theme it edits, so it previews it,
-// and its controls are light or dark as that theme is (palette.ts).
+// and its controls are light or dark as that theme is (palette.ts). Where
+// what is behind it shows the theme already, as onboarding's window does,
+// it is drawn bare, with no box of its own, which would show it twice.
 //
 // `value` is where it starts: the picker keeps what it is editing, and tells
 // `onChange` of each change (a drag's too, as it goes). Undo and redo are ⌘Z
@@ -23,10 +25,13 @@ import { PresetRow } from "./preset-row";
 export function ThemePicker({
   value,
   onChange,
+  bare = false,
   className
 }: {
   value: SpaceTheme;
   onChange: (theme: SpaceTheme) => void;
+  /** Its controls alone, on what shows the theme already. */
+  bare?: boolean;
   /** For its box: its corners, when it sits in another. */
   className?: string;
 }) {
@@ -74,6 +79,20 @@ export function ThemePicker({
     return () => removeEventListener("keydown", undo);
   }, []);
 
+  const controls = (
+    <div
+      className={cn("flex flex-col items-center gap-4", !bare && "p-2")}
+      style={pickerPalette(contentScheme(doc.theme))}
+    >
+      <ColorPad doc={doc} edit={edit} end={end} />
+      <PresetRow doc={doc} edit={edit} page={page} onPage={setPage} />
+      <div className="flex items-center gap-4 px-2 pb-1">
+        <IntensitySlider doc={doc} edit={edit} end={end} />
+        <NoiseDial doc={doc} edit={edit} end={end} />
+      </div>
+    </div>
+  );
+  if (bare) return controls;
   return (
     <ThemeSwatch
       as="div"
@@ -81,14 +100,7 @@ export function ThemePicker({
       className={cn("rounded-[16px] backdrop-blur-2xl", className)}
       contentClassName="w-full"
     >
-      <div className="flex flex-col items-center gap-4 p-2" style={pickerPalette(contentScheme(doc.theme))}>
-        <ColorPad doc={doc} edit={edit} end={end} />
-        <PresetRow doc={doc} edit={edit} page={page} onPage={setPage} />
-        <div className="flex items-center gap-4 px-2 pb-1">
-          <IntensitySlider doc={doc} edit={edit} end={end} />
-          <NoiseDial doc={doc} edit={edit} end={end} />
-        </div>
-      </div>
+      {controls}
     </ThemeSwatch>
   );
 }
