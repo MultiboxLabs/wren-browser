@@ -5,7 +5,7 @@
 // folder open, the window switches to that space, and the drag goes on
 // there: to a place in its list, or to another space's button.
 
-import { type DragEvent, useEffect, useRef, useState } from "react";
+import { type DragEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSpace } from "@/state/space";
 import { whenDragEnds } from "./drag-hold";
 import { carriedIn, moveToSpace } from "./units";
@@ -23,8 +23,11 @@ export function useSpaceDrop() {
   // As set last, for the handlers between renders.
   const latest = useRef<number | null>(null);
   const spring = useRef(0);
+  // As it is now, for the spring's timer.
   const latestShow = useRef(show);
-  latestShow.current = show;
+  useLayoutEffect(() => {
+    latestShow.current = show;
+  });
 
   const leave = () => {
     window.clearTimeout(spring.current);

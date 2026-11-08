@@ -129,21 +129,24 @@ export function FoldingRows({
   // How tall the rows are folded: as tall as the peek, if there is one.
   const [rest] = useState(() => () => peekLayer.current?.offsetHeight ?? 0);
   // Puts the peek where its row is, at the top if the row is above it or
-  // not drawn, and as far in as the row is while they are nearly unfolded.
+  // not drawn, and as far in as the row is while they are nearly unfolded:
+  // as each render is committed, and on each frame of a fold.
   const place = useRef(() => {});
-  place.current = () => {
-    const element = box.current;
-    if (!element || !peek) return;
-    const [x, y] = peekPlace(element, rows.current, peek.key, indent, rest());
-    element.style.setProperty("--peek-x", `${x}px`);
-    element.style.setProperty("--peek-y", `${y}px`);
-  };
+  useLayoutEffect(() => {
+    place.current = () => {
+      const element = box.current;
+      if (!element || !peek) return;
+      const [x, y] = peekPlace(element, rows.current, peek.key, indent, rest());
+      element.style.setProperty("--peek-x", `${x}px`);
+      element.style.setProperty("--peek-y", `${y}px`);
+    };
+    place.current();
+  });
   // The same each time, as `Disclosed` keeps the first it is given. Once
   // the frame is drawn: as a fold starts, Motion lets the rows take their
   // full height for a moment to measure them, and the peek placed then
   // would be a frame out of place.
   const [onFrame] = useState(() => () => void frame.postRender(() => place.current()));
-  useLayoutEffect(() => place.current());
   // The rows are hidden under the peek until it has gone, not only until it
   // is told to: going over its row, it would otherwise be drawn on it.
   const [peeked, setPeeked] = useState(false);

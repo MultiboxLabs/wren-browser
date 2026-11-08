@@ -57,7 +57,7 @@ Run them before every commit:
 bun run check
 ```
 
-It builds `cn`'s class-merging tables (`scripts/cn-tables.ts`), then checks that what Wren restyles on Chromium's own pages is still in the Chromium it runs (`scripts/check-chrome-pages.ts`). Then it runs `cargo check`, `cargo clippy --all-targets` and TypeScript's type checker. `bun run format` formats the repository with Prettier.
+It builds `cn`'s class-merging tables (`scripts/cn-tables.ts`), then checks that what Wren restyles on Chromium's own pages is still in the Chromium it runs (`scripts/check-chrome-pages.ts`), and that React Compiler compiles every component and hook of the sidebar and the window's state (`scripts/check-compiler.ts`). Then it runs `cargo check`, `cargo clippy --all-targets` and TypeScript's type checker. `bun run format` formats the repository with Prettier.
 
 The restyle check matters because a renamed Chromium property breaks nothing visibly. That piece of the page just goes back to Chromium's look, and the check is what names it.
 

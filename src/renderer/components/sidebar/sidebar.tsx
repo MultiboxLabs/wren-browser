@@ -172,9 +172,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   );
   const swipe = slide.x;
   // Read as the content moves, not as it was drawn.
-  const besideNow = useRef(slide.beside);
-  besideNow.current = slide.beside;
-  const fades = () => !besideNow.current;
+  const fades = () => !slide.besideNow();
   const content = (drawn: Space, page: Page) => (
     // Each space's own, so one's tabs never leave or arrive in another's.
     <SpaceColours space={drawn}>

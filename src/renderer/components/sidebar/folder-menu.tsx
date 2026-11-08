@@ -55,7 +55,8 @@ export function FolderMenu({
 }) {
   const [open, setOpen] = useState(false);
   // The content slides between spaces while the spaces beside are drawn.
-  const shown = enabled && !useSpace().slide.beside;
+  const { beside } = useSpace().slide;
+  const shown = enabled && !beside;
   useEffect(() => {
     if (!shown) setOpen(false);
   }, [shown]);

@@ -17,7 +17,7 @@
 // (`wrenMomentumPhase`) is the swipe's too, and goes nowhere. A mouse's
 // wheel, which has no phases, steps a space at a time as it turns sideways.
 
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useEffectEvent } from "react";
 import type { SpaceSlide } from "@/state/space-slide";
 import { prefersReducedMotion } from "@/utils/motion";
 
@@ -136,9 +136,11 @@ export function useSpaceSwipe(
   canStep: (by: 1 | -1) => boolean,
   glide: (by: 1 | -1) => void
 ) {
-  // Read by the listener as they are now.
-  const latest = useRef({ go, canStep, glide });
-  latest.current = { go, canStep, glide };
+  // Called by the listener as they are now.
+  const goTo = useEffectEvent((id: number) => go(id));
+  const step = useEffectEvent((by: 1 | -1) => {
+    if (canStep(by)) glide(by);
+  });
 
   useEffect(() => {
     const element = area.current;
@@ -178,11 +180,11 @@ export function useSpaceSwipe(
       // It keeps its speed only going that way.
       const toward = Math.sign(to * now.width - shown) === Math.sign(speed);
       const landed = slide.release(to, toward ? -speed : 0);
-      if (landed !== undefined) latest.current.go(landed);
+      if (landed !== undefined) goTo(landed);
     };
 
     const move = (event: WheelEvent) => {
-      swipe ??= newSwipe();
+      if (swipe === null) swipe = newSwipe();
       if (swipe.axis === null) {
         if (event.deltaX === 0 && event.deltaY === 0) return;
         const across = !isTheirs(event) && Math.abs(event.deltaY) <= Math.abs(event.deltaX);
@@ -218,7 +220,7 @@ export function useSpaceSwipe(
       const by = notch.turned > 0 ? 1 : -1;
       notch.turned = 0;
       notch.stepped = at;
-      if (latest.current.canStep(by)) latest.current.glide(by);
+      step(by);
     };
 
     const onWheel = (event: WheelEvent) => {

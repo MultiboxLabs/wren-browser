@@ -1,8 +1,19 @@
 // Keys that keep the list's rows themselves through changes the app makes by
 // making them again, or that end or make a split, so they stay or slide to
 // their new places rather than fade out and in.
+//
+// Each hook works out the keys from the last ones as the list renders, and
+// keeps them in state when they change, as rendering again with the same
+// rows gives the same keys.
 
-import { useRef } from "react";
+import { useState } from "react";
+
+type GroupKeys = {
+  /** Each group's key, by its ID. */
+  keys: Map<string, string>;
+  /** The group each tab was in. */
+  was: Map<number, string>;
+};
 
 /**
  * A key for each group that stays with it when the app makes it again (a
@@ -11,28 +22,27 @@ import { useRef } from "react";
  * group. Returns the key of a group's ID.
  */
 export function useGroupKeys(tabs: { id: number; group: string | null }[], groups: { id: string }[]) {
-  // Kept in refs and set as the list is drawn, which is safe to draw twice:
-  // a second pass finds the keys the first made.
-  const keys = useRef(new Map<string, string>());
-  // The group each tab was in, as the list was last drawn.
-  const was = useRef(new Map<number, string>());
+  const [last, setLast] = useState(() => groupKeys(tabs, groups, { keys: new Map(), was: new Map() }));
+  const next = groupKeys(tabs, groups, last);
+  if (!same(next.keys, last.keys) || !same(next.was, last.was)) setLast(next);
+  return (id: string) => next.keys.get(id) ?? id;
+}
 
+function groupKeys(tabs: { id: number; group: string | null }[], groups: { id: string }[], last: GroupKeys) {
   const live = new Set(groups.map((group) => group.id));
-  const next = new Map<string, string>();
+  const keys = new Map<string, string>();
   for (const group of groups) {
-    let key = keys.current.get(group.id);
+    let key = last.keys.get(group.id);
     if (key === undefined) {
       const old = tabs
-        .map((tab) => (tab.group === group.id ? was.current.get(tab.id) : undefined))
+        .map((tab) => (tab.group === group.id ? last.was.get(tab.id) : undefined))
         .find((id) => id !== undefined && !live.has(id));
-      key = (old !== undefined && keys.current.get(old)) || group.id;
+      key = (old !== undefined && last.keys.get(old)) || group.id;
     }
-    next.set(group.id, key);
+    keys.set(group.id, key);
   }
-  keys.current = next;
-  was.current = new Map(tabs.flatMap((tab) => (tab.group ? [[tab.id, tab.group] as const] : [])));
-
-  return (id: string) => keys.current.get(id) ?? id;
+  const was = new Map(tabs.flatMap((tab) => (tab.group ? [[tab.id, tab.group] as const] : [])));
+  return { keys, was };
 }
 
 /**
@@ -44,16 +54,22 @@ export function useGroupKeys(tabs: { id: number; group: string | null }[], group
  * kept by its first. Returns the key of a row, by its first tab's ID.
  */
 export function useRowKeys(rows: number[][]) {
-  // Kept in a ref and set as the list is drawn, as `useGroupKeys`' are.
-  const keys = useRef(new Map<number, string>());
+  const [last, setLast] = useState(() => rowKeys(rows, new Map()));
+  const next = rowKeys(rows, last);
+  if (!same(next, last)) setLast(next);
+  return (first: number) => next.get(first) ?? String(first);
+}
+
+/** Each tab's row's key, from `last`, the keys of each tab as it was. */
+function rowKeys(rows: number[][], last: Map<number, string>) {
   const taken = new Set<string>();
   // First the keys rows keep, in order, so a new row's never takes one.
   const kept = rows.map((tabs) => {
-    const key = tabs.map((tab) => keys.current.get(tab)).find((key) => key !== undefined && !taken.has(key));
+    const key = tabs.map((tab) => last.get(tab)).find((key) => key !== undefined && !taken.has(key));
     if (key !== undefined) taken.add(key);
     return key;
   });
-  const next = new Map<number, string>();
+  const keys = new Map<number, string>();
   rows.forEach((tabs, index) => {
     let key = kept[index];
     if (key === undefined) {
@@ -61,8 +77,10 @@ export function useRowKeys(rows: number[][]) {
       while (taken.has(key)) key += "'";
       taken.add(key);
     }
-    for (const tab of tabs) next.set(tab, key);
+    for (const tab of tabs) keys.set(tab, key);
   });
-  keys.current = next;
-  return (first: number) => next.get(first) ?? String(first);
+  return keys;
 }
+
+const same = <K, V>(a: Map<K, V>, b: Map<K, V>) =>
+  a.size === b.size && [...a].every(([key, value]) => b.get(key) === value);

@@ -67,6 +67,8 @@ export type SpaceSlide = {
   pitch: MotionValue<number>;
   /** The content moves between spaces, and isn't back in place yet. */
   beside: boolean;
+  /** `beside` as it is now, for what reads it as the content moves rather than as it was drawn. */
+  besideNow: () => boolean;
   /** The spaces drawn beside the window's while it does. */
   strip: Slotted[];
   /** The space drawn in `slot` now, if any. */
@@ -114,34 +116,41 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
   // The slot the strip glides to, and how, until it is back in place.
   const target = useRef<{ slot: number; motion: Motion } | null>(null);
   const [beside, setBeside] = useState(false);
-  // Read as it is now by what moves it, and drawn as it is.
-  const stripNow = useRef<Slotted[]>([]);
   const [strip, setStripState] = useState<Slotted[]>([]);
+  // What handlers, timers and frames read as it is now: written as each
+  // render is committed, and the strip as soon as they set it.
+  const latest = useRef({ current, ids, order });
+  const stripNow = useRef<Slotted[]>([]);
+  const besideNow = useRef(beside);
   const setStrip = (next: Slotted[]) => {
     stripNow.current = next;
     setStripState(next);
   };
   const drawnAt = (slot: number) => stripNow.current.find((drawn) => drawn.slot === slot)?.id;
-  const latest = useRef({ current, ids, order });
-  latest.current = { current, ids, order };
 
   // As the window switches to a space the strip draws, the strip is drawn
   // around it in the same render, moved by as many slots, so the space it
   // was on is still drawn, where it was, and nothing is made anew; the
-  // switch's effect below moves `x` by as many (`shifted`).
-  const [around, setAround] = useState(current);
-  const shifted = useRef<number | undefined>(undefined);
-  if (around !== current) {
-    setAround(current);
+  // switch's effect below moves `x` by as many (`shifted`), and none for a
+  // space the strip didn't draw.
+  const [around, setAround] = useState<{ space: number | null; shifted?: number }>({ space: current });
+  if (around.space !== current) {
     const slot = strip.find((drawn) => drawn.id === current)?.slot;
-    shifted.current = slot;
-    if (slot !== undefined && around !== null) {
-      setStrip([
+    setAround({ space: current, shifted: slot });
+    const from = around.space;
+    if (slot !== undefined && from !== null) {
+      setStripState([
         ...strip.filter((drawn) => drawn.id !== current).map((drawn) => ({ ...drawn, slot: drawn.slot - slot })),
-        { slot: -slot, id: around }
+        { slot: -slot, id: from }
       ]);
     }
   }
+  // Before the switch's effect, which may set the strip again.
+  useLayoutEffect(() => {
+    latest.current = { current, ids, order };
+    stripNow.current = strip;
+    besideNow.current = beside;
+  });
 
   const rest = () => {
     if (held.current || x.isAnimating() || Math.abs(x.get()) >= 0.5) return;
@@ -170,8 +179,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       x.jump(0);
       return rest();
     }
-    const slot = shifted.current;
-    shifted.current = undefined;
+    const slot = around.shifted;
     if (slot !== undefined && !still()) {
       // The strip, drawn around the space now the window's, moves by as
       // many slots, so nothing that shows moves, and goes on as it was.
@@ -200,6 +208,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
     x,
     pitch,
     beside,
+    besideNow: () => besideNow.current,
     strip,
     drawnAt,
     leave: (by, then) => {

@@ -7,7 +7,7 @@
 // far (new-space.ts). A popup's window is on its profile, and takes the
 // colour of the space it was opened from, if it was from one.
 
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useEffectEvent, useMemo, useState } from "react";
 import {
   appWindow,
   follow,
@@ -210,9 +210,8 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
     slide.glideTo(id, () => showNow(id));
   };
   // The main menu's ⌃1 to ⌃9 come here, to glide as a press does.
-  const latestShow = useRef(show);
-  latestShow.current = show;
-  useEffect(() => (hasApp ? appWindow.onChooseSpace((id) => latestShow.current(id)) : undefined), []);
+  const chosen = useEffectEvent((id: number) => show(id));
+  useEffect(() => (hasApp ? appWindow.onChooseSpace(chosen) : undefined), []);
   const startNewSpace = (profile?: string) => {
     if (making) return;
     const start = () => newSpace.start(profile ?? entry?.profile);

@@ -30,7 +30,7 @@ bun run format     # Prettier
 bun run perf       # the sidebar's performance budget
 ```
 
-`bun run check` builds `cn`'s class-merging tables, checks that what Wren restyles on Chromium's pages is still in the Chromium it runs, then runs `cargo check`, `cargo clippy --all-targets` and `tsc`.
+`bun run check` builds `cn`'s class-merging tables, checks that what Wren restyles on Chromium's pages is still in the Chromium it runs and that React Compiler compiles the sidebar and its state, then runs `cargo check`, `cargo clippy --all-targets` and `tsc`.
 
 `bun run publish` signs, notarises and publishes a release with the user's certificates and accounts. Run it only with `--dry-run`, and only when the user asks. [docs/publishing.md](docs/publishing.md) has the rest.
 
