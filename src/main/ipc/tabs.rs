@@ -317,8 +317,8 @@ fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> T
     let alert = |alert| state.is_some_and(|state| state.alert_set().contains(alert));
     Tab {
         id: tab.id(),
-        title: tab.title(),
-        url: tab.url(),
+        title: window.page_tabs.title(tab),
+        url: window.page_tabs.url(tab),
         favicon: window.page_tabs.favicon(tab),
         loading: state.is_some_and(|state| state.loading),
         can_go_back: state.is_some_and(|state| state.can_go_back),

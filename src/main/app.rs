@@ -381,6 +381,10 @@ impl App for Wren {
         {
             state.check_default_browser(mt);
         }
+        // Before anything below tells a page of its tabs.
+        for window in state.windows.all() {
+            changes::forget_changed(&window, changes);
+        }
         for change in changes {
             record_tab_crash(state, change);
             if let Some(profile) = &change.profile {

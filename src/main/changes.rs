@@ -24,7 +24,6 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
 }
 
 fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
-    forget_closed_tabs(window, changes);
     apply_behind(window, changes);
     let Some(browser) = window.browser() else {
         return false;
@@ -75,9 +74,6 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
                 let active = browser.active_tab() == Some(tab);
                 site_changed |= change.tab_fields.contains(TabFields::URL) && active;
                 title_changed |= change.tab_fields.contains(TabFields::TITLE) && active;
-                if change.tab_fields.contains(TabFields::FAVICON) {
-                    window.page_tabs.favicon_changed(tab);
-                }
                 if change.tab_fields.contains(TabFields::STATUS) {
                     ipc::send_status(window, tab);
                 }
@@ -109,16 +105,23 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
     title_changed
 }
 
-// What the window keeps of the tabs that closed, or left its Browsers, goes
-// with the batch that says so.
-fn forget_closed_tabs(window: &BrowserWindow, changes: &[Change]) {
-    let closed = changes.iter().any(|change| {
-        change.kind == ChangeKind::Tabs
-            && change
-                .browser
-                .as_ref()
-                .is_some_and(|browser| window.has_browser(browser))
-    });
+/// Forgets what `window` keeps of its tabs (`PageTabs`) that `changes`
+/// changed, or closed or took from its Browsers. Called for each batch
+/// before anything tells the page of it, so nothing sends what was.
+pub fn forget_changed(window: &BrowserWindow, changes: &[Change]) {
+    let mut closed = false;
+    for change in changes {
+        let Some(browser) = &change.browser else {
+            continue;
+        };
+        if !window.has_browser(browser) {
+            continue;
+        }
+        if let Some(tab) = change.tab {
+            window.page_tabs.changed(tab, change.tab_fields);
+        }
+        closed |= change.kind == ChangeKind::Tabs;
+    }
     if closed {
         window.page_tabs.forget_closed(&window.browsers());
     }
@@ -135,11 +138,6 @@ fn apply_behind(window: &BrowserWindow, changes: &[Change]) {
         };
         if front.as_ref() == Some(browser) || !window.has_browser(browser) {
             continue;
-        }
-        if let Some(tab) = change.tab
-            && change.tab_fields.contains(TabFields::FAVICON)
-        {
-            window.page_tabs.favicon_changed(tab);
         }
         let at = match behind.iter().position(|(each, _)| each == browser) {
             Some(at) => at,

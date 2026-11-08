@@ -1,42 +1,87 @@
 // What a window's page has been told of its tabs, beyond what Chromium
-// keeps: each tab's favicon ID (pages/icons.rs), and the order of each
-// Browser's tabs it was last sent whole. The tabs' messages (ipc/tabs.rs)
-// read it, so a list sent again copies and hashes only the favicons that
-// changed, and a switch of tabs that leaves the order as it was says only
-// which tab is active. The window keeps it for every tab of its Browsers,
-// and forgets a tab once it is in none of them, and a Browser once it isn't
-// the window's.
+// keeps: each tab's title, address and favicon ID (pages/icons.rs), and the
+// order of each Browser's tabs it was last sent whole. The tabs' messages
+// (ipc/tabs.rs) read it, so a list sent again reads from Chromium only what
+// a change said is new, and a switch of tabs that leaves the order as it
+// was says only which tab is active. The window keeps it for every tab of
+// its Browsers, and forgets a tab once it is in none of them, and a Browser
+// once it isn't the window's.
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
-use wren::{Browser, BrowserTab};
+use wren::{Browser, BrowserTab, TabFields};
 
 use crate::pages::icons;
 
 #[derive(Default)]
 pub struct PageTabs {
-    // By tab ID; None for a tab with no favicon.
-    favicons: RefCell<HashMap<i32, Option<String>>>,
+    // By tab ID.
+    tabs: RefCell<HashMap<i32, Kept>>,
     // Each Browser's tab IDs, in order, by the Browser's ID.
     orders: RefCell<HashMap<i32, Vec<i32>>>,
 }
 
+/// What is kept of a tab: each field once it has been read, until a change
+/// to it.
+#[derive(Default)]
+struct Kept {
+    title: Option<String>,
+    url: Option<String>,
+    // The icon ID, or none for a tab with no favicon.
+    favicon: Option<Option<String>>,
+}
+
 impl PageTabs {
-    /// `tab`'s favicon's icon ID, or none: read from Chromium the first time,
-    /// and again once `favicon_changed` says so.
+    /// `tab`'s title: read from Chromium the first time, and again after
+    /// `changed` says it changed.
+    pub fn title(&self, tab: BrowserTab) -> String {
+        self.read(tab, |kept| &mut kept.title, || tab.title())
+    }
+
+    /// `tab`'s address, read as its title is.
+    pub fn url(&self, tab: BrowserTab) -> String {
+        self.read(tab, |kept| &mut kept.url, || tab.url())
+    }
+
+    /// `tab`'s favicon's icon ID, or none, read as its title is.
     pub fn favicon(&self, tab: BrowserTab) -> Option<String> {
-        self.favicons
-            .borrow_mut()
-            .entry(tab.id())
-            .or_insert_with(|| tab.favicon_png().map(icons::id))
+        self.read(
+            tab,
+            |kept| &mut kept.favicon,
+            || tab.favicon_png().map(icons::id),
+        )
+    }
+
+    // A field of `tab`, kept, or read with `read` and kept.
+    fn read<T: Clone>(
+        &self,
+        tab: BrowserTab,
+        field: impl FnOnce(&mut Kept) -> &mut Option<T>,
+        read: impl FnOnce() -> T,
+    ) -> T {
+        let mut tabs = self.tabs.borrow_mut();
+        field(tabs.entry(tab.id()).or_default())
+            .get_or_insert_with(read)
             .clone()
     }
 
-    /// Chromium says `tab`'s favicon changed: the next `favicon` reads it
-    /// again.
-    pub fn favicon_changed(&self, tab: BrowserTab) {
-        self.favicons.borrow_mut().remove(&tab.id());
+    /// Chromium says `fields` of `tab` changed: the ones kept are read again
+    /// when next asked for.
+    pub fn changed(&self, tab: BrowserTab, fields: TabFields) {
+        let mut tabs = self.tabs.borrow_mut();
+        let Some(kept) = tabs.get_mut(&tab.id()) else {
+            return;
+        };
+        if fields.contains(TabFields::TITLE) {
+            kept.title = None;
+        }
+        if fields.contains(TabFields::URL) {
+            kept.url = None;
+        }
+        if fields.contains(TabFields::FAVICON) {
+            kept.favicon = None;
+        }
     }
 
     /// The page was sent `browser`'s tabs whole, of `ids`, in order.
@@ -66,7 +111,7 @@ impl PageTabs {
             .flat_map(Browser::tabs)
             .map(BrowserTab::id)
             .collect();
-        self.favicons.borrow_mut().retain(|id, _| open.contains(id));
+        self.tabs.borrow_mut().retain(|id, _| open.contains(id));
         let kept: HashSet<i32> = browsers.iter().map(Browser::id).collect();
         self.orders.borrow_mut().retain(|id, _| kept.contains(id));
     }
