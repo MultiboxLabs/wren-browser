@@ -97,8 +97,9 @@ export function TabList({
   const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join(), space.id);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const room = useRef<HTMLDivElement>(null);
   useRevealActive(scroller, active ?? undefined);
-  const { above } = useListEdges(scroller, content);
+  const { above } = useListEdges(scroller, content, room);
   // What is dropped on the space's heading is pinned first; on the pins, it
   // lands among them (pin-landing.ts), first as well with none drawn, as
   // the heading lights up. A window on a profile has no pins to drop to.
@@ -247,7 +248,11 @@ export function TabList({
                 list's bottom while the list is shorter than its room; not a
                 handle for the window, as a double click on it opens a new
                 tab, as New Tab does. */}
-            <div className="no-drag -mt-1.25 min-h-31.25 flex-1" onDoubleClick={() => omnibox.toggle("new-tab")} />
+            <div
+              ref={room}
+              className="no-drag -mt-1.25 min-h-31.25 flex-1"
+              onDoubleClick={() => omnibox.toggle("new-tab")}
+            />
             {mark && <DropMarkView mark={mark} />}
           </div>
         </div>

@@ -12,26 +12,34 @@ export const ListBelowContext = createContext<MotionValue<number> | null>(null);
 
 /**
  * Keeps `ListBelowContext` to how far `content` goes on below the bottom of
- * `scroller`, which scrolls it; and says whether any of it is scrolled away
- * above its top.
+ * `scroller`, which scrolls it, up to where `room` begins: the room after the
+ * last row is not the list's, as it holds nothing to scroll to. Says whether
+ * any of it is scrolled away above its top.
  */
-export function useListEdges(scroller: RefObject<HTMLElement | null>, content: RefObject<HTMLElement | null>) {
+export function useListEdges(
+  scroller: RefObject<HTMLElement | null>,
+  content: RefObject<HTMLElement | null>,
+  room: RefObject<HTMLElement | null>
+) {
   const below = useContext(ListBelowContext);
   const [above, setAbove] = useState(false);
   useEffect(() => {
     const element = scroller.current;
     const list = content.current;
-    if (!element || !list) return;
+    const empty = room.current;
+    if (!element || !list || !empty) return;
     const measure = () => {
       setAbove(element.scrollTop > 1);
-      below?.set(list.offsetHeight - element.scrollTop - element.clientHeight);
+      below?.set(empty.offsetTop - element.scrollTop - element.clientHeight);
     };
     measure();
     element.addEventListener("scroll", measure, { passive: true });
-    // As rows come and go, and as the sidebar is resized.
+    // As rows come and go, and as the sidebar is resized: a row that comes
+    // moves the room, and resizes the list, or the room, if it fills the rest.
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     observer.observe(list);
+    observer.observe(empty);
     return () => {
       element.removeEventListener("scroll", measure);
       observer.disconnect();
