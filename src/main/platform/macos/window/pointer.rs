@@ -35,6 +35,10 @@ impl PageWindow {
         Some((at.x, y))
     }
 
+    pub fn pointer_pressed(&self) -> bool {
+        NSEvent::pressedMouseButtons() != 0
+    }
+
     pub fn owns_pointer(&self) -> bool {
         if !is_active(&self.window) {
             return false;
@@ -69,8 +73,9 @@ impl PageWindow {
     }
 }
 
-// Runs `moved` on each of the app's pointer moves and drags, until the
-// monitor is removed.
+// Runs `moved` on each of the app's pointer moves and drags, and as a button
+// comes up, which may end a hold on the sidebar (shell/sidebar_hover.rs),
+// until the monitor is removed.
 fn add_monitor(moved: Rc<dyn Fn()>) -> Option<Retained<AnyObject>> {
     let block = RcBlock::new(move |event: NonNull<NSEvent>| -> *mut NSEvent {
         moved();
@@ -79,7 +84,10 @@ fn add_monitor(moved: Rc<dyn Fn()>) -> Option<Retained<AnyObject>> {
     let mask = NSEventMask::MouseMoved
         | NSEventMask::LeftMouseDragged
         | NSEventMask::RightMouseDragged
-        | NSEventMask::OtherMouseDragged;
+        | NSEventMask::OtherMouseDragged
+        | NSEventMask::LeftMouseUp
+        | NSEventMask::RightMouseUp
+        | NSEventMask::OtherMouseUp;
     unsafe { NSEvent::addLocalMonitorForEventsMatchingMask_handler(mask, &block) }
 }
 

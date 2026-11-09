@@ -57,6 +57,12 @@ impl SidebarHover {
     /// Checks the pointer over `page` again: whether it is over now, if
     /// that changed.
     pub fn check(&self, page: &PageWindow) -> Option<bool> {
+        // Once over, it stays out while a button is held, until it comes up:
+        // a drag of the window by it, whose frame trails the pointer so the
+        // pointer seems to leave it, or of a tab out of it.
+        if self.over.get() && page.pointer_pressed() {
+            return None;
+        }
         let regions = self.regions.borrow();
         // Once the pointer is over, the sidebar is out, though the page has
         // not drawn it yet: what keeps it out counts from then.

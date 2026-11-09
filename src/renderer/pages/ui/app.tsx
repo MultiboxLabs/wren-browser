@@ -141,7 +141,10 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           // Kept while hidden, so it slides away and back as it was.
           inert={sidebar.presentation === "hidden" || fullScreen}
           style={sidebar.motion.box}
-          className={cn("fixed pl-2", !sidebar.open && "no-drag", fullScreen && "hidden")}
+          // Floating too, it moves the window by what of it is not a control,
+          // as docked: the app, not the page's own events, sees the pointer
+          // leave it (components/sidebar/hover.ts).
+          className={cn("fixed pl-2", fullScreen && "hidden")}
           onPointerEnter={sidebar.enter}
           onPointerLeave={sidebar.leave}
         >

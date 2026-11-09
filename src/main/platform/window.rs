@@ -164,6 +164,11 @@ impl PageWindow {
         self.native.pointer_place()
     }
 
+    /// Whether a mouse button is held down, wherever the pointer is.
+    pub fn pointer_pressed(&self) -> bool {
+        self.native.pointer_pressed()
+    }
+
     /// Whether the pointer is the window's to answer: the window is in use,
     /// and the pointer is beyond it, or over it with no other window over
     /// it there. A window not in use has no part in it, even under it.
