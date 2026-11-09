@@ -68,8 +68,10 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
   },
   // Its fill is --button-fill, for what in it draws the fill in its place:
   // a split favourite's halves, a gap between them.
+  // Open, it takes the press's fill, as a plain button does: the selected
+  // fill is white in a light space, and glares beside the menu it opened.
   filled: {
-    off: "bg-(--button-fill) [--button-fill:var(--color-fill)] enabled:not-data-[state=open]:hover:[--button-fill:var(--color-hover)] enabled:not-data-[state=open]:active:[--button-fill:var(--color-pressed)] data-[state=open]:[--button-fill:var(--color-selected)]",
+    off: "bg-(--button-fill) [--button-fill:var(--color-fill)] enabled:not-data-[state=open]:hover:[--button-fill:var(--color-hover)] enabled:not-data-[state=open]:active:[--button-fill:var(--color-pressed)] data-[state=open]:[--button-fill:var(--color-pressed)]",
     on: "bg-(--button-fill) [--button-fill:var(--color-selected)]"
   },
   faint: {
