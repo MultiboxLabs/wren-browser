@@ -34,7 +34,7 @@ export function ShieldIcon({ size = 44 }: { size?: number }) {
 }
 ```
 
-1. **Pick a tone** from `TONES` that means the thing. Use green for safe or on, the warm `wren` for Wren itself, grey or slate for off, not now or neutral, and sky for new. Purple and indigo are there too. A new tone goes in `TONES` as two colours of one hue, as the system's are. The top one is lighter and a little less saturated, and the bottom one is about 25 to 35% darker.
+1. **Pick a tone** from `TONES` that means the thing. Use green for safe or on, `wren`, the stable icon's indigo, for Wren itself, grey or slate for off, not now or neutral, and sky for new. Purple and indigo are there too. A new tone goes in `TONES` as two colours of one hue, as the system's are. The top one is lighter and a little less saturated, and the bottom one is about 25 to 35% darker.
 2. **Draw the glyph in the tile's 100 units.** Keep it within about 20 to 80 on both axes, the margin the system leaves. Centre it by eye, by its weight rather than its bounding box. Fill shapes rather than stroke them, with round joins, and round every corner a little, by 2 to 5 units.
 3. **Make it solid white.** The glyph is `#fff`. Cut a detail inside it, such as a tick or a clock's hands, out of it with a mask, so the tile shows through. The mask is a white rect, then the detail as a black stroke (`CUT`), 6 to 7 units wide. Name each mask from the `id` the child function gets, never a fixed string, because two of one icon on a page would share a fixed one.
 4. **Use colour inside sparingly.** A glyph that pictures something, such as a page with ads, may hold a few flat colours on its white, as an app's icon does. The rest stays pure white.

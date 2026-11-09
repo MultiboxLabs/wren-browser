@@ -15,7 +15,7 @@ const SQUIRCLE =
 export const TONES = {
   green: ["rgb(88 214 118)", "rgb(36 158 72)"],
   grey: ["rgb(168 168 174)", "rgb(112 112 118)"],
-  wren: ["rgb(255 172 92)", "rgb(238 104 38)"],
+  wren: ["rgb(150 156 255)", "rgb(98 105 230)"],
   slate: ["rgb(142 150 166)", "rgb(88 96 112)"],
   sky: ["rgb(110 196 255)", "rgb(36 118 238)"],
   purple: ["rgb(196 146 255)", "rgb(140 82 226)"],
@@ -65,7 +65,7 @@ export function TileIcon({
   );
 }
 
-/** Wren's mark on its warm tile; `children` are laid over it, as a badge. */
+/** Wren's mark on a tile in the stable icon's colour; `children` are laid over it, as a badge. */
 export function WrenTile({ size, children }: { size: number; children?: ReactNode }) {
   return (
     <span className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
