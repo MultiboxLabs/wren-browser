@@ -6,9 +6,10 @@
    Its corners follow the window's own (`--radius-card`), less the gap round
    the page (`--page-inset`, pages/ui/app.tsx), so the two curves run side
    by side. With Window Margins off, they are the window's. Its edge and a
-   shadow, tight and dark close to it and soft further out, lift it over the
-   window as a layer, the same on a light or dark window. The soft shadow is
-   short, as two meeting across a 10px gap would fill it. */
+   shadow, faint close to it and soft and wide further out, lift it over the
+   window as a layer, the same on a light or dark window. The wide shadow
+   lets the card rest on the window rather than cut into it, most where the
+   window has no margin round the page. */
 @theme inline {
   --color-card: var(--card);
 }
@@ -29,9 +30,9 @@
   /* Worked out here, as `--page-inset` is set on the page's box, not the root. */
   border-radius: max(0px, calc(var(--radius-card) - var(--page-inset, 0px)));
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 0.1),
-    0 0 3px rgb(0 0 0 / 0.1),
-    0 1px 6px rgb(0 0 0 / 0.18);
+    0 0 0 1px rgb(0 0 0 / 0.08),
+    0 2px 10px rgb(0 0 0 / 0.07),
+    0 6px 32px rgb(0 0 0 / 0.14);
 }
 
 /* Where the page goes, with no tab to show: the space's own colour, a
