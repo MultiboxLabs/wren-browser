@@ -34,8 +34,9 @@ body,
 @theme {
   --radius-favicon: 4px;
   --radius-menu-item: 4px;
-  /* A page, the side panel. */
-  --radius-card: 4.5px;
+  /* A page, the side panel: as round as the window's own corners, less the
+     gap between them (card.css). */
+  --radius-card: var(--window-corner);
   --radius-tooltip: 5px;
   /* Icon buttons and other small controls. */
   --radius-control: 6px;

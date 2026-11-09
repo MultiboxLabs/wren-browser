@@ -1,5 +1,5 @@
 import { motion, MotionConfig } from "motion/react";
-import { useEffect, useRef } from "react";
+import { type CSSProperties, useEffect, useRef } from "react";
 import { hasApp, type SidebarState } from "@/ipc";
 import { HoldContext } from "@/components/ui/hold";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -115,10 +115,15 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
         {/* The room left of the page: the docked sidebar is over it. */}
         {!fullScreen && <motion.div style={{ width: sidebar.motion.slot }} className="shrink-0" />}
 
-        {/* The gap round the page, on its left too while the sidebar is away (`slot`). */}
+        {/* The gap round the page, on its left too while the sidebar is away
+            (`slot`), which its cards' corners take off the window's (card.css). */}
         <main
-          className={cn("flex min-w-0 flex-1", !margins && "no-margin")}
-          style={fullScreen ? undefined : { paddingRight: inset, paddingBlock: inset }}
+          className="flex min-w-0 flex-1"
+          style={
+            fullScreen
+              ? undefined
+              : ({ paddingRight: inset, paddingBlock: inset, "--page-inset": `${inset}px` } as CSSProperties)
+          }
         >
           {shown ? (
             <TabView tab={shown} split={split} first={first} second={second} fullScreen={fullScreen} />

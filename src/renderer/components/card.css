@@ -1,7 +1,15 @@
 /* Where a tab's page or a side panel will show (<wren-view>, in
    tab-view.tsx and side-panel.tsx), with a faint tint of the space. Its text
    is neutral, as a popover's, not the space's title colour: that is for
-   text on the window itself. */
+   text on the window itself.
+
+   Its corners follow the window's own (`--radius-card`), less the gap round
+   the page (`--page-inset`, pages/ui/app.tsx), so the two curves run side
+   by side. With Window Margins off, they are the window's. Its edge and a
+   shadow, tight and dark close to it and soft further out, lift it over the
+   window as a layer. The soft shadow is short, as two meeting across a 10px
+   gap would fill it, and darker on a dark window, where a light one is
+   lost. */
 @theme inline {
   --color-card: var(--card);
 }
@@ -25,10 +33,12 @@
   --fg: var(--glyph);
   color: var(--fg);
   background: var(--card);
-  border-radius: var(--radius-card);
+  /* Worked out here, as `--page-inset` is set on the page's box, not the root. */
+  border-radius: max(0px, calc(var(--radius-card) - var(--page-inset, 0px)));
   box-shadow:
-    0 0 0 0.5px var(--card-edge),
-    0 0 6px rgb(0 0 0 / 0.12);
+    0 0 0 1px var(--card-edge),
+    0 0 3px var(--card-lift-near),
+    0 1px 6px var(--card-lift-far);
 }
 
 /* Where the page goes, with no tab to show: the space's own colour, a
@@ -36,19 +46,4 @@
    apart, as a light space's colour hardly changes. */
 .card.empty {
   background: color-mix(in srgb, white 7%, transparent);
-}
-
-/* With Window Margins off (`.no-margin`, pages/ui/app.tsx), a card meets
-   the window's edges. Its corners are rounded as the window's own are, so
-   one in the window's corner matches it. Its edge and a shadow, tight and
-   dark close to it and soft further out, lift it over the docked sidebar
-   and the gaps between cards as a layer above the window. The soft shadow
-   is short, as two meeting across a 10px gap would fill it, and darker on a
-   dark window, where a light one is lost. */
-.no-margin .card {
-  border-radius: var(--window-corner);
-  box-shadow:
-    0 0 0 1px var(--card-edge),
-    0 0 3px var(--card-lift-near),
-    0 1px 6px var(--card-lift-far);
 }
