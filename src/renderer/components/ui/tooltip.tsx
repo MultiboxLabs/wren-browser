@@ -2,15 +2,20 @@
 // system's neutral colours, light or dark as the system is (not the space),
 // below what they label.
 
-const TOOLTIPS_ENABLED = false;
+const TOOLTIPS_ENABLED = true;
 
 import { Tooltip as Radix, Slot } from "radix-ui";
 import { type ReactNode, useState } from "react";
 
-/** Once around the page: tooltips after the first appear without the pause. */
+/**
+ * Once around the page: tooltips after the first appear without the pause.
+ * A tooltip goes as the pointer leaves what it labels, as a native one does.
+ * Radix otherwise keeps it for the pointer to cross to it, and closes it on a
+ * move of the page's own, which the page never hears over the tab's page.
+ */
 export function TooltipProvider({ children }: { children: ReactNode }) {
   return (
-    <Radix.Provider delayDuration={900} skipDelayDuration={300}>
+    <Radix.Provider delayDuration={900} skipDelayDuration={300} disableHoverableContent>
       {children}
     </Radix.Provider>
   );
