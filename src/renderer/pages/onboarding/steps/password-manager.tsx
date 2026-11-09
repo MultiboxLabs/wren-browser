@@ -13,7 +13,7 @@ export function PasswordManager({ choices, next, back, finishing, last }: StepPr
   const [on, setOn] = useState(choices.passwordManager);
   return (
     <Split
-      title="Wren’s password manager"
+      title="Your passwords"
       body="Wren can save the passwords you sign in with and fill them in next time. Each profile keeps its own."
       back={back}
       go={() => next({ passwordManager: on })}
@@ -23,7 +23,7 @@ export function PasswordManager({ choices, next, back, finishing, last }: StepPr
       <div role="radiogroup" aria-label="Password Manager" className="flex flex-col gap-3">
         <Choice
           icon={<KeyIcon />}
-          title="Use Wren’s password manager"
+          title="Save passwords in Wren"
           body="Wren offers to save a password when you sign in to a site, and fills it in when you come back."
           chosen={on}
           onChoose={() => setOn(true)}
@@ -31,7 +31,7 @@ export function PasswordManager({ choices, next, back, finishing, last }: StepPr
         <Choice
           icon={<NoKeyIcon />}
           title="Use another password manager"
-          body="Wren won’t offer to save passwords or fill them in, so only yours does. You can turn Wren’s on later in Settings."
+          body="Wren won’t offer to save passwords or fill them in. You can turn it on later in Settings."
           chosen={!on}
           onChoose={() => setOn(false)}
         />
