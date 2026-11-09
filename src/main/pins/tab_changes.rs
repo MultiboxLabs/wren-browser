@@ -114,7 +114,7 @@ fn end_broken(
         }
     }
     match found.iter().position(Option::is_some) {
-        Some(kept) if link.asked_to_close && gone => close_rest(state, browser, link, kept, found),
+        Some(_) if link.asked_to_close && gone => close_rest(browser, link),
         Some(kept) if found.len() == 2 => keep_side(state, browser, link, kept, found),
         _ => {
             open_tabs::remove(browser, link.pin);
@@ -122,19 +122,20 @@ fn end_broken(
     }
 }
 
-// A split pin asked to close has lost a tab: the one on `kept` closes too. If
-// its page may keep it, the pin is first left that tab alone, as it would be
-// were the user to keep it; the pin's other page is lost even if they leave.
-fn close_rest(
-    state: &State,
-    browser: &Browser,
-    link: &Link,
-    kept: usize,
-    found: &[Option<BrowserTab>],
-) {
-    if found[kept].is_some_and(tabs::may_ask_before_close) {
-        keep_side(state, browser, link, kept, found);
+// A split pin asked to close has lost a tab: the other closes too, asked
+// once, and the pin stays a split. If its page keeps it, the pin stays a
+// split with that tab alone open until it closes.
+//
+// TODO: Close a split pin's tabs together with a Wren Runtime call that
+// closes several tabs, all or none, and answers whether a page kept them, as
+// Wren_CloseBrowsers does for Browsers. Then remove this, `asked_to_close`
+// and `closing_rest`: Wren_CloseTab never says whether a page kept its tab,
+// so a tab that is still closing cannot be told from one the user kept.
+fn close_rest(browser: &Browser, link: &Link) {
+    if link.closing_rest {
+        return;
     }
+    open_tabs::update(browser, link.pin, |link| link.closing_rest = true);
     if let Err(error) = super::close(browser, link.pin) {
         eprintln!("Wren could not close a split pin's other tab: {error}");
     }

@@ -29,6 +29,9 @@ pub struct Link {
     /// tabs goes, the other goes too, rather than staying as the pin's. A
     /// page that keeps its tab leaves this set, and the split whole.
     pub asked_to_close: bool,
+    /// The split pin asked to close has lost a tab, and the other has been
+    /// asked to close too (`close_rest` in tab_changes.rs).
+    pub closing_rest: bool,
 }
 
 /// A tab open for one of a pin's pages.

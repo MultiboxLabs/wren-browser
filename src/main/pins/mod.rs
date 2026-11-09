@@ -602,6 +602,7 @@ fn link_to(id: PinId, sides: impl IntoIterator<Item = (BrowserTab, PinPage)>) ->
         split: None,
         last_active: None,
         asked_to_close: false,
+        closing_rest: false,
     }
 }
 
