@@ -161,28 +161,25 @@ export function TabList({
           <div ref={content} className="relative flex min-h-full flex-col gap-1.25">
             <PinnedSection pinned={pinned} selected={selected} actions={pinActions} open={pinnedOpen} drop={pinDrop} />
 
-            {/* Over the tabs while there are pins over it or tabs to clear
-            under it: with neither, the heading needs none. It comes and goes
+            {/* Over the tabs while there are any to clear. It comes and goes
             as a row does, from nothing: as it does, it takes back the list's
             gap after it, which its own room makes up once it is in. */}
             <AnimatePresence initial={false}>
-              {(pinned.length > 0 || tabs.length > 0) && (
+              {tabs.length > 0 && (
                 <Appear key="separator" className="-mb-1.25">
                   {/* Clear sits on the line's end, its text where the line
                       would end, taking none of the line's room. */}
                   <div className="flex items-center gap-1 px-2.5 pt-1.75 pb-3">
                     <div className="h-px flex-1 bg-separator" />
-                    {tabs.length > 0 && (
-                      <Button
-                        variant="bare"
-                        shape="none"
-                        icon={<DownIcon />}
-                        className="-my-2.5 -mr-1.5 inline-flex h-5 items-center gap-1 px-1.5 text-subtitle font-semibold transition-colors duration-100"
-                        onClick={() => browser.clear()}
-                      >
-                        Clear
-                      </Button>
-                    )}
+                    <Button
+                      variant="bare"
+                      shape="none"
+                      icon={<DownIcon />}
+                      className="-my-2.5 -mr-1.5 inline-flex h-5 items-center gap-1 px-1.5 text-subtitle font-semibold transition-colors duration-100"
+                      onClick={() => browser.clear()}
+                    >
+                      Clear
+                    </Button>
                   </div>
                 </Appear>
               )}
