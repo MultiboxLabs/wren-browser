@@ -279,13 +279,14 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
 
       {/* Above the buttons: the update, if there is one, and the shelf over
           the bottom of the content, above it; over them, where the list is
-          cut off, its hairline. */}
+          cut off, its hairline, which the shelf takes the place of while it
+          is up, as it sits right above the buttons. */}
       <div className="relative shrink-0">
         <motion.div
           style={{ y: edge }}
           className={cn(
             "pointer-events-none absolute -inset-x-[7px] top-0 h-px bg-(--list-edge) transition-opacity duration-150",
-            cutOff ? "opacity-100" : "opacity-0"
+            cutOff && !shelf.shown ? "opacity-100" : "opacity-0"
           )}
         />
         <Shelf shelf={shelf} />
