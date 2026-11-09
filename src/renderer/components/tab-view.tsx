@@ -124,7 +124,7 @@ function TabPane({
           "no-drag relative min-h-0 min-w-0 flex-1 overflow-hidden"
         )}
       >
-        <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block bg-black" />
+        <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />
         {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={tab.id} />}
       </div>
       {active && <FindBar tab={tab.id} />}

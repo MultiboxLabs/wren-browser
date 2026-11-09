@@ -31,8 +31,9 @@
   border-radius: max(0px, calc(var(--radius-card) - var(--page-inset, 0px)));
   box-shadow:
     0 0 0 1px rgb(0 0 0 / 0.08),
-    0 2px 10px rgb(0 0 0 / 0.07),
-    0 6px 32px rgb(0 0 0 / 0.14);
+    0 1px 3px rgb(0 0 0 / 0.07),
+    0 4px 12px rgb(0 0 0 / 0.07),
+    0 10px 32px rgb(0 0 0 / 0.14);
 }
 
 /* Where the page goes, with no tab to show: the space's own colour, a
