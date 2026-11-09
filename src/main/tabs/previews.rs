@@ -4,8 +4,8 @@
 // for another, and is stale once its page changes after. What draws them
 // asks for one (`request`): a tab with none, a stale one, or the one shown
 // has its picture taken then, in the background too, and the old one stands
-// in until it comes. A discarded or crashed tab has no page, so none is
-// taken. What draws a tab with none shows its icon.
+// in until it comes. A discarded, crashed or unloaded tab has no page
+// shown, so none is taken. What draws a tab with none shows its icon.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -75,13 +75,14 @@ pub fn forget(browser: &Browser) {
     ACTIVE.with_borrow_mut(|active| active.remove(browser));
 }
 
-// Whether a picture of the tab may be taken: it has a page, not discarded
-// or crashed.
+// Whether a picture of the tab may be taken: it has a page, not discarded,
+// crashed or unloaded. Capturing an unloaded tab would load it, only for a
+// card.
 fn can_take(tab: BrowserTab) -> bool {
     !placeholder::is_placeholder(tab)
         && tab
             .state()
-            .is_ok_and(|state| !state.discarded && state.crash == TabCrash::None)
+            .is_ok_and(|state| !state.discarded && !state.unloaded && state.crash == TabCrash::None)
 }
 
 // Whether the tab is on show in its Browser: its active tab, or the other
