@@ -1,4 +1,5 @@
-// An option of a yes-or-no step (the ad blocker, the default browser): a
+// An option of a yes-or-no step (the ad blocker, the password manager, the
+// default browser): a
 // card with room to say what it means: its icon (option-icons.tsx), its
 // title over a sentence or two, and a radio circle.
 

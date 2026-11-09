@@ -15,6 +15,8 @@ export type OnboardingChoices = {
   space: FirstSpace;
   /** Whether ads and trackers are blocked: in every profile there is, and in each made after. */
   adBlock: boolean;
+  /** Whether Wren saves and fills in passwords, in every profile: the Password Manager setting. */
+  passwordManager: boolean;
 };
 
 export const onboarding = {

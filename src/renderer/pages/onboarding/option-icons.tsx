@@ -78,3 +78,53 @@ export function LaterIcon({ size = 44 }: { size?: number }) {
     </TileIcon>
   );
 }
+
+/** Using Wren's password manager: a key. */
+export function KeyIcon({ size = 44 }: { size?: number }) {
+  return (
+    <TileIcon tone="indigo" size={size}>
+      {(id) => <Key id={id} />}
+    </TileIcon>
+  );
+}
+
+/** Using another password manager: the key with a slash through it. */
+export function NoKeyIcon({ size = 44 }: { size?: number }) {
+  return (
+    <TileIcon tone="slate" size={size}>
+      {(id) => <Key id={id} slashed />}
+    </TileIcon>
+  );
+}
+
+// The key's turn onto the tile's diagonal, its bow down on the left. It sits
+// a little up and to the right, so that its heavy bow does not pull it off
+// centre.
+const KEY_TURN = "translate(3 -3) rotate(-45 50 50)";
+
+// The slash, across the key from its top left.
+const SLASH = "M27 25 75 77";
+
+// A key, its bow with a hole cut through it and its blade with two teeth.
+// Slashed, the slash is cut through the key wide and drawn in it narrow, so
+// a gap of the tile's colour runs either side of it.
+function Key({ id, slashed = false }: { id: string; slashed?: boolean }) {
+  return (
+    <>
+      <mask id={`${id}-cut`}>
+        <rect width="100" height="100" fill="#fff" />
+        <circle cx="30.5" cy="50" r="5" fill="#000" transform={KEY_TURN} />
+        {slashed && <path d={SLASH} strokeWidth="13" {...CUT} />}
+      </mask>
+      <g mask={`url(#${id}-cut)`} fill="#fff">
+        <g transform={KEY_TURN}>
+          <circle cx="35" cy="50" r="15.5" />
+          <rect x="42" y="45" width="37" height="10" rx="3.5" />
+          <rect x="60" y="48" width="7.5" height="16" rx="2.5" />
+          <rect x="70.5" y="48" width="7.5" height="12" rx="2.5" />
+        </g>
+      </g>
+      {slashed && <path d={SLASH} stroke="#fff" strokeWidth="6" strokeLinecap="round" />}
+    </>
+  );
+}

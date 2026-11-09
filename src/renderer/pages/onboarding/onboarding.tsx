@@ -27,6 +27,7 @@ import { Migrating } from "./steps/migrating";
 import { Icon } from "./steps/icon";
 import { Colour } from "./steps/colour";
 import { AdBlock } from "./steps/ad-block";
+import { PasswordManager } from "./steps/password-manager";
 import { DefaultBrowser } from "./steps/default-browser";
 
 // What comes over, and its run, only from a browser.
@@ -44,6 +45,7 @@ const STEPS: Step[] = [
   { Content: Icon, painted: false, shown: making },
   { Content: Colour, painted: true, shown: making },
   { Content: AdBlock, painted: making },
+  { Content: PasswordManager, painted: making },
   { Content: DefaultBrowser, painted: making }
 ];
 
@@ -68,7 +70,8 @@ export function Onboarding() {
     spaces: false,
     icon: DEFAULT_ICON,
     theme: defaultTheme(),
-    adBlock: true
+    adBlock: true,
+    passwordManager: true
   });
   const migrate = useMigrate(onboardingMigrate);
   const step = stepsFor(choices)[at.index];
@@ -156,7 +159,9 @@ function Steps({
     setFinishing(true);
     // The first space's only if the user made it.
     const space = chosen.spaces ? { icon: null, theme: null } : { icon: chosen.icon, theme: chosen.theme };
-    onboarding.finish({ space, adBlock: chosen.adBlock }).catch(() => setFinishing(false));
+    onboarding
+      .finish({ space, adBlock: chosen.adBlock, passwordManager: chosen.passwordManager })
+      .catch(() => setFinishing(false));
   };
   const back = at.index > 0 ? () => setAt({ index: at.index - 1, direction: -1 }) : undefined;
   const backTo = (Content: Step["Content"]) => {

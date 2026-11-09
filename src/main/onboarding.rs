@@ -18,6 +18,7 @@ use crate::extensions::ad_block;
 use crate::import::Landing;
 use crate::import::run::{self, Plan, RunState};
 use crate::ipc;
+use crate::password_manager;
 use crate::pages::ONBOARDING;
 use crate::platform::{PageWindow, TitleBarKind, WindowSize};
 
@@ -35,6 +36,9 @@ pub struct Choices {
     /// Whether ads and trackers are blocked, as they are unless the user
     /// says not: in every profile there is, and in each made after.
     pub ad_block: bool,
+    /// Whether Wren saves and fills in passwords in every profile, as it
+    /// does unless the user says not: the Password Manager setting.
+    pub password_manager: bool,
 }
 
 impl State {
@@ -86,17 +90,22 @@ impl State {
         if let Err(error) = self.db.set_first_space(choices.space) {
             eprintln!("Wren could not give the first space what was chosen for it: {error}");
         }
-        // The setting a new profile's ad blocker starts as, the first run's
-        // too, as onboarding opens none; and the profiles there are already,
-        // after Reset Onboarding.
+        // Kept as the settings: the ad blocker's as the one a new profile
+        // starts with, the first run's too, as onboarding opens none.
         let change = SettingsChange {
             block_ads_in_new_profiles: Some(choices.ad_block),
+            password_manager: Some(choices.password_manager),
             ..SettingsChange::default()
         };
         if let Err(error) = self.db.update_settings(change) {
-            eprintln!("Wren could not keep whether to block ads: {error}");
+            eprintln!("Wren could not keep the settings chosen in onboarding: {error}");
         }
+        // The profiles there are already follow them: those brought over in
+        // onboarding, and every one after Reset Onboarding. The password
+        // manager is set in those loaded, and the rest follow it as they
+        // load (password_manager.rs).
         ad_block::set_in_every_profile(mt, choices.ad_block);
+        password_manager::set(mt, choices.password_manager);
         if let Err(error) = self.db.set_onboarded(true) {
             eprintln!("Wren could not note that onboarding is done: {error}");
         }

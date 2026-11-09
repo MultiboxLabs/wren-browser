@@ -15,6 +15,8 @@ export type Choices = {
   theme: SpaceTheme;
   /** Whether ads and trackers are blocked. */
   adBlock: boolean;
+  /** Whether Wren saves and fills in passwords. */
+  passwordManager: boolean;
 };
 
 export type StepProps = {
