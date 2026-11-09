@@ -15,7 +15,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
   const rows = [
     {
       name: "Archive Tabs After",
-      about: "How long a tab you haven’t pinned can go untouched before Wren closes it.",
+      about: "Close tabs you haven’t pinned once they’ve gone unused this long.",
       control: (
         <Menu
           checked={settings.values.archiveAfter}
@@ -36,8 +36,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
     },
     {
       name: "Ad Blocker in New Profiles",
-      about:
-        "Turn the ad blocker on in each profile you make from now on. Off, new profiles start without it. You can change it for each profile in Profiles.",
+      about: "Block ads in each new profile. You can change it for each profile in Profiles.",
       control: (
         <Switch
           label="Ad Blocker in New Profiles"
@@ -48,7 +47,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
     },
     {
       name: "Password Manager",
-      about: "Offer to save passwords, and fill them in, in every profile. Off, passwords already saved stay saved.",
+      about: "Offer to save and fill passwords. Turning it off keeps the ones already saved.",
       control: (
         <Switch
           label="Password Manager"
@@ -59,8 +58,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
     },
     {
       name: "Window Margins",
-      about:
-        "Leave a gap between the page and the window’s edges. Off, the page fills the window, and you move the window by its sidebar.",
+      about: "Leave a gap round the page, or let it fill the window.",
       control: (
         <Switch
           label="Window Margins"
@@ -71,8 +69,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
     },
     {
       name: "Automatic Updates",
-      about:
-        "Download new versions of Wren in the background, and install them when Wren restarts or quits. Off, Wren asks before it downloads one.",
+      about: "Download updates in the background, and install them when Wren quits, instead of asking first.",
       control: (
         <Switch
           label="Automatic Updates"
@@ -90,8 +87,8 @@ export function Settings({ query, settings }: { query: string; settings: Library
             // Never back to an older version: off, a beta stays until a release passes it.
             about:
               settings.values.channel === "beta"
-                ? "Get new versions of Wren before they’re released to everyone. Off, Wren stays on this beta until the next release."
-                : "Get new versions of Wren before they’re released to everyone.",
+                ? "Get new versions before everyone else. Turning it off keeps you on this beta until the next release."
+                : "Get new versions before everyone else.",
             control: (
               <Switch
                 label="Beta Updates"
@@ -103,7 +100,7 @@ export function Settings({ query, settings }: { query: string; settings: Library
         ]),
     {
       name: "Help Improve Wren",
-      about: "Send anonymous counts of which features you use, and crash reports. Wren never sends what you browse.",
+      about: "Send anonymous feature counts and crash reports. Wren never sends what you browse.",
       control: (
         <Switch
           label="Help Improve Wren"
