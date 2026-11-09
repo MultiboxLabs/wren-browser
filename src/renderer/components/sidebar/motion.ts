@@ -24,8 +24,17 @@ export type Presentation = "anchored" | "floating" | "hidden";
 /** How far in from the window's edges the sidebar floats. */
 export const PEEK_INSET = 5;
 
+/**
+ * Whether the page meets the window's edges, an experiment set by hand: no
+ * gap between them, and its card lifted over the window by its shadow
+ * (`.no-margin` in card.css). The docked sidebar keeps its gap to the page.
+ * With the sidebar away, the window is dragged by the sidebar only, which
+ * the window's left edge brings out.
+ */
+export const NO_MARGIN = true;
+
 /** The gap left of the page while the sidebar is away, as on its other sides. */
-export const PAGE_INSET = 10;
+export const PAGE_INSET = NO_MARGIN ? 0 : 10;
 // The sidebar's padding: left of its content, right of it as it floats, and
 // the gap after it to the page as it is docked.
 const PADDING = 8;
@@ -93,6 +102,8 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
   const padding = useTransform(() => PADDING * fill.get());
   const hiddenLeft = useTransform(() => -(shownWidth.get() + PADDING + PEEK_INSET + SHADOW_REACH));
   return {
+    /** How docked it is, from 0 (floating or hidden) to 1. */
+    docked,
     /** The room left of the page: the docked sidebar and the gap after it, or the page's inset. */
     slot: useTransform(() => PAGE_INSET + (shownWidth.get() + PADDING - PAGE_INSET) * docked.get()),
     /**

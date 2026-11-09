@@ -16,6 +16,7 @@ import { SidePanel } from "@/components/side-panel";
 import { SpaceBackground } from "@/components/space-background";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Library, MakesWay } from "@/components/library/library";
+import { NO_MARGIN, PAGE_INSET } from "@/components/sidebar/motion";
 import { SIDEBAR_WIDTH, useSidebarPresentation } from "@/components/sidebar/presentation";
 import { useSavedSidebar } from "@/components/sidebar/state";
 import { TabView } from "@/components/tab-view";
@@ -92,13 +93,22 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   return (
     // The downloads the window lists, and the Library button's indicator.
     <DownloadsProvider>
-      {/* Before the window's content, which is positioned so that it is over it. */}
-      <SpaceBackground space={space} toward={toward} className="fixed inset-0" />
+      {/* Before the window's content, which is positioned so that it is over it.
+          With no margin, the page covers it but for the gaps between cards
+          while the sidebar is away, which show the window's blur bare. It
+          fades as the docked sidebar goes, which is drawn on it. */}
+      <motion.div style={{ opacity: NO_MARGIN && shown ? sidebar.motion.docked : 1 }} className="fixed inset-0">
+        <SpaceBackground space={space} toward={toward} className="absolute inset-0" />
+      </motion.div>
       <div inert={blocked} className="drag relative flex h-full">
         {/* The room left of the page: the docked sidebar is over it. */}
         {!fullScreen && <motion.div style={{ width: sidebar.motion.slot }} className="shrink-0" />}
 
-        <main className={cn("flex min-w-0 flex-1", !fullScreen && "py-2.5 pr-2.5")}>
+        {/* The gap round the page, on its left too while the sidebar is away (`slot`). */}
+        <main
+          className={cn("flex min-w-0 flex-1", NO_MARGIN && "no-margin")}
+          style={fullScreen ? undefined : { paddingRight: PAGE_INSET, paddingBlock: PAGE_INSET }}
+        >
           {shown ? (
             <TabView tab={shown} split={split} first={first} second={second} fullScreen={fullScreen} />
           ) : (

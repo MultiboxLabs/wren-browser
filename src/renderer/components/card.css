@@ -10,11 +10,15 @@
 :root[data-system-scheme="light"] [data-scheme="system"] {
   --card: color-mix(in oklab, var(--space) 4%, white);
   --card-edge: rgb(0 0 0 / 0.08);
+  --card-lift-near: rgb(0 0 0 / 0.08);
+  --card-lift-far: rgb(0 0 0 / 0.14);
 }
 :root[data-scheme="dark"],
 :root[data-system-scheme="dark"] [data-scheme="system"] {
   --card: color-mix(in oklab, var(--space) 6%, rgb(22 22 24));
   --card-edge: rgb(0 0 0 / 0.25);
+  --card-lift-near: rgb(0 0 0 / 0.3);
+  --card-lift-far: rgb(0 0 0 / 0.45);
 }
 
 .card {
@@ -32,4 +36,19 @@
    apart, as a light space's colour hardly changes. */
 .card.empty {
   background: color-mix(in srgb, white 7%, transparent);
+}
+
+/* With no margin (NO_MARGIN in sidebar/motion.ts), a card meets the
+   window's edges. Its corners are rounded as the window's own are, so one
+   in the window's corner matches it. Its edge and a shadow, tight and dark
+   close to it and soft further out, lift it over the docked sidebar and the
+   gaps between cards as a layer above the window. The soft shadow is short,
+   as two meeting across a 10px gap would fill it, and darker on a dark
+   window, where a light one is lost. */
+.no-margin .card {
+  border-radius: var(--window-corner);
+  box-shadow:
+    0 0 0 1px var(--card-edge),
+    0 0 3px var(--card-lift-near),
+    0 1px 6px var(--card-lift-far);
 }

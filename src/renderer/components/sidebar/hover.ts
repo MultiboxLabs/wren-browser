@@ -1,9 +1,9 @@
 // Whether the pointer is over the floating sidebar, or at the window's left
 // edge, which brings it out. The app works it out from each move it sees
-// (shell/sidebar_hover.rs), as Arc does: beyond the window's edge too, and
-// never missing a quick move across it, as the page's own events would. The
-// page gives it the regions. With no app (the dev server), the page's own
-// events over the edge and the sidebar do it.
+// (shell/sidebar_hover.rs): beyond the window's edge too, and never missing
+// a quick move across it, as the page's own events would. The page gives it
+// the regions. With no app (the dev server), the page's own events over the
+// edge and the sidebar do it.
 
 import { useEffect, useState } from "react";
 import { hasApp, type HoverRegion, sidebar } from "@/ipc";
@@ -13,6 +13,9 @@ import { floatingRight, PAGE_INSET, WINDOW_BUTTONS } from "./motion";
 // window is in use: one that slips off the edge still brings the sidebar
 // out, and one that leaves it to the left does not send it away.
 const BEYOND = 100;
+// How far in from the window's left and top edges the pointer brings the
+// sidebar out: the gap round the page, or, with none, a strip over the page.
+const EDGE = Math.max(PAGE_INSET, 4);
 
 /**
  * `out`: whether the sidebar is out for something other than the pointer
@@ -29,9 +32,9 @@ export function useSidebarHover({ out, width, enabled }: { out: boolean; width: 
     if (!hasApp) return;
     const reveal = [
       // The window's left edge, up to the page.
-      box(-BEYOND, PAGE_INSET, 0, height),
+      box(-BEYOND, EDGE, 0, height),
       // Above the page, where the window's buttons are while it is out.
-      box(0, WINDOW_BUTTONS.inset + WINDOW_BUTTONS.width, 0, PAGE_INSET)
+      box(0, WINDOW_BUTTONS.inset + WINDOW_BUTTONS.width, 0, EDGE)
     ];
     // The sidebar as it floats, and the edge beside it.
     const keep = [box(-BEYOND, floatingRight(width), 0, height)];
