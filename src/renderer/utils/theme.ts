@@ -150,12 +150,12 @@ const CLARITY = {
 
 // What is under the colours, as [in use, out of use]: white over the window's
 // blur, thin for a dark theme, as its colour would sink into the dark blur
-// otherwise, and much more of it out of use, when that blur is flat. Over
+// otherwise, and more of it out of use, when that blur is flat. Over
 // something else (the floating sidebar, which has its own stand-in for the
 // blur), black, thin for a dark theme, and heavier for a light one, to be
 // darker; a little more of it out of use.
 const UNDERLAY = {
-  window: { rgb: "255 255 255", light: [0.2, 1], dark: [0.18, 0.8] },
+  window: { rgb: "255 255 255", light: [0.2, 0.46], dark: [0.18, 0.43] },
   floating: { rgb: "0 0 0", light: [0.2, 0.25], dark: [0.08, 0.14] }
 };
 
