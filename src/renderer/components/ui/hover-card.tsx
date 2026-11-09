@@ -45,7 +45,7 @@ export function HoverCard({
   const content = useRef<HTMLDivElement>(null);
   const triangle = useSafeTriangle(content, () => onOpenChange(false), CLOSE_DELAY);
   return (
-    <Radix.Root open={open} onOpenChange={onOpenChange} openDelay={400} closeDelay={CLOSE_DELAY}>
+    <Radix.Root open={open} onOpenChange={onOpenChange} openDelay={300} closeDelay={CLOSE_DELAY}>
       <Radix.Trigger
         asChild
         onDragStart={() => onOpenChange(false)}
