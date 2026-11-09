@@ -78,6 +78,7 @@ export function Favorite({
         variant="filled"
         shape="none"
         label={away < 0 ? title : `${title} — Double-click to go back to ${host(pages[away].url)}`}
+        tooltip={false}
         pressed={isSelected}
         {...pressHandlers(() => pins.open(pin.id), open.length > 0 ? closeTab : undefined)}
         onDoubleClick={() => away >= 0 && pins.back(pin.id, away)}

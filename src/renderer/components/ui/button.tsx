@@ -48,6 +48,8 @@ type ButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
   iconTone?: "dim" | "full" | "inherit";
   /** Its tooltip; and its name, unless its text names it. */
   label?: string;
+  /** False keeps `label` as its name only, with no tooltip: for what shows its name beside it. */
+  tooltip?: boolean;
   /**
    * What it opens is open, or it is on. A Radix trigger (a menu's, a
    * popover's) shows as pressed while open by itself.
@@ -129,6 +131,7 @@ export function Button({
   iconSize = 16,
   iconTone,
   label,
+  tooltip = true,
   pressed = false,
   scale,
   className,
@@ -144,7 +147,7 @@ export function Button({
   const coloured = variant === "prominent" || variant === "bright" || variant === "solid" || variant === "bare";
   const tone = tones[iconTone ?? (variant === "plain" ? "dim" : coloured ? "inherit" : "full")];
   return (
-    <Tooltip label={label}>
+    <Tooltip label={tooltip ? label : undefined}>
       <motion.button
         {...press(scale ?? shapes[form].scale)}
         ref={(node) => {
