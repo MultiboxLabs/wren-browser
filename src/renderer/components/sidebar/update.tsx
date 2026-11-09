@@ -160,16 +160,12 @@ function Swap({ text }: { text: string }) {
 }
 
 // Open from the start: it unfolds from the line as the window opens on the
-// new version, and stays until it is closed or one of its rows is taken.
+// new version, and stays until Close. A row opens its page and leaves the card.
 function Complete({ update, cover }: { update: Update; cover: MotionValue<number> }) {
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(true), []);
   const present = useIsPresent();
   const shown = open && present;
-  const go = (url: string) => {
-    void browser.open(url);
-    update.dismiss();
-  };
   return (
     <Shell cover={cover} open={shown}>
       <div className="relative flex h-6.5 items-center justify-center px-7 font-medium">
@@ -189,14 +185,14 @@ function Complete({ update, cover }: { update: Update; cover: MotionValue<number
           <Row
             icon={<Sparkles size={14} strokeWidth={1.75} fill="currentColor" />}
             className="text-(--update-accent)"
-            onClick={() => go(`https://wrenbrowser.com/releases/${update.installed}`)}
+            onClick={() => void browser.open(`https://wrenbrowser.com/releases/${update.installed}`)}
           >
             See What’s New
           </Row>
           <Row
             icon={<MessageSquare size={14} strokeWidth={1.75} />}
             className="text-fg-2"
-            onClick={() => go(`${REPOSITORY}/issues/new`)}
+            onClick={() => void browser.open(`${REPOSITORY}/issues/new`)}
           >
             Send Feedback
           </Row>
