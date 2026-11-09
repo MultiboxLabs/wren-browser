@@ -164,19 +164,17 @@ export class TabsStore {
   /** Follows the app's word on the tabs; returns what stops it. */
   follow() {
     if (!hasApp) return () => {};
-    // A Browser's tabs heard before the answer are newer than the answer's.
-    const heard = new Set<Key>();
+    // The app's messages and its answer come in the order it sent them, so
+    // the answer is newer than every message heard before it, and the app
+    // sends what changed after it against the tabs it answered with.
     let live = true;
     const stops = [
-      tabs.onList((said) => {
-        heard.add(said.space);
-        this.take([said]);
-      }),
+      tabs.onList((said) => this.take([said])),
       tabs.onChanged((changed) => this.change(changed)),
       tabs.onActive((changed) => this.activate(changed))
     ];
     tabs.list().then(
-      (every) => live && this.take(every.filter((said) => !heard.has(said.space))),
+      (every) => live && this.take(every),
       () => {}
     );
     return () => {
