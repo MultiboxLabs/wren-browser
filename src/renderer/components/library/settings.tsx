@@ -58,6 +58,18 @@ export function Settings({ query, settings }: { query: string; settings: Library
       )
     },
     {
+      name: "Window Margins",
+      about:
+        "Leave a gap between the page and the window’s edges. Off, the page fills the window, and you move the window by its sidebar.",
+      control: (
+        <Switch
+          label="Window Margins"
+          checked={settings.values.windowMargins}
+          onCheckedChange={(windowMargins) => settings.update({ windowMargins })}
+        />
+      )
+    },
+    {
       name: "Automatic Updates",
       about:
         "Download new versions of Wren in the background, and install them when Wren restarts or quits. Off, Wren asks before it downloads one.",

@@ -38,13 +38,13 @@
   background: color-mix(in srgb, white 7%, transparent);
 }
 
-/* With no margin (NO_MARGIN in sidebar/motion.ts), a card meets the
-   window's edges. Its corners are rounded as the window's own are, so one
-   in the window's corner matches it. Its edge and a shadow, tight and dark
-   close to it and soft further out, lift it over the docked sidebar and the
-   gaps between cards as a layer above the window. The soft shadow is short,
-   as two meeting across a 10px gap would fill it, and darker on a dark
-   window, where a light one is lost. */
+/* With Window Margins off (`.no-margin`, pages/ui/app.tsx), a card meets
+   the window's edges. Its corners are rounded as the window's own are, so
+   one in the window's corner matches it. Its edge and a shadow, tight and
+   dark close to it and soft further out, lift it over the docked sidebar
+   and the gaps between cards as a layer above the window. The soft shadow
+   is short, as two meeting across a 10px gap would fill it, and darker on a
+   dark window, where a light one is lost. */
 .no-margin .card {
   border-radius: var(--window-corner);
   box-shadow:

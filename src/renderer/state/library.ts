@@ -187,7 +187,8 @@ export function useSettings(open: boolean) {
     channel: "dev",
     shareUsageData: true,
     blockAdsInNewProfiles: true,
-    passwordManager: true
+    passwordManager: true,
+    windowMargins: true
   });
   const [read, setRead] = useState(false);
   const refresh = () =>

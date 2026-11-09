@@ -21,6 +21,8 @@ export type Settings = {
   blockAdsInNewProfiles: boolean;
   /** Chromium's password manager, in every profile: off, it saves, fills and suggests no password; what is saved stays. */
   passwordManager: boolean;
+  /** A gap is left round the page, between it and the window's edges; off, the page fills the window. */
+  windowMargins: boolean;
 };
 
 export const settings = {

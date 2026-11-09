@@ -11,6 +11,7 @@ import {
 } from "motion/react";
 import { useEffect, useLayoutEffect } from "react";
 import { appWindow, hasApp } from "@/ipc";
+import { useWindowMargins } from "@/state/margins";
 import { LIBRARY_RAIL, type LibraryMotion, windowButtonsShift } from "@/components/library/motion";
 import { EASE_SLIDE } from "@/utils/motion";
 
@@ -25,16 +26,11 @@ export type Presentation = "anchored" | "floating" | "hidden";
 export const PEEK_INSET = 5;
 
 /**
- * Whether the page meets the window's edges, an experiment set by hand: no
- * gap between them, and its card lifted over the window by its shadow
- * (`.no-margin` in card.css). The docked sidebar keeps its gap to the page.
- * With the sidebar away, the window is dragged by the sidebar only, which
- * the window's left edge brings out.
+ * The gap round the page, between it and the window's edges, and left of it
+ * while the sidebar is away; none with Window Margins off
+ * (state/margins.ts). The docked sidebar keeps its own gap to the page.
  */
-export const NO_MARGIN = true;
-
-/** The gap left of the page while the sidebar is away, as on its other sides. */
-export const PAGE_INSET = NO_MARGIN ? 0 : 10;
+export const pageInset = (margins: boolean) => (margins ? 10 : 0);
 // The sidebar's padding: left of its content, right of it as it floats, and
 // the gap after it to the page as it is docked.
 const PADDING = 8;
@@ -79,10 +75,13 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
   // the window's own background.
   const fill = useMotionValue(presentation === "floating" ? 1 : 0);
   const sidebarWidth = useMotionValue(width);
+  const margins = useWindowMargins();
+  const inset = useMotionValue(pageInset(margins));
   // With reduced motion, it is where it goes at once.
   const reduceMotion = useReducedMotion();
 
   useLayoutEffect(() => sidebarWidth.set(width), [width]);
+  useLayoutEffect(() => inset.set(pageInset(margins)), [margins]);
   useLayoutEffect(() => {
     const to = (value: MotionValue<number>, target: number, instantly = reduceMotion) =>
       instantly ? value.jump(target) : animate(value, target, transition);
@@ -96,7 +95,7 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
 
   // As wide as it is shown: the docked width, and the Library's rail.
   const shownWidth = useTransform(() => sidebarWidth.get() + LIBRARY_RAIL * rail.get());
-  const inset = useTransform(() => PEEK_INSET * floating.get());
+  const peekInset = useTransform(() => PEEK_INSET * floating.get());
   // Floating, it is as wide again as its left padding, to pad its right:
   // as its fill is, at once, over the gap the page takes as it floats.
   const padding = useTransform(() => PADDING * fill.get());
@@ -105,16 +104,16 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
     /** How docked it is, from 0 (floating or hidden) to 1. */
     docked,
     /** The room left of the page: the docked sidebar and the gap after it, or the page's inset. */
-    slot: useTransform(() => PAGE_INSET + (shownWidth.get() + PADDING - PAGE_INSET) * docked.get()),
+    slot: useTransform(() => inset.get() + (shownWidth.get() + PADDING - inset.get()) * docked.get()),
     /**
      * The sidebar's place and size, its panel in it. It slides by `left`
      * rather than a transform, which Chromium would not follow with the
      * bubbles hanging off its buttons until the page next laid out.
      */
     box: {
-      left: useTransform(() => hiddenLeft.get() + (inset.get() - hiddenLeft.get()) * shown.get()),
-      top: inset,
-      bottom: inset,
+      left: useTransform(() => hiddenLeft.get() + (peekInset.get() - hiddenLeft.get()) * shown.get()),
+      top: peekInset,
+      bottom: peekInset,
       width: useTransform(() => shownWidth.get() + padding.get()),
       paddingRight: padding
     },

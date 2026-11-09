@@ -10,7 +10,7 @@ import { LoadingBar } from "./loading-bar";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { browser, type BrowserTab, splits, type TabSplit } from "@/ipc";
-import { NO_MARGIN } from "@/components/sidebar/motion";
+import { useWindowMargins } from "@/state/margins";
 import { cn } from "@/utils/cn";
 
 // The divider's thickness, as the gap beside the side panel.
@@ -113,10 +113,11 @@ function TabPane({
   className?: string;
   style?: CSSProperties;
 }) {
+  const margins = useWindowMargins();
   return (
     <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
-      {/* With no margin, there is no gap above the card for it. */}
-      {!fullScreen && !bare && !NO_MARGIN && <LoadingBar loading={tab.loading} />}
+      {/* With no margins, there is no gap above the card for it. */}
+      {!fullScreen && !bare && margins && <LoadingBar loading={tab.loading} />}
       <div
         className={cn(
           fullScreen ? "bg-black" : bare ? "bg-card" : "card",

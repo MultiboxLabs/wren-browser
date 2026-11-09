@@ -10,13 +10,14 @@ import { PinsProvider } from "@/state/pins";
 import { SpaceProvider, useSpace } from "@/state/space";
 import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "@/state/window";
 import { useSpaceBlend } from "@/state/space-blend";
+import { useWindowMargins, useWindowMarginsSetting, WindowMarginsContext } from "@/state/margins";
 import { Omnibox } from "@/components/omnibox/omnibox";
 import { useOpenForEmptyWindow, useShownOmnibox } from "@/components/omnibox/shown";
 import { SidePanel } from "@/components/side-panel";
 import { SpaceBackground } from "@/components/space-background";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Library, MakesWay } from "@/components/library/library";
-import { NO_MARGIN, PAGE_INSET } from "@/components/sidebar/motion";
+import { pageInset } from "@/components/sidebar/motion";
 import { SIDEBAR_WIDTH, useSidebarPresentation } from "@/components/sidebar/presentation";
 import { useSavedSidebar } from "@/components/sidebar/state";
 import { TabView } from "@/components/tab-view";
@@ -28,11 +29,13 @@ import { Updated } from "@/components/updated";
 import { cn } from "@/utils/cn";
 import { PopupWindow } from "./popup";
 
-// Waits for the sidebar's saved state, so it opens as it was left, and for
-// whether the window is a popup's, which has none (popup.tsx).
+// Waits for the sidebar's saved state, so it opens as it was left, for
+// whether the window is a popup's, which has none (popup.tsx), and for
+// Window Margins, so the page opens where it stays.
 export function App() {
   const saved = useSavedSidebar();
   const popup = useWindowPopup();
+  const margins = useWindowMarginsSetting();
   return (
     // With Reduced Motion, Motion keeps what fades, and leaves out what moves
     // or scales. What it does not know of (a height, a width, a value of
@@ -47,7 +50,13 @@ export function App() {
             ) : (
               popup === null && (
                 // Its spaces' pins are read while the sidebar's state is.
-                <PinsProvider>{saved !== undefined && <BrowserWindow saved={saved} />}</PinsProvider>
+                <PinsProvider>
+                  {saved !== undefined && margins !== undefined && (
+                    <WindowMarginsContext value={margins}>
+                      <BrowserWindow saved={saved} />
+                    </WindowMarginsContext>
+                  )}
+                </PinsProvider>
               )
             )}
           </TooltipProvider>
@@ -63,6 +72,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const toward = useSpaceBlend();
   useWindowTheme(space, toward);
   useShowWindow();
+  const margins = useWindowMargins();
+  const inset = pageInset(margins);
 
   const { id: browser, ready, splits, active, fullScreen: fullScreenTab } = useTabShape();
   const sidePanel = useSidePanel();
@@ -94,10 +105,10 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
     // The downloads the window lists, and the Library button's indicator.
     <DownloadsProvider>
       {/* Before the window's content, which is positioned so that it is over it.
-          With no margin, the page covers it but for the gaps between cards
+          With no margins, the page covers it but for the gaps between cards
           while the sidebar is away, which show the window's blur bare. It
           fades as the docked sidebar goes, which is drawn on it. */}
-      <motion.div style={{ opacity: NO_MARGIN && shown ? sidebar.motion.docked : 1 }} className="fixed inset-0">
+      <motion.div style={{ opacity: !margins && shown ? sidebar.motion.docked : 1 }} className="fixed inset-0">
         <SpaceBackground space={space} toward={toward} className="absolute inset-0" />
       </motion.div>
       <div inert={blocked} className="drag relative flex h-full">
@@ -106,8 +117,8 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
 
         {/* The gap round the page, on its left too while the sidebar is away (`slot`). */}
         <main
-          className={cn("flex min-w-0 flex-1", NO_MARGIN && "no-margin")}
-          style={fullScreen ? undefined : { paddingRight: PAGE_INSET, paddingBlock: PAGE_INSET }}
+          className={cn("flex min-w-0 flex-1", !margins && "no-margin")}
+          style={fullScreen ? undefined : { paddingRight: inset, paddingBlock: inset }}
         >
           {shown ? (
             <TabView tab={shown} split={split} first={first} second={second} fullScreen={fullScreen} />
