@@ -519,6 +519,11 @@ impl App for Wren {
             }
             return;
         }
+        // Every window's, a popup's in front too.
+        if id == menus::TOGGLE_ADDRESS_BAR {
+            let _ = ipc::toggle_address_bar(&self.state);
+            return;
+        }
         if let Some(popup) = key.as_ref().filter(|window| window.is_popup()) {
             return self.popup_command(mt, id, popup);
         }

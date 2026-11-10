@@ -12,7 +12,7 @@ use wren::{MainThread, WebView};
 use super::WindowRef;
 use crate::analytics::{Event, Setting};
 use crate::app::State;
-use crate::db::{Settings, SettingsChange};
+use crate::db::{AddressBar, Settings, SettingsChange};
 use crate::password_manager;
 use crate::tabs::archive;
 
@@ -70,6 +70,22 @@ fn changed(change: &SettingsChange) -> Vec<(Setting, Value)> {
     .into_iter()
     .flatten()
     .collect()
+}
+
+/// Moves the address to the other place, atop the sidebar or atop the page
+/// (the main menu's Toggle Address Bar), and tells every window.
+pub fn toggle_address_bar(state: &State) -> Result<(), String> {
+    let address_bar = match state.db.settings()?.address_bar {
+        AddressBar::Sidebar => AddressBar::Top,
+        AddressBar::Top => AddressBar::Sidebar,
+    };
+    let change = SettingsChange {
+        address_bar: Some(address_bar),
+        ..SettingsChange::default()
+    };
+    let settings = state.db.update_settings(change)?;
+    broadcast_settings(state, &settings);
+    Ok(())
 }
 
 fn broadcast_settings(state: &State, settings: &Settings) {

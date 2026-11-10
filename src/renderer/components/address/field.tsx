@@ -1,10 +1,12 @@
-// The address field at the top of the sidebar: the page's address, which a
-// click edits in the omnibox (omnibox.tsx), the extensions pinned to it (or
-// popped out for its popup), and the page info button, which opens the page
-// info popover. Each button carries the mark Chromium hangs its bubbles off
-// (BrowserWindow::name_anchors): a shown extension's popup opens below its own
-// button, and the site's bubbles and the rest below page info's. One thing
-// hangs off the page info button at a time: Chromium's bubble or the popover.
+// The address field at the top of the sidebar, while the Address Bar setting
+// puts it there (state/address-bar.ts; atop the page, it is page-bar.tsx's):
+// the page's address, which a click edits in the omnibox (omnibox.tsx), the
+// extensions pinned to it (or popped out for its popup), and the page info
+// button, which opens the page info popover. Each button carries the mark
+// Chromium hangs its bubbles off (BrowserWindow::name_anchors): a shown
+// extension's popup opens below its own button, and the site's bubbles and
+// the rest below page info's. One thing hangs off the page info button at a
+// time: Chromium's bubble or the popover.
 
 import { Search } from "lucide-react";
 import type { Ref } from "react";
@@ -60,19 +62,28 @@ export function AddressField({
       {actions
         .filter((action) => action.pinned || action.poppedOut)
         .map((action) => (
-          <PinnedAction key={action.id} action={action} showing={showing.includes(`extension:${action.id}`)} />
+          <PinnedAction key={action.id} action={action} marked showing={showing.includes(`extension:${action.id}`)} />
         ))}
       <PageInfoButton tab={tab} actions={actions} />
     </div>
   );
 }
 
-// A shown extension's button: a click runs it, as in Chrome's toolbar, and
-// a right click is Chromium's menu for it, where it is unpinned. One only
-// popped out leaves as its popup closes.
-function PinnedAction({ action, showing }: { action: ExtensionAction; showing: boolean }) {
+// A shown extension's button, here and atop the page (page-bar.tsx): a click
+// runs it, as in Chrome's toolbar, and a right click is Chromium's menu for
+// it, where it is unpinned. One only popped out leaves as its popup closes.
+// `marked`: it carries the mark its popup hangs off.
+export function PinnedAction({
+  action,
+  marked,
+  showing
+}: {
+  action: ExtensionAction;
+  marked: boolean;
+  showing: boolean;
+}) {
   return (
-    <Anchor name={`extension:${action.id}`}>
+    <Anchor name={marked ? `extension:${action.id}` : null}>
       <Button
         label={action.name}
         shape="square"

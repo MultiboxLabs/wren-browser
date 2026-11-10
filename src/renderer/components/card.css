@@ -12,15 +12,25 @@
    window has no margin round the page. */
 @theme inline {
   --color-card: var(--card);
+  --color-page-bar: var(--page-bar);
+  --color-page-bar-edge: var(--page-bar-edge);
 }
 
+/* The address bar atop a page (address/page-bar.tsx) is the card's colour
+   while light, with a separator below it; while dark, a grey a few steps
+   lighter, which parts it from a dark page below it as a toolbar does, with
+   a faint dark edge rather than a light line. */
 :root[data-scheme="light"],
 :root[data-system-scheme="light"] [data-scheme="system"] {
   --card: color-mix(in oklab, var(--space) 4%, white);
+  --page-bar: var(--card);
+  --page-bar-edge: var(--separator);
 }
 :root[data-scheme="dark"],
 :root[data-system-scheme="dark"] [data-scheme="system"] {
   --card: color-mix(in oklab, var(--space) 6%, rgb(22 22 24));
+  --page-bar: color-mix(in oklab, var(--space) 6%, rgb(54 54 57));
+  --page-bar-edge: rgb(0 0 0 / 0.35);
 }
 
 .card {

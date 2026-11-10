@@ -1,6 +1,9 @@
 /** How long a tab goes unused before it is archived. */
 export type ArchiveAfter = "12h" | "24h" | "7d" | "30d";
 
+/** Where the page's address shows: atop the sidebar, or atop the page. */
+export type AddressBar = "sidebar" | "top";
+
 /** The app's release channel, the build's own. */
 export type Channel = "stable" | "beta" | "dev";
 
@@ -23,6 +26,8 @@ export type Settings = {
   passwordManager: boolean;
   /** A gap is left round the page, between it and the window's edges; off, the page fills the window. */
   windowMargins: boolean;
+  /** Where the page's address shows. A split shows each side's atop it either way; Chromium's bubbles hang off the one this names. */
+  addressBar: AddressBar;
 };
 
 export const settings = {

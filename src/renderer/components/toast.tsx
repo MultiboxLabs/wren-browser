@@ -1,4 +1,5 @@
-// The window's toast, at its top right: Chromium's ("Link
+// The window's toast, at its top right, below the address bar atop the
+// page if one is there (address/page-bar.tsx): Chromium's ("Link
 // copied") and the app's own (⇧⌘C's) alike, which the app answers in place
 // of Chromium's. Chromium decides when each goes. The zoom level's ("110%")
 // is bare: text alone.
@@ -9,6 +10,7 @@ import type { Icon } from "./ui/button";
 import { Toast as ToastView } from "./ui/toast";
 import { iconUrl, type Toast, toast as toasts } from "@/ipc";
 import { useToastShown } from "@/state/browser";
+import { cn } from "@/utils/cn";
 
 // Our own icons, by the toast's name. Any other has Chromium's.
 const icons: Record<string, Icon> = {
@@ -21,12 +23,14 @@ const icons: Record<string, Icon> = {
   UpdateCheckFailed: CircleAlert
 };
 
-export function BrowserToast() {
+/** `belowBar`: the page at the window's top right has its address bar atop it, which the toast would cover. */
+export function BrowserToast({ belowBar = false }: { belowBar?: boolean }) {
   const toast = useToastShown();
   return (
     <ToastView
-      // The page's top right, in from its corner as from the window's.
-      className="fixed top-4.5 right-4.5 z-30"
+      // The page's top right, in from its corner as from the window's; below
+      // the bar (h-9), as far in from it.
+      className={cn("fixed right-4.5 z-30", belowBar ? "top-13.5" : "top-4.5")}
       toast={
         toast && {
           // Each request comes in afresh, the same toast shown again too.

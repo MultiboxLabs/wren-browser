@@ -4,23 +4,16 @@
 // version of Wren, if there is one (update.tsx).
 
 import { Archive, Plus } from "lucide-react";
-import {
-  AnimatePresence,
-  motion,
-  type MotionValue,
-  useMotionValue,
-  useMotionValueEvent,
-  useReducedMotion,
-  useTransform
-} from "motion/react";
+import { motion, type MotionValue, useMotionValue, useMotionValueEvent, useTransform } from "motion/react";
 import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from "react";
-import { browser } from "@/ipc";
 import { Button } from "@/components/ui/button";
 import { AddressField } from "@/components/address/field";
-import { BackIcon, ForwardIcon, ReloadIcon, SidebarIcon, StopIcon } from "@/components/icons";
+import { useAddressBar } from "@/state/address-bar";
+import { SidebarIcon } from "@/components/icons";
+import { Navigation } from "@/components/address/navigation";
 import type { OmniboxState } from "@/components/omnibox/shown";
 import { cn } from "@/utils/cn";
-import { scaleTo } from "@/utils/motion";
+import { shortcut } from "@/utils/shortcut";
 import { DownloadFlights } from "@/components/downloads/flight";
 import { Indicator } from "@/components/downloads/indicator";
 import { Shelf, useShelf } from "@/components/downloads/shelf";
@@ -53,41 +46,6 @@ export type SidebarProps = {
   /** It is out, and not the Library in its place: the downloads' shelf may show by itself. */
   visible: boolean;
 };
-
-// Stop's cross grows in where reload's icon was, which goes at once, and
-// shrinks away before reload's comes back; one is shown at a time.
-const stopMotion = (still: boolean | null) => ({
-  initial: { opacity: 0, ...scaleTo(still, 0.8) },
-  animate: { opacity: 1, ...scaleTo(still, 1) },
-  exit: { opacity: 0, ...scaleTo(still, 0.8) },
-  transition: { duration: 0.2 }
-});
-
-const shortcut = (key: string) => (document.documentElement.dataset.platform === "mac" ? `⌘${key}` : `Ctrl+${key}`);
-
-/** Reload, which turns into stop while the active tab loads. */
-function ReloadButton({ loading, onReload, onStop }: { loading: boolean; onReload: () => void; onStop: () => void }) {
-  const still = useReducedMotion();
-  return (
-    <Button
-      icon={
-        <AnimatePresence mode="wait" initial={false}>
-          {loading ? (
-            <motion.span key="stop" className="grid" {...stopMotion(still)}>
-              <StopIcon size={15} />
-            </motion.span>
-          ) : (
-            <span key="reload" className="grid">
-              <ReloadIcon size={15} />
-            </span>
-          )}
-        </AnimatePresence>
-      }
-      label={loading ? "Stop" : "Reload"}
-      onClick={loading ? onStop : onReload}
-    />
-  );
-}
 
 /** Where a space's content is drawn: the window's (0), or a slot beside it, how many spaces over (negative before). */
 type Page = number;
@@ -184,6 +142,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
     </SpaceColours>
   );
   const active = useTab(useTabShape().active);
+  const addressBar = useAddressBar();
   // Read once for every space's content, not again as each comes in.
   const settings = useSettings(true);
   const indicator = useDownloadIndicator();
@@ -230,27 +189,8 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
           onClick={onToggle}
         />
         <div className="flex-1" />
-        <div className="flex gap-1.5">
-          <Button
-            icon={BackIcon}
-            label="Back"
-            iconSize={17}
-            disabled={!active?.canGoBack}
-            onClick={() => browser.back()}
-          />
-          <Button
-            icon={ForwardIcon}
-            label="Forward"
-            iconSize={17}
-            disabled={!active?.canGoForward}
-            onClick={() => browser.forward()}
-          />
-          <ReloadButton
-            loading={active?.loading ?? false}
-            onReload={() => browser.reload()}
-            onStop={() => browser.stop()}
-          />
-        </div>
+        {/* Atop the page with the address, as the setting may say (address/page-bar.tsx). */}
+        {addressBar === "sidebar" && <Navigation tab={active} className="gap-1.5" />}
       </div>
 
       {/* What slides with a swipe: the space's, below the toolbar. It is
@@ -328,6 +268,7 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
   const space = useDrawnSpace();
   const { active, ready } = useTabShape();
   const current = useTab(active);
+  const addressBar = useAddressBar();
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
   const { actions, dialog } = usePinActions(pins.toggleFolder);
@@ -345,7 +286,16 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
   const read = ready && pins.read && settings.read ? "read" : "reading";
   return (
     <>
-      <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
+      {/* Atop the page instead, as the setting may say (tab-view.tsx). What
+          comes first below leaves a gap for the field. Without it, that gap
+          would add to the room under the toolbar's buttons, so the content
+          is pulled up, as far below the sidebar button's icon as favourites
+          are apart. */}
+      {addressBar === "sidebar" ? (
+        <AddressField tab={current} ref={address} onOpenLocation={() => omnibox.toggle("current")} />
+      ) : (
+        <div aria-hidden className="-mt-2 shrink-0" />
+      )}
       <ArrivalScope key={read}>
         <Favorites
           favorites={pins.favorites}

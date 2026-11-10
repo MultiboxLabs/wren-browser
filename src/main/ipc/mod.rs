@@ -53,6 +53,7 @@ pub use downloads::{
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
 pub use menu::{send_show_settings, send_toggle_sidebar};
+pub use settings::toggle_address_bar;
 pub use migrate::handle_migrate;
 pub use omnibox::{
     OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox, stop_omnibox,

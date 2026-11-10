@@ -11,6 +11,7 @@ import { SpaceProvider, useSpace } from "@/state/space";
 import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "@/state/window";
 import { useSpaceBlend } from "@/state/space-blend";
 import { useWindowMargins, useWindowMarginsSetting, WindowMarginsContext } from "@/state/margins";
+import { AddressBarContext, hasPageBar, useAddressBar, useAddressBarSetting } from "@/state/address-bar";
 import { Omnibox } from "@/components/omnibox/omnibox";
 import { useOpenForEmptyWindow, useShownOmnibox } from "@/components/omnibox/shown";
 import { SidePanel } from "@/components/side-panel";
@@ -31,11 +32,12 @@ import { PopupWindow } from "./popup";
 
 // Waits for the sidebar's saved state, so it opens as it was left, for
 // whether the window is a popup's, which has none (popup.tsx), and for
-// Window Margins, so the page opens where it stays.
+// Window Margins and Address Bar, so the page opens where it stays.
 export function App() {
   const saved = useSavedSidebar();
   const popup = useWindowPopup();
   const margins = useWindowMarginsSetting();
+  const addressBar = useAddressBarSetting();
   return (
     // With Reduced Motion, Motion keeps what fades, and leaves out what moves
     // or scales. What it does not know of (a height, a width, a value of
@@ -51,9 +53,11 @@ export function App() {
               popup === null && (
                 // Its spaces' pins are read while the sidebar's state is.
                 <PinsProvider>
-                  {saved !== undefined && margins !== undefined && (
+                  {saved !== undefined && margins !== undefined && addressBar !== undefined && (
                     <WindowMarginsContext value={margins}>
-                      <BrowserWindow saved={saved} />
+                      <AddressBarContext value={addressBar}>
+                        <BrowserWindow saved={saved} />
+                      </AddressBarContext>
                     </WindowMarginsContext>
                   )}
                 </PinsProvider>
@@ -84,6 +88,10 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const split = splits.find((split) => split.id === shown?.split);
   const first = useTab(split?.first);
   const second = useTab(split?.second);
+  // The page at the window's top right has its address bar atop it, which
+  // the toast keeps below.
+  const addressBar = useAddressBar();
+  const pageBar = shown !== undefined && !fullScreen && hasPageBar(addressBar, split !== undefined);
   const address = useRef<HTMLDivElement>(null);
   const omnibox = useShownOmnibox(address, browser !== null);
   useOpenForEmptyWindow(omnibox, ready, active);
@@ -126,7 +134,15 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           }
         >
           {shown ? (
-            <TabView tab={shown} split={split} first={first} second={second} fullScreen={fullScreen} />
+            <TabView
+              tab={shown}
+              split={split}
+              first={first}
+              second={second}
+              fullScreen={fullScreen}
+              // In the middle of the window, as if there were no address bar.
+              onOpenLocation={() => omnibox.toggle("current", true)}
+            />
           ) : (
             <div className="card empty no-drag min-w-0 flex-1" />
           )}
@@ -188,7 +204,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
             onEnd={sidebar.endResize}
           />
         )}
-        <BrowserToast />
+        <BrowserToast belowBar={pageBar} />
         <QuitDialog />
         <TabSwitcher />
         {omnibox.shown && (

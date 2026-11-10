@@ -10,6 +10,13 @@ import { Menu } from "@/components/ui/menu";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Empty, matches } from "./rows";
+import type { AddressBar } from "@/ipc";
+
+/** Where the page's address can show, as the Address Bar menu names each place. */
+const addressBarOptions: { id: AddressBar; label: string }[] = [
+  { id: "sidebar", label: "Sidebar" },
+  { id: "top", label: "Above Page" }
+];
 
 export function Settings({ query, settings }: { query: string; settings: LibrarySettings }) {
   const rows = [
@@ -64,6 +71,24 @@ export function Settings({ query, settings }: { query: string; settings: Library
           label="Window Margins"
           checked={settings.values.windowMargins}
           onCheckedChange={(windowMargins) => settings.update({ windowMargins })}
+        />
+      )
+    },
+    {
+      name: "Address Bar",
+      about:
+        "Show the page’s address at the top of the sidebar, or above the page. Split View shows each page’s address above it either way.",
+      control: (
+        <Menu
+          checked={settings.values.addressBar}
+          onSelect={(addressBar) => settings.update({ addressBar })}
+          items={addressBarOptions}
+          trigger={
+            <Button variant="filled" className="gap-1 pr-1.5 font-medium">
+              {addressBarOptions.find(({ id }) => id === settings.values.addressBar)?.label}
+              <ChevronsUpDown size={13} strokeWidth={2} className="shrink-0 glyph-2" />
+            </Button>
+          }
         />
       )
     },

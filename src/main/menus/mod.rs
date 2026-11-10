@@ -34,6 +34,7 @@ pub const COPY_URL: &str = "copy-url";
 pub const MOVE_TAB_UP: &str = "move-tab-up";
 pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
+pub const TOGGLE_ADDRESS_BAR: &str = "toggle-address-bar";
 pub const SHOW_DOWNLOADS: &str = "show-downloads";
 pub const SHOW_SETTINGS: &str = "show-settings";
 pub const SET_DEFAULT_BROWSER: &str = "set-default-browser";
@@ -181,6 +182,14 @@ fn main_menu(
                     TOGGLE_SIDEBAR,
                     "Toggle Sidebar",
                     "s",
+                    MenuModifiers::PRIMARY,
+                ),
+                // Atop the sidebar or atop the page, in every window, as
+                // Address Bar in the Library's settings is: ⇧⌘D.
+                keyed(
+                    TOGGLE_ADDRESS_BAR,
+                    "Toggle Address Bar",
+                    "D",
                     MenuModifiers::PRIMARY,
                 ),
                 MenuItem::Separator,

@@ -188,7 +188,8 @@ export function useSettings(open: boolean) {
     shareUsageData: true,
     blockAdsInNewProfiles: true,
     passwordManager: true,
-    windowMargins: true
+    windowMargins: true,
+    addressBar: "sidebar"
   });
   const [read, setRead] = useState(false);
   const refresh = () =>

@@ -4,12 +4,14 @@
 // either (`bare`): it is edge to edge, under the window's title bar.
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
+import { PageAddressBar } from "./address/page-bar";
 import { FindBar } from "./find-bar";
 import { LinkStatus } from "./link-status";
 import { LoadingBar } from "./loading-bar";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { browser, type BrowserTab, splits, type TabSplit } from "@/ipc";
+import { hasPageBar, useAddressBar } from "@/state/address-bar";
 import { useWindowMargins } from "@/state/margins";
 import { cn } from "@/utils/cn";
 
@@ -24,7 +26,8 @@ export function TabView({
   first,
   second,
   fullScreen = false,
-  bare = false
+  bare = false,
+  onOpenLocation
 }: {
   tab: BrowserTab;
   /** The split `tab` is in, if any, and its two tabs. */
@@ -34,23 +37,39 @@ export function TabView({
   fullScreen?: boolean;
   /** Edge to edge, with no card round it nor loading bar over it: a popup's. */
   bare?: boolean;
+  /** What a click on the address atop a page opens; with none, no page has an address bar atop it. */
+  onOpenLocation?: () => void;
 }) {
-  if (fullScreen || bare || !split || !first || !second)
-    return <TabPane tab={tab} active fullScreen={fullScreen} bare={bare} className="flex-1" />;
-  return <SplitPanes split={split} first={first} second={second} active={tab.id} />;
+  const setting = useAddressBar();
+  if (fullScreen || bare || !split || !first || !second) {
+    const bar = !fullScreen && !bare && hasPageBar(setting, false);
+    return (
+      <TabPane
+        tab={tab}
+        active
+        fullScreen={fullScreen}
+        bare={bare}
+        onOpenLocation={bar ? onOpenLocation : undefined}
+        className="flex-1"
+      />
+    );
+  }
+  return <SplitPanes split={split} first={first} second={second} active={tab.id} onOpenLocation={onOpenLocation} />;
 }
 
 function SplitPanes({
   split,
   first,
   second,
-  active
+  active,
+  onOpenLocation
 }: {
   split: TabSplit;
   first: BrowserTab;
   second: BrowserTab;
   /** The active tab's ID: the find bar is on its side. */
   active: number;
+  onOpenLocation?: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(0);
@@ -73,6 +92,7 @@ function SplitPanes({
       <TabPane
         tab={first}
         active={first.id === active}
+        onOpenLocation={onOpenLocation}
         style={{ flex: `0 0 calc((100% - ${DIVIDER}px) * ${ratio})` }}
       />
       <ResizeHandle
@@ -92,7 +112,7 @@ function SplitPanes({
           setDragged(null);
         }}
       />
-      <TabPane tab={second} active={second.id === active} className="flex-1" />
+      <TabPane tab={second} active={second.id === active} onOpenLocation={onOpenLocation} className="flex-1" />
     </div>
   );
 }
@@ -102,6 +122,7 @@ function TabPane({
   active,
   fullScreen = false,
   bare = false,
+  onOpenLocation,
   className,
   style
 }: {
@@ -110,10 +131,16 @@ function TabPane({
   active: boolean;
   fullScreen?: boolean;
   bare?: boolean;
+  /** With it, the page has its address bar atop it, whose address opens this. */
+  onOpenLocation?: () => void;
   className?: string;
   style?: CSSProperties;
 }) {
   const margins = useWindowMargins();
+  // Chromium's marks are on the active side's, while the setting puts the
+  // address atop the page, and on the sidebar's otherwise.
+  const setting = useAddressBar();
+  const marked = active && setting === "top";
   return (
     <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
       {/* With no margins, there is no gap above the card for it. */}
@@ -121,13 +148,25 @@ function TabPane({
       <div
         className={cn(
           fullScreen ? "bg-black" : bare ? "bg-card" : "card",
-          "no-drag relative min-h-0 min-w-0 flex-1 overflow-hidden"
+          "no-drag relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
         )}
       >
-        <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />
-        {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={tab.id} />}
+        {onOpenLocation && (
+          <PageAddressBar
+            tab={tab}
+            active={active}
+            marked={marked}
+            toolbar={setting === "top"}
+            onOpenLocation={onOpenLocation}
+          />
+        )}
+        {/* The page, with the card's corners below the bar, and all four without one. */}
+        <div className={cn("relative min-h-0 flex-1", onOpenLocation ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
+          <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />
+          {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={tab.id} />}
+        </div>
       </div>
-      {active && <FindBar tab={tab.id} />}
+      {active && <FindBar tab={tab.id} belowBar={onOpenLocation !== undefined} />}
     </div>
   );
 }

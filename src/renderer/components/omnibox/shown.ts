@@ -1,8 +1,9 @@
 // Which omnibox is open, if one is, and where. For a new tab, in the middle
-// of the window; for the active tab, over the address field while the
-// sidebar is in view, and in the middle while it is away or the Library is
-// open. Each opening starts afresh. What opens it closes it again (⌘T, the
-// New Tab row, ⌘L); the other kind takes its place, and ⌘W closes the one
+// of the window; for the active tab, over the sidebar's address field while
+// the sidebar is in view, and in the middle while it is away, the Library is
+// open, or the address bar atop a page opens it (address/page-bar.tsx), as if
+// there were no address bar. Each opening starts afresh. What opens it closes
+// it again (⌘T, the New Tab row, ⌘L); the other kind takes its place, and ⌘W closes the one
 // for a new tab. In a space the window has no Browser for yet, there is no
 // tab to open in: it is the one for a new tab, and the app first makes the
 // space a Browser, with no tab yet, for it to ask.
@@ -41,7 +42,7 @@ export function useShownOmnibox(address: RefObject<HTMLElement | null>, hasBrows
     omnibox.close();
     setShown(null);
   };
-  const show = (asked: OmniboxTarget, toggles: boolean) => {
+  const show = (asked: OmniboxTarget, toggles: boolean, centered = false) => {
     // With no Browser, there is no tab to open in: it is for a new tab, and
     // the app makes the space a Browser for it to ask first.
     const unready = hasApp && !browser.current;
@@ -49,7 +50,7 @@ export function useShownOmnibox(address: RefObject<HTMLElement | null>, hasBrows
     if (latest.current?.target === target) return toggles ? hide() : undefined;
     const field = address.current;
     // The Library keeps the address mounted, but its sidebar is inert.
-    const box = field && !field.closest("[inert]") ? field.getBoundingClientRect() : undefined;
+    const box = field && !centered && !field.closest("[inert]") ? field.getBoundingClientRect() : undefined;
     // Off the window's left edge, the sidebar is away.
     const place: OmniboxPlace =
       target === "current" && box && box.right > 0 ? { left: box.left, top: box.top } : "center";
@@ -72,8 +73,12 @@ export function useShownOmnibox(address: RefObject<HTMLElement | null>, hasBrows
 
   return {
     shown,
-    /** Opens the omnibox for `target`, or closes it if that one is open. */
-    toggle: (target: OmniboxTarget) => show(target, true),
+    /**
+     * Opens the omnibox for `target`, or closes it if that one is open.
+     * `centered`: in the middle of the window, not over the sidebar's field,
+     * as the address bar atop a page asks (address/page-bar.tsx).
+     */
+    toggle: (target: OmniboxTarget, centered?: boolean) => show(target, true, centered),
     /** It closed by itself, or opened what was chosen. */
     done: () => setShown(null)
   };

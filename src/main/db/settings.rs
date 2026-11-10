@@ -40,6 +40,9 @@ pub struct Settings {
     /// A gap is left round the page, between it and the window's edges; off,
     /// the page fills the window (pages/ui/app.tsx).
     pub window_margins: bool,
+    /// Where the page's address shows: atop the sidebar, or atop the page,
+    /// in its card (components/tab-view.tsx).
+    pub address_bar: AddressBar,
 }
 
 impl Default for Settings {
@@ -54,6 +57,7 @@ impl Default for Settings {
             block_ads_in_new_profiles: true,
             password_manager: true,
             window_margins: true,
+            address_bar: AddressBar::default(),
         }
     }
 }
@@ -70,6 +74,17 @@ pub struct SettingsChange {
     pub block_ads_in_new_profiles: Option<bool>,
     pub password_manager: Option<bool>,
     pub window_margins: Option<bool>,
+    pub address_bar: Option<AddressBar>,
+}
+
+/// Where the page's address shows. A split shows each side's atop it either
+/// way; Chromium's bubbles hang off the one this names.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AddressBar {
+    #[default]
+    Sidebar,
+    Top,
 }
 
 /// How long a tab goes unused before it is archived.
@@ -127,6 +142,7 @@ impl Db {
             window_margins: self
                 .setting("windowMargins")?
                 .unwrap_or(defaults.window_margins),
+            address_bar: self.setting("addressBar")?.unwrap_or(defaults.address_bar),
         })
     }
 
@@ -156,6 +172,9 @@ impl Db {
         }
         if let Some(on) = change.window_margins {
             set(&transaction, "windowMargins", &on)?;
+        }
+        if let Some(place) = change.address_bar {
+            set(&transaction, "addressBar", &place)?;
         }
         transaction.commit().map_err(sql)?;
         self.settings()
@@ -270,6 +289,16 @@ mod tests {
             ..SettingsChange::default()
         };
         assert!(!db.update_settings(change).unwrap().password_manager);
+        // The address is atop the sidebar until moved.
+        assert_eq!(settings.address_bar, AddressBar::Sidebar);
+        let change = SettingsChange {
+            address_bar: Some(AddressBar::Top),
+            ..SettingsChange::default()
+        };
+        assert_eq!(
+            db.update_settings(change).unwrap().address_bar,
+            AddressBar::Top
+        );
         // A change that sets nothing changes nothing.
         let settings = db.update_settings(SettingsChange::default()).unwrap();
         assert_eq!(settings.archive_after, ArchiveAfter::SevenDays);

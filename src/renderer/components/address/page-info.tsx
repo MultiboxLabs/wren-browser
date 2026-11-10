@@ -1,8 +1,9 @@
 // The page info button, and the popover it opens: what can be done with the
 // page, the extensions, the site's permissions, and how its connection
 // stands. What it shows is Chromium's, for the active tab; every change goes
-// back to it. The button is in the sidebar's address field, and in a popup's
-// address bar (pages/ui/popup.tsx), where the popover has what a popup has.
+// back to it. The button is in the address field, atop the sidebar or the
+// page, and in a popup's address bar (pages/ui/popup.tsx), where the popover
+// has what a popup has.
 
 import {
   AppWindow,
@@ -69,19 +70,22 @@ const quickPanels: SidePanelId[] = ["ReadingList", "Bookmarks", "ReadAnything"];
 
 /**
  * The page info button, which the site's bubbles hang off (its mark is
- * "page-info"), and which opens the popover. `popup`: in a popup's address
- * bar, near the window's side, it is round and faintly filled, as
+ * "page-info") while it is `marked`, and which opens the popover. `popup`:
+ * in a popup's address bar, near the window's side, it is round and faintly filled, as
  * Chromium's there is, and its popover may come nearer the side, for its
  * arrow to point at the button from off the popover's rounded corner.
  */
 export function PageInfoButton({
   tab,
   actions = [],
-  popup = false
+  popup = false,
+  marked = true
 }: {
   tab?: Tab;
   actions?: ExtensionAction[];
   popup?: boolean;
+  /** It carries the mark: false for a copy of it the bubbles don't hang off. */
+  marked?: boolean;
 }) {
   const site = useSite();
   // A button is pressed while what it opens is open: the popover, or one
@@ -89,14 +93,14 @@ export function PageInfoButton({
   const showing = useShowing();
   const [open, setOpen] = useState(false);
   // A bubble of Chromium's that opens below the button closes the popover.
-  const anchored = showing.includes("page-info");
+  const anchored = marked && showing.includes("page-info");
   if (anchored && open) setOpen(false);
   // A press on the button while Chromium's bubble is open closes the bubble
   // (Wren does), and must not open the popover in its place, though the
   // bubble is gone by the time of the click.
   const pressedAnchored = useRef(false);
   return (
-    <Anchor name="page-info">
+    <Anchor name={marked ? "page-info" : null}>
       <Popover
         open={open}
         onOpenChange={(next) => setOpen(next && !pressedAnchored.current)}

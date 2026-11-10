@@ -114,10 +114,15 @@ export function DownIcon({ size = 12, strokeWidth = 1.4 }: Props) {
   );
 }
 
-/** Reload: a circle open at the top right, with its arrowhead at the top. */
+/**
+ * Reload: a circle open at the top right, with its arrowhead at the top. The
+ * view is moved so the circle, at (7, 10.6), sits near the box's middle,
+ * as the eye centres on it rather than on the arrowhead above it. A full
+ * move would cut off the arrowhead, so it stops a little below.
+ */
 export function ReloadIcon({ size = 15 }: Props) {
   return (
-    <svg width={size} height={(size * 18) / 15} viewBox="0 0 15 18" fill="none" aria-hidden>
+    <svg width={size} height={(size * 18) / 15} viewBox="-0.5 1 15 18" fill="none" aria-hidden>
       <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M11.4 6.5A6 6 0 1 1 7.5 4.6" />
         <path d="M5.2 2.1 7.6 4.6 5.2 7.1" />
