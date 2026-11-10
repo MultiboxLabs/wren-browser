@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 import { Menu } from "./ui/menu";
 import { ResizeHandle } from "./ui/resize-handle";
 import { iconUrl, sidePanel, type SidePanelState } from "@/ipc";
+import { useWindowMargins } from "@/state/margins";
 
 /** The panels the menu offers, by Chromium's names for them. */
 export const sidePanels = [
@@ -35,6 +36,7 @@ export function SidePanel({
   useEffect(() => {
     if (chromiumWidth > 0) setWidth(chromiumWidth);
   }, [chromiumWidth]);
+  const margins = useWindowMargins();
   const { label, icon: Icon } = sidePanels.find((each) => each.id === panel) ?? { label: title, icon: PanelRight };
   return (
     <>
@@ -49,7 +51,12 @@ export function SidePanel({
           sidePanel.setWidth(width);
         }}
       />
-      <section style={{ width }} className="card no-drag flex shrink-0 flex-col overflow-hidden">
+      {/* Without margins, its left corners square, where it meets the page's card (card.css). */}
+      <section
+        data-join={margins ? undefined : "left"}
+        style={{ width }}
+        className="card no-drag flex shrink-0 flex-col overflow-hidden"
+      >
         <header className="flex h-10 shrink-0 items-center gap-1 pr-1.5 pl-1.5">
           <Menu
             items={[...sidePanels]}

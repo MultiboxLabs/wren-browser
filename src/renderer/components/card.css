@@ -46,6 +46,28 @@
     0 10px 32px rgb(0 0 0 / 0.14);
 }
 
+/* With Window Margins off, cards that meet have square corners there, across
+   the divider of a split or the gap to the side panel (tab-view.tsx,
+   side-panel.tsx), so they read as one page in parts; with margins, each
+   card stands apart, rounded. `data-join` lists the edges that meet another
+   card, and is set only without margins. */
+.card[data-join~="right"] {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.card[data-join~="left"] {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.card[data-join~="bottom"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.card[data-join~="top"] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 /* Where the page goes, with no tab to show: the space's own colour, a
    little lighter than the sidebar's; the card's edge and shadow set it
    apart, as a light space's colour hardly changes. */

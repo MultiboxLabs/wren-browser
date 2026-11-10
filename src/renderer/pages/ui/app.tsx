@@ -84,6 +84,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   // A page in full screen has the whole window: the sidebar and the side
   // panel make way for it, and come back as they were.
   const fullScreen = fullScreenTab !== null;
+  const panelShown = browser !== null && sidePanel !== null && !fullScreen;
   const shown = useTab(fullScreenTab ?? active);
   const split = splits.find((split) => split.id === shown?.split);
   const first = useTab(split?.first);
@@ -140,13 +141,14 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
               first={first}
               second={second}
               fullScreen={fullScreen}
+              besidePanel={panelShown}
               // In the middle of the window, as if there were no address bar.
               onOpenLocation={() => omnibox.toggle("current", true)}
             />
           ) : (
             <div className="card empty no-drag min-w-0 flex-1" />
           )}
-          {browser !== null && sidePanel && !fullScreen && <SidePanel browser={browser} panel={sidePanel} />}
+          {panelShown && <SidePanel browser={browser} panel={sidePanel} />}
         </main>
 
         {/* Where the pointer brings the hidden sidebar out, with no app to watch it (components/sidebar/hover.ts). */}

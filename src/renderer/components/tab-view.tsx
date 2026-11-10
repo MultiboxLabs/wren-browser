@@ -15,6 +15,9 @@ import { hasPageBar, useAddressBar } from "@/state/address-bar";
 import { useWindowMargins } from "@/state/margins";
 import { cn } from "@/utils/cn";
 
+/** An edge of a card that meets another card, whose corners are square (card.css). */
+type Edge = "left" | "right" | "top" | "bottom";
+
 // The divider's thickness, as the gap beside the side panel.
 const DIVIDER = 10;
 // The least either side of a split shrinks to.
@@ -27,6 +30,7 @@ export function TabView({
   second,
   fullScreen = false,
   bare = false,
+  besidePanel = false,
   onOpenLocation
 }: {
   tab: BrowserTab;
@@ -37,6 +41,8 @@ export function TabView({
   fullScreen?: boolean;
   /** Edge to edge, with no card round it nor loading bar over it: a popup's. */
   bare?: boolean;
+  /** The side panel is at the page's right, which its cards meet. */
+  besidePanel?: boolean;
   /** What a click on the address atop a page opens; with none, no page has an address bar atop it. */
   onOpenLocation?: () => void;
 }) {
@@ -49,12 +55,22 @@ export function TabView({
         active
         fullScreen={fullScreen}
         bare={bare}
+        joins={besidePanel ? ["right"] : []}
         onOpenLocation={bar ? onOpenLocation : undefined}
         className="flex-1"
       />
     );
   }
-  return <SplitPanes split={split} first={first} second={second} active={tab.id} onOpenLocation={onOpenLocation} />;
+  return (
+    <SplitPanes
+      split={split}
+      first={first}
+      second={second}
+      active={tab.id}
+      besidePanel={besidePanel}
+      onOpenLocation={onOpenLocation}
+    />
+  );
 }
 
 function SplitPanes({
@@ -62,6 +78,7 @@ function SplitPanes({
   first,
   second,
   active,
+  besidePanel,
   onOpenLocation
 }: {
   split: TabSplit;
@@ -69,6 +86,7 @@ function SplitPanes({
   second: BrowserTab;
   /** The active tab's ID: the find bar is on its side. */
   active: number;
+  besidePanel: boolean;
   onOpenLocation?: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -87,11 +105,14 @@ function SplitPanes({
   }, [split.stacked]);
 
   const room = Math.max(0, size - DIVIDER);
+  // The sides at the right meet the side panel too.
+  const panel: Edge[] = besidePanel ? ["right"] : [];
   return (
     <div ref={box} className={cn("flex min-h-0 min-w-0 flex-1", split.stacked && "flex-col")}>
       <TabPane
         tab={first}
         active={first.id === active}
+        joins={split.stacked ? ["bottom", ...panel] : ["right"]}
         onOpenLocation={onOpenLocation}
         style={{ flex: `0 0 calc((100% - ${DIVIDER}px) * ${ratio})` }}
       />
@@ -112,7 +133,13 @@ function SplitPanes({
           setDragged(null);
         }}
       />
-      <TabPane tab={second} active={second.id === active} onOpenLocation={onOpenLocation} className="flex-1" />
+      <TabPane
+        tab={second}
+        active={second.id === active}
+        joins={split.stacked ? ["top", ...panel] : ["left", ...panel]}
+        onOpenLocation={onOpenLocation}
+        className="flex-1"
+      />
     </div>
   );
 }
@@ -122,6 +149,7 @@ function TabPane({
   active,
   fullScreen = false,
   bare = false,
+  joins = [],
   onOpenLocation,
   className,
   style
@@ -131,6 +159,8 @@ function TabPane({
   active: boolean;
   fullScreen?: boolean;
   bare?: boolean;
+  /** The card's edges that meet another card: the split's other side, or the side panel. */
+  joins?: Edge[];
   /** With it, the page has its address bar atop it, whose address opens this. */
   onOpenLocation?: () => void;
   className?: string;
@@ -146,6 +176,8 @@ function TabPane({
       {/* With no margins, there is no gap above the card for it. */}
       {!fullScreen && !bare && margins && <LoadingBar loading={tab.loading} />}
       <div
+        // Square where it meets another card only without margins (card.css).
+        data-join={margins || joins.length === 0 ? undefined : joins.join(" ")}
         className={cn(
           fullScreen ? "bg-black" : bare ? "bg-card" : "card",
           "no-drag relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
