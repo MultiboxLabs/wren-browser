@@ -29,13 +29,14 @@ export function Navigation({ tab, className }: { tab?: NavigationTab; className?
   );
 }
 
-// Stop's cross grows in where reload's icon was, which goes at once, and
-// shrinks away before reload's comes back; one is shown at a time.
+// Stop's cross grows in quickly where reload's icon was, which goes at once,
+// and shrinks away before reload's comes back; one is shown at a time. It
+// scales alone, with no fade; with Reduced Motion, the two simply swap.
 const stopMotion = (still: boolean | null) => ({
-  initial: { opacity: 0, ...scaleTo(still, 0.8) },
-  animate: { opacity: 1, ...scaleTo(still, 1) },
-  exit: { opacity: 0, ...scaleTo(still, 0.8) },
-  transition: { duration: 0.2 }
+  initial: scaleTo(still, 0),
+  animate: scaleTo(still, 1),
+  exit: scaleTo(still, 0),
+  transition: { duration: 0.12, ease: "easeOut" as const }
 });
 
 /** Reload, which turns into stop while the tab loads. */
