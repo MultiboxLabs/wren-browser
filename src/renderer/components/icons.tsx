@@ -140,16 +140,20 @@ export function StopIcon({ size = 15 }: Props) {
   );
 }
 
-/** Page info: a rounded square with two sliders in it, their knobs apart. */
+/**
+ * Page info: a rounded square with two sliders in it, their hollow knobs
+ * apart and a little in from the ends. Each line breaks at its knob, so the
+ * knob reads as a ring.
+ */
 export function PageInfoIcon({ size = 18 }: Props) {
   return (
     <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden>
       <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
         <rect x="1.25" y="1.25" width="15.5" height="15.5" rx="4.5" />
-        <path d="M5.25 6.75h7.5M5.25 11.25h7.5" />
+        <path d="M5.25 6.75H8.75M11.75 6.75H12.75M5.25 11.25H6.25M9.25 11.25H12.75" />
+        <circle cx="10.25" cy="6.75" r="1.5" />
+        <circle cx="7.75" cy="11.25" r="1.5" />
       </g>
-      <circle cx="10.9" cy="6.75" r="1.75" fill="currentColor" />
-      <circle cx="7.1" cy="11.25" r="1.75" fill="currentColor" />
     </svg>
   );
 }
