@@ -35,6 +35,13 @@ export type NewSpaceState = {
   cancel: () => void;
 };
 
+const fresh = (profile?: string): SpaceDraft => ({
+  name: "",
+  icon: DEFAULT_ICON,
+  theme: defaultTheme(),
+  profile: profile ?? null
+});
+
 /**
  * The space being made while `making`; `listed` are the profiles to make it
  * in, and `slide` the sidebar's, which its content slides by as it goes.
@@ -43,15 +50,9 @@ export type NewSpaceState = {
  */
 export function useNewSpace(making: boolean, listed: ProfileEntry[] | null, slide: SpaceSlide) {
   const [started, setDraft] = useState<SpaceDraft | null>(null);
-  const fresh = (profile?: string): SpaceDraft => ({
-    name: "",
-    icon: DEFAULT_ICON,
-    theme: defaultTheme(),
-    profile: profile ?? null
-  });
   // A page loaded while the window was on no space has started none. It is
   // the same object until it changes, so the space drawn of it is too.
-  const draft = useMemo(() => started ?? fresh(), [started, listed]);
+  const draft = useMemo(() => started ?? fresh(), [started]);
   const change = (change: Partial<SpaceDraft>) => setDraft((draft) => ({ ...(draft ?? fresh()), ...change }));
   const profile = draft.profile ?? listed?.[0]?.id ?? null;
   const ready = draft.name.trim() !== "" && profile !== null;

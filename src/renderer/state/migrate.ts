@@ -44,14 +44,14 @@ export function useMigrate(calls: MigrateCalls = migrate) {
   const [off, setOff] = useState<Set<Thing>>(new Set());
   const [extensions, setExtensions] = useState<Set<string>>();
 
-  const fail = (reason: Error) => setError(reason.message);
+  const fail = useCallback((reason: Error) => setError(reason.message), []);
 
   const loadSources = useCallback(() => {
     calls.sources().then((given) => {
       setSources(given);
       setSourceId((id) => id ?? (given.find((source) => source.keepsSpaces) ?? given[0])?.id);
     }, fail);
-  }, [calls]);
+  }, [calls, fail]);
 
   useEffect(() => {
     calls.context().then(setContext, fail);
@@ -73,7 +73,7 @@ export function useMigrate(calls: MigrateCalls = migrate) {
         .survey(source.id, profile.id)
         .then((given) => setSurveys((all) => ({ ...all, [surveyKey(source.id, profile.id)]: given })), fail);
     }
-  }, [calls, source]);
+  }, [calls, source, fail]);
   useEffect(() => {
     if (!source) return;
     setProfiles(Object.fromEntries(source.profiles.map(({ id, landing }) => [id, { on: true, landing }])));
