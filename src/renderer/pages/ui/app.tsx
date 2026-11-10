@@ -128,6 +128,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
             (`slot`), which its cards' corners take off the window's (card.css). */}
         <main
           className="flex min-w-0 flex-1"
+          data-window-margins={margins && !fullScreen ? "" : undefined}
           style={
             fullScreen
               ? undefined

@@ -33,37 +33,65 @@
   --page-bar-edge: rgb(0 0 0 / 0.35);
 }
 
+/* The edge and shadow are set as values, so each case below changes only the
+   one it differs in. With Window Margins off the shadow is wide, to rest the
+   card on the window, and with them on it is tighter, as the gap round the
+   page leaves room for the card to stand apart. */
 .card {
   --fg: var(--glyph);
+  --card-edge-width: 1px;
+  --card-edge: rgb(0 0 0 / 0.08);
+  --card-lift: 0 1px 3px rgb(0 0 0 / 0.07), 0 4px 12px rgb(0 0 0 / 0.07), 0 10px 32px rgb(0 0 0 / 0.14);
+  /* How far the shadow reaches, which is what `clip-path` leaves room for. */
+  --card-bleed: 64px;
+  --clip-top: calc(var(--card-bleed) * -1);
+  --clip-right: calc(var(--card-bleed) * -1);
+  --clip-bottom: calc(var(--card-bleed) * -1);
+  --clip-left: calc(var(--card-bleed) * -1);
+
   color: var(--fg);
   background: var(--card);
   /* Worked out here, as `--page-inset` is set on the page's box, not the root. */
   border-radius: max(0px, calc(var(--radius-card) - var(--page-inset, 0px)));
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 0.08),
-    0 1px 3px rgb(0 0 0 / 0.07),
-    0 4px 12px rgb(0 0 0 / 0.07),
-    0 10px 32px rgb(0 0 0 / 0.14);
+    0 0 0 var(--card-edge-width) var(--card-edge),
+    var(--card-lift);
+  /* Cuts the shadow off where the card meets another, keeping the edge line. */
+  clip-path: inset(var(--clip-top) var(--clip-right) var(--clip-bottom) var(--clip-left));
+}
+
+[data-window-margins] .card {
+  --card-edge-width: 0.5px;
+  --card-lift: 0 1px 9px rgb(0 0 0 / 0.18);
+}
+
+:root[data-scheme="dark"] [data-window-margins] .card {
+  --card-edge: rgb(0 0 0 / 0.25);
 }
 
 /* With Window Margins off, cards that meet have square corners there, across
    the divider of a split or the gap to the side panel (tab-view.tsx,
-   side-panel.tsx), so they read as one page in parts; with margins, each
-   card stands apart, rounded. `data-join` lists the edges that meet another
-   card, and is set only without margins. */
+   side-panel.tsx), so they read as one page in parts, with an edge line but no
+   shadow between them; with margins, each card stands apart, rounded, with its
+   shadow all round. `data-join` lists the edges that meet another card, and
+   is set only without margins. */
 .card[data-join~="right"] {
+  --clip-right: calc(var(--card-edge-width) * -1);
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
 .card[data-join~="left"] {
+  --clip-left: calc(var(--card-edge-width) * -1);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
 .card[data-join~="bottom"] {
+  --clip-bottom: calc(var(--card-edge-width) * -1);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
 .card[data-join~="top"] {
+  --clip-top: calc(var(--card-edge-width) * -1);
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
