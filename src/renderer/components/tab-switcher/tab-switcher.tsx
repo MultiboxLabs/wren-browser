@@ -1,12 +1,12 @@
 // The tab switcher (ipc/tab_switcher.rs hears its keys): ⌃Tab shows the
 // five tabs used last in a row over the window, the last used first, with
-// the one used before the active tab selected; a split's two tabs are one
-// card, as they are one row in the sidebar, and choosing it shows the one of them
-// used last. ⌃Tab again selects the next, ⌃⇧Tab
-// the one before, and letting go of Control shows the tab selected. A quick
-// ⌃Tab goes back to the last tab without the switcher showing at all, as a
-// quick ⌘Tab does. Escape, leaving the window or switching spaces closes
-// it, and the active tab stays.
+// the one used before the active tab selected. A split's two tabs are one
+// card, as they are one row in the sidebar, and choosing it shows the one
+// of them used last. ⌃Tab again selects the next, ⌃⇧Tab the one before,
+// and letting go of Control shows the tab selected. A quick ⌃Tab goes back
+// to the last tab without the switcher showing at all, as a quick ⌘Tab
+// does. Escape, leaving the window or switching spaces closes it, and the
+// active tab stays.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { browser, hasApp, previewUrl, tabSwitcher } from "@/ipc";
@@ -104,7 +104,8 @@ export function TabSwitcher() {
           aria-label="Tabs"
           // Over the window: light or dark as the system is, not the space.
           data-scheme="system"
-          className="tab-switcher pointer-events-auto flex max-w-full gap-1 overflow-x-auto p-3 scrollbar-none"
+          // Scrolled to a card, its ring stays clear of the edge.
+          className="tab-switcher pointer-events-auto flex max-w-full scroll-px-4 gap-4 overflow-x-auto p-4 scrollbar-none"
         >
           <Cards ids={shown.tabs} selected={selected} onChoose={(id) => go(id, true)} />
         </div>
@@ -141,7 +142,8 @@ function cardTabs(tab: BrowserTab, split: TabSplit | undefined, byId: Map<number
 }
 
 // A tab, or a split's two: what each shows, and its favicon and title
-// under it, the split's side by side as in the sidebar.
+// under it, the split's side by side as in the sidebar. Selected, its
+// picture has a ring round it (tab-switcher.css).
 function Card({
   tabs,
   stacked,
@@ -166,22 +168,21 @@ function Card({
       // chooses, and no menu opens.
       onPointerDown={(event) => event.button === 0 && onChoose()}
       onContextMenu={(event) => event.preventDefault()}
+      // The others' titles are dimmer, so the selected one's reads with its
+      // ring.
       className={cn(
-        "flex w-42 shrink-0 flex-col gap-2.5 rounded-tab-switcher-card p-2.5",
-        selected ? "bg-tab-switcher-selected text-white" : "text-omnibox-fg hover:bg-omnibox-hover"
+        "flex w-42 shrink-0 flex-col gap-3",
+        selected ? "text-omnibox-typed" : "text-omnibox-placeholder hover:text-omnibox-fg"
       )}
     >
       <span
-        className={cn(
-          "flex aspect-3/2 w-full gap-0.5 overflow-hidden rounded-tab-switcher-preview",
-          stacked && "flex-col"
-        )}
+        className={cn("tab-switcher-preview flex aspect-10/7 w-full gap-0.5 overflow-hidden", stacked && "flex-col")}
       >
         {tabs.map((tab) => (
           <TabPreview key={tab.id} tab={tab} iconSize={tabs.length > 1 ? 24 : 32} />
         ))}
       </span>
-      <span className="flex min-w-0 items-center gap-2 px-0.5">
+      <span className="flex min-w-0 items-center gap-2 px-1">
         {tabs.map((tab) => (
           <span key={tab.id} className="flex min-w-0 flex-1 items-center gap-2">
             <Favicon url={tab.url} icon={tab.favicon} />

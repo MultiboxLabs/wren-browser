@@ -3,8 +3,8 @@
    under it shows through, blurred, while the window is active; in the
    background it is solid (see its palette below). A light inner edge and a
    dark outer one. Light or dark with the system. Its panel and palette are
-   the find bar's (find-bar.css) and the tab switcher's
-   (tab-switcher/tab-switcher.css) too. */
+   the find bar's (find-bar.css) too, and its palette the tab switcher's
+   (tab-switcher/tab-switcher.css). */
 
 /* Its corners, its rows', and the tile a selected row's favicon sits on;
    its rows' text, and its field's in the middle of the window. Not

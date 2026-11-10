@@ -1,26 +1,59 @@
 /* The tab switcher (tab-switcher.tsx), a row of the space's tabs: the
-   omnibox's panel and palette (omnibox/omnibox.css), its selected tab the
-   space's colour, as the omnibox's selected row is. */
+   omnibox's palette (omnibox/omnibox.css) on a lighter, clearer panel.
+   Each tab is its page's picture with its favicon and title under it. The
+   selected one's picture has a ring round it in the space's colour, clear
+   of its edge. */
 
-/* Its corners, its tabs', and those of what each shows of its page, which
-   nest in its tab's at the tab's padding. */
+/* Its corners, and those of each tab's picture, which nest in the panel's
+   at its padding. */
 @theme {
-  --radius-tab-switcher: 18px;
-  --radius-tab-switcher-card: 10px;
-  --radius-tab-switcher-preview: 6px;
-}
-
-@theme inline {
-  --color-tab-switcher-selected: var(--tab-switcher-selected);
+  --radius-tab-switcher: 24px;
+  --radius-tab-switcher-preview: 8px;
 }
 
 :root[data-scheme] .tab-switcher {
-  --tab-switcher-selected: oklch(from var(--space) min(l, 0.5) min(c, 0.25) h);
+  /* Kept between light and dark, so the ring shows on either panel. */
+  --tab-switcher-selected: oklch(from var(--space) clamp(0.5, l, 0.68) min(c, 0.22) h);
+  --tab-switcher-hover: color-mix(in oklab, var(--omnibox-fg) 22%, transparent);
   border-radius: var(--radius-tab-switcher);
-  background: var(--omnibox-bg);
-  backdrop-filter: blur(10px) saturate(1.6);
+  background: var(--tab-switcher-bg);
+  backdrop-filter: blur(4px) saturate(1.6);
   box-shadow:
     inset 0 0 0 1px var(--omnibox-edge),
     0 0 0 0.5px var(--omnibox-outline),
     0 20px 56px rgb(0 0 0 / 0.4);
+}
+
+/* Lighter and clearer than the omnibox's, so more of the page shows
+   through. It closes as the window goes to the background, so it has no
+   solid one for then, as the omnibox has. */
+:root[data-system-scheme="dark"] .tab-switcher {
+  --tab-switcher-bg: rgb(36 36 40 / 0.8);
+}
+:root[data-system-scheme="light"] .tab-switcher {
+  --tab-switcher-bg: rgb(252 252 252 / 0.8);
+}
+
+/* A tab's picture, with a faint edge over it, so a page as dark or as
+   light as the panel still has one. Its ring is an outline, which takes no
+   room, so the selection moves nothing. */
+.tab-switcher-preview {
+  position: relative;
+  border-radius: var(--radius-tab-switcher-preview);
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+}
+.tab-switcher-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--omnibox-separator);
+  pointer-events: none;
+}
+[aria-selected="false"]:hover > .tab-switcher-preview {
+  outline-color: var(--tab-switcher-hover);
+}
+[aria-selected="true"] > .tab-switcher-preview {
+  outline-color: var(--tab-switcher-selected);
 }
