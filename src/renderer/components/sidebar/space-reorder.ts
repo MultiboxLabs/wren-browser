@@ -3,7 +3,7 @@
 // passes them. Let go, it slides into its place; the row is then drawn in
 // its new order, and the app is asked to move it there.
 //
-// Unlike a tab's (reorder.ts), it is not the platform's drag: a space only
+// Unlike a tab's (item-drag.ts), it is not the platform's drag: a space only
 // moves along its row. Each space is moved by a transform of its own, which
 // the row's layout never sees, and the order is changed only once all are
 // still in their new places, so nothing jumps as it is.

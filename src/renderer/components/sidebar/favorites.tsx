@@ -3,7 +3,7 @@
 // outlined in dashes, says where they go, until its cross puts it away for
 // good (the app's `favoritesTipDismissed`); it fades in and out. Their room
 // eases to them as they change (`EasedHeight`). What is dropped on either
-// lands among them (pin-landing.ts); on the box, last, as it lights up.
+// lands among them (item-landing.ts); on the box, last, as it lights up.
 
 import { Star, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -16,8 +16,8 @@ import { cn } from "@/utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { Favorite } from "./favorite";
 import type { ItemActions } from "./item-actions";
-import { usePinDrop } from "./pin-drop";
-import { favoritesLandingAt } from "./pin-landing";
+import { useItemDrop } from "./item-drop";
+import { gridLandingAt } from "./item-landing";
 import { listOrder, REORDER, TILE_IN, TILE_OUT } from "./row-motion";
 
 /**
@@ -42,8 +42,9 @@ export function Favorites({
   const { profile } = useSpace();
   // An incognito window keeps none.
   const keeps = !profile?.offTheRecord;
-  const drop = usePinDrop({
-    landingAt: (element, dragging, x, y) => favoritesLandingAt(element, favorites, dragging, x, y),
+  const drop = useItemDrop({
+    takes: "favorites",
+    landingAt: (zone, dragged, x, y) => gridLandingAt(zone, favorites, dragged, x, y),
     enabled: keeps
   });
 

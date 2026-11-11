@@ -1,7 +1,7 @@
-import type { DropMark } from "./landing";
+import type { DropMark } from "./item-landing";
 
 /**
- * Where a dragged unit would land: a line across the list, ringed at its
+ * Where a dragged item would land: a line across the list, ringed at its
  * start; an upright line between two favourites; or a box over the tab it
  * would make a split with, or the folder it would go in.
  */

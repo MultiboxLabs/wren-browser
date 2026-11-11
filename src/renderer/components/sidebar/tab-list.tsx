@@ -20,9 +20,8 @@ import type { ItemActions } from "./item-actions";
 import { KeptRows, keptPeek, ListRows } from "./item-rows";
 import { useListEdges } from "./list-edge";
 import { PeeksContext, SECTION, usePeeks } from "./peeks";
-import { usePinDrop } from "./pin-drop";
-import { pinsFirst, pinsLandingAt } from "./pin-landing";
-import { useTabReorder } from "./reorder";
+import { useItemDrop } from "./item-drop";
+import { listLandingAt, pinnedFirst } from "./item-landing";
 import { useRevealActive } from "./reveal";
 import { Appear, IconSlot, Row } from "./rows";
 
@@ -54,19 +53,25 @@ export function TabList({
   // The omnibox for a new tab is open: the New Tab row shows as selected,
   // and the tab we are on does not.
   const newTabOpen = omnibox.shown?.target === "new-tab";
-  const { mark, handlers } = useTabReorder(tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join(), space.id);
+  // What is dropped on the list lands among its tabs (item-landing.ts), and
+  // its rows slide to their new places as their order changes.
+  const listDrop = useItemDrop({
+    takes: "tabs",
+    landingAt: (zone, dragged, x, y) => listLandingAt(zone, "tabs", items, dragged, x, y),
+    order: tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join()
+  });
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const room = useRef<HTMLDivElement>(null);
   useRevealActive(scroller, active ?? undefined);
   const { above } = useListEdges(scroller, content, room);
   // What is dropped on the space's heading is pinned first; on the pins, it
-  // lands among them (pin-landing.ts), first as well with none drawn, as
-  // the heading lights up. A window on a profile has no pins to drop to.
-  const headingDrop = usePinDrop({ landingAt: pinsFirst, folders: true, enabled: !profile });
-  const pinDrop = usePinDrop({
-    landingAt: (section, dragging, x, y) => pinsLandingAt(section, pinned, dragging, x, y),
-    folders: true,
+  // lands among them, first as well with none drawn, as the heading lights
+  // up. A window on a profile has no pins to drop to.
+  const headingDrop = useItemDrop({ takes: "pinned", landingAt: pinnedFirst, enabled: !profile });
+  const pinDrop = useItemDrop({
+    takes: "pinned",
+    landingAt: (zone, dragged, x, y) => listLandingAt(zone, "pinned", pinned, dragged, x, y),
     enabled: !profile
   });
   const selected = newTabOpen || active === null ? undefined : active;
@@ -93,7 +98,7 @@ export function TabList({
           )}
         />
         <div
-          {...handlers}
+          {...listDrop.handlers}
           ref={scroller}
           // Scrolled by the performance run (perf/run.ts).
           data-tab-list=""
@@ -152,7 +157,7 @@ export function TabList({
               className="no-drag -mt-1.25 min-h-31.25 flex-1"
               onDoubleClick={() => omnibox.toggle("new-tab")}
             />
-            {mark && <DropMarkView mark={mark} />}
+            {listDrop.landing?.mark && <DropMarkView mark={listDrop.landing.mark} />}
           </div>
         </div>
       </div>
@@ -175,7 +180,7 @@ function PinnedSection({
   selected?: number;
   actions: ItemActions;
   open: boolean;
-  drop: ReturnType<typeof usePinDrop>;
+  drop: ReturnType<typeof useItemDrop>;
 }) {
   const peeks = usePeeks(pinned, open, selected);
   const sectionPeek = peeks.get(SECTION);

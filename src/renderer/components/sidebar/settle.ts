@@ -1,11 +1,11 @@
-// The rows' slide to their new places once a dropped unit has been moved.
+// The rows' slide to their new places once a dropped item has been moved.
 //
 // The app moves it and says so a moment later, as the tabs' new order, so the
 // places the rows had are taken at the drop and the rows slide from them once
 // the list is drawn in the new order.
 
 import { prefersReducedMotion } from "@/utils/motion";
-import { unitsIn } from "./units";
+import { ITEM_MARK } from "./item-drag";
 
 /** How long the rows take to slide. */
 const SLIDE_MS = 180;
@@ -13,9 +13,12 @@ const SLIDE_MS = 180;
 /** How long to wait for the new order before it is clear that there is none. */
 export const SETTLE_WAIT_MS = 500;
 
+// The items' elements in the list, top to bottom: a group's before its tabs'.
+const itemsIn = (scroller: HTMLElement) => [...scroller.querySelectorAll<HTMLElement>(`[${ITEM_MARK}]`)];
+
 export type Settling = {
   scroller: HTMLElement;
-  /** The unit dropped, which passes over the rows it trades places with. */
+  /** The item dropped, which passes over the rows it trades places with. */
   unit: HTMLElement;
   tops: Map<HTMLElement, number>;
 };
@@ -25,7 +28,7 @@ export function takePlaces(scroller: HTMLElement, unit: HTMLElement): Settling {
   return {
     scroller,
     unit,
-    tops: new Map(unitsIn(scroller).map((el) => [el, el.getBoundingClientRect().top]))
+    tops: new Map(itemsIn(scroller).map((el) => [el, el.getBoundingClientRect().top]))
   };
 }
 
@@ -33,7 +36,7 @@ export function takePlaces(scroller: HTMLElement, unit: HTMLElement): Settling {
 export function slideToPlaces({ scroller, unit, tops }: Settling) {
   // With Reduced Motion, the rows are in their places at once.
   if (prefersReducedMotion()) return;
-  for (const el of unitsIn(scroller)) {
+  for (const el of itemsIn(scroller)) {
     const was = tops.get(el);
     const by = was === undefined ? 0 : was - el.getBoundingClientRect().top;
     if (Math.abs(by) < 0.5) continue;

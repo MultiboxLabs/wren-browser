@@ -20,10 +20,10 @@ import { scaleTo } from "@/utils/motion";
 import { host } from "@/utils/url";
 import { useArrival, useMoving } from "./arrival";
 import type { ItemActions } from "./item-actions";
+import { useItemDrag } from "./item-drag";
 import { identitiesOf, SideIcon } from "./item-row";
 import { REORDER, TILE_IN, TILE_OUT, useStrike } from "./row-motion";
 import { pressHandlers } from "./rows";
-import { pinDrag } from "./pin-drop";
 
 /**
  * `selected`: the selected tab's ID, unless none is. `ref` is its tile's, as
@@ -70,9 +70,10 @@ export function Favorite({
     actions.onClose(item, 0);
   };
   const still = useReducedMotion();
+  const drag = useItemDrag();
   const tile = (
-    // Dragged out, it is a pin, or an ordinary tab (pin-drop.ts).
-    <div ref={arrival} {...pinDrag(item.pin ?? -1, { favorite: true, renaming })} className="grid">
+    // Dragged out, it is a pin, or an ordinary tab (item-drop.ts).
+    <div ref={arrival} {...drag(item, { renaming })} className="grid">
       <Button
         ref={struck}
         variant="filled"

@@ -5,7 +5,7 @@
 //
 // The pins are few, so each row slides to a new place as their order
 // changes (`listOrder`). The tabs may be hundreds: a row is drawn again only
-// when its tabs, its place or the selection in it change, and is kept
+// when its tabs or the selection in it change, and is kept
 // through a split or a group being made again by its key (keys.ts).
 
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -22,10 +22,10 @@ import type { ItemActions } from "./item-actions";
 import { identitiesOf, ItemRow } from "./item-row";
 import { useGroupKeys, useRowKeys } from "./keys";
 import { usePeek } from "./peeks";
-import { pinBody, pinDrag } from "./pin-drop";
+import { useItemDrag } from "./item-drag";
+import { BODY_MARK } from "./item-landing";
 import { listOrder, useStrike } from "./row-motion";
 import { Appear, IconSlot, NESTED_INDENT, Row, TitleField, useRenameClick } from "./rows";
-import { reorderUnit, TOP_SCOPE, type Unit } from "./units";
 
 type RowsProps = {
   indent?: number;
@@ -71,18 +71,21 @@ export function KeptRows({ items, ...props }: RowsProps & { items: Item[] }) {
  */
 function KeptBody({ item, peek = false, ...props }: RowsProps & { item: KeptItem; peek?: boolean }) {
   const { ref: struck, strike } = useStrike<HTMLDivElement>();
+  const drag = useItemDrag();
   const id = pinOf(item);
   return (
-    // Each brings the gap above it, which grows and shrinks with it.
-    <div {...pinBody(id, peek)} className="flex flex-col gap-1.25 pt-1.25">
+    // Each brings the gap above it, which grows and shrinks with it. It
+    // holds all that is drawn of the item: for a folder, what is in it, or
+    // its peek while it is folded. Not a peek's, which is not where it is.
+    <div {...{ [BODY_MARK]: peek ? undefined : itemKey(item) }} className="flex flex-col gap-1.25 pt-1.25">
       {item.kind === "folder" ? (
         <FolderRows folder={item} {...props} />
       ) : (
-        // Dragged out, it is a favourite, or an ordinary tab (pin-drop.ts).
+        // Dragged out, it is a favourite, or an ordinary tab (item-drop.ts).
         <div
           ref={struck}
           {...foldRow(pinIdentity(id))}
-          {...pinDrag(id, { renaming: props.actions.renaming === itemKey(item), peek })}
+          {...drag(item, { renaming: props.actions.renaming === itemKey(item), peek })}
           className="flex flex-col"
         >
           <ItemRow item={item} peek={peek} strike={strike} {...props} />
@@ -111,13 +114,14 @@ function FolderRows({ folder, ...props }: RowsProps & { folder: FolderItem }) {
   const renaming = actions.renaming === itemKey(folder);
   const peek = usePeek(folder.pin);
   const renameClick = useRenameClick(() => actions.onStartRename(folder));
+  const drag = useItemDrag();
   return (
     <>
-      {/* Dragged, it moves among the pins with what is in it (pin-drop.ts); a
+      {/* Dragged, it moves among the pins with what is in it (item-drop.ts); a
           press that is not a drag opens or closes it. Folded, the pointer
           resting on it shows what is in it (folder-menu.tsx). */}
       <FolderMenu folder={folder} enabled={!folder.open && !renaming} onOpen={(item) => actions.onSelect(item, 0)}>
-        <div {...pinDrag(folder.pin, { folder: true, renaming })} className="group/menu flex flex-col">
+        <div {...drag(folder, { renaming })} className="group/menu flex flex-col">
           <Row
             indent={indent}
             // Hovered while its menu is open, which the pointer has gone to.
@@ -151,19 +155,6 @@ function FolderRows({ folder, ...props }: RowsProps & { folder: FolderItem }) {
   );
 }
 
-/** How many Chromium tabs an item of the list holds. */
-const tabCount = (item: TabItem) => item.sides.length;
-
-/** A normal tab item as a unit of the list that moves, in the scope of the tabs it is among. */
-const rowUnit = (scope: string, item: TabItem): Unit => ({
-  kind: item.sides.length > 1 ? "split" : "tab",
-  tab: item.sides[0].tab ?? -1,
-  scope,
-  start: item.list?.start ?? 0,
-  size: tabCount(item),
-  draggable: true
-});
-
 /** `selected`, if it is one of the item's tabs. */
 const selectedIn = (item: TabItem, selected: number | undefined) =>
   item.sides.some((side) => side.tab === selected) ? selected : undefined;
@@ -183,22 +174,17 @@ export function ListRows({ items, selected, actions }: { items: Item[]; selected
     groups.map(({ group }) => group)
   );
   const rowKey = useRowKeys(rows.map(listedTabs));
+  const drag = useItemDrag();
   return (
     <AnimatePresence initial={false} presenceAffectsLayout={false}>
       {items.map((item) =>
         item.kind === "group" ? (
           <Appear key={`group-${groupKey(item.group.id)}`}>
             <div
-              {...reorderUnit({
-                kind: "group",
-                tab: listedTabs(item.items[0])[0],
-                scope: TOP_SCOPE,
-                start: item.start,
-                size: item.items.reduce((size, row) => size + tabCount(row), 0),
-                group: item.group.id,
-                // Not while its title is edited, which a drag would take.
-                draggable: actions.renaming !== itemKey(item)
-              })}
+              // The group whole, with its tabs, picked up by its heading:
+              // not while its title is edited, which a drag would take.
+              {...drag(item, { renaming: actions.renaming === itemKey(item) })}
+              {...{ [BODY_MARK]: itemKey(item) }}
               className="pt-1.25"
             >
               <GroupRows rowKey={rowKey} actions={actions} selected={selected} group={item} />
@@ -209,7 +195,6 @@ export function ListRows({ items, selected, actions }: { items: Item[]; selected
             key={rowKey(listedTabs(item)[0])}
             actions={actions}
             item={item}
-            scope={TOP_SCOPE}
             selected={selectedIn(item, selected)}
             className="pt-1.25"
           />
@@ -220,30 +205,29 @@ export function ListRows({ items, selected, actions }: { items: Item[]; selected
 }
 
 /**
- * A row of the Browser's list as a unit of it, drawn again only when its
- * tabs, its place or the selection in it change. Its tabs draw themselves
+ * A row of the Browser's list, drawn again only when its tabs or the
+ * selection in it change, not as it changes place. Its tabs draw themselves
  * again as their titles and states change (`useSides`).
  */
 const UnitRow = memo(
   function UnitRow({
     actions,
     item,
-    scope,
     indent,
     selected,
     className
   }: {
     actions: ItemActions;
     item: TabItem;
-    scope: string;
     indent?: number;
     /** The selected tab, if it is one of the row's. */
     selected?: number;
     className?: string;
   }) {
+    const drag = useItemDrag();
     return (
       <Appear identities={item.sides.flatMap((side) => (side.tab === null ? [] : [tabIdentity(side.tab)]))}>
-        <div {...reorderUnit(rowUnit(scope, item))} className={className}>
+        <div {...drag(item)} className={className}>
           <ItemRow item={item} actions={actions} selected={selected} indent={indent} />
         </div>
       </Appear>
@@ -251,11 +235,10 @@ const UnitRow = memo(
   },
   (before, after) =>
     before.actions === after.actions &&
-    before.scope === after.scope &&
     before.indent === after.indent &&
     before.selected === after.selected &&
     before.className === after.className &&
-    before.item.list?.start === after.item.list?.start &&
+    before.item.list?.lead === after.item.list?.lead &&
     before.item.sides.length === after.item.sides.length &&
     before.item.sides.every((side, at) => side.tab === after.item.sides[at].tab)
 );
@@ -323,7 +306,6 @@ function GroupRows({
               key={rowKey(listedTabs(row)[0])}
               actions={actions}
               item={row}
-              scope={group.id}
               indent={NESTED_INDENT}
               selected={selectedIn(row, selected)}
               className="pt-1.25"

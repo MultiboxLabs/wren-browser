@@ -1,4 +1,4 @@
-// Dragging a tab of the list, or its split or its group (reorder.ts), onto
+// Dragging a tab of the list, or its split or its group (item-drag.ts), onto
 // the space switcher. A space of the same profile takes it: let go on its
 // button, it moves to the top of that space's list, and the window stays
 // where it is. Held over the button a moment, as the platform springs a
@@ -9,7 +9,7 @@ import { type DragEvent, useEffect, useLayoutEffect, useRef, useState } from "re
 import { items } from "@/ipc";
 import { useSpace } from "@/state/space";
 import { whenDragEnds } from "./drag-hold";
-import { carriedIn, itemOf } from "./units";
+import { carriedIn } from "./item-drag";
 
 /** How long a drag waits over a space's button before the window switches to it. */
 const SPRING_MS = 250;
@@ -41,7 +41,9 @@ export function useSpaceDrop() {
   // What the page is dragging, if space `id` is one it can go to or show:
   // one of the same profile as its own.
   const carriedTo = (event: DragEvent, id: number) => {
-    const unit = carriedIn(event.dataTransfer);
+    const carried = carriedIn(event.dataTransfer);
+    // A pin stays with its space, or its profile.
+    const unit = carried?.type === "normal" ? carried : null;
     const from = unit && profileOf(unit.space);
     return from !== undefined && from === profileOf(id) ? unit : null;
   };
@@ -74,7 +76,7 @@ export function useSpaceDrop() {
       if (!unit || unit.space === id) return;
       event.preventDefault();
       const top = { space: id, to: "tabs", group: null, index: 0 } as const;
-      items.move(itemOf(unit.kind, unit.tab), top).catch(() => {});
+      items.move(unit.item, top).catch(() => {});
     }
   });
 
