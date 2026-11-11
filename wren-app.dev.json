@@ -2,7 +2,7 @@
   "name": "Wren",
   "displayName": "Wren (Dev)",
   "bundleId": "dev.multibox.wren",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "icon": "branding/dev.icon",
   "copyright": "Copyright © 2026 Multibox Labs.",
   "urlSchemes": [
