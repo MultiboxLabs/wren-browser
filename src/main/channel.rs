@@ -42,6 +42,16 @@ impl Channel {
         }
     }
 
+    /// Chrome's channel of the same name, which Chromium reports, so an
+    /// extension gets the APIs it would on that channel of Chrome.
+    pub fn chromium(self) -> wren::Channel {
+        match self {
+            Channel::Stable => wren::Channel::Stable,
+            Channel::Beta => wren::Channel::Beta,
+            Channel::Dev => wren::Channel::Dev,
+        }
+    }
+
     /// The folder in the platform's folder for apps' data
     /// (`platform::data_dir`) that holds the app's data.
     pub fn data_folder(self) -> &'static str {

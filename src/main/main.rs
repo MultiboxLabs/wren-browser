@@ -49,6 +49,7 @@ fn main() {
     let mut startup = Startup::new(data.to_string_lossy(), channel.keychain());
     startup.keychain_name = Some(channel::KEYCHAIN_NAME.into());
     startup.startup_profile_name = Some(STARTUP_PROFILE_NAME.into());
+    startup.channel = channel.chromium();
     channel.brand(&mut startup);
     startup.schemes = vec![Scheme::new(
         SCHEME,
