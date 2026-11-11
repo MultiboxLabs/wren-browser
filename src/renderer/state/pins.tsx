@@ -4,7 +4,7 @@
 // and all are read again whenever any window changes any.
 
 import { createContext, type ReactNode, useContext, useEffect, useState, useSyncExternalStore } from "react";
-import { hasApp, type Pin, type PinFolder, type Pins, pins as pinsIpc } from "@/ipc";
+import { hasApp, type Pin, type Pins, pins as pinsIpc } from "@/ipc";
 import { useSpace } from "./space";
 
 const NONE: Pins = { favorites: [], pinned: [] };
@@ -108,8 +108,8 @@ export function PinsProvider({ children }: { children: ReactNode }) {
 /**
  * The favourites and pins of `space`; with null, the favourites of the
  * profile a window on one shows; with undefined, none (a made-up space).
- * `read` is false until they are first read. `toggleFolder` opens a folder
- * or closes it at once, and has the app keep it so; if the app can't, it
+ * `read` is false until they are first read. `setFolderOpen` opens a folder
+ * or folds it at once, and has the app keep it so; if the app can't, it
  * goes back.
  */
 export function usePins(space: Owner | undefined) {
@@ -118,10 +118,10 @@ export function usePins(space: Owner | undefined) {
   const read = useSyncExternalStore(store.subscribe, () => (space === undefined ? undefined : store.get(space)));
   const shown = space === undefined || !hasApp ? NONE : read;
 
-  const toggleFolder = (folder: PinFolder) => {
+  const setFolderOpen = (folder: number, open: boolean) => {
     if (space === undefined) return;
-    store.setOpen(space, folder.id, !folder.open);
-    pinsIpc.setOpen(folder.id, !folder.open).catch(() => store.setOpen(space, folder.id, folder.open));
+    store.setOpen(space, folder, open);
+    pinsIpc.setOpen(folder, open).catch(() => store.setOpen(space, folder, !open));
   };
-  return { ...(shown ?? NONE), read: shown !== undefined, toggleFolder };
+  return { ...(shown ?? NONE), read: shown !== undefined, setFolderOpen };
 }

@@ -1,10 +1,10 @@
 // Where a drag over the space's pins or the favourites would land, found
-// from the pins and what is drawn of them (`data-pin-row`, pin-drop.ts): a
+// from their items (state/items.ts) and what is drawn of them (`data-pin-row`, pin-drop.ts): a
 // place between the pins, at any depth of the folders, a folder's row,
 // which takes it in, or half of a tab pin's row, where a tab of the list
 // makes a split with it; or a place between the favourites' tiles.
 
-import type { Pin } from "@/ipc";
+import type { Item } from "@/state/items";
 import { boxMark, type DropMark, indexAt, onMiddle, splitSide } from "./landing";
 import { NESTED_INDENT, ROW_GAP } from "./rows";
 
@@ -50,7 +50,9 @@ const nearest = (values: number[], to: number) =>
  * far down what is drawn of it goes (`end`), and the folder it is drawn in.
  */
 type Placed = {
-  pin: Pin;
+  item: Item;
+  /** Its pin's ID. */
+  id: number;
   parent: number | null;
   index: number;
   depth: number;
@@ -59,23 +61,27 @@ type Placed = {
   up: Placed | null;
 };
 
+/** A kept item's pin's ID; none for what is not kept. */
+const pinOf = (item: Item) => (item.kind === "group" ? -1 : (item.pin ?? -1));
+
 // The pins drawn in `section`, top to bottom, with what is in each open
 // folder after it. What is in the held folder is not a place to land.
-function placedIn(section: HTMLElement, pins: Pin[], held: number | undefined, up: Placed | null = null): Placed[] {
-  return pins.flatMap((pin, index) => {
-    const row = section.querySelector(`[data-pin-row="${pin.id}"]`);
+function placedIn(section: HTMLElement, items: Item[], held: number | undefined, up: Placed | null = null): Placed[] {
+  return items.flatMap((item, index) => {
+    const id = pinOf(item);
+    const row = section.querySelector(`[data-pin-row="${id}"]`);
     if (!row) return [];
     // The row itself, in from the list's edge as its folders are.
     const drawn = row.firstElementChild ?? row;
     const box = drawn.getBoundingClientRect();
-    const inside = pin.kind === "folder" && pin.open && pin.id !== held;
+    const inside = item.kind === "folder" && item.open && id !== held;
     // A folder whose rows are not places of their own goes down past them,
     // or past the row it shows folded (its peek, folding.tsx), so no place
     // is drawn across them.
-    const body = inside ? null : section.querySelector(`[data-pin-body="${pin.id}"]`);
+    const body = inside ? null : section.querySelector(`[data-pin-body="${id}"]`);
     const end = Math.max(box.bottom, body?.getBoundingClientRect().bottom ?? 0);
-    const placed = { pin, parent: up?.pin.id ?? null, index, depth: up ? up.depth + 1 : 0, box, end, up };
-    return [placed, ...(inside ? placedIn(section, pin.items, held, placed) : [])];
+    const placed = { item, id, parent: up?.id ?? null, index, depth: up ? up.depth + 1 : 0, box, end, up };
+    return [placed, ...(inside ? placedIn(section, item.items, held, placed) : [])];
   });
 }
 
@@ -90,7 +96,7 @@ function placedIn(section: HTMLElement, pins: Pin[], held: number | undefined, u
  */
 export function pinsLandingAt(
   section: HTMLElement,
-  pins: Pin[],
+  pins: Item[],
   { pin: held, loneTab }: Dragging,
   x: number,
   y: number
@@ -98,19 +104,19 @@ export function pinsLandingAt(
   const rows = placedIn(section, pins, held?.id);
   if (!rows.length) return pinsFirst();
   const content = section.getBoundingClientRect();
-  const mine = held && rows.find((row) => row.pin.id === held.id);
+  const mine = held && rows.find((row) => row.id === held.id);
 
   if (loneTab) {
-    const target = rows.find((row) => row.pin.kind === "tab" && onMiddle(row.box, y));
-    if (target) return { kind: "split", pin: target.pin.id, ...splitSide(target.box, content, x) };
+    const target = rows.find(({ item, box }) => item.kind === "tab" && item.sides.length === 1 && onMiddle(box, y));
+    if (target) return { kind: "split", pin: target.id, ...splitSide(target.box, content, x) };
   }
 
-  const folder = rows.find((row) => row.pin.kind === "folder" && row !== mine && onMiddle(row.box, y));
-  if (folder?.pin.kind === "folder") {
+  const folder = rows.find((row) => row.item.kind === "folder" && row !== mine && onMiddle(row.box, y));
+  if (folder?.item.kind === "folder") {
     return {
       kind: "place",
-      to: { parent: folder.pin.id },
-      index: folder.pin.open ? 0 : null,
+      to: { parent: folder.id },
+      index: folder.item.open ? 0 : null,
       mark: boxMark(folder.box, content)
     };
   }
@@ -157,13 +163,13 @@ function placeBetween(before: Placed | undefined, after: Placed | undefined, wan
  */
 export function favoritesLandingAt(
   grid: HTMLElement,
-  favorites: Pin[],
+  favorites: Item[],
   { pin: held }: Dragging,
   x: number,
   y: number
 ): PinLanding | null {
   const tiles = favorites.flatMap(
-    (pin) => grid.querySelector(`[data-pin-row="${pin.id}"]`)?.getBoundingClientRect() ?? []
+    (item) => grid.querySelector(`[data-pin-row="${pinOf(item)}"]`)?.getBoundingClientRect() ?? []
   );
   if (!tiles.length) return { kind: "place", to: FAVORITES, index: null };
   const content = grid.getBoundingClientRect();
@@ -177,7 +183,7 @@ export function favoritesLandingAt(
   );
   const at = nearest(lines, x);
   // Where it is, it does not move; past itself, it leaves before it lands.
-  const mine = held ? favorites.findIndex((pin) => pin.id === held.id) : -1;
+  const mine = held ? favorites.findIndex((item) => pinOf(item) === held.id) : -1;
   const from = mine < 0 ? Infinity : mine;
   const index = indexAt(tiles.indexOf(row[0]) + at, from, 1);
   if (index === from) return null;

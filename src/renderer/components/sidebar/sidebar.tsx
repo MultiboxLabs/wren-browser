@@ -19,7 +19,7 @@ import { Indicator } from "@/components/downloads/indicator";
 import { Shelf, useShelf } from "@/components/downloads/shelf";
 import { ArrivalScope } from "./arrival";
 import { Favorites } from "./favorites";
-import { usePinActions } from "./pin-actions";
+import { useItemActions } from "./item-actions";
 import { NewSpaceForm } from "./new-space";
 import { SpaceColours } from "./space-colours";
 import { useSpaceSwipe } from "./space-swipe";
@@ -30,6 +30,7 @@ import { UpdateCard } from "./update";
 import { BrowserOfSpace, useTab, useTabShape } from "@/state/browser";
 import { useDownloadIndicator } from "@/state/downloads";
 import { type LibrarySettings, useSettings } from "@/state/library";
+import { useItems } from "@/state/items";
 import { usePins } from "@/state/pins";
 import { type Space, useDrawnSpace, useSpace } from "@/state/space";
 import { SLIDE, spacing } from "@/state/space-slide";
@@ -271,7 +272,8 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
   const addressBar = useAddressBar();
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
-  const { actions, dialog } = usePinActions(pins.toggleFolder);
+  const items = useItems(pins.favorites, pins.pinned);
+  const { actions, dialog } = useItemActions(pins.setFolderOpen);
   // The tab drawn selected, as a pin's or a favourite's too; none while the
   // omnibox for a new tab is open.
   const selected = omnibox.shown?.target === "new-tab" || active === null ? undefined : active;
@@ -298,13 +300,13 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
       )}
       <ArrivalScope key={read}>
         <Favorites
-          favorites={pins.favorites}
+          favorites={items.favorites}
           read={pins.read}
           settings={settings}
           selected={selected}
           actions={actions}
         />
-        <TabList omnibox={omnibox} pinned={pins.pinned} pinActions={actions} />
+        <TabList omnibox={omnibox} pinned={items.pinned} tabs={items.tabs} actions={actions} />
       </ArrivalScope>
       {dialog}
     </>

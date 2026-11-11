@@ -4,21 +4,19 @@
 // most recently used first, each with when it was ("2 minutes ago"). The
 // search has the keyboard while the menu is open, from the tab's page too,
 // and gives it back as it goes; ↑ and ↓ move the highlight, and Enter, or a
-// press, opens the pin as a press on its row does. While the content slides
+// press, opens the pin as a press on its row does (`onOpen`). While the content slides
 // between spaces, the menu closes, and none opens.
 
 import { Search } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { type Pin, type PinFolder, pins as pinsIpc } from "@/ipc";
 import { useTabShape } from "@/state/browser";
+import { type FolderItem, type Item, itemTitle, type TabItem, useSides } from "@/state/items";
 import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { ago, useNow } from "@/utils/now";
 import { HoverCard } from "@/components/ui/hover-card";
 import { useKeyboardWhile } from "@/components/ui/keyboard";
-import { PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pins";
-
-type PagePin = Exclude<Pin, PinFolder>;
+import { SideIcon } from "./item-row";
 
 /** A pin's row in the menu: its title and when it was used, one over the other. */
 const ROW_HEIGHT = 42;
@@ -31,26 +29,33 @@ const LIST_PADDING = 4;
 // minutes ago", "1 week ago".
 const lastUsed = (time: number, now: number) => (now - time < 60_000 ? "Just now" : ago(time, now, true));
 
-// Every pin in `items`, at any depth, most recently used first by `usedAt`;
-// those used at once, in the folder's order.
-function pinsIn(items: Pin[], usedAt: (pin: PagePin) => number): PagePin[] {
-  const flat = (items: Pin[]): PagePin[] => items.flatMap((pin) => (pin.kind === "folder" ? flat(pin.items) : [pin]));
+// Every pinned tab in `items`, at any depth, most recently used first by
+// `usedAt`; those used at once, in the folder's order.
+function pinsIn(items: Item[], usedAt: (pin: TabItem) => number): TabItem[] {
+  const flat = (items: Item[]): TabItem[] =>
+    items.flatMap((item) => (item.kind === "folder" ? flat(item.items) : item.kind === "tab" ? [item] : []));
   return flat(items).sort((a, b) => usedAt(b) - usedAt(a));
 }
 
-// Whether `pin`'s title or one of its addresses has `words` in it, which
-// are lower case.
-const matches = (pin: PagePin, words: string) =>
-  [pinTitle(pin), ...pinPages(pin).map((page) => page.url)].some((text) => text.toLocaleLowerCase().includes(words));
+// Whether `pin`'s title as it is kept, or one of its addresses, has `words`
+// in it, which are lower case.
+function matches(pin: TabItem, words: string) {
+  const pages = pin.sides.flatMap(({ page }) => (page ? [page] : []));
+  const title = pin.name || pages.map((page) => page.title).join(" | ");
+  return [title, ...pages.map((page) => page.url)].some((text) => text.toLocaleLowerCase().includes(words));
+}
 
 /** Folder `folder`'s row, `children`, with its menu while `enabled`: while it is folded, and not renamed. */
 export function FolderMenu({
   folder,
   enabled,
+  onOpen,
   children
 }: {
-  folder: PinFolder;
+  folder: FolderItem;
   enabled: boolean;
+  /** Opens a pinned tab chosen from the menu, or selects its tab. */
+  onOpen: (pin: TabItem) => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -72,19 +77,25 @@ export function FolderMenu({
       // Its corners nest a row's (`rounded-control`) at the list's padding.
       className="popover-deep [--radius-popover:10px]"
     >
-      <FolderMenuBody folder={folder} onDone={() => setOpen(false)} />
+      <FolderMenuBody
+        folder={folder}
+        onOpen={(pin) => {
+          onOpen(pin);
+          setOpen(false);
+        }}
+      />
     </HoverCard>
   );
 }
 
 // The menu, made as it opens, so each opening starts with no search.
-function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => void }) {
+function FolderMenuBody({ folder, onOpen: open }: { folder: FolderItem; onOpen: (pin: TabItem) => void }) {
   const now = useNow();
   // The pin whose tab the window shows is in use now, whenever its last
   // use was kept.
-  const { links, active: activeTab } = useTabShape();
-  const active = links.find((link) => activeTab !== null && link.tabs.includes(activeTab))?.pin;
-  const usedAt = (pin: PagePin) => (pin.id === active ? now : pin.lastActive);
+  const { active } = useTabShape();
+  const usedAt = (pin: TabItem) =>
+    active !== null && pin.sides.some((side) => side.tab === active) ? now : (pin.lastActive ?? 0);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const list = useRef<HTMLDivElement>(null);
@@ -94,10 +105,6 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
   const words = query.trim().toLocaleLowerCase();
   const shown = pinsIn(folder.items, usedAt).filter((pin) => !words || matches(pin, words));
   const at = Math.min(highlight, shown.length - 1);
-  const open = (pin: PagePin) => {
-    void pinsIpc.open(pin.id);
-    onDone();
-  };
   const move = (by: number) => {
     if (shown.length === 0) return;
     const next = (at + by + shown.length) % shown.length;
@@ -144,7 +151,7 @@ function FolderMenuBody({ folder, onDone }: { folder: PinFolder; onDone: () => v
         >
           {shown.map((pin, index) => (
             <MenuPin
-              key={pin.id}
+              key={pin.pin}
               pin={pin}
               used={lastUsed(usedAt(pin), now)}
               highlighted={index === at}
@@ -167,13 +174,13 @@ function MenuPin({
   onHover,
   onOpen
 }: {
-  pin: PagePin;
+  pin: TabItem;
   used: string;
   highlighted: boolean;
   onHover: () => void;
   onOpen: () => void;
 }) {
-  const open = usePinTabs(pin);
+  const sides = useSides(pin);
   return (
     <div
       role="option"
@@ -183,9 +190,9 @@ function MenuPin({
       style={{ height: ROW_HEIGHT }}
       className={cn("flex shrink-0 items-center gap-2.5 rounded-control px-2", highlighted && "bg-fg/8")}
     >
-      <PinPageIcon page={pinPages(pin)[0]} open={open[0]} />
+      <SideIcon side={sides[0]} />
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate">{pinTitle(pin, open)}</span>
+        <span className="truncate">{itemTitle(pin, sides)}</span>
         <span className="truncate text-subtitle text-fg-3">{used}</span>
       </div>
     </div>

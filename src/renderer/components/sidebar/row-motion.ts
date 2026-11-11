@@ -48,7 +48,7 @@ export const REORDER: Transition = { duration: 0.22, ease: EASE_OUT };
  * changes. Drawn again for anything else, such as the sidebar moving the
  * space's content as it switches spaces, nothing in it slides.
  */
-export const listOrder = (items: { id: number | string }[]) => items.map(({ id }) => id).join(" ");
+export const listOrder = (ids: (number | string)[]) => ids.join(" ");
 
 /** A tile, or the favourites' box, fading (and a tile scaling) in and out. */
 export const TILE_IN: Transition = { duration: 0.16, ease: EASE_OUT };

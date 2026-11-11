@@ -9,13 +9,13 @@ import { Star, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { Pin } from "@/ipc";
 import type { LibrarySettings } from "@/state/library";
+import type { TabItem } from "@/state/items";
 import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { Favorite } from "./favorite";
-import type { PinActions } from "./pin-actions";
+import type { ItemActions } from "./item-actions";
 import { usePinDrop } from "./pin-drop";
 import { favoritesLandingAt } from "./pin-landing";
 import { listOrder, REORDER, TILE_IN, TILE_OUT } from "./row-motion";
@@ -33,11 +33,11 @@ export function Favorites({
   selected,
   actions
 }: {
-  favorites: Pin[];
+  favorites: TabItem[];
   read: boolean;
   settings: LibrarySettings;
   selected?: number;
-  actions: PinActions;
+  actions: ItemActions;
 }) {
   const { profile } = useSpace();
   // An incognito window keeps none.
@@ -47,7 +47,7 @@ export function Favorites({
     enabled: keeps
   });
 
-  const order = listOrder(favorites);
+  const order = listOrder(favorites.map((item) => item.pin ?? -1));
 
   if (favorites.length === 0) {
     const tip = keeps && read && settings.read && !settings.values.favoritesTipDismissed;
@@ -84,12 +84,9 @@ export function Favorites({
         {/* A tile that goes fades where it is, out of the grid at once, so
             the others close up as it does. */}
         <AnimatePresence initial={false} mode="popLayout">
-          {favorites.map(
-            (pin) =>
-              pin.kind !== "folder" && (
-                <Favorite key={pin.id} pin={pin} order={order} selected={selected} actions={actions} />
-              )
-          )}
+          {favorites.map((item) => (
+            <Favorite key={item.pin} item={item} order={order} selected={selected} actions={actions} />
+          ))}
         </AnimatePresence>
         {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}
       </div>

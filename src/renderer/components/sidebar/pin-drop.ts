@@ -13,7 +13,7 @@
 
 import type { DragEvent, PointerEvent } from "react";
 import { useState } from "react";
-import { type Destination, items, type Pin } from "@/ipc";
+import { type Destination, items } from "@/ipc";
 import { useDrawnSpace } from "@/state/space";
 import { noteDrop } from "./arrival";
 import { holdForDrag } from "./drag-hold";
@@ -48,16 +48,17 @@ export function droppedPin(data: DataTransfer) {
 }
 
 /**
- * The props that let `pin` be dragged, as a favourite's tile (`favorite`)
- * or a pin's row, and mark the element as the pin's (`data-pin-row`) for
- * where a drag lands, unless it is a `peek`: a row drawn out of its folded
- * section or folder (folding.tsx) is not where the pin is. Not while it is
- * `renaming`, which a drag would take.
+ * The props that let pin `pin` be dragged, as a favourite's tile
+ * (`favorite`), a folder's row (`folder`) or a pinned tab's, and mark the
+ * element as the pin's (`data-pin-row`) for where a drag lands, unless it
+ * is a `peek`: a row drawn out of its folded section or folder
+ * (folding.tsx) is not where the pin is. Not while it is `renaming`, which
+ * a drag would take.
  */
-export function pinDrag(pin: Pin, { favorite = false, renaming = false, peek = false } = {}) {
+export function pinDrag(pin: number, { favorite = false, folder = false, renaming = false, peek = false } = {}) {
   return {
     draggable: !renaming,
-    "data-pin-row": peek ? undefined : pin.id,
+    "data-pin-row": peek ? undefined : pin,
     // Chromium draws the drag's image from the nearest stacking context,
     // over the box of the dragged element and all within it, however
     // clipped (as a selected favourite's glow is): as its own, it shows
@@ -69,11 +70,11 @@ export function pinDrag(pin: Pin, { favorite = false, renaming = false, peek = f
     onDragStart: (event: DragEvent<HTMLElement>) => {
       // From the row's own left, which a folder's indents.
       const row = event.currentTarget.firstElementChild ?? event.currentTarget;
-      held = { id: pin.id, grab: event.clientX - row.getBoundingClientRect().left };
+      held = { id: pin, grab: event.clientX - row.getBoundingClientRect().left };
       event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData(PIN_TYPE, String(pin.id));
+      event.dataTransfer.setData(PIN_TYPE, String(pin));
       if (favorite) event.dataTransfer.setData(FAVORITE_TYPE, "");
-      if (pin.kind === "folder") event.dataTransfer.setData(FOLDER_TYPE, "");
+      if (folder) event.dataTransfer.setData(FOLDER_TYPE, "");
     },
     onDragEnd: () => {
       held = null;
@@ -82,11 +83,11 @@ export function pinDrag(pin: Pin, { favorite = false, renaming = false, peek = f
 }
 
 /**
- * Marks the element that holds all that is drawn of `pin` (`data-pin-body`):
- * its row and, for a folder, what is in it, or its peek while it is folded.
- * Not a `peek`'s, which is not where the pin is.
+ * Marks the element that holds all that is drawn of pin `pin`
+ * (`data-pin-body`): its row and, for a folder, what is in it, or its peek
+ * while it is folded. Not a `peek`'s, which is not where the pin is.
  */
-export const pinBody = (pin: Pin, peek = false) => ({ "data-pin-body": peek ? undefined : pin.id });
+export const pinBody = (pin: number, peek = false) => ({ "data-pin-body": peek ? undefined : pin });
 
 // A landing is plain data, so the same is the same as text.
 const sameLanding = (a: PinLanding | null, b: PinLanding | null) => JSON.stringify(a) === JSON.stringify(b);

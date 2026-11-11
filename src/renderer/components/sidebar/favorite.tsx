@@ -3,7 +3,7 @@
 // Pressed, it opens in place, or selects its tab; while its tab is away
 // from its page, a double click takes it back.
 // A right click shows its menu, and it is renamed in a popover hanging off
-// it (pin-actions.tsx): Return or a click elsewhere keeps the name, and
+// it (item-actions.tsx): Return or a click elsewhere keeps the name, and
 // Escape leaves it as it was.
 // Selected, it has a light fill with a soft shadow, the icon's colours
 // glowing faintly through it, and a thin ring of the same colours, which
@@ -14,16 +14,16 @@ import { type CSSProperties, type Ref, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover } from "@/components/ui/popover";
 import { TextField } from "@/components/ui/text-field";
-import { type Pin, type PinFolder, pins } from "@/ipc";
+import { itemKey, itemTitle, type TabItem, useSides } from "@/state/items";
 import { cn } from "@/utils/cn";
 import { scaleTo } from "@/utils/motion";
 import { host } from "@/utils/url";
 import { useArrival, useMoving } from "./arrival";
-import type { PinActions } from "./pin-actions";
+import type { ItemActions } from "./item-actions";
+import { identitiesOf, SideIcon } from "./item-row";
 import { REORDER, TILE_IN, TILE_OUT, useStrike } from "./row-motion";
 import { pressHandlers } from "./rows";
 import { pinDrag } from "./pin-drop";
-import { identitiesOf, PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pins";
 
 /**
  * `selected`: the selected tab's ID, unless none is. `ref` is its tile's, as
@@ -32,59 +32,59 @@ import { identitiesOf, PinPageIcon, pinPages, pinTitle, usePinTabs } from "./pin
  * changes.
  */
 export function Favorite({
-  pin,
+  item,
   order,
   selected,
   actions,
   ref
 }: {
-  pin: Exclude<Pin, PinFolder>;
+  item: TabItem;
   order: string;
   selected?: number;
-  actions: PinActions;
+  actions: ItemActions;
   ref?: Ref<HTMLDivElement>;
 }) {
-  const open = usePinTabs(pin);
-  const isSelected = open.some(({ tab }) => tab.id === selected);
-  const away = open.findIndex((side) => side.away);
-  const pages = pinPages(pin);
-  const title = pinTitle(pin, open);
+  const sides = useSides(item);
+  const open = sides.some((side) => side.tab);
+  const isSelected = sides.some((side) => side.tab && side.tab.id === selected);
+  const away = sides.findIndex((side) => side.away);
+  const title = itemTitle(item, sides);
   // The ring's filter: Chromium takes an SVG filter only from the page
   // itself, so the tile draws its own, by an ID of its own.
   const filter = `favorite-ring-${useId().replace(/[^\w-]/g, "")}`;
-  const split = pages.length > 1;
-  const icons = pages.map((page, side) => <PinPageIcon key={side} page={page} open={open[side]} />);
+  const split = sides.length > 1;
+  const icons = sides.map((side, at) => <SideIcon key={at} side={side} />);
   // The glow's and the ring's, blurred over the whole tile: the icons fill
   // the box that is stretched over it, a split's two side by side, so their
   // colours reach every edge.
   const filling = <span className="flex *:min-w-0 *:flex-1 *:size-full!">{icons}</span>;
-  const renaming = actions.renaming === pin.id;
+  const renaming = actions.renaming === itemKey(item);
   // It slides here from where it, or its tab, was drawn (arrival.ts).
-  const identities = identitiesOf(pin, open);
+  const identities = identitiesOf(item);
   const arrival = useArrival<HTMLDivElement>(identities);
   const moving = useMoving(identities);
   // A middle click closes its tab, struck as it does.
   const { ref: struck, strike } = useStrike<HTMLButtonElement>();
   const closeTab = () => {
     strike();
-    void pins.close(pin.id);
+    actions.onClose(item, 0);
   };
   const still = useReducedMotion();
   const tile = (
     // Dragged out, it is a pin, or an ordinary tab (pin-drop.ts).
-    <div ref={arrival} {...pinDrag(pin, { favorite: true, renaming })} className="grid">
+    <div ref={arrival} {...pinDrag(item.pin ?? -1, { favorite: true, renaming })} className="grid">
       <Button
         ref={struck}
         variant="filled"
         shape="none"
-        label={away < 0 ? title : `${title} — Double-click to go back to ${host(pages[away].url)}`}
+        label={away < 0 ? title : `${title} — Double-click to go back to ${host(sides[away].page?.url ?? "")}`}
         tooltip={false}
         pressed={isSelected}
-        {...pressHandlers(() => pins.open(pin.id), open.length > 0 ? closeTab : undefined)}
-        onDoubleClick={() => away >= 0 && pins.back(pin.id, away)}
+        {...pressHandlers(() => actions.onSelect(item, 0), open ? closeTab : undefined)}
+        onDoubleClick={() => away >= 0 && actions.onBack(item, away)}
         onContextMenu={(event) => {
           event.preventDefault();
-          actions.onMenu(pin, event.clientX, event.clientY);
+          actions.onMenu(item, 0, event.clientX, event.clientY);
         }}
         className={cn(
           "favorite relative grid h-11.75 place-items-center rounded-favorite",
@@ -139,7 +139,7 @@ export function Favorite({
   const draft = useRef<string | null>(null);
   const keep = (name: string | null) => {
     draft.current = null;
-    actions.onRename(pin, name === title ? null : name);
+    actions.onRename(item, name === title ? null : name);
   };
   return (
     // Comes and goes as the list's rows do, scaling up a little as it fades
