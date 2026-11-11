@@ -230,7 +230,7 @@ fn item(download: Download, state: &DownloadState, profile: &str) -> Item {
         },
         warning_text: match state.warning {
             DownloadWarning::None => String::new(),
-            _ => download.text(UIText::Message),
+            _ => download.ui_text(UIText::Message),
         },
         failure: match state.failure {
             DownloadFailure::None => "none",

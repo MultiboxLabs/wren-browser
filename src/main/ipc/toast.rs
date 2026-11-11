@@ -130,13 +130,13 @@ fn open(browser: &Browser) -> Option<Popover> {
 fn toast(browser: &Browser) -> Option<Toast> {
     let popover = open(browser)?;
     let state = popover.toast_state().ok()?;
-    let text = popover.text(UIText::Title);
+    let text = popover.ui_text(UIText::Title);
     Some(Toast {
         id: popover.id(),
         name: popover.toast_name(),
         button: state
             .has_button
-            .then(|| popover.text(UIText::Accept))
+            .then(|| popover.ui_text(UIText::Accept))
             .filter(|label| !label.is_empty()),
         icon: popover.toast_icon_png(16, 2.0).map(icons::id),
         busy: state.has_throbber,
