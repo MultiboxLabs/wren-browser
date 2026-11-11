@@ -374,26 +374,31 @@ pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), Str
     Ok(())
 }
 
-/// Asks the open pin's tabs to close, all of them, leaving the pin unopened.
-/// A page may keep its tab, and Chromium does not say when it does, so the
-/// link stays until the tabs have gone (`end_broken` in tab_changes.rs).
-///
-/// A split pin's link is marked as asked to close, so its first tab to go
-/// takes the other with it (`close_rest` in tab_changes.rs). A tab whose page
-/// may ask is asked first, by itself, so a split the user keeps stays whole.
+/// Closes the open pin's tabs, all or none, leaving the pin unopened. Each
+/// page may ask first, and if one keeps its tab, every tab stays open and
+/// the pin stays as it was. The link stays until the tabs have gone
+/// (`end_broken` in tab_changes.rs).
 pub fn close(browser: &Browser, id: PinId) -> Result<(), String> {
     let Some(link) = open_tabs::find(browser, id) else {
         return Ok(());
     };
-    open_tabs::update(browser, id, |link| {
-        link.asked_to_close = link.sides.len() == 2;
-    });
-    let open: Vec<BrowserTab> = tabs_of(browser, &link).collect();
-    match open.iter().find(|tab| tabs::may_ask_before_close(**tab)) {
-        Some(asking) => tabs::close(browser, &[*asking]),
-        None => tabs::close(browser, &open),
+    if link.closing {
+        return Ok(());
     }
-    .map_err(failed)
+    let open: Vec<BrowserTab> = tabs_of(browser, &link).collect();
+    tabs::placeholder::stand_in(browser, &open).map_err(failed)?;
+    open_tabs::update(browser, id, |link| link.closing = true);
+    let kept = browser.clone();
+    BrowserTab::close_all(&open, move |result| {
+        let Err(error) = result else {
+            return;
+        };
+        open_tabs::update(&kept, id, |link| link.closing = false);
+        if error != Error::Cancelled {
+            eprintln!("Wren could not close a pin's tabs: {error}");
+        }
+    });
+    Ok(())
 }
 
 /// Deletes pin `id`, and what is in it, closing their tabs in every window.
@@ -601,8 +606,7 @@ fn link_to(id: PinId, sides: impl IntoIterator<Item = (BrowserTab, PinPage)>) ->
             .collect(),
         split: None,
         last_active: None,
-        asked_to_close: false,
-        closing_rest: false,
+        closing: false,
     }
 }
 

@@ -19,7 +19,7 @@ use crate::tabs;
 ///   tab that closed is remembered, for Reopen Closed Tab;
 /// - a split pin whose tabs are no longer a split becomes a tab pin of the
 ///   one it keeps (its first, while both are open), and the other is left an
-///   ordinary tab, unless the pin was asked to close (`close_rest`);
+///   ordinary tab, unless the pin's tabs are closing (`Link::closing`);
 /// - a pinned tab no pin links is linked again, if it was a pin's tab before
 ///   it closed, or else unpinned, unless it is closing for a pin
 ///   (`open_tabs::end_closing`);
@@ -97,8 +97,8 @@ fn is_whole(found: &[Option<BrowserTab>]) -> bool {
 
 // Ends a link whose tabs are no longer whole, remembering each that closed
 // (not one that is `still_open`, but unpinned) for Reopen Closed Tab. A split
-// pin with a tab left keeps that one, unless it was asked to close and a tab
-// has closed: then the one left closes too.
+// pin with a tab left keeps that one, unless its tabs are closing: then the
+// link waits for the one left to go too.
 fn end_broken(
     state: &State,
     browser: &Browser,
@@ -106,38 +106,17 @@ fn end_broken(
     found: &[Option<BrowserTab>],
     still_open: impl Fn(&str) -> bool,
 ) {
-    let mut gone = false;
     for (side, tab) in link.sides.iter().zip(found) {
         if tab.is_none() && !still_open(&side.tab) {
-            gone = true;
             open_tabs::closed(side.tab.clone(), link.pin);
         }
     }
     match found.iter().position(Option::is_some) {
-        Some(_) if link.asked_to_close && gone => close_rest(browser, link),
+        Some(_) if link.closing => {}
         Some(kept) if found.len() == 2 => keep_side(state, browser, link, kept, found),
         _ => {
             open_tabs::remove(browser, link.pin);
         }
-    }
-}
-
-// A split pin asked to close has lost a tab: the other closes too, asked
-// once, and the pin stays a split. If its page keeps it, the pin stays a
-// split with that tab alone open until it closes.
-//
-// TODO: Close a split pin's tabs together with a Wren Runtime call that
-// closes several tabs, all or none, and answers whether a page kept them, as
-// Wren_CloseBrowsers does for Browsers. Then remove this, `asked_to_close`
-// and `closing_rest`: Wren_CloseTab never says whether a page kept its tab,
-// so a tab that is still closing cannot be told from one the user kept.
-fn close_rest(browser: &Browser, link: &Link) {
-    if link.closing_rest {
-        return;
-    }
-    open_tabs::update(browser, link.pin, |link| link.closing_rest = true);
-    if let Err(error) = super::close(browser, link.pin) {
-        eprintln!("Wren could not close a split pin's other tab: {error}");
     }
 }
 
