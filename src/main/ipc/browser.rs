@@ -1,16 +1,15 @@
-// The calls a page makes that act on its Browser's tabs: open, switch, close,
-// move, split and their menus, and what the app says of a tab beside the
-// list: the link under the pointer and its picture. The tabs
-// themselves, as the page draws them, are in tabs.rs.
+// The calls a page makes that act on its Browser's tabs: open, switch, close
+// and their menus, and what the app says of a tab beside the list: the link
+// under the pointer and its picture. The tabs themselves, as the page draws
+// them, are in tabs.rs, and what moves them in items.rs.
 
 use serde::{Deserialize, Serialize};
-use wren::{Browser, BrowserTab, MainThread, TabGroup, TabStatus, WebView};
+use wren::{Browser, BrowserTab, MainThread, TabStatus, WebView};
 
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser, with_window};
-use crate::analytics::{Event, SplitFrom, TabFrom};
+use crate::analytics::{Event, TabFrom};
 use crate::app::State;
 use crate::clipboard;
-use crate::db::SpaceId;
 use crate::menus::{self, ADD_FAVORITE, Keeps, PIN_TAB};
 use crate::pins::{self, PinTarget};
 use crate::shell::{BrowserWindow, Place};
@@ -32,60 +31,11 @@ struct Status {
     link: Option<String>,
 }
 
-/// What the page moves, by one of its tabs: the tab, the split it is in, or
-/// its group.
-#[derive(Clone, Copy, Deserialize)]
-#[serde(rename_all = "camelCase")]
-enum Movable {
-    Tab(i32),
-    Split(i32),
-    Group(i32),
-}
-
-/// Two tabs to be shown side by side, as the page has them: the left one
-/// first.
-#[derive(Deserialize)]
-struct Pair {
-    first: i32,
-    second: i32,
-}
-
 /// A tab to mute or unmute.
 #[derive(Deserialize)]
 struct SetMuted {
     id: i32,
     muted: bool,
-}
-
-/// An address dropped on the list, to open where it was dropped.
-#[derive(Deserialize)]
-struct OpenAt {
-    url: String,
-    /// Among the list's tabs (`tabs::listed`).
-    index: usize,
-    /// One of the tabs of the group it opens in, or none.
-    group: Option<i32>,
-}
-
-#[derive(Deserialize)]
-struct MoveTo {
-    unit: Movable,
-    /// Where its first tab goes, among the list's tabs (`tabs::listed`).
-    index: usize,
-    /// For a tab: one of the tabs of the group it ends in, or none for no
-    /// group. A split or a group stays as it is.
-    group: Option<i32>,
-}
-
-#[derive(Deserialize)]
-struct MoveToSpace {
-    unit: Movable,
-    space: SpaceId,
-    /// Where its first tab goes, among the space's list's tabs.
-    index: usize,
-    /// For a tab: one of the tabs of the space's group it ends in, or none
-    /// for no group. A split or a group stays as it is.
-    group: Option<i32>,
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
@@ -167,93 +117,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |_, browser| tabs::clear(browser).map_err(failed))
     });
 
-    // A tab, or its split's or its group's, moved to an index in the list;
-    // "browser.tabs" says where it landed.
-    let weak = window.clone();
-    let _ = web_view.handle("tabs.move", move |to: MoveTo| {
-        with_browser(&weak, |_, browser| {
-            let (Movable::Tab(id) | Movable::Split(id) | Movable::Group(id)) = to.unit;
-            let tab = tab(mt, browser, id)?;
-            let state = || tab.state().map_err(failed);
-            match to.unit {
-                Movable::Tab(_) => {
-                    let group = group_of(mt, browser, to.group)?;
-                    tabs::move_tab(mt, browser, tab, to.index, group)
-                }
-                Movable::Split(_) => {
-                    let split = state()?.split.ok_or("The tab is in no split.")?;
-                    tabs::move_split(browser, split, to.index)
-                }
-                Movable::Group(_) => {
-                    let group = state()?.group.ok_or("The tab is in no group.")?;
-                    tabs::move_group(browser, group, to.index)
-                }
-            }
-            .map_err(failed)
-        })
-    });
-
-    // A tab, or its split or its group, moved from the space it is in to
-    // another of the window's, of the same profile: dropped on the space's
-    // button, or on its list once the window has switched to it.
-    let weak = window.clone();
-    let _ = web_view.handle_call("tabs.moveToSpace", move |call| {
-        let found = call
-            .value::<MoveToSpace>()
-            .map_err(|error| error.to_string());
-        let found = found.and_then(|to| Ok((moving(mt, to.unit)?, to, weak.state()?)));
-        let ((tab, moving), to, state) = match found {
-            Ok(found) => found,
-            Err(error) => {
-                let _ = call.fail(&error);
-                return;
-            }
-        };
-        let (index, group) = (to.index, to.group);
-        // Answered once they are there, for what the page does with them next.
-        state.move_to_space(mt, weak.id, moving, to.space, index, move |moved| {
-            // A tab leaves its group behind, and goes in the one it was
-            // dropped in, if any.
-            let placed = moved.and_then(|browser| match to.unit {
-                Movable::Tab(_) => {
-                    let group = group_of(mt, &browser, group)?;
-                    tabs::move_tab(mt, &browser, tab, index, group).map_err(failed)
-                }
-                Movable::Split(_) | Movable::Group(_) => Ok(()),
-            });
-            let _ = match placed {
-                Ok(()) => call.answer(&()),
-                Err(error) => call.fail(&error),
-            };
-        });
-    });
-
-    // A web address or a file dropped on the list: a tab on it, where it was
-    // dropped.
-    let weak = window.clone();
-    let _ = web_view.handle("tabs.openAt", move |at: OpenAt| {
-        with_browser(&weak, |_, browser| {
-            let group = group_of(mt, browser, at.group)?;
-            tabs::open_at(mt, browser, &at.url, at.index, group).map_err(failed)?;
-            let from = TabFrom::Drop;
-            weak.state()?.analytics.record(Event::TabOpened { from });
-            Ok(())
-        })
-    });
-
-    // A tab dropped on the left or right half of another: the two in a
-    // split.
-    let weak = window.clone();
-    let _ = web_view.handle("tabs.split", move |pair: Pair| {
-        with_browser(&weak, |_, browser| {
-            let first = tab(mt, browser, pair.first)?;
-            tabs::split(first, tab(mt, browser, pair.second)?).map_err(failed)?;
-            let from = SplitFrom::Tabs;
-            weak.state()?.analytics.record(Event::SplitOpened { from });
-            Ok(())
-        })
-    });
-
     // A tab's context menu, at the point the page names. Answers with what
     // was chosen, once the app has done it, or null.
     let weak = window.clone();
@@ -330,41 +193,6 @@ fn keep_chosen(
     if let Err(error) = pins::pin_tab(state, browser, place, tab, target, index) {
         eprintln!("Wren kept no pin: {error}");
     }
-}
-
-// The group of the tab the page names, if it names one: the group a tab is to
-// be in.
-pub(super) fn group_of(
-    mt: MainThread,
-    browser: &Browser,
-    member: Option<i32>,
-) -> Result<Option<TabGroup>, String> {
-    let Some(member) = member else {
-        return Ok(None);
-    };
-    let state = tab(mt, browser, member)?.state().map_err(failed)?;
-    Ok(Some(state.group.ok_or("The tab is in no group.")?))
-}
-
-// The tab `unit` is named by, and the tabs that move with it: itself, its
-// split's or its group's.
-fn moving(mt: MainThread, unit: Movable) -> Result<(BrowserTab, Vec<BrowserTab>), String> {
-    let (Movable::Tab(id) | Movable::Split(id) | Movable::Group(id)) = unit;
-    let tab = BrowserTab::from_id(mt, id).ok_or("There is no such tab.")?;
-    let browser = tab.browser().ok_or("There is no such tab.")?;
-    let state = || tab.state().map_err(failed);
-    let moving = match unit {
-        Movable::Tab(_) => vec![tab],
-        Movable::Split(_) => {
-            let split = state()?.split.ok_or("The tab is in no split.")?;
-            tabs::in_split(split).map_err(failed)?
-        }
-        Movable::Group(_) => {
-            let group = state()?.group.ok_or("The tab is in no group.")?;
-            tabs::in_group(&browser, group)
-        }
-    };
-    Ok((tab, moving))
 }
 
 // The tab an ID from the page names, if it is the Browser's.

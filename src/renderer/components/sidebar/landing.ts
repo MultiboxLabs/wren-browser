@@ -159,7 +159,7 @@ export function landingAt(scroller: HTMLElement, held: Held, x: number, y: numbe
     }
   }
 
-  if (held.kind === "tab" || held.kind === "outside") {
+  if (held.kind !== "group") {
     const folded = items.find((item) => item.role === "folded" && onMiddle(item.box, y));
     if (folded) {
       return {
@@ -227,7 +227,7 @@ function leftOf(items: Item[], group: string | null) {
  * A place is in a group between its tabs and just under its heading. Past
  * its last tab it is in the group or out of it, which a tab decides by how
  * far in it is held, as a group's tabs are indented. A group stays among the
- * top scope's units, and a split in its group.
+ * top scope's units.
  */
 function nearestGap(items: Item[], held: Held, x: number, y: number) {
   const topLeft = Math.min(...items.map((item) => item.box.left));
@@ -258,9 +258,5 @@ function groupsAt(before: Item | undefined, after: Item | undefined): (string | 
   return before?.group ? [before.group, null] : [null];
 }
 
-/** Whether a held unit may be in a group. */
-function may(held: Held, group: string | null) {
-  if (held.kind === "group") return group === null;
-  if (held.kind === "split") return group === groupOf(held);
-  return true;
-}
+/** Whether a held unit may be in a group: any but a group. */
+const may = (held: Held, group: string | null) => held.kind !== "group" || group === null;

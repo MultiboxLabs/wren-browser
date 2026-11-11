@@ -13,14 +13,14 @@
 
 import type { DragEvent, PointerEvent } from "react";
 import { useState } from "react";
-import { type Pin, type PinTarget, pins } from "@/ipc";
+import { type Destination, items, type Pin } from "@/ipc";
 import { useDrawnSpace } from "@/state/space";
 import { noteDrop } from "./arrival";
 import { holdForDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
 import { useDropSide } from "./drop-side";
-import type { Dragging, HeldPin, PinLanding } from "./pin-landing";
-import { carriedFromOther, carriesUnit, droppedUnit, moveToSpace } from "./units";
+import type { Dragging, HeldPin, PinLanding, PinTarget } from "./pin-landing";
+import { carriesUnit, droppedUnit, dropSpace, itemOf } from "./units";
 
 /** What a pin's drag carries: its ID. */
 const PIN_TYPE = "application/x-wren-pin";
@@ -91,12 +91,18 @@ export const pinBody = (pin: Pin, peek = false) => ({ "data-pin-body": peek ? un
 // A landing is plain data, so the same is the same as text.
 const sameLanding = (a: PinLanding | null, b: PinLanding | null) => JSON.stringify(a) === JSON.stringify(b);
 
+/** A place among the favourites or the pins of space `space`, as the app takes it. */
+const among = (space: number, to: PinTarget, index: number | null): Destination =>
+  "favorites" in to
+    ? { space: dropSpace(space), to: "favorites", index }
+    : { space: dropSpace(space), to: "pinned", folder: to.parent, index };
+
 // Pins each address in turn from `index`, so each lands after the last. One
 // that fails ends it.
-async function pinAll(urls: string[], to: PinTarget, index: number | null) {
+async function pinAll(urls: string[], space: number, to: PinTarget, index: number | null) {
   for (const [offset, url] of urls.entries()) {
     try {
-      await pins.addAddress(url, to, index === null ? null : index + offset);
+      await items.add(url, among(space, to, index === null ? null : index + offset));
     } catch {
       return;
     }
@@ -167,23 +173,20 @@ export function usePinDrop({
         const unit = droppedUnit(event.dataTransfer);
         if (!place) return;
         noteDrop(event.clientX, event.clientY);
-        // A unit of another space's list moves to this one's first.
-        const other = carriedFromOther(event.dataTransfer, space.id);
-        const here = async () => other && (await moveToSpace(other, space.id));
         if (place.kind === "split") {
-          if (unit)
-            here()
-              .then(() => pins.splitWith(place.pin, unit.tab, place.side))
-              .catch(() => {});
+          const beside: Destination = {
+            space: dropSpace(space.id),
+            to: "split",
+            with: { pin: place.pin },
+            side: place.side
+          };
+          if (unit) items.move({ tab: unit.tab }, beside).catch(() => {});
           return;
         }
         const { to, index } = place;
-        if (pin !== null) pins.move(pin, to, index).catch(() => {});
-        else if (unit)
-          here()
-            .then(() => pins.pinTab(unit.tab, to, index))
-            .catch(() => {});
-        else void pinAll(addressesOf(event.dataTransfer), to, index);
+        if (pin !== null) items.move({ pin }, among(space.id, to, index)).catch(() => {});
+        else if (unit) items.move(itemOf(unit.kind, unit.tab), among(space.id, to, index)).catch(() => {});
+        else void pinAll(addressesOf(event.dataTransfer), space.id, to, index);
       }
     }
   };

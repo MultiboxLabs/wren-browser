@@ -13,6 +13,7 @@ export * from "./find";
 export * from "./follow";
 export * from "./groups";
 export * from "./icons";
+export * from "./items";
 export * from "./menu";
 export * from "./migrate";
 export * from "./omnibox";

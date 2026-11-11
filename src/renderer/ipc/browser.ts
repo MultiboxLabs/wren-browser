@@ -1,15 +1,13 @@
 // The calls that act on the window's tabs, and what the app says of a tab
 // beside the list: the link under the pointer and its picture.
-// The tabs themselves, as the page draws them, are in tabs.ts.
+// The tabs themselves, as the page draws them, are in tabs.ts, and what
+// moves them in items.ts.
 
 /** The address of the link under the pointer in a tab's page, or of the link with the keyboard; null for none. */
 export type TabStatus = { tab: number; link: string | null };
 
 /** A new picture of a tab's page: the ID it is served at (`previewUrl`). */
 export type TabPreviewChanged = { tab: number; preview: string };
-
-/** What moves as one in the list, by one of its tabs' IDs: the tab, the split it is in, or its group. */
-export type TabUnit = { tab: number } | { split: number } | { group: number };
 
 export const browser = {
   /** The address of the link under the pointer in a tab's page, or null. */
@@ -30,25 +28,6 @@ export const browser = {
   /** Closes the list's tabs but the active one, or the active one when it is the only one; the pins stay. */
   clear: () => wren.invoke<null>("tabs.clear"),
   setMuted: (id: number, muted: boolean) => wren.invoke<null>("tabs.setMuted", { id, muted }),
-  /**
-   * Moves a unit so its first tab is at an index among all the tabs. A moved
-   * group is made again, with a new ID. A tab also goes into the group of
-   * the tab `group` names, or out of any if it is null.
-   */
-  move: (unit: TabUnit, index: number, group: number | null = null) =>
-    wren.invoke<null>("tabs.move", { unit, index, group }),
-  /**
-   * Moves a unit of another of the window's spaces, of the same profile, to
-   * space `space`, its first tab at an index among that space's tabs, shown
-   * there. A tab also goes into the group of the tab `group` names, or out of
-   * any if it is null.
-   */
-  moveToSpace: (unit: TabUnit, space: number, index = 0, group: number | null = null) =>
-    wren.invoke<null>("tabs.moveToSpace", { unit, space, index, group }),
-  /** A tab on a web or file address, shown, at an index among all the tabs and in the group of the tab `group` names, if any. */
-  openAt: (url: string, index: number, group: number | null) => wren.invoke<null>("tabs.openAt", { url, index, group }),
-  /** Puts two tabs in a split, the first on the left; both must be in none. */
-  split: (first: number, second: number) => wren.invoke<null>("tabs.split", { first, second }),
   /** Shows a tab's context menu at a point in the page; the app does what is chosen, then answers with its ID. */
   menu: (id: number, x: number, y: number) => wren.invoke<string | null>("tabs.menu", { id, x, y }),
   /** Back, forward, reload and stop act on the active tab. */

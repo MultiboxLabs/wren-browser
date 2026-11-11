@@ -11,7 +11,7 @@
 // would, once it has moved here.
 
 import { type DragEvent, type PointerEvent, useLayoutEffect, useRef, useState } from "react";
-import { browser, pins } from "@/ipc";
+import { type Destination, items } from "@/ipc";
 import { noteDrop } from "./arrival";
 import { holdForDrag } from "./drag-hold";
 import { addressesOf, carriesAddress } from "./dropped-address";
@@ -20,14 +20,14 @@ import { useEdgeScroll } from "./edge-scroll";
 import { type DropMark, type Grabbed, type Held, type Landing, landingAt, OUTSIDE } from "./landing";
 import { carriesTabPin, droppedPin, isPinDrop } from "./pin-drop";
 import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
-import { carriedFromOther, carryUnit, draggableUnitOf, moveToSpace, readUnit, TOP_SCOPE, tabUnit } from "./units";
+import { carriedFromOther, carryUnit, draggableUnitOf, dropSpace, itemOf, readUnit, TOP_SCOPE } from "./units";
 
-// A tab on each of `urls`, in order from `index`, one at a time so each
-// lands after the last. A tab that fails to open ends it.
-async function openAll(urls: string[], index: number, group: number | null) {
+// A tab on each of `urls`, in order from where `to` says, one at a time so
+// each lands after the last. A tab that fails to open ends it.
+async function openAll(urls: string[], to: Destination & { to: "tabs" }) {
   for (const [offset, url] of urls.entries()) {
     try {
-      await browser.openAt(url, index + offset, group);
+      await items.add(url, { ...to, index: to.index + offset });
     } catch {
       return;
     }
@@ -92,12 +92,17 @@ export function useTabReorder(order: string, space: number) {
   const dragged = (event: DragEvent): Held | null =>
     grabbedIn(event) ?? (carriesTabPin(event.dataTransfer) || carriesAddress(event.dataTransfer) ? OUTSIDE : null);
 
+  /** A place in this list, as the app takes it. */
+  const inList = (index: number, group: number | null) =>
+    ({ space: dropSpace(space), to: "tabs", group, index }) as const;
+
   const move = (scroller: HTMLElement, grabbed: Grabbed, place: Landing) => {
     if (place?.kind !== "move") return;
     const { unit, kind, tab } = grabbed;
+    const to = inList(place.index, place.group);
     // One of another space's list is new here: nothing slides for it.
     if (!unit) {
-      moveToSpace(grabbed, space, place.index, place.group).catch(() => {});
+      items.move(itemOf(kind, tab), to).catch(() => {});
       return;
     }
     // The Browser answers with its new order a moment later, which the rows
@@ -107,7 +112,7 @@ export function useTabReorder(order: string, space: number) {
     // If it does not move, there is nothing to slide to.
     const forget = () => settling.current === mine && (settling.current = null);
     window.setTimeout(forget, SETTLE_WAIT_MS);
-    browser.move(tabUnit(kind, tab), place.index, place.group).catch(forget);
+    items.move(itemOf(kind, tab), to).catch(forget);
   };
 
   return {
@@ -174,14 +179,17 @@ export function useTabReorder(order: string, space: number) {
         if (!place) return;
         noteDrop(event.clientX, event.clientY);
         if (pin !== null) {
-          if (place.kind === "move") pins.toList(pin, place.index, place.group).catch(() => {});
+          if (place.kind === "move") items.move({ pin }, inList(place.index, place.group)).catch(() => {});
         } else if (!own) {
-          if (place.kind === "move") void openAll(urls, place.index, place.group);
+          if (place.kind === "move") void openAll(urls, inList(place.index, place.group));
         } else if (place.kind === "split") {
-          const [first, second] = place.side === "left" ? [own.tab, place.targetTab] : [place.targetTab, own.tab];
-          // One of another space's list comes here first, beside the tab.
-          const here = own.unit ? Promise.resolve(null) : moveToSpace(own, space, readUnit(place.target).start);
-          here.then(() => browser.split(first, second)).catch(() => {});
+          const beside: Destination = {
+            space: dropSpace(space),
+            to: "split",
+            with: { tab: place.targetTab },
+            side: place.side
+          };
+          items.move({ tab: own.tab }, beside).catch(() => {});
         } else {
           move(scroller, own, place);
         }

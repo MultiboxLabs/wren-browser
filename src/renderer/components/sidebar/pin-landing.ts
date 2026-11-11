@@ -4,12 +4,15 @@
 // which takes it in, or half of a tab pin's row, where a tab of the list
 // makes a split with it; or a place between the favourites' tiles.
 
-import type { Pin, PinTarget } from "@/ipc";
+import type { Pin } from "@/ipc";
 import { boxMark, type DropMark, indexAt, onMiddle, splitSide } from "./landing";
 import { NESTED_INDENT, ROW_GAP } from "./rows";
 
 /** The space between the favourites' tiles (`gap-2`). */
 const TILE_GAP = 8;
+
+/** Where a pin goes: the favourites, or the space's pins, at the top (`parent` null) or in a folder. */
+export type PinTarget = { favorites: true } | { parent: number | null };
 
 /** A pin picked up in this window, and how far into its row the pointer took it. */
 export type HeldPin = { id: number; grab: number };

@@ -8,6 +8,7 @@ mod downloads;
 mod extensions;
 mod import;
 mod ipc;
+mod items;
 mod menus;
 mod onboarding;
 mod pages;

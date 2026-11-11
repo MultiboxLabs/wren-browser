@@ -13,6 +13,7 @@ mod downloads;
 mod extensions;
 mod find;
 mod groups;
+mod items;
 mod menu;
 mod migrate;
 mod omnibox;
@@ -118,6 +119,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     default_browser::handle(web_view, mt);
     spaces::handle(web_view, window, mt);
     pins::handle(web_view, window, mt);
+    items::handle(web_view, window, mt);
     tab_switcher::handle(web_view, window);
     downloads::handle(web_view, window, mt);
 }

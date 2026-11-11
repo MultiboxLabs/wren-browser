@@ -453,7 +453,7 @@ pub fn to_list(
         (PinKind::Split { .. }, [first, second]) => {
             let (layout, ratio) = unsplit(*first)?;
             let split = split_pinned(*first, *second, layout, ratio, false)?;
-            tabs::move_split(browser, split, index).map_err(failed)?;
+            tabs::move_split(mt, browser, split, index, group).map_err(failed)?;
         }
         (
             PinKind::Split {

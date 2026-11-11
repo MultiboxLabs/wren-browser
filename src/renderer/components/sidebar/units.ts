@@ -4,15 +4,17 @@
 // a group's tabs with its heading. Each is an element of the list, carrying
 // its marks as data attributes, and the first child of it is the row it draws.
 
-import { browser, type TabUnit } from "@/ipc";
+import type { ItemRef } from "@/ipc";
 import { whenDragEnds } from "./drag-hold";
 
-/** The kinds of unit: what the app moves by one of its tabs (`TabUnit` in ipc/browser.ts). */
+/** The kinds of unit. */
 export type UnitKind = "tab" | "split" | "group";
 
-/** What the app moves for unit `kind` of tab `tab`. */
-export const tabUnit = (kind: UnitKind, tab: number): TabUnit =>
-  kind === "split" ? { split: tab } : kind === "group" ? { group: tab } : { tab };
+/** The item the app moves for unit `kind` of tab `tab` (ipc/items.ts): a split goes by its tab. */
+export const itemOf = (kind: UnitKind, tab: number): ItemRef => (kind === "group" ? { group: tab } : { tab });
+
+/** The space a drop on the sidebar of space `id` names to the app: none for a space made up for a profile. */
+export const dropSpace = (id: number) => (id > 0 ? id : null);
 
 /**
  * The scope of the tabs outside any group, the splits and the groups. A
@@ -80,18 +82,6 @@ export function carriedFromOther(data: DataTransfer, space: number): Carried | n
   const unit = carriedIn(data);
   return unit && unit.space !== space ? unit : null;
 }
-
-/**
- * Moves a unit of another space's list to `space`'s, at `index` (the top)
- * and in the group of the tab `group` names, if any; resolves once it is
- * there, for what is done with it next.
- */
-export const moveToSpace = (
-  { kind, tab }: { kind: UnitKind; tab: number },
-  space: number,
-  index = 0,
-  group: number | null = null
-) => browser.moveToSpace(tabUnit(kind, tab), space, index, group);
 
 /** Whether a drag carries a unit, or one of `kind`. */
 export const carriesUnit = (data: DataTransfer, kind?: UnitKind) =>

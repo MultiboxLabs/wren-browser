@@ -181,7 +181,7 @@ pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) ->
     };
     let state = tab.state()?;
     match state.split {
-        Some(split) => move_split(browser, split, to),
+        Some(split) => move_split(mt, browser, split, to, state.group),
         None => move_tab(mt, browser, tab, to, state.group),
     }
 }
@@ -269,9 +269,30 @@ pub fn in_split(split: TabSplit) -> Result<Vec<BrowserTab>, Error> {
 }
 
 /// Moves a split's two tabs to `to`, the first's index among the listed
-/// tabs, keeping the split.
-pub fn move_split(browser: &Browser, split: TabSplit, to: usize) -> Result<(), Error> {
-    split.move_to(at_list(browser, to))
+/// tabs, into `group` (None: out of any), keeping the split. The move
+/// leaves the split's group to Chromium, which at a group's edge keeps the
+/// split in its own group or out of any, so the group is set after it.
+/// Both tabs join or leave together: Chromium keeps a split whose two tabs
+/// are grouped in one call, and ends one whose tabs are grouped apart.
+pub fn move_split(
+    mt: MainThread,
+    browser: &Browser,
+    split: TabSplit,
+    to: usize,
+    group: Option<TabGroup>,
+) -> Result<(), Error> {
+    split.move_to(at_list(browser, to))?;
+    let both = in_split(split)?;
+    let Some(first) = both.first() else {
+        return Ok(());
+    };
+    if first.state()?.group != group {
+        match group {
+            Some(group) => group.add(&both)?,
+            None => BrowserTab::ungroup(mt, &both)?,
+        }
+    }
+    Ok(())
 }
 
 /// Puts `tabs` in a new group, which is named "Group 1", "Group 2" and so on

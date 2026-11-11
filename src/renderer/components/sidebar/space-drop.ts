@@ -6,9 +6,10 @@
 // there: to a place in its list, or to another space's button.
 
 import { type DragEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { items } from "@/ipc";
 import { useSpace } from "@/state/space";
 import { whenDragEnds } from "./drag-hold";
-import { carriedIn, moveToSpace } from "./units";
+import { carriedIn, itemOf } from "./units";
 
 /** How long a drag waits over a space's button before the window switches to it. */
 const SPRING_MS = 250;
@@ -72,7 +73,8 @@ export function useSpaceDrop() {
       leave();
       if (!unit || unit.space === id) return;
       event.preventDefault();
-      moveToSpace(unit, id).catch(() => {});
+      const top = { space: id, to: "tabs", group: null, index: 0 } as const;
+      items.move(itemOf(unit.kind, unit.tab), top).catch(() => {});
     }
   });
 

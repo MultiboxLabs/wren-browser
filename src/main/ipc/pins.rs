@@ -5,9 +5,8 @@
 use serde::{Deserialize, Serialize};
 use wren::{Browser, BrowserTab, MainThread, PageCall, WebView};
 
-use super::browser::{group_of, tab};
 use super::{MenuAt, WindowRef, failed, with_browser, with_window};
-use crate::analytics::{self, Event, SplitFrom};
+use crate::analytics::{self, Event};
 use crate::app::State;
 use crate::clipboard;
 use crate::db::{PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
@@ -81,68 +80,6 @@ struct NewFolder {
     parent: Option<PinId>,
     /// None: last.
     index: Option<usize>,
-}
-
-/// Where a pin goes: to the favourites, or among the space's pins, at the
-/// top or in folder `parent`; at `index` there, or last.
-#[derive(Deserialize)]
-struct To {
-    favorites: bool,
-    parent: Option<PinId>,
-    index: Option<usize>,
-}
-
-impl To {
-    fn target(&self) -> PinTarget {
-        match self.favorites {
-            true => PinTarget::Favorites,
-            false => PinTarget::Space {
-                parent: self.parent,
-            },
-        }
-    }
-}
-
-/// A tab of the window's Browser to pin, or its split.
-#[derive(Deserialize)]
-struct TabToPin {
-    tab: i32,
-    #[serde(flatten)]
-    to: To,
-}
-
-/// An address dropped on the favourites or the space's pins, to pin there.
-#[derive(Deserialize)]
-struct AddressToPin {
-    url: String,
-    #[serde(flatten)]
-    to: To,
-}
-
-/// A tab of the window's Browser dropped on half of a tab pin's row, to
-/// make a split with it, on `side` (0: first).
-#[derive(Deserialize)]
-struct SplitWith {
-    id: PinId,
-    tab: i32,
-    side: usize,
-}
-
-/// A pin to move.
-#[derive(Deserialize)]
-struct MovePin {
-    id: PinId,
-    #[serde(flatten)]
-    to: To,
-}
-
-/// A pin to make an ordinary tab, where it was dropped on the list: at
-/// `index` among the list's tabs, in the group of tab `group`, or none.
-#[derive(Deserialize)]
-struct ToList {
-    id: PinId,
-    index: usize,
-    group: Option<i32>,
 }
 
 /// One of an open pin's tabs: its only one, or a split's first or second.
@@ -236,72 +173,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         if let Err(error) = opened {
             eprintln!("Wren opened no pin: {error}");
         }
-    });
-
-    // Pins a tab, and links it: it leaves the list, drawn as the pin.
-    let weak = window.clone();
-    let _ = web_view.handle("pins.pinTab", move |pin: TabToPin| {
-        let state = weak.state()?;
-        with_browser(&weak, |window, browser| {
-            let tab = tab(mt, browser, pin.tab)?;
-            let (target, index) = (pin.to.target(), pin.to.index);
-            let pin = pins::pin_tab(&state, browser, &place(window)?, tab, target, index)?;
-            let to = match target {
-                PinTarget::Favorites => analytics::PinTo::Favorites,
-                PinTarget::Space { .. } => analytics::PinTo::Space,
-            };
-            state.analytics.record(Event::TabPinned { to });
-            Ok(pin)
-        })
-    });
-
-    // Pins an address dropped on the sidebar, unopened.
-    let weak = window.clone();
-    let _ = web_view.handle("pins.addAddress", move |add: AddressToPin| {
-        let state = weak.state()?;
-        with_window(&weak, |window| {
-            let (target, index) = (add.to.target(), add.to.index);
-            let pin = pins::add_address(&state, &place(window)?, &add.url, target, index)?;
-            let kind = analytics::PinKind::Address;
-            state.analytics.record(Event::PinAdded { kind });
-            Ok(pin)
-        })
-    });
-
-    // Makes a tab pin a split with a tab of the list.
-    let weak = window.clone();
-    let _ = web_view.handle("pins.splitWith", move |split: SplitWith| {
-        let state = weak.state()?;
-        with_browser(&weak, |window, browser| {
-            let tab = tab(mt, browser, split.tab)?;
-            pins::split_with(&state, browser, &place(window)?, split.id, tab, split.side)?;
-            let from = SplitFrom::Pin;
-            state.analytics.record(Event::SplitOpened { from });
-            Ok(())
-        })
-    });
-
-    // Moves a pin to the favourites, or among the space's pins.
-    let weak = window.clone();
-    let _ = web_view.handle("pins.move", move |moved: MovePin| {
-        let state = weak.state()?;
-        with_window(&weak, |window| {
-            let (target, index) = (moved.to.target(), moved.to.index);
-            pins::move_pin(&state, &place(window)?, moved.id, target, index)
-        })
-    });
-
-    // Removes a pin dropped on the list, its tab left there as an ordinary
-    // one, or opened there if the pin was unopened.
-    let weak = window.clone();
-    let _ = web_view.handle("pins.toList", move |to: ToList| {
-        let state = weak.state()?;
-        with_browser(&weak, |window, browser| {
-            let group = group_of(mt, browser, to.group)?;
-            pins::to_list(&state, mt, browser, &place(window)?, to.id, to.index, group)?;
-            state.analytics.record(Event::PinUnpinned);
-            Ok(())
-        })
     });
 
     // A pin's context menu, or a folder's.
