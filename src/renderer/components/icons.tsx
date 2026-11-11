@@ -141,6 +141,19 @@ export function StopIcon({ size = 15 }: Props) {
 }
 
 /**
+ * Close: a cross as wide as the page info icon's square is inside, in its
+ * 18-point box. Its stroke is a little heavier than page info's, which has
+ * more lines in its box and reads darker for it.
+ */
+export function CloseIcon({ size = 18 }: Props) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M3.5 3.5 14.5 14.5M14.5 3.5 3.5 14.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
  * Page info: a rounded square with two sliders in it, their hollow knobs
  * apart and a little in from the ends. Each line breaks at its knob, so the
  * knob reads as a ring.

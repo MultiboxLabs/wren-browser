@@ -114,6 +114,7 @@ function SplitPanes({
         tab={first}
         active={first.id === active}
         joins={split.stacked ? ["bottom", ...panel] : ["right"]}
+        split
         onOpenLocation={onOpenLocation}
         style={{ flex: `0 0 calc((100% - ${DIVIDER}px) * ${ratio})` }}
       />
@@ -138,6 +139,7 @@ function SplitPanes({
         tab={second}
         active={second.id === active}
         joins={split.stacked ? ["top", ...panel] : ["left", ...panel]}
+        split
         onOpenLocation={onOpenLocation}
         className="flex-1"
       />
@@ -151,6 +153,7 @@ function TabPane({
   fullScreen = false,
   bare = false,
   joins = [],
+  split = false,
   onOpenLocation,
   className,
   style
@@ -162,6 +165,8 @@ function TabPane({
   bare?: boolean;
   /** The card's edges that meet another card: the split's other side, or the side panel. */
   joins?: Edge[];
+  /** It is a side of a split, whose address bar can close it. */
+  split?: boolean;
   /** With it, the page has its address bar atop it, whose address opens this. */
   onOpenLocation?: () => void;
   className?: string;
@@ -180,7 +185,7 @@ function TabPane({
           "no-drag relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
         )}
       >
-        {onOpenLocation && <PageAddressBar tab={tab} active={active} onOpenLocation={onOpenLocation} />}
+        {onOpenLocation && <PageAddressBar tab={tab} active={active} split={split} onOpenLocation={onOpenLocation} />}
         {/* The page, with the card's corners below the bar, and all four without one. */}
         <div className={cn("relative min-h-0 flex-1", onOpenLocation ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
           <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />

@@ -1,14 +1,18 @@
 // The address bar atop a page, in its card, as a toolbar: back, forward and
 // reload at its left, the page's host in its middle, which a click edits in
-// the omnibox, and at its right the extensions pinned to it, then page info.
-// A hairline parts it from the page. It shows while the Address Bar setting
+// the omnibox, and at its right the extensions pinned to it, then page info,
+// then, atop a side of a split, a button that closes that side's tab. A
+// hairline parts it from the page. It shows while the Address Bar setting
 // puts the address atop the page, atop each side of a split (tab-view.tsx).
 // Only the active tab's bar carries Chromium's marks (field.tsx). The
 // omnibox it opens is the one in the middle of the window, not one over the
 // bar.
 
 import { Search } from "lucide-react";
+import { useRef } from "react";
 import { browser, type BrowserTab } from "@/ipc";
+import { CloseIcon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
 import { useExtensionActions, useShowing } from "@/state/browser";
 import { address, isNewTab } from "@/utils/url";
 import { PinnedAction, SEARCH_PLACEHOLDER } from "./field";
@@ -18,11 +22,14 @@ import { PageInfoButton } from "./page-info";
 export function PageAddressBar({
   tab,
   active,
+  split,
   onOpenLocation
 }: {
   tab: BrowserTab;
   /** Its tab is the active one, which page info, the extensions and the omnibox act on, and its bar carries Chromium's marks. */
   active: boolean;
+  /** Its tab is a side of a split, which its close button closes, leaving the other side. */
+  split: boolean;
   /** A click on the address, once its tab is the active one: the omnibox for it. */
   onOpenLocation: () => void;
 }) {
@@ -32,13 +39,17 @@ export function PageAddressBar({
   const shown = actions.filter((action) => action.pinned || (active && action.poppedOut));
   const url = isNewTab(tab.url) ? "" : tab.url;
   // A press anywhere on it makes its side of a split the active one first,
-  // as a press on its page does, so its buttons act on its own tab.
+  // as a press on its page does, so its buttons act on its own tab. All but
+  // the close button, which names its tab and needs no side made active.
+  const close = useRef<HTMLButtonElement>(null);
   const activate = () => (active ? Promise.resolve(null) : browser.activate(tab.id));
   return (
     // A handle for the window, as a toolbar is, where a press misses its
     // buttons and its address.
     <header
-      onPointerDownCapture={() => void activate().catch(() => {})}
+      onPointerDownCapture={(event) => {
+        if (!(event.target instanceof Node && close.current?.contains(event.target))) void activate().catch(() => {});
+      }}
       className="drag flex h-9 shrink-0 items-center gap-1 border-b border-page-bar-edge bg-page-bar px-1.5"
     >
       {/* Its two sides as wide, so the host is in the bar's middle while
@@ -75,6 +86,15 @@ export function PageAddressBar({
           />
         ))}
         <PageInfoButton tab={tab} actions={actions} marked={active} />
+        {split && (
+          <Button
+            ref={close}
+            icon={CloseIcon}
+            iconSize={18}
+            label="Close Tab"
+            onClick={() => void browser.close(tab.id)}
+          />
+        )}
       </div>
     </header>
   );
