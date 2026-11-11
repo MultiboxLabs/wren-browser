@@ -17,8 +17,9 @@ import { type Space, useSpace } from "./space";
  */
 export function useSpaceBlend(): Space | null {
   const { slide, beside } = useSpace();
-  // The slot the strip moves toward: the nearest one beside, past where it
-  // has got, the way it has moved; 0 while it is in place.
+  // The slot the strip moves toward: the nearest one drawn beside, past
+  // where it has got, the way it has moved, or the furthest drawn short of
+  // it; 0 while it is in place.
   const [toward, setToward] = useState(0);
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -32,7 +33,12 @@ export function useSpaceBlend(): Space | null {
       const width = slide.pitch.get();
       const at = width > 0 ? -slide.x.get() / width : 0;
       root.style.setProperty("--blend", String(Math.min(Math.abs(at), 1)));
-      setToward(Math.abs(at) < 0.01 ? 0 : Math.sign(at) * Math.max(1, Math.ceil(Math.abs(at))));
+      // Past the last space drawn that way, as the content gives past the
+      // end of a swipe, it is still that space.
+      const way = Math.sign(at);
+      let slot = Math.abs(at) < 0.01 ? 0 : way * Math.max(1, Math.ceil(Math.abs(at)));
+      while (Math.abs(slot) > 1 && slide.drawnAt(slot) === undefined) slot -= way;
+      setToward(slot);
     };
     follow();
     const stops = [slide.x.on("change", follow), slide.pitch.on("change", follow)];
