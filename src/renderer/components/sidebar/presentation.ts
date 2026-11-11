@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { downloads, hasApp, menu, type SidebarState } from "@/ipc";
+import { useAddressBar } from "@/state/address-bar";
 import { useShowing, useTabShape } from "@/state/browser";
 import { useSpace } from "@/state/space";
 import { useHolds } from "@/components/ui/hold";
@@ -44,6 +45,8 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
   // address field, or the form of a space being made. A bubble or a space
   // made while it is away brings it out, for the bubble to hang off (a
   // permission prompt, an extension's popup from its shortcut) or the form.
+  // A bubble counts only while the Address Bar setting puts the marks in the
+  // sidebar: atop the page, it hangs off the page's bar instead.
   const [opened, hold] = useHolds();
   // The Library, which takes the sidebar's place while it is open, so it is
   // out from the render that opens it: not inert by the time the Library
@@ -67,7 +70,7 @@ export function useSidebarPresentation(saved: SidebarState | null, omniboxOnAddr
   }, []);
   const { active, ready } = useTabShape();
   const showing = useShowing();
-  const bubbleOpen = showing.length > 0;
+  const bubbleOpen = useAddressBar() === "sidebar" && showing.length > 0;
   const making = useSpace().newSpace !== null;
   // A space with no tab shows no page, so the floating sidebar stays out
   // until one opens. Before the app has said the tabs, it is not known to

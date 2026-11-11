@@ -11,7 +11,7 @@ import { LoadingBar } from "./loading-bar";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { browser, type BrowserTab, splits, type TabSplit } from "@/ipc";
-import { hasPageBar, useAddressBar } from "@/state/address-bar";
+import { useAddressBar } from "@/state/address-bar";
 import { useWindowMargins } from "@/state/margins";
 import { cn } from "@/utils/cn";
 
@@ -46,9 +46,10 @@ export function TabView({
   /** What a click on the address atop a page opens; with none, no page has an address bar atop it. */
   onOpenLocation?: () => void;
 }) {
+  // The address bar atop each page, while the setting puts it there.
   const setting = useAddressBar();
+  const bar = !fullScreen && !bare && setting === "top";
   if (fullScreen || bare || !split || !first || !second) {
-    const bar = !fullScreen && !bare && hasPageBar(setting, false);
     return (
       <TabPane
         tab={tab}
@@ -68,7 +69,7 @@ export function TabView({
       second={second}
       active={tab.id}
       besidePanel={besidePanel}
-      onOpenLocation={onOpenLocation}
+      onOpenLocation={bar ? onOpenLocation : undefined}
     />
   );
 }
@@ -167,10 +168,6 @@ function TabPane({
   style?: CSSProperties;
 }) {
   const margins = useWindowMargins();
-  // Chromium's marks are on the active side's, while the setting puts the
-  // address atop the page, and on the sidebar's otherwise.
-  const setting = useAddressBar();
-  const marked = active && setting === "top";
   return (
     <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
       {/* With no margins, there is no gap above the card for it. */}
@@ -183,15 +180,7 @@ function TabPane({
           "no-drag relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
         )}
       >
-        {onOpenLocation && (
-          <PageAddressBar
-            tab={tab}
-            active={active}
-            marked={marked}
-            toolbar={setting === "top"}
-            onOpenLocation={onOpenLocation}
-          />
-        )}
+        {onOpenLocation && <PageAddressBar tab={tab} active={active} onOpenLocation={onOpenLocation} />}
         {/* The page, with the card's corners below the bar, and all four without one. */}
         <div className={cn("relative min-h-0 flex-1", onOpenLocation ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
           <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />

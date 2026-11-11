@@ -11,7 +11,7 @@ import { SpaceProvider, useSpace } from "@/state/space";
 import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "@/state/window";
 import { useSpaceBlend } from "@/state/space-blend";
 import { useWindowMargins, useWindowMarginsSetting, WindowMarginsContext } from "@/state/margins";
-import { AddressBarContext, hasPageBar, useAddressBar, useAddressBarSetting } from "@/state/address-bar";
+import { AddressBarContext, useAddressBar, useAddressBarSetting } from "@/state/address-bar";
 import { Omnibox } from "@/components/omnibox/omnibox";
 import { useOpenForEmptyWindow, useShownOmnibox } from "@/components/omnibox/shown";
 import { SidePanel } from "@/components/side-panel";
@@ -92,7 +92,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   // The page at the window's top right has its address bar atop it, which
   // the toast keeps below.
   const addressBar = useAddressBar();
-  const pageBar = shown !== undefined && !fullScreen && hasPageBar(addressBar, split !== undefined);
+  const pageBar = shown !== undefined && !fullScreen && addressBar === "top";
   const address = useRef<HTMLDivElement>(null);
   const omnibox = useShownOmnibox(address, browser !== null);
   useOpenForEmptyWindow(omnibox, ready, active);

@@ -77,8 +77,8 @@ pub struct SettingsChange {
     pub address_bar: Option<AddressBar>,
 }
 
-/// Where the page's address shows. A split shows each side's atop it either
-/// way; Chromium's bubbles hang off the one this names.
+/// Where the page's address shows, and Chromium's bubbles hang off: atop the
+/// sidebar, or atop the page (each side's, in a split).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AddressBar {
