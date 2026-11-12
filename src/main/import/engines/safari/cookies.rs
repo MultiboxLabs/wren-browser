@@ -29,19 +29,18 @@ fn path() -> PathBuf {
         .join("Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies")
 }
 
-// Every cookie in the file that has not expired. Safari keeps an expired
-// one until it next reads it.
-fn all() -> Result<Vec<Cookie>, ReadError> {
+// Every cookie in the file that has not expired, and how many it could not
+// read. Safari keeps an expired one until it next reads it.
+fn all() -> Result<Parsed, ReadError> {
     let now = unix_micros(SystemTime::now()) / 1000;
-    let all = parse(&fs::read(path())?).ok_or(ReadError::Unreadable("not a cookie file".into()))?;
-    Ok(all
-        .into_iter()
-        .filter(|cookie| cookie.expires_ms > now)
-        .collect())
+    let mut all =
+        parse(&fs::read(path())?).ok_or(ReadError::Unreadable("not a cookie file".into()))?;
+    all.cookies.retain(|cookie| cookie.expires_ms > now);
+    Ok(all)
 }
 
 pub fn count() -> Result<CookieCount, ReadError> {
-    let all = all()?;
+    let all = all()?.cookies;
     let sites = all
         .iter()
         .map(|cookie| cookie.domain.trim_start_matches('.'))
@@ -54,27 +53,37 @@ pub fn count() -> Result<CookieCount, ReadError> {
 }
 
 pub fn read(batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<usize, ReadError> {
-    for chunk in all()?.chunks(COOKIE_BATCH) {
+    let all = all()?;
+    for chunk in all.cookies.chunks(COOKIE_BATCH) {
         batch(chunk.to_vec());
     }
-    Ok(0)
+    Ok(all.unread)
 }
 
-pub fn parse(file: &[u8]) -> Option<Vec<Cookie>> {
-    let read = pages(file)?;
+/// The cookies of a file, and how many it has that could not be read.
+pub struct Parsed {
+    pub cookies: Vec<Cookie>,
+    pub unread: usize,
+}
+
+/// The file's cookies; none if it is not a cookie file. A cookie that cannot
+/// be read, such as one whose text is not UTF-8, is counted and left out,
+/// and so is a page's.
+pub fn parse(file: &[u8]) -> Option<Parsed> {
+    let (read, unread) = pages(file)?;
     let keeps_same_site = read.iter().any(|(_, flags)| flags & SAME_SITE != 0);
-    Some(
-        read.into_iter()
-            .map(|(cookie, flags)| Cookie {
-                same_site: if keeps_same_site {
-                    same_site(flags)
-                } else {
-                    CookieSameSite::Unspecified
-                },
-                ..cookie
-            })
-            .collect(),
-    )
+    let cookies = read
+        .into_iter()
+        .map(|(cookie, flags)| Cookie {
+            same_site: if keeps_same_site {
+                same_site(flags)
+            } else {
+                CookieSameSite::Unspecified
+            },
+            ..cookie
+        })
+        .collect();
+    Some(Parsed { cookies, unread })
 }
 
 const SECURE: usize = 1;
@@ -92,8 +101,10 @@ fn same_site(flags: usize) -> CookieSameSite {
     }
 }
 
-// Every cookie in the file, with its flags.
-fn pages(file: &[u8]) -> Option<Vec<(Cookie, usize)>> {
+// Every cookie in the file, with its flags, and how many could not be read.
+// A page that is not all there ends the reading: the pages after it are not
+// where their sizes say.
+fn pages(file: &[u8]) -> Option<(Vec<(Cookie, usize)>, usize)> {
     let be = |at: usize| Some(u32::from_be_bytes(file.get(at..at + 4)?.try_into().ok()?) as usize);
     if file.get(..4)? != b"cook" {
         return None;
@@ -101,28 +112,46 @@ fn pages(file: &[u8]) -> Option<Vec<(Cookie, usize)>> {
     let pages = be(4)?;
     let mut page_at = 8 + 4 * pages;
     let mut cookies = Vec::new();
+    let mut unread = 0;
     for index in 0..pages {
-        let size = be(8 + 4 * index)?;
-        let page = file.get(page_at..page_at + size)?;
-        cookies.extend(read_page(page)?);
+        let Some(size) = be(8 + 4 * index) else {
+            break;
+        };
+        let Some(page) = page_at
+            .checked_add(size)
+            .and_then(|end| file.get(page_at..end))
+        else {
+            break;
+        };
+        unread += read_page(page, &mut cookies);
         page_at += size;
     }
-    Some(cookies)
+    Some((cookies, unread))
 }
 
 fn le(bytes: &[u8], at: usize) -> Option<usize> {
     Some(u32::from_le_bytes(bytes.get(at..at + 4)?.try_into().ok()?) as usize)
 }
 
-fn read_page(page: &[u8]) -> Option<Vec<(Cookie, usize)>> {
-    let count = le(page, 4)?;
-    (0..count)
-        .map(|index| {
-            let at = le(page, 8 + 4 * index)?;
+// Adds the page's cookies to `cookies`, and answers how many it could not
+// read.
+fn read_page(page: &[u8], cookies: &mut Vec<(Cookie, usize)>) -> usize {
+    // No more than the page has room to give the offsets of.
+    let Some(count) = le(page, 4).map(|count| count.min(page.len().saturating_sub(8) / 4)) else {
+        return 0;
+    };
+    let mut unread = 0;
+    for index in 0..count {
+        let cookie = le(page, 8 + 4 * index).and_then(|at| {
             let size = le(page, at)?;
-            read_cookie(page.get(at..at + size)?)
-        })
-        .collect()
+            read_cookie(page.get(at..at.checked_add(size)?)?)
+        });
+        match cookie {
+            Some(cookie) => cookies.push(cookie),
+            None => unread += 1,
+        }
+    }
+    unread
 }
 
 fn read_cookie(cookie: &[u8]) -> Option<(Cookie, usize)> {
@@ -205,7 +234,7 @@ mod tests {
 
     #[test]
     fn reads_a_cookie_file() {
-        let cookies = parse(&file(&[cookie(5)])).unwrap();
+        let cookies = parse(&file(&[cookie(5)])).unwrap().cookies;
         assert_eq!(cookies.len(), 1);
         let cookie = &cookies[0];
         assert_eq!(
@@ -228,6 +257,7 @@ mod tests {
             let cookies: Vec<Vec<u8>> = flags.iter().map(|flags| cookie(*flags)).collect();
             parse(&file(&cookies))
                 .unwrap()
+                .cookies
                 .iter()
                 .map(|cookie| cookie.same_site)
                 .collect()
@@ -245,5 +275,18 @@ mod tests {
             read(&[1, 5]),
             [CookieSameSite::Unspecified, CookieSameSite::Unspecified]
         );
+    }
+
+    // A cookie that cannot be read is counted and left out, and the rest
+    // are read.
+    #[test]
+    fn leaves_out_a_cookie_it_cannot_read() {
+        let mut bad = cookie(5);
+        // Its value, last in it, is not UTF-8.
+        let at = bad.len() - 2;
+        bad[at] = 0xff;
+        let parsed = parse(&file(&[cookie(5), bad, cookie(5)])).unwrap();
+        assert_eq!((parsed.cookies.len(), parsed.unread), (2, 1));
+        assert!(parse(b"not a cookie file").is_none());
     }
 }
