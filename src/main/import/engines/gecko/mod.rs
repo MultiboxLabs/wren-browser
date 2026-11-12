@@ -72,7 +72,7 @@ impl Engine for Gecko {
         &self,
         profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<Cookie>),
-    ) -> Result<(), ReadError> {
+    ) -> Result<usize, ReadError> {
         cookies::read(&profile.folder, batch)
     }
 

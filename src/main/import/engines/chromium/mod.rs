@@ -111,7 +111,7 @@ impl Engine for Chromium {
         &self,
         profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<Cookie>),
-    ) -> Result<(), ReadError> {
+    ) -> Result<usize, ReadError> {
         cookies::read(&self.key, &self.root(), &profile.folder, batch)
     }
 

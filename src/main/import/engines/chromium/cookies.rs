@@ -49,7 +49,7 @@ pub fn read(
     root: &Path,
     profile: &Path,
     batch: &mut dyn FnMut(Vec<Cookie>),
-) -> Result<(), ReadError> {
+) -> Result<usize, ReadError> {
     let snapshot = Snapshot::of(&path(profile))?;
     let db = &snapshot.db;
     let version: i64 = db
@@ -80,6 +80,7 @@ pub fn read(
         },
         live(),
     );
+    let mut unread = 0;
     snapshot.read_in_batches(&query, COOKIE_BATCH, batch, |row| {
         let plain = String::from_utf8_lossy(bytes(row, 2)?).into_owned();
         let value = if plain.is_empty() {
@@ -99,8 +100,11 @@ pub fn read(
         } else {
             Some(plain)
         };
-        // One that does not open is left out.
-        let Some(value) = value else { return Ok(None) };
+        // One that does not open is left out, and counted.
+        let Some(value) = value else {
+            unread += 1;
+            return Ok(None);
+        };
         let persistent: bool = row.get(11)?;
         let partition: String = row.get(12)?;
         Ok(Some(Cookie {
@@ -117,7 +121,8 @@ pub fn read(
             partition_site: (!partition.is_empty()).then_some(partition),
             partition_cross_site_ancestor: row.get(13)?,
         }))
-    })
+    })?;
+    Ok(unread)
 }
 
 // A column's bytes, which some browsers keep as text and others as a blob,

@@ -170,12 +170,13 @@ pub trait Engine: Sync {
         profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<HistoryEntry>),
     ) -> Result<(), ReadError>;
-    /// Every cookie, decrypted, a batch at a time.
+    /// Every cookie, decrypted, a batch at a time, and how many it could not
+    /// read.
     fn cookies(
         &self,
         profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<Cookie>),
-    ) -> Result<(), ReadError>;
+    ) -> Result<usize, ReadError>;
     /// The favicons it kept for `pages`, as PNGs, by page; none of a page
     /// it kept none for (favicons.rs). An engine that keeps none of a pin's
     /// kind gives none.
@@ -218,7 +219,7 @@ pub trait Source: Sync {
         &self,
         profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<Cookie>),
-    ) -> Result<(), ReadError> {
+    ) -> Result<usize, ReadError> {
         self.engine().cookies(profile, batch)
     }
     fn favicons(&self, profile: &SourceProfile, pages: &[String]) -> Result<Favicons, ReadError> {

@@ -120,6 +120,9 @@ struct Run {
     left: HashMap<Thing, usize>,
     /// Why each thing failed, a step at a time, for its note.
     failed: HashMap<Thing, Vec<String>>,
+    /// How much of each thing was read but did not land: what could not be
+    /// read, and what Wren refused.
+    left_out: HashMap<Thing, usize>,
     // The step going: whether its reading is over, and how many of its
     // batches Wren has yet to answer.
     reading: bool,
@@ -205,6 +208,7 @@ pub fn start(
             steps: VecDeque::new(),
             left: HashMap::new(),
             failed: HashMap::new(),
+            left_out: HashMap::new(),
             reading: false,
             pending: 0,
             key_refused: false,
@@ -359,10 +363,15 @@ fn next(mt: MainThread, id: u64) {
         Thing::History => in_batches(
             step,
             name,
-            move |batch| source.history(&from, batch),
+            // History leaves out what it does not keep, and that is no news.
+            move |batch| source.history(&from, batch).map(|()| 0),
             |to, batch, landed| {
                 to.add_history(batch, move |result| {
-                    landed(result.map_err(|error| format!("{error:?}")))
+                    landed(
+                        result
+                            .map(Landed::all)
+                            .map_err(|error| format!("{error:?}")),
+                    )
                 })
             },
         ),
@@ -374,12 +383,7 @@ fn next(mt: MainThread, id: u64) {
                 to.add_cookies(batch, move |result| {
                     landed(
                         result
-                            .map(|results| {
-                                results
-                                    .iter()
-                                    .filter(|each| **each == CookieResult::Written)
-                                    .count()
-                            })
+                            .map(|results| cookies_landed(&results))
                             .map_err(|error| format!("{error:?}")),
                     )
                 })
@@ -459,7 +463,7 @@ fn install_extensions(mt: MainThread, step: Step, to: &Profile) {
                         format!("{missing} {are} not in the Chrome Web Store."),
                     );
                 }
-                results.len() - missing
+                Landed::all(results.len() - missing)
             })
             .map_err(|error| format!("{error:?}"));
         landed_batch(mt, step, installed);
@@ -467,15 +471,48 @@ fn install_extensions(mt: MainThread, step: Step, to: &Profile) {
     read_over(mt, step, None);
 }
 
-/// Takes Wren's word on a batch: how many of it landed, or why none did.
-type BatchLanded = Box<dyn FnOnce(Result<usize, String>)>;
+/// Takes Wren's word on a batch: how much of it landed, or why none did.
+type BatchLanded = Box<dyn FnOnce(Result<Landed, String>)>;
+
+/// How much of a batch landed, and how much Wren refused.
+struct Landed {
+    count: usize,
+    refused: usize,
+}
+
+impl Landed {
+    /// `count` landed, and nothing was refused that the user should hear of.
+    fn all(count: usize) -> Landed {
+        Landed { count, refused: 0 }
+    }
+}
+
+// What Wren wrote of a batch of cookies, and what it refused. Why each was
+// refused goes to the log, as the page says only how many.
+fn cookies_landed(results: &[CookieResult]) -> Landed {
+    let mut refused: HashMap<String, usize> = HashMap::new();
+    for result in results {
+        if *result != CookieResult::Written {
+            *refused.entry(format!("{result:?}")).or_default() += 1;
+        }
+    }
+    if !refused.is_empty() {
+        eprintln!("Wren refused cookies brought over: {refused:?}");
+    }
+    let count = results.len() - refused.values().sum::<usize>();
+    Landed {
+        count,
+        refused: results.len() - count,
+    }
+}
 
 // Reads a step's thing on a thread, a batch at a time, and hands each batch
-// to Wren (`land`) on the main thread, in the route's Wren profile.
+// to Wren (`land`) on the main thread, in the route's Wren profile. `read`
+// answers how much it could not read.
 fn in_batches<T: Send + 'static>(
     step: Step,
     source: &'static str,
-    read: impl FnOnce(&mut dyn FnMut(Vec<T>)) -> Result<(), ReadError> + Send + 'static,
+    read: impl FnOnce(&mut dyn FnMut(Vec<T>)) -> Result<usize, ReadError> + Send + 'static,
     land: fn(&Profile, &[T], BatchLanded),
 ) {
     std::thread::spawn(move || {
@@ -495,9 +532,13 @@ fn in_batches<T: Send + 'static>(
             });
         });
         let refused = matches!(read, Err(ReadError::Refused));
+        let unread = *read.as_ref().unwrap_or(&0);
         let why = read.err().map(|error| error.message(source));
         let _ = wren::post_to_main_thread(move |mt| {
-            with(step.run, |run| run.key_refused |= refused);
+            with(step.run, |run| {
+                run.key_refused |= refused;
+                *run.left_out.entry(step.thing).or_default() += unread;
+            });
             read_over(mt, step, why);
         });
     });
@@ -596,10 +637,15 @@ fn progress(run: &mut Run, thing: Thing) -> Option<&mut ThingProgress> {
 }
 
 // Wren took a batch: so much more has landed, or it failed.
-fn landed_batch(mt: MainThread, step: Step, result: Result<usize, String>) {
+fn landed_batch(mt: MainThread, step: Step, result: Result<Landed, String>) {
     with(step.run, |run| run.pending = run.pending.saturating_sub(1));
     match result {
-        Ok(count) => landed(step, count),
+        Ok(Landed { count, refused }) => {
+            with(step.run, |run| {
+                *run.left_out.entry(step.thing).or_default() += refused;
+            });
+            landed(step, count);
+        }
         Err(error) => {
             with(step.run, |run| note_failure(run, step.thing, error));
         }
@@ -638,6 +684,7 @@ fn step_over(mt: MainThread, step: Step) {
             return true;
         }
         let failures = run.failed.remove(&step.thing).unwrap_or_default();
+        let left_out = run.left_out.remove(&step.thing).unwrap_or_default();
         let every_step_failed = failures.len() >= run.routes.len();
         if let Some(progress) = progress(run, step.thing) {
             progress.state = if every_step_failed {
@@ -647,6 +694,8 @@ fn step_over(mt: MainThread, step: Step) {
             };
             if let Some(first) = failures.into_iter().next() {
                 progress.note = Some(first);
+            } else if left_out > 0 {
+                progress.note = Some(format!("{left_out} couldn't be brought over."));
             }
             progress.total = progress.total.max(progress.done);
         }
@@ -655,5 +704,23 @@ fn step_over(mt: MainThread, step: Step) {
     if over == Some(true) {
         tell(step.run);
         next(mt, step.run);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // What Wren refuses is counted apart from what it writes.
+    #[test]
+    fn counts_the_cookies_refused() {
+        let results = [
+            CookieResult::Written,
+            CookieResult::Invalid,
+            CookieResult::Written,
+            CookieResult::Expired,
+        ];
+        let landed = cookies_landed(&results);
+        assert_eq!((landed.count, landed.refused), (2, 2));
     }
 }

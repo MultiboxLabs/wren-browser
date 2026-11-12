@@ -28,7 +28,7 @@ fn live() -> String {
     format!("(CASE WHEN expiry > {MS_FROM} THEN expiry ELSE expiry * 1000 END) > {now}")
 }
 
-pub fn read(profile: &Path, batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<(), ReadError> {
+pub fn read(profile: &Path, batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<usize, ReadError> {
     let sql = format!(
         "SELECT host, name, value, path, expiry, lastAccessed, creationTime, isSecure, isHttpOnly, \
          sameSite, originAttributes FROM moz_cookies WHERE {}",
@@ -58,7 +58,8 @@ pub fn read(profile: &Path, batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<(), Re
                 partition_cross_site_ancestor: false,
             }))
         },
-    )
+    )?;
+    Ok(0)
 }
 
 /// The least expiry kept in milliseconds: no expiry in seconds is past the

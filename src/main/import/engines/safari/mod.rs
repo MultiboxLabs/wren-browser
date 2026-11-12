@@ -87,7 +87,7 @@ impl Engine for Safari {
         &self,
         _profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<Cookie>),
-    ) -> Result<(), ReadError> {
+    ) -> Result<usize, ReadError> {
         cookies::read(batch)
     }
 }

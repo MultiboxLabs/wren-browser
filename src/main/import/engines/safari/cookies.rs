@@ -47,11 +47,11 @@ pub fn count() -> Result<CookieCount, ReadError> {
     })
 }
 
-pub fn read(batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<(), ReadError> {
+pub fn read(batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<usize, ReadError> {
     for chunk in all()?.chunks(COOKIE_BATCH) {
         batch(chunk.to_vec());
     }
-    Ok(())
+    Ok(0)
 }
 
 pub fn parse(file: &[u8]) -> Option<Vec<Cookie>> {
