@@ -68,10 +68,7 @@ pub enum Target {
     },
     /// In the list, its first tab at `index` among the list's tabs
     /// (`tabs::listed`), in the group of the ID `group`, or in none.
-    Tabs {
-        group: Option<String>,
-        index: usize,
-    },
+    Tabs { group: Option<String>, index: usize },
     /// On `side` of the row of another tab, to make a split with it.
     Split { with: ItemRef, side: Side },
 }
@@ -144,9 +141,8 @@ pub fn add_address(
         Ok(place) => place,
         Err(error) => return done(Err(error)),
     };
-    let pin = |target, index| {
-        pins::add_address(state, &place, &url, target, index).map(|_| Added::Pin)
-    };
+    let pin =
+        |target, index| pins::add_address(state, &place, &url, target, index).map(|_| Added::Pin);
     match to.target {
         Target::Favorites { index } => done(pin(PinTarget::Favorites, index)),
         Target::Pinned { folder, index } => done(pin(PinTarget::Space { parent: folder }, index)),
@@ -174,14 +170,11 @@ fn move_pin(
     target: Target,
     done: impl FnOnce(Result<Moved, String>) + 'static,
 ) {
-    let among = |target, index| {
-        pins::move_pin(state, &place, id, target, index).map(|()| Moved::Placed)
-    };
+    let among =
+        |target, index| pins::move_pin(state, &place, id, target, index).map(|()| Moved::Placed);
     match target {
         Target::Favorites { index } => done(among(PinTarget::Favorites, index)),
-        Target::Pinned { folder, index } => {
-            done(among(PinTarget::Space { parent: folder }, index))
-        }
+        Target::Pinned { folder, index } => done(among(PinTarget::Space { parent: folder }, index)),
         Target::Tabs { group, index } => {
             let (inner, to) = (state.clone(), place.clone());
             with_browser(state, mt, window, place, move |browser| {
@@ -211,9 +204,9 @@ fn move_pin(
             pins::split_with(state, &browser, &place, id, tab, side)?;
             Ok(Moved::Split { pin: true })
         })()),
-        Target::Split { .. } => {
-            done(Err("A pin makes a split only with a tab of the list.".into()))
-        }
+        Target::Split { .. } => done(Err(
+            "A pin makes a split only with a tab of the list.".into()
+        )),
     }
 }
 

@@ -27,7 +27,10 @@ pub struct Subject {
 
 pub enum What {
     /// A tab of the list, the one pressed of a split's two.
-    Listed { browser: Browser, tab: BrowserTab },
+    Listed {
+        browser: Browser,
+        tab: BrowserTab,
+    },
     /// A pinned tab or a favourite: its tabs in the window's Browser, in its
     /// pages' order, none if it is not open there; which of them are away
     /// from its pages; and the side pressed.
@@ -40,7 +43,10 @@ pub enum What {
         side: usize,
     },
     Folder(PinRow),
-    Group { browser: Browser, group: TabGroup },
+    Group {
+        browser: Browser,
+        group: TabGroup,
+    },
 }
 
 /// What a choice did: the folder New Folder made, for the page to name, and

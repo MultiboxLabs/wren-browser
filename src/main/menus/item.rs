@@ -205,7 +205,10 @@ fn split(subject: &Subject, tab: BrowserTab, leaves: bool) -> Vec<MenuItem> {
         }
         // Beside the active tab, unless it is that tab or in a split of
         // its own.
-        let active = subject.browser().ok().and_then(|browser| browser.active_tab());
+        let active = subject
+            .browser()
+            .ok()
+            .and_then(|browser| browser.active_tab());
         let free = active.is_some_and(|active| {
             active != tab && active.state().is_ok_and(|state| state.split.is_none())
         });

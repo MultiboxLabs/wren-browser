@@ -18,8 +18,8 @@ use crate::extensions::ad_block;
 use crate::import::Landing;
 use crate::import::run::{self, Plan, RunState};
 use crate::ipc;
-use crate::password_manager;
 use crate::pages::ONBOARDING;
+use crate::password_manager;
 use crate::platform::{PageWindow, TitleBarKind, WindowSize};
 
 /// The window's content, which the user cannot resize, as a setup

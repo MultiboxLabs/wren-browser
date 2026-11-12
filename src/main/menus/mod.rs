@@ -20,8 +20,8 @@ use crate::db::SpaceId;
 pub use download::show_download_menu;
 pub use group::{color_name, least_used_color, set_group_color};
 pub use icon::set_icon_menu;
-pub use site::{show_permission_menu, show_site_menu};
 pub use item::item_menu;
+pub use site::{show_permission_menu, show_site_menu};
 
 pub const NEW_WINDOW: &str = "new-window";
 pub const NEW_INCOGNITO_WINDOW: &str = "new-incognito-window";
