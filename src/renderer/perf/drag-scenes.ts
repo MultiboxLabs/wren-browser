@@ -733,9 +733,7 @@ export const scenes = (url: string): Scene[] => [
       {
         name: "Reopen Closed Tab, which brings the pin's tab back as a tab of the list, as its pin is another space's now",
         does: perf.reopenClosedTab,
-        shows: "pins 1 0 / tabs 0 {2 3}",
-        fails:
-          "The tab is linked to its pin again though the pin is the other space's, so no sidebar draws it. The roles table makes it a tab of the list (.agent/plans/tab-roles.md, phase 2)."
+        shows: "pins 1 0 / tabs 0 {2 3}"
       }
     ]
   }

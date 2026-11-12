@@ -19,7 +19,7 @@ use super::{WindowRef, with_window};
 use crate::db::{PinId, SpaceId};
 use crate::pins;
 use crate::shell::{BrowserWindow, Place};
-use crate::tabs::placeholder;
+use crate::tabs::roles::{self, Role};
 
 /// A tab as the sidebar draws it.
 #[derive(Serialize)]
@@ -50,11 +50,33 @@ pub struct Tab {
     group: Option<String>,
     /// Its split's ID, if it is in one.
     split: Option<String>,
-    /// Chromium has pinned it: it is a pin's, and not in the list.
-    pinned: bool,
-    /// It stands in for the Browser's tabs while it has none: the page
-    /// neither lists nor shows it.
-    hidden: bool,
+    /// Where the page draws it.
+    role: PageRole,
+}
+
+/// Where the page draws a tab, from what the tab is (tabs/roles.rs). Every
+/// tab is `Listed` unless its role says otherwise, so none is left out of
+/// the list by mistake.
+#[derive(Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum PageRole {
+    /// In the sidebar's list.
+    Listed,
+    /// On the row of the pin it is open for (`Link`).
+    Pin,
+    /// Nowhere: the placeholder, which stands in while the Browser has no
+    /// tabs, or a tab closing for a pin that has gone.
+    Hidden,
+}
+
+impl PageRole {
+    fn of(tab: BrowserTab) -> PageRole {
+        match roles::of(tab) {
+            Role::Listed => PageRole::Listed,
+            Role::Pin(_) => PageRole::Pin,
+            Role::Placeholder | Role::Leaving => PageRole::Hidden,
+        }
+    }
 }
 
 /// The tabs of one of the window's Browsers, in its order, and which is
@@ -137,7 +159,8 @@ fn drawn() -> TabFields {
 }
 
 /// The fields of a tab that change the list's structure: which rows there
-/// are, and which tabs are pins'.
+/// are, and which tabs are pins', as Chromium's pinning changes with a
+/// tab's role.
 fn structure() -> TabFields {
     TabFields::GROUP | TabFields::SPLIT | TabFields::PINNED
 }
@@ -336,9 +359,25 @@ fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> T
         split: state
             .and_then(|state| state.split)
             .map(|split| split.to_string()),
-        pinned: state.is_some_and(|state| state.pinned),
-        hidden: placeholder::is_placeholder(tab),
+        role: role_for_page(tab, state),
     }
+}
+
+// Where the page draws `tab`. A debug build also says when Chromium's
+// pinning and the tab's role disagree, which the pins settle as they follow
+// each change (`pins::follow_tab_changes`): one that lasts is a mistake in
+// what gives the roles.
+fn role_for_page(tab: BrowserTab, state: Option<TabState>) -> PageRole {
+    let role = PageRole::of(tab);
+    let pinned = matches!(roles::of(tab), Role::Pin(_) | Role::Leaving);
+    if cfg!(debug_assertions) && state.is_some_and(|state| state.pinned != pinned) {
+        eprintln!(
+            "Wren has a tab whose role and pinning disagree: {:?}, pinned {}.",
+            roles::of(tab),
+            !pinned
+        );
+    }
+    role
 }
 
 // The pins open in the Browser, by their tabs' IDs of this launch.

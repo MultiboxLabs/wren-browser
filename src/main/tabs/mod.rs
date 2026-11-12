@@ -1,15 +1,17 @@
 // What the app does to a Browser's tabs, whether the page, the main menu or
 // a context menu asks.
 //
-// The sidebar's list shows only the tabs Chromium has not pinned: a pinned
-// tab is a pin's (pins/), drawn as the pin. So every index the list, its
-// moves and its menu use is among those (`listed`), and is turned into the
-// Browser's own only where a tab is put in place (`at_list`).
+// What each tab is, a tab of the sidebar's list, a pin's or the placeholder,
+// is its role (roles.rs). The list shows the tabs whose role is to be
+// listed. So every index the list, its moves and its menu use is among
+// those (`listed`), and is turned into the Browser's own only where a tab
+// is put in place (`at_list`).
 
 pub mod archive;
 pub mod closes;
 pub mod placeholder;
 pub mod previews;
+pub mod roles;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -43,22 +45,13 @@ pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
         .map(drop)
 }
 
-/// The tabs the sidebar's list shows, in its order: those Chromium has not
-/// pinned. The placeholder is among them, which the page hides itself.
+/// The tabs the sidebar's list shows, in its order: those whose role is to
+/// be listed (roles.rs), which a pin's tab and the placeholder are not.
 pub fn listed(browser: &Browser) -> Vec<BrowserTab> {
     browser
         .tabs()
         .into_iter()
-        .filter(|tab| !is_pinned(*tab))
-        .collect()
-}
-
-/// The tabs Chromium has pinned, in its order: the pins' (pins/).
-pub fn pinned(browser: &Browser) -> Vec<BrowserTab> {
-    browser
-        .tabs()
-        .into_iter()
-        .filter(|tab| is_pinned(*tab))
+        .filter(|tab| roles::is_listed(*tab))
         .collect()
 }
 
@@ -75,22 +68,29 @@ pub fn with_split(tab: BrowserTab) -> Vec<BrowserTab> {
         .unwrap_or_else(|| vec![tab])
 }
 
-/// Whether Chromium has pinned `tab`.
-pub fn is_pinned(tab: BrowserTab) -> bool {
-    tab.state().is_ok_and(|state| state.pinned)
-}
-
 /// Whether closing `tab` may show its page's "Leave site?" prompt, where the
 /// user can keep the tab. Otherwise a tab asked to close does close.
 pub fn may_ask_before_close(tab: BrowserTab) -> bool {
     tab.state().is_ok_and(|state| state.may_ask_before_close)
 }
 
-// The Browser's index of `index` among the listed tabs: Chromium keeps its
-// pinned tabs first.
+// The Browser's index of `index` among the listed tabs: where the listed
+// tab there is now, or past the last of them. With none listed, it is past
+// the tabs Chromium has pinned, which it keeps first.
 fn at_list(browser: &Browser, index: usize) -> usize {
-    let pinned = browser.tabs().into_iter().take_while(|tab| is_pinned(*tab));
-    pinned.count() + index
+    let tabs = browser.tabs();
+    let mut places = (0..tabs.len()).filter(|at| roles::is_listed(tabs[*at]));
+    if let Some(at) = places.nth(index) {
+        return at;
+    }
+    let last = (0..tabs.len()).rfind(|at| roles::is_listed(tabs[*at]));
+    last.map_or_else(
+        || {
+            let pinned = |tab: &&BrowserTab| tab.state().is_ok_and(|state| state.pinned);
+            tabs.iter().take_while(pinned).count()
+        },
+        |last| last + 1,
+    )
 }
 
 /// Whether `url` is Chromium's New Tab page, or none yet.
@@ -109,14 +109,11 @@ pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
 }
 
 /// Clears the list: closes its tabs but the active one, or the active one
-/// when it is the only one. The placeholder stays, as the list does not show
-/// it, and so do the pins, which are not the list's.
+/// when it is the only one. The placeholder stays, and so do the pins'
+/// tabs, as neither is the list's.
 pub fn clear(browser: &Browser) -> Result<(), Error> {
     let active = browser.active_tab();
-    let tabs: Vec<_> = listed(browser)
-        .into_iter()
-        .filter(|tab| !placeholder::is_placeholder(*tab))
-        .collect();
+    let tabs = listed(browser);
     let others: Vec<_> = tabs
         .iter()
         .copied()

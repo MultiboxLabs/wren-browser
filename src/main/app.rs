@@ -228,7 +228,7 @@ impl State {
         match active {
             // A pin's tab closes with the rest of the pin's, if it is a
             // split's, and leaves the pin unopened.
-            Some((tab, browser)) => match pins::pin_of(&browser, tab) {
+            Some((tab, browser)) => match tabs::roles::pin_of(tab) {
                 Some(pin) => {
                     let _ = pins::close(&browser, pin);
                 }
@@ -420,6 +420,7 @@ impl App for Wren {
                 // and one whose page changes has it go stale.
                 ChangeKind::Tabs | ChangeKind::Tab | ChangeKind::Split => {
                     tabs::closes::settle(&state.analytics);
+                    tabs::roles::forget_closed();
                     placeholder::settle(browser);
                     tabs::previews::follow_active(browser);
                     if let Some(tab) = change.tab
@@ -749,6 +750,7 @@ impl App for Wren {
     // popup's window goes with its Browser, always.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         pins::forget(&browser);
+        tabs::roles::forget_closed();
         tabs::closes::forget_gone();
         tabs::previews::forget(&browser);
         let devtools = self.state.devtools.borrow_mut().remove(&browser);

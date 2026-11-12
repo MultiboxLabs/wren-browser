@@ -12,17 +12,18 @@ use std::collections::HashMap;
 use wren::{Browser, BrowserTab, Error, Profile};
 
 use super::is_new_tab;
+use super::roles::{self, Role};
 use crate::shell::Tag;
 
 thread_local! {
-    // Each placeholder, with the tabs it stands in for, which are closing as
-    // it opens. A tab's ID is the app's own, whichever Browser it is in.
+    // The tabs each placeholder stands in for, which are closing as it
+    // opens. Which tab is a placeholder is its role (roles.rs).
     static HELD: RefCell<HashMap<BrowserTab, Vec<BrowserTab>>> = RefCell::default();
 }
 
 /// Whether `tab` stands in for its Browser's tabs.
 pub fn is_placeholder(tab: BrowserTab) -> bool {
-    HELD.with(|held| held.borrow().contains_key(&tab))
+    roles::of(tab) == Role::Placeholder
 }
 
 /// Whether the Browser has a tab of its own: one that is not a placeholder.
@@ -31,9 +32,11 @@ pub fn has_tabs(browser: &Browser) -> bool {
 }
 
 /// Before `closing` close: if they are all the Browser has, a placeholder
-/// opens to stand in for them, so the Browser stays.
+/// opens to stand in for them, so the Browser stays. A tab that is leaving
+/// (`Role::Leaving`) is closing already, and is not one the Browser has.
 pub fn stand_in(browser: &Browser, closing: &[BrowserTab]) -> Result<(), Error> {
-    if browser.tabs().iter().all(|tab| closing.contains(tab)) {
+    let going = |tab: &BrowserTab| closing.contains(tab) || roles::of(*tab) == Role::Leaving;
+    if browser.tabs().iter().all(going) {
         hold(browser.add_tab("", None, true)?, closing);
     }
     Ok(())
@@ -71,9 +74,9 @@ pub fn adopt(browser: &Browser) {
 }
 
 /// Keeps the Browser's placeholder as its tabs change: it closes once a tab
-/// opens beside it (not one it stands in for, which close as it opens), and
-/// is a tab like any other once it leaves the New Tab page. It stays hidden
-/// as it closes; one that has closed is forgotten.
+/// opens beside it (not one it stands in for, which close as it opens, nor
+/// one that is leaving), and is a tab like any other once it leaves the New
+/// Tab page. It stays hidden as it closes; one that has closed is forgotten.
 pub fn settle(browser: &Browser) {
     let tabs = browser.tabs();
     let held: Vec<(BrowserTab, Vec<BrowserTab>)> = HELD.with(|held| {
@@ -87,11 +90,11 @@ pub fn settle(browser: &Browser) {
     for (tab, closing) in held {
         if !is_new_tab(&tab.url()) {
             HELD.with(|held| held.borrow_mut().remove(&tab));
+            roles::set(tab, Role::Listed);
             Tag::update(browser, |tag| tag.placeholder = None);
-        } else if tabs
-            .iter()
-            .any(|other| *other != tab && !closing.contains(other))
-        {
+        } else if tabs.iter().any(|other| {
+            *other != tab && !closing.contains(other) && roles::of(*other) != Role::Leaving
+        }) {
             Tag::update(browser, |tag| tag.placeholder = None);
             let _ = tab.close();
         }
@@ -100,6 +103,7 @@ pub fn settle(browser: &Browser) {
 
 // Makes `tab` its Browser's placeholder, standing in for `closing`.
 fn hold(tab: BrowserTab, closing: &[BrowserTab]) {
+    roles::set(tab, Role::Placeholder);
     HELD.with(|held| held.borrow_mut().insert(tab, closing.to_vec()));
     if let Some(browser) = tab.browser() {
         Tag::update(&browser, |tag| tag.placeholder = Some(tab.persistent_id()));

@@ -97,7 +97,7 @@ impl Subject {
                         _ => Err("Only tabs of the list are marked with one.".into()),
                     })
                     .collect::<Result<_, _>>()?;
-                if tabs.iter().any(|tab| tabs::is_pinned(*tab)) {
+                if tabs.iter().any(|tab| !tabs::roles::is_listed(*tab)) {
                     return Err("Only tabs of the list are marked with one.".into());
                 }
                 What::Marked { browser, tabs }

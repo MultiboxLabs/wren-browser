@@ -17,6 +17,7 @@ import {
   type BrowserTab,
   type ItemRef,
   type Pin,
+  perf,
   type PinLink,
   pins,
   type TabGroup,
@@ -78,12 +79,12 @@ const read = async (): Promise<Said> => ({
 /** The number of the run's page at an address (`/tab/<n>`), which names a tab or a pin in a picture. */
 const numberOf = (url: string) => /\/tab\/(\d+)/.exec(url)?.[1] ?? "?";
 
-/** The tabs of a space's list, in its order: not a pin's, nor the one that stands in for none. */
+/** The tabs of a space's list, in its order: not a pin's, nor a hidden one. */
 const listedIn = (said: Said, space: number) =>
-  (said.browsers.get(space)?.tabs ?? []).filter((tab) => !tab.pinned && !tab.hidden);
+  (said.browsers.get(space)?.tabs ?? []).filter((tab) => tab.role === "listed");
 
-/** The tabs of a space the page has, a pin's among them: not the one that stands in for none. */
-export const tabsOf = (space: number) => (heard.get(space)?.tabs ?? []).filter((tab) => !tab.hidden);
+/** The tabs of a space the page has, a pin's among them: not a hidden one. */
+export const tabsOf = (space: number) => (heard.get(space)?.tabs ?? []).filter((tab) => tab.role !== "hidden");
 
 /** A split of `browser` whose two tabs are both in `listed`, if `tab` is one of them. */
 function splitOf(browser: Heard | undefined, listed: { id: number }[], tab: { id: number; split: string | null }) {
@@ -145,10 +146,11 @@ export async function picture() {
 /**
  * A tab of the run's spaces that is open and that no sidebar has a row for,
  * as "the tab on page 3 of the second space", or null if every tab has one.
- * A tab has a row in the list unless Chromium has pinned it, and then on
- * the pin it is open for, if that is a favourite or a pin its space shows.
- * Read from what the app says, as `picture` is, so it holds for a space the
- * window does not show too.
+ * A listed tab has its row in the list, and a pin's on the pin it is open
+ * for, if that is a favourite or a pin its space shows. A tab closing for a
+ * pin that has gone is hidden, and counts until it has closed
+ * (`perf.leaving`). Read from what the app says, as `picture` is, so it
+ * holds for a space the window does not show too.
  */
 export async function tabWithoutRow() {
   const said = await read();
@@ -156,13 +158,16 @@ export async function tabWithoutRow() {
     const browser = said.browsers.get(space);
     const kept = new Set(allPins([...said.kept[at].favorites, ...said.kept[at].pinned]).map((pin) => pin.id));
     const rowless = (browser?.tabs ?? []).find((tab) => {
-      if (!tab.pinned) return false;
+      if (tab.role !== "pin") return false;
       const link = browser?.links.find((link) => link.tabs.includes(tab.id));
       return !link || !kept.has(link.pin);
     });
     if (rowless) return `the tab on page ${numberOf(rowless.url)} of the ${at === 0 ? "window's" : "second"} space`;
   }
-  return null;
+  const [leaving] = await perf.leaving();
+  return leaving === undefined
+    ? null
+    : `the tab on page ${numberOf(leaving)}, which is closing for a pin that has gone`;
 }
 
 // Naming an item, and finding its row.

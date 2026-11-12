@@ -45,8 +45,8 @@ export type BrowserShape = {
   /** Whether its tabs have been said; until then it has none to show. */
   ready: boolean;
   /**
-   * The tabs the sidebar's list shows, in its order: those Chromium has not
-   * pinned, which are pins' (the app's `tabs::listed`). The list's indices
+   * The tabs the sidebar's list shows, in its order: those the app says are
+   * listed (`BrowserTab.role`, the app's `tabs::listed`). The list's indices
    * are among these.
    */
   listed: TabShape[];
@@ -68,14 +68,15 @@ export type BrowserShape = {
 export type SpaceTabs = {
   said: BrowserTabs;
   /**
-   * The tabs the page shows: all but the New Tab page that stands in while
-   * the Browser has none. This, and `current`, are the page's one check for
-   * an empty space, as `BrowserWindow::browser_with_tabs` is the app's.
+   * The tabs the page shows: all but the hidden ones, which are the New Tab
+   * page that stands in while the Browser has none and a tab closing for a
+   * pin that has gone. This, and `current`, are the page's one check for an
+   * empty space, as `BrowserWindow::browser_with_tabs` is the app's.
    */
   tabs: BrowserTab[];
   /** The same, by ID. */
   byId: Map<number, BrowserTab>;
-  /** Those the sidebar's list shows: the tabs Chromium has not pinned, which are pins'. */
+  /** Those the sidebar's list shows: the tabs the app says are listed. */
   listed: BrowserTab[];
   /** The active tab, unless it is the New Tab page standing in. */
   current?: BrowserTab;
@@ -86,8 +87,8 @@ export type SpaceTabs = {
 
 /** A Browser's tabs, from the app's word, settled, its shape against `kept`'s. */
 function spaceTabs(said: BrowserTabs, kept: SpaceTabs | undefined): SpaceTabs {
-  const tabs = said.tabs.filter((tab) => !tab.hidden);
-  const listed = tabs.filter((tab) => !tab.pinned);
+  const tabs = said.tabs.filter((tab) => tab.role !== "hidden");
+  const listed = tabs.filter((tab) => tab.role === "listed");
   const current = tabs.find((tab) => tab.id === said.active);
   const fullScreen = said.tabs.find((tab) => tab.id === said.fullScreen);
   const shape: BrowserShape = {

@@ -1,6 +1,6 @@
 // Archiving: a tab left unused for as long as the user's setting says
 // (db/settings.rs) is closed. What a window shows is never archived, nor is
-// a pinned tab: only a Browser's tabs in the background, which the app
+// a pin's tab: only a Browser's listed tabs in the background, which the app
 // looks over every minute, and as the setting changes.
 
 use std::rc::{Rc, Weak};
@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime};
 
 use wren::{Browser, BrowserTab, MainThread, TabAlert, TabState};
 
-use super::placeholder;
+use super::roles;
 use crate::analytics::Event;
 use crate::app::State;
 
@@ -80,17 +80,17 @@ fn shown(browser: &Browser) -> Vec<BrowserTab> {
     }
 }
 
-// Whether `tab` has gone unused for `after`, and nothing keeps it: it is not
-// `shown`, pinned, a placeholder or in use.
+// Whether `tab` has gone unused for `after`, and nothing keeps it: it is a
+// tab of the list, so no pin's and not a placeholder, and is not `shown` or
+// in use.
 fn should_archive(tab: BrowserTab, shown: &[BrowserTab], now: SystemTime, after: Duration) -> bool {
-    if shown.contains(&tab) || placeholder::is_placeholder(tab) {
+    if shown.contains(&tab) || !roles::is_listed(tab) {
         return false;
     }
     let Ok(state) = tab.state() else {
         return false;
     };
-    !state.pinned
-        && !in_use(&state)
+    !in_use(&state)
         && now
             .duration_since(super::last_active_in(&state))
             .is_ok_and(|unused| unused >= after)

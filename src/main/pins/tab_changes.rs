@@ -8,10 +8,11 @@ use std::time::UNIX_EPOCH;
 use wren::{Browser, BrowserTab, Error, SplitLayout, TabSplit};
 
 use super::open_tabs::{self, Link, Side};
-use super::{is_away, link_to, pin_layout, set_pinned, tab_with};
+use super::{is_away, link_to, pin_for, pin_layout, tab_with};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinRow};
 use crate::tabs;
+use crate::tabs::roles::{self, Role};
 
 /// Keeps the Browser's links as its tabs change, and answers whether any
 /// changed:
@@ -20,9 +21,10 @@ use crate::tabs;
 /// - a split pin whose tabs are no longer a split becomes a tab pin of the
 ///   one it keeps (its first, while both are open), and the other is left an
 ///   ordinary tab, unless the pin's tabs are closing (`Link::closing`);
-/// - a pinned tab no pin links is linked again, if it was a pin's tab before
-///   it closed, or else unpinned, unless it is closing for a pin
-///   (`open_tabs::end_closing`);
+/// - a tab Chromium has pinned that no link of the Browser names is linked
+///   again, if it was a pin's tab before it closed and the pin is still one
+///   the Browser's place shows, or else is a tab of the list, unless it is
+///   leaving (`Role::Leaving`);
 /// - while a pin's tab is on the pin's page, the pin keeps its title and
 ///   favicon;
 /// - a split pin keeps its split's order, layout and ratio;
@@ -35,7 +37,7 @@ pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
         .collect();
     let pinned: Vec<&(String, BrowserTab)> = all
         .iter()
-        .filter(|(_, tab)| tabs::is_pinned(*tab))
+        .filter(|(_, tab)| tab.state().is_ok_and(|state| state.pinned))
         .collect();
     let pinned_with = |id: &str| {
         pinned
@@ -43,7 +45,6 @@ pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
             .find(|(each, _)| each == id)
             .map(|(_, tab)| *tab)
     };
-    open_tabs::settle_closing(browser, |id| all.iter().any(|(each, _)| each == id));
     let mut changed = false;
     let mut kept_pins = false;
     for link in open_tabs::of(browser) {
@@ -71,9 +72,23 @@ pub fn follow_tab_changes(state: &State, browser: &Browser) -> bool {
         kept_pins |= keep_active(state, browser, &link, &found);
     }
     for (id, tab) in pinned {
-        if open_tabs::pin_with(browser, id).is_none() && !open_tabs::is_closing(browser, id) {
-            changed = true;
-            relink(state, browser, id, *tab);
+        let linked = |pin| {
+            open_tabs::find(browser, pin)
+                .is_some_and(|link| link.sides.iter().any(|side| side.tab == *id))
+        };
+        match roles::of(*tab) {
+            Role::Leaving | Role::Placeholder => {}
+            Role::Pin(claim) if linked(claim.pin) => {}
+            // A pin's tab that came from another Browser, where its link
+            // was: no pin of this one is drawn as it.
+            Role::Pin(_) => {
+                changed = true;
+                roles::release(*tab);
+            }
+            Role::Listed => {
+                changed = true;
+                relink(state, browser, id, *tab);
+            }
         }
     }
     if kept_pins {
@@ -108,7 +123,7 @@ fn end_broken(
 ) {
     for (side, tab) in link.sides.iter().zip(found) {
         if tab.is_none() && !still_open(&side.tab) {
-            open_tabs::closed(side.tab.clone(), link.pin);
+            roles::remember_closed(side.tab.clone(), link.pin);
         }
     }
     match found.iter().position(Option::is_some) {
@@ -138,7 +153,7 @@ fn keep_side(
         if index != kept
             && let Some(tab) = tab
         {
-            let _ = set_pinned(*tab, false);
+            let _ = roles::set_pinned(*tab, false);
         }
     }
     let side = link.sides[kept].clone();
@@ -267,25 +282,25 @@ fn keep_active(
     true
 }
 
-// A pinned tab no pin links: linked again to the tab pin it was open for
-// before it closed, if that pin is still there and not open in the Browser;
-// otherwise it is an ordinary tab.
+// A tab Chromium has pinned that is a tab of the list by its role: linked
+// again to the tab pin it was open for before it closed, if that pin is
+// still one the Browser's place shows and is not open in the Browser.
+// Otherwise it stays a tab of the list, and is unpinned. A pin that has
+// moved to another space since would be drawn in no sidebar of this one.
 fn relink(state: &State, browser: &Browser, id: &str, tab: BrowserTab) {
-    let pin = open_tabs::closed_pin(id)
+    let place = state
+        .windows
+        .of(browser)
+        .and_then(|window| window.place_of(browser));
+    let pin = roles::closed_pin(id)
         .filter(|pin| open_tabs::find(browser, *pin).is_none())
-        .and_then(|pin| state.db.pin(pin).ok().flatten());
+        .and_then(|pin| pin_for(state, &place?, pin).ok());
     match pin {
-        Some((
-            _,
-            _,
-            PinRow {
-                id: pin,
-                kind: PinKind::Tab(page),
-                ..
-            },
-        )) => open_tabs::add(browser, link_to(pin, [(tab, page)])),
-        _ => {
-            let _ = set_pinned(tab, false);
-        }
+        Some(PinRow {
+            id: pin,
+            kind: PinKind::Tab(page),
+            ..
+        }) => open_tabs::add(browser, link_to(pin, [(tab, page)])),
+        _ => roles::release(tab),
     }
 }

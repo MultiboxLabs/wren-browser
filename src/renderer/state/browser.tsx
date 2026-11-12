@@ -61,8 +61,8 @@ type BrowserState = {
   /** Its tabs, in its order. */
   tabs: BrowserTab[];
   /**
-   * The tabs the sidebar's list shows, in its order: those Chromium has not
-   * pinned, which are pins' (the app's `tabs::listed`). The list's indices
+   * The tabs the sidebar's list shows, in its order: those the app says are
+   * listed (`BrowserTab.role`, the app's `tabs::listed`). The list's indices
    * are among these.
    */
   listed: BrowserTab[];

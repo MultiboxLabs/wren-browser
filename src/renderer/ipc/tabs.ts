@@ -34,10 +34,14 @@ export type BrowserTab = {
   group: string | null;
   /** Its split's ID, if it is in one. */
   split: string | null;
-  /** Chromium has pinned it: it is a pin's, and not in the list. */
-  pinned: boolean;
-  /** It stands in for the Browser's tabs while it has none: a New Tab page the window neither lists nor shows. */
-  hidden: boolean;
+  /**
+   * Where it is drawn: in the sidebar's list, on the row of the pin it is
+   * open for (`PinLink`), or nowhere. A hidden one is the New Tab page that
+   * stands in while the Browser has no tabs, or a tab closing for a pin
+   * that has gone. The app says "listed" for every tab but those it knows
+   * to be one of the others.
+   */
+  role: "listed" | "pin" | "hidden";
 };
 
 /** The tabs of one of the window's Browsers, in its order, and which is active. */

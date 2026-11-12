@@ -9,6 +9,7 @@ use super::{WindowRef, with_browser, with_window};
 use crate::app::State;
 use crate::perf::PageCounts;
 use crate::tabs;
+use crate::tabs::roles::{self, Role};
 
 #[derive(Deserialize)]
 struct Choose {
@@ -73,6 +74,25 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             browser
                 .reopen_closed_tab()
                 .map_err(|error| format!("{error:?}"))
+        })
+    });
+
+    // The addresses of the tabs of the window's Browsers that are leaving
+    // (`Role::Leaving`): closing for a pin that has gone, and drawn nowhere
+    // until they have. The run that checks the sidebar's drags waits for
+    // none, as one that stayed would be a tab open and hidden.
+    let weak = window.clone();
+    let _ = web_view.handle("perf.leaving", move |()| {
+        run(&weak)?;
+        with_window(&weak, |window| {
+            let leaving = window
+                .browsers()
+                .iter()
+                .flat_map(|browser| browser.tabs())
+                .filter(|tab| roles::of(*tab) == Role::Leaving)
+                .map(BrowserTab::url)
+                .collect::<Vec<_>>();
+            Ok(leaving)
         })
     });
 
