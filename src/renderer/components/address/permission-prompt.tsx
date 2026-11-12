@@ -16,11 +16,11 @@ export function PermissionPromptContent({ prompt }: { prompt: PermissionPrompt }
   const answer = (chosen: PermissionAnswer) => permission.answer(prompt.id, chosen).catch(() => {});
   return (
     <div className="flex w-66 flex-col p-2.5">
-      <div className="flex items-start justify-between gap-2">
-        <h2 className="px-0.5 pt-1 font-semibold">{prompt.title}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="px-0.5 font-semibold">{prompt.title}</h2>
         <Button icon={CloseIcon} iconSize={18} label="Close" onClick={() => answer("dismiss")} />
       </div>
-      <ul className="mt-2 flex flex-col gap-1">
+      <ul className="flex flex-col gap-1">
         {prompt.permissions.map((requested) => {
           const Icon = permissionIcon(requested.id);
           return (
