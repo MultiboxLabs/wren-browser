@@ -106,6 +106,18 @@ export const chosen = (what: What, label: string) => async () => {
   await perf.choose(item, side, label);
 };
 
+/** Waits for an item's menu to hold `expected`: after what changes it a moment later, as a tab that opens or closes does. */
+export const menuComes = (what: What, expected: string) => async () => {
+  let held = "";
+  await until(
+    async () => {
+      const { item, side } = await menuRef(what);
+      return (held = await perf.menu(item, side)) === expected;
+    },
+    () => `Its menu holds "${held}", not "${expected}".`
+  );
+};
+
 /** Fails unless an item's menu holds `expected` (`perf.menu`, ipc/perf.ts). */
 export const menuHolds = (what: What, expected: string) => async () => {
   const { item, side } = await menuRef(what);

@@ -365,7 +365,7 @@ fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> T
 
 // Where the page draws `tab`. A debug build also says when Chromium's
 // pinning and the tab's role disagree, which the pins settle as they follow
-// each change (`pins::follow_tab_changes`): one that lasts is a mistake in
+// each change (`pins::settle`): one that lasts is a mistake in
 // what gives the roles.
 fn role_for_page(tab: BrowserTab, state: Option<TabState>) -> PageRole {
     let role = PageRole::of(tab);

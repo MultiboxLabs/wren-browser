@@ -11,8 +11,8 @@ Wren Browser is built on Wren Runtime, a library that wraps a prebuilt Chromium.
 | `src/main/app.rs`          | The app's state and Wren Runtime's callbacks                         |
 | `src/main/windows/`        | Opening, switching and restoring windows, and the spaces they show   |
 | `src/main/shell/`          | What a browser window holds, and where its tabs go                   |
-| `src/main/tabs/`           | What Wren does to tabs, from the sidebar, the menus or the keyboard  |
-| `src/main/pins/`           | Favourites and pins                                                  |
+| `src/main/tabs/`           | What Wren does to tabs, and what each tab is (`roles.rs`)            |
+| `src/main/pins/`           | Favourites and pins, and the tabs open for them                      |
 | `src/main/items/`          | What a drop or a menu in the sidebar does to a tab, a group or a pin |
 | `src/main/db/`             | The SQLite database of spaces, pins, saved windows and settings      |
 | `src/main/import/`         | Bringing things over from another browser                            |

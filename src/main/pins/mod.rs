@@ -2,32 +2,30 @@
 // profile's, which each of its spaces shows) or as a space's pins. They are
 // kept in the app's database (db/pins.rs), not as Chromium's bookmarks.
 //
-// A pin opens in place: a tab of the window's Browser, pinned in Chromium's
-// sense so it is never in the list's order, is linked to it (open_tabs.rs),
-// and the pin is drawn as that tab. A pin and its tab are one: the tab may
-// navigate away and come back, and closing it leaves the pin unopened, while
-// removing the pin closes it. The links follow the tabs as Chromium changes
-// them (tab_changes.rs). A linked tab's role says which pin it is open for
-// (tabs/roles.rs), and the sidebar draws it on that pin's row, not in its
-// list. Linked tabs never last: each is kept out of Chromium's session
-// (`roles::set_pinned`), so a restore brings none back.
+// A pin opens in place: a tab of the window's Browser claims it
+// (tabs/roles.rs), which pins the tab in Chromium's sense so it is never in
+// the list's order, and the sidebar draws the tab on the pin's row. A pin
+// and its tab are one: the tab may navigate away and come back, and closing
+// it leaves the pin unopened, while removing the pin closes it. What an
+// open pin keeps, and its tabs in a Browser, are in open.rs, and the pins
+// are settled as Chromium changes their tabs in settle.rs. A pin's tab
+// never lasts: it is kept out of Chromium's session, so a restore brings
+// none back.
 
-mod open_tabs;
-mod tab_changes;
+mod open;
+mod settle;
 
-pub use open_tabs::forget;
-pub use tab_changes::follow_tab_changes;
+pub use settle::settle;
 
 use std::rc::Rc;
 
-use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, SplitState, TabGroup, TabSplit};
+use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, SplitState, TabGroup};
 
 use crate::app::State;
 use crate::db::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
 use crate::shell::{BrowserWindow, Place};
 use crate::tabs;
-use crate::tabs::roles::{self, Role};
-use open_tabs::{Link, Side};
+use crate::tabs::roles;
 
 /// Where a pin goes, as the page and the menus name it: the favourites of
 /// the place's profile, or the place's space's pins.
@@ -70,8 +68,8 @@ impl PinTarget {
     }
 }
 
-/// Makes `tab` a pin of `place`, at `index` (None: last), and links it: the
-/// tab leaves the list and is drawn as the pin. A tab in a split goes with
+/// Makes `tab` a pin of `place`, at `index` (None: last), which it claims:
+/// the tab leaves the list and is drawn as the pin. A tab in a split goes with
 /// the other, as one split pin. Answers the pin's ID.
 pub fn pin_tab(
     state: &State,
@@ -101,15 +99,13 @@ pub fn pin_tab(
             };
             let id = state.db.create_pin(&to, index, pin)?;
             split.unsplit().map_err(failed)?;
-            split_pinned(first, second, layout, ratio, true)?;
-            let link = link_now(id, &[first, second]);
-            open_tabs::add(browser, link.with_split(layout, ratio));
+            let sides = vec![(first, page_of(first)), (second, page_of(second))];
+            open::link(state, browser, id, sides, Some((layout, ratio))).map_err(failed)?;
             id
         }
         _ => {
             let id = state.db.create_pin(&to, index, NewPin::Tab(page_of(tab)))?;
-            roles::set_pinned(tab, true).map_err(failed)?;
-            open_tabs::add(browser, link_now(id, &[tab]));
+            open::link(state, browser, id, vec![(tab, page_of(tab))], None).map_err(failed)?;
             id
         }
     };
@@ -221,19 +217,18 @@ fn in_folder(rows: Vec<PinRow>, folder: PinId) -> Option<Vec<PinRow>> {
 }
 
 /// Opens pin `id` in `browser`, the window's on `place`: selects its tab if
-/// it is open there, or else opens it there, linked. A split pin opens its
-/// two pages as a split.
+/// it is open there, or else opens it there, in a tab that claims it. A
+/// split pin opens its two pages as a split.
 pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Result<(), String> {
     let pin = pin_for(state, place, id)?;
-    if let Some(tab) = open_tabs::find(browser, id).and_then(|link| tabs_of(browser, &link).next())
-    {
+    let open = open::opening(browser, id).and_then(|opening| opening.tabs().first().copied());
+    if let Some(tab) = open {
         return tab.activate().map_err(failed);
     }
     match pin.kind {
         PinKind::Tab(page) => {
             let tab = browser.add_tab(&page.url, None, true).map_err(failed)?;
-            roles::set_pinned(tab, true).map_err(failed)?;
-            open_tabs::add(browser, link_to(id, [(tab, page)]));
+            open::link(state, browser, id, vec![(tab, page)], None).map_err(failed)?;
         }
         PinKind::Split {
             first,
@@ -243,13 +238,12 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
         } => {
             let one = browser.add_tab(&first.url, None, true).map_err(failed)?;
             let two = browser.add_tab(&second.url, None, false).map_err(failed)?;
-            let layout = split_layout(layout);
-            if let Err(error) = split_pinned(one, two, layout, ratio, true) {
+            let split = Some((split_layout(layout), ratio));
+            let sides = vec![(one, first), (two, second)];
+            if let Err(error) = open::link(state, browser, id, sides, split) {
                 let _ = tabs::close(browser, &[one, two]);
-                return Err(error);
+                return Err(failed(error));
             }
-            let link = link_to(id, [(one, first), (two, second)]);
-            open_tabs::add(browser, link.with_split(layout, ratio));
         }
         PinKind::Folder { .. } => return Err("A folder does not open.".into()),
     }
@@ -276,26 +270,26 @@ pub fn split_with(
         return Err("That tab is a pin's.".into());
     }
     open(state, browser, place, id)?;
-    let link = open_tabs::find(browser, id).ok_or("The pin did not open.")?;
-    let own = tabs_of(browser, &link)
-        .next()
-        .ok_or("The pin's tab is gone.")?;
+    let own = open::opening(browser, id)
+        .and_then(|opening| opening.tabs().first().copied())
+        .ok_or("The pin did not open.")?;
+    let kept = open::kept(id).and_then(|kept| kept.pages.first().cloned());
+    let own_page = kept.ok_or("The pin did not open.")?;
     let page = page_of(tab);
     if tab.state().is_ok_and(|state| state.split.is_some()) {
         unsplit(tab)?;
     }
     state.db.tab_to_split(id, side, &page)?;
     let sides = match side {
-        0 => [(tab, page), (own, link.sides[0].page.clone())],
-        _ => [(own, link.sides[0].page.clone()), (tab, page)],
+        0 => vec![(tab, page), (own, own_page)],
+        _ => vec![(own, own_page), (tab, page)],
     };
-    // Linked in the same call as it is pinned, or `follow_tab_changes` would
-    // unpin it.
-    let (layout, ratio) = (SplitLayout::SideBySide, 0.5);
-    let split = split_pinned(sides[0].0, sides[1].0, layout, ratio, true);
-    open_tabs::add(browser, link_to(id, sides).with_split(layout, ratio));
-    split?;
+    // Should the two not make a split, the pin's tabs are no longer whole,
+    // and it becomes a tab pin again as it is settled (settle.rs).
+    let split = Some((SplitLayout::SideBySide, 0.5));
+    let linked = open::link(state, browser, id, sides, split);
     crate::ipc::broadcast_pins(state);
+    linked.map_err(failed)?;
     tab.activate().map_err(failed)
 }
 
@@ -351,10 +345,12 @@ pub fn open_favorite(state: &Rc<State>, mt: MainThread, window: &BrowserWindow, 
 
 /// Takes the open pin's tab on `side` back to the pin's page, and selects it.
 pub fn back(browser: &Browser, id: PinId, side: usize) -> Result<(), String> {
-    let link = open_tabs::find(browser, id).ok_or("That pin is not open.")?;
-    let side = link.sides.get(side).ok_or("The pin has no such side.")?;
-    let tab = tab_with(browser, &side.tab).ok_or("The pin's tab is gone.")?;
-    tab.navigate(&side.page.url).map_err(failed)?;
+    let opening = open::opening(browser, id).ok_or("That pin is not open.")?;
+    let tab = opening.sides.get(side).copied().flatten();
+    let tab = tab.ok_or("The pin's tab is gone.")?;
+    let kept = open::kept(id).ok_or("That pin is not open.")?;
+    let page = kept.pages.get(side).ok_or("The pin has no such side.")?;
+    tab.navigate(&page.url).map_err(failed)?;
     tab.activate().map_err(failed)
 }
 
@@ -366,30 +362,22 @@ pub struct OpenPin {
     pub away: Vec<bool>,
 }
 
-/// The pins open in `browser`. A link whose tab has gone this moment is
-/// left out; `follow_tab_changes` ends it.
+/// The pins open in `browser`. One a tab of which has gone this moment is
+/// left out; `settle` ends it.
 pub fn open_pins(browser: &Browser) -> Vec<OpenPin> {
-    let claimed = roles::claims(browser);
-    let tab_on = |pin, side| {
-        let found = claimed
-            .iter()
-            .find(|(_, claim)| claim.pin == pin && claim.side == side);
-        found.map(|(tab, _)| *tab)
-    };
-    open_tabs::of(browser)
+    open::openings(browser)
         .into_iter()
-        .filter_map(|link| {
-            let tabs: Vec<BrowserTab> = (0..link.sides.len())
-                .map(|side| tab_on(link.pin, side))
-                .collect::<Option<_>>()?;
-            let away = link
-                .sides
+        .filter_map(|opening| {
+            let tabs = opening.whole()?;
+            let kept = open::kept(opening.pin)?;
+            let away = kept
+                .pages
                 .iter()
                 .zip(&tabs)
-                .map(|(side, tab)| is_away(&side.page.url, &tab.url()))
+                .map(|(page, tab)| is_away(&page.url, &tab.url()))
                 .collect();
             Some(OpenPin {
-                pin: link.pin,
+                pin: opening.pin,
                 tabs,
                 away,
             })
@@ -404,26 +392,22 @@ pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), Str
         .into_iter()
         .find(|open| open.pin == id)
         .ok_or("That pin is not open.")?;
-    let mut updated = Vec::new();
     for (side, tab) in open.tabs.iter().enumerate() {
         if open.away[side] {
-            let page = page_of(*tab);
-            state.db.set_pin_page(id, side, &page)?;
-            updated.push((side, page));
+            open::set_page(state, id, side, &page_of(*tab))?;
         }
     }
-    for window in state.windows.all() {
-        for each in window.browsers() {
-            open_tabs::update(&each, id, |link| {
-                for (side, page) in &updated {
-                    if let Some(kept) = link.sides.get_mut(*side) {
-                        kept.page = page.clone();
-                    }
-                }
-            });
-            // Nothing of its tabs changed to tell the page they are home.
+    // Nothing of its tabs changed to tell the page they are home, in each
+    // Browser the pin is open in.
+    let mut told: Vec<Browser> = Vec::new();
+    for (tab, _) in roles::claims_of(id) {
+        let Some(each) = tab.browser().filter(|each| !told.contains(each)) else {
+            continue;
+        };
+        if let Some(window) = state.windows.of(&each) {
             crate::ipc::send_tabs(&window, &each);
         }
+        told.push(each);
     }
     crate::ipc::broadcast_pins(state);
     Ok(())
@@ -431,26 +415,26 @@ pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), Str
 
 /// Closes the open pin's tabs, all or none, leaving the pin unopened. Each
 /// page may ask first, and if one keeps its tab, every tab stays open and
-/// the pin stays as it was. The link stays until the tabs have gone
-/// (`end_broken` in tab_changes.rs).
+/// the pin stays as it was. The tabs keep their claims until they have gone
+/// (`end_broken` in settle.rs), marked as closing.
 pub fn close(browser: &Browser, id: PinId) -> Result<(), String> {
-    let Some(link) = open_tabs::find(browser, id) else {
+    let Some(opening) = open::opening(browser, id) else {
         return Ok(());
     };
-    if link.closing {
+    if opening.closing {
         return Ok(());
     }
-    let open: Vec<BrowserTab> = tabs_of(browser, &link).collect();
+    let open = opening.tabs();
     tabs::placeholder::stand_in(browser, &open).map_err(failed)?;
-    open_tabs::update(browser, id, |link| link.closing = true);
+    open::set_closing(browser, id, true);
     let kept = browser.clone();
     BrowserTab::close_all(&open, move |result| {
         let Err(error) = result else {
             return;
         };
-        open_tabs::update(&kept, id, |link| link.closing = false);
+        open::set_closing(&kept, id, false);
         if error != Error::Cancelled {
-            eprintln!("Wren could not close a pin's tabs: {error}");
+            eprintln!("Wren could not close a pin's tabs: {error:?}");
         }
     });
     Ok(())
@@ -476,6 +460,7 @@ pub fn move_pin(
 ) -> Result<(), String> {
     let to = target.resolve(state, place)?;
     state.db.move_pin(id, &to, index)?;
+    open::moved(state, id);
     if let PinPlace::Space { space, .. } = to {
         close_where(state, &[id], |window, browser| {
             window.space_of(browser) != Some(space)
@@ -499,20 +484,23 @@ pub fn to_list(
     group: Option<TabGroup>,
 ) -> Result<(), String> {
     let pin = pin_for(state, place, id)?;
-    let open: Vec<BrowserTab> = open_tabs::remove(browser, id)
-        .map(|link| tabs_of(browser, &link).collect())
-        .unwrap_or_default();
+    let open = open::opening(browser, id).map_or_else(Vec::new, |opening| opening.tabs());
     match (pin.kind, open.as_slice()) {
         (PinKind::Tab(_), [tab]) => {
-            roles::set_pinned(*tab, false).map_err(failed)?;
+            roles::release(*tab);
             tabs::move_tab(mt, browser, *tab, index, group).map_err(failed)?;
         }
         (PinKind::Tab(page), _) => {
             tabs::add_at(mt, browser, &page.url, index, group, true).map_err(failed)?;
         }
         (PinKind::Split { .. }, [first, second]) => {
+            // Out of their split as they are unpinned, as Chromium ends a
+            // split one side of which is unpinned alone.
             let (layout, ratio) = unsplit(*first)?;
-            let split = split_pinned(*first, *second, layout, ratio, false)?;
+            roles::release(*first);
+            roles::release(*second);
+            let split = first.split_with(*second, layout).map_err(failed)?;
+            split.set_ratio(ratio, false).map_err(failed)?;
             tabs::move_split(mt, browser, split, index, group).map_err(failed)?;
         }
         (
@@ -533,21 +521,22 @@ pub fn to_list(
         }
         (PinKind::Folder { .. }, _) => return Err("A folder can't be a tab.".into()),
     }
+    // Its tabs here are the list's now, and those elsewhere close with it.
     delete(state, id)
 }
 
-// Ends the links of `pins` in every Browser `closes` picks, and closes their
-// tabs there, each pin's all or none (`let_go`).
+// Closes the tabs of `pins` in every Browser `closes` picks, each pin's
+// all or none (`let_go`).
 fn close_where(state: &State, pins: &[PinId], closes: impl Fn(&BrowserWindow, &Browser) -> bool) {
     for window in state.windows.all() {
         for browser in window.browsers() {
             if !closes(&window, &browser) {
                 continue;
             }
-            let going: Vec<Vec<BrowserTab>> = pins
-                .iter()
-                .filter_map(|pin| open_tabs::remove(&browser, *pin))
-                .map(|link| tabs_of(&browser, &link).collect())
+            let going: Vec<Vec<BrowserTab>> = open::openings(&browser)
+                .into_iter()
+                .filter(|opening| pins.contains(&opening.pin))
+                .map(|opening| opening.tabs())
                 .collect();
             let all: Vec<BrowserTab> = going.iter().flatten().copied().collect();
             if all.is_empty() {
@@ -573,7 +562,7 @@ fn let_go(tabs: Vec<BrowserTab>) {
         if tabs::may_ask_before_close(*tab) {
             roles::release(*tab);
         } else {
-            roles::set(*tab, Role::Leaving);
+            roles::leave(*tab);
         }
     }
     let kept = tabs.clone();
@@ -611,23 +600,6 @@ fn same_page(url: &str) -> String {
     format!("https://{host}{slash}{path}")
 }
 
-// Pins two tabs, or unpins them, and makes them a split, side by side or
-// stacked. Chromium ends a split one side of which is pinned or unpinned
-// alone, so tabs in a split are taken out of it first (`unsplit`).
-fn split_pinned(
-    first: BrowserTab,
-    second: BrowserTab,
-    layout: SplitLayout,
-    ratio: f64,
-    pinned: bool,
-) -> Result<TabSplit, String> {
-    roles::set_pinned(first, pinned).map_err(failed)?;
-    roles::set_pinned(second, pinned).map_err(failed)?;
-    let split = first.split_with(second, layout).map_err(failed)?;
-    split.set_ratio(ratio, false).map_err(failed)?;
-    Ok(split)
-}
-
 // Takes the split `tab` is in apart, and answers its layout and ratio, to
 // make it again.
 fn unsplit(tab: BrowserTab) -> Result<(SplitLayout, f64), String> {
@@ -661,44 +633,6 @@ fn pin_for(state: &State, place: &Place, id: PinId) -> Result<PinRow, String> {
     } else {
         Err("That pin is not this window's.".into())
     }
-}
-
-// A link of pin `id` to `tabs`, each on the page it shows now.
-fn link_now(id: PinId, tabs: &[BrowserTab]) -> Link {
-    link_to(id, tabs.iter().map(|tab| (*tab, page_of(*tab))))
-}
-
-// A link of pin `id` to tabs, each for the pin's page beside it; a split
-// pin's is given its split (`Link::with_split`).
-fn link_to(id: PinId, sides: impl IntoIterator<Item = (BrowserTab, PinPage)>) -> Link {
-    Link {
-        pin: id,
-        sides: sides
-            .into_iter()
-            .map(|(tab, page)| Side {
-                tab: tab.persistent_id(),
-                page,
-            })
-            .collect(),
-        split: None,
-        last_active: None,
-        closing: false,
-    }
-}
-
-// The open tabs of a link, in its order.
-fn tabs_of<'a>(browser: &'a Browser, link: &'a Link) -> impl Iterator<Item = BrowserTab> + 'a {
-    link.sides
-        .iter()
-        .filter_map(|side| tab_with(browser, &side.tab))
-}
-
-// The Browser's tab with persistent ID `id`.
-fn tab_with(browser: &Browser, id: &str) -> Option<BrowserTab> {
-    browser
-        .tabs()
-        .into_iter()
-        .find(|tab| tab.persistent_id() == id)
 }
 
 fn pin_layout(layout: SplitLayout) -> PinLayout {

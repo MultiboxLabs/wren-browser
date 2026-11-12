@@ -430,7 +430,7 @@ impl App for Wren {
                     {
                         tabs::previews::page_changed(tab);
                     }
-                    if pins::follow_tab_changes(state, browser)
+                    if pins::settle(state, browser, change)
                         && let Some(window) = state.windows.of(browser)
                     {
                         ipc::send_tabs(&window, browser);
@@ -749,7 +749,6 @@ impl App for Wren {
     // profile was deleted goes with it (`State::leave_gone_profiles`). A
     // popup's window goes with its Browser, always.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
-        pins::forget(&browser);
         tabs::roles::forget_closed();
         tabs::closes::forget_gone();
         tabs::previews::forget(&browser);

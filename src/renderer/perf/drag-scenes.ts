@@ -13,6 +13,7 @@ import {
   grouped,
   linked,
   makesFolder,
+  menuComes,
   markedMenuHolds,
   marks,
   menuHolds,
@@ -671,11 +672,39 @@ export const scenes = (url: string): Scene[] => [
     name: "A pin that goes",
     tabs: 5,
     steps: [
-      { name: "a tab onto a tab", does: dragged(tab(0), half(tab(1), "right")), shows: "tabs (1|0) 2 3 4" },
-      { name: "a split onto the space's heading", does: dragged(tab(1), heading), shows: "pins (1|0) | tabs 2 3 4" },
-      { name: "an open pinned split deleted, which closes its tabs", does: deleted(pin(1)), shows: "tabs 2 3 4" },
-      { name: "a tab onto the favourites", does: dragged(tab(2), favorites), shows: "favs 2 | tabs 3 4" },
-      { name: "an open favourite deleted, which closes its tab", does: deleted(pin(2)), shows: "tabs 3 4" }
+      { name: "a tab onto the space's heading", does: dragged(tab(0), heading), shows: "pins 0 | tabs 1 2 3 4" },
+      {
+        name: "a pinned tab's Close Tab, which leaves its pin unopened",
+        does: async () => {
+          await chosen(pin(0), "Close Tab")();
+          await menuComes(pin(0), "Open | Copy Link | Rename…, New Folder | Move to Favourites, Unpin")();
+        },
+        shows: "pins 0 | tabs 1 2 3 4"
+      },
+      {
+        name: "Reopen Closed Tab, which opens the pin again on the tab it had",
+        does: async () => {
+          await perf.reopenClosedTab();
+          await menuComes(
+            pin(0),
+            "Reload, Copy Link, Mute Tab | Rename…, New Folder | Close Tab | Move to Favourites, Unpin"
+          )();
+        },
+        shows: "pins 0 | tabs 1 2 3 4"
+      },
+      { name: "a tab onto a tab", does: dragged(tab(1), half(tab(2), "right")), shows: "pins 0 | tabs (2|1) 3 4" },
+      {
+        name: "a split onto the space's heading",
+        does: dragged(tab(2), heading),
+        shows: "pins (2|1) 0 | tabs 3 4"
+      },
+      {
+        name: "an open pinned split deleted, which closes its tabs",
+        does: deleted(pin(2)),
+        shows: "pins 0 | tabs 3 4"
+      },
+      { name: "a tab onto the favourites", does: dragged(tab(3), favorites), shows: "favs 3 | pins 0 | tabs 4" },
+      { name: "an open favourite deleted, which closes its tab", does: deleted(pin(3)), shows: "pins 0 | tabs 4" }
     ]
   },
   {
