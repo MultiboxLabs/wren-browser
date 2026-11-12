@@ -1,6 +1,6 @@
 # Developing Wren
 
-This page is for working on Wren Browser. It covers how Wren is built, running it from source, the checks, the build channels, the app's own `wren://` pages, the data the app bundles, and the sidebar's performance budget. [AGENTS.md](../AGENTS.md) has the project's conventions.
+This page is for working on Wren Browser. It covers how Wren is built, running it from source, the checks, the build channels, the app's own `wren://` pages, the data the app bundles, the sidebar's performance budget, and the check of the sidebar's drags. [AGENTS.md](../AGENTS.md) has the project's conventions.
 
 ## How Wren is built
 
@@ -110,6 +110,16 @@ bun run perf
 ```
 
 It builds an optimised Dev `Wren.app`, opens 200 tabs on a data folder of its own, and measures the sidebar against the budgets in `src/renderer/perf/budgets.ts`. It fails when one is missed. `--tabs <n>` and `--seconds <n>` change the load, `--no-build` runs the `Wren.app` already there, and `--manual` hands you the window and prints each slow frame until you quit.
+
+## Checking the sidebar's drags
+
+```sh
+bun run drags
+```
+
+It builds an optimised Dev `Wren.app` and opens it on a data folder of its own, behind your windows, so you can keep working. The sidebar's page then drags its own rows, such as a tab into a group, a split out of a folder, a link onto the favourites and a tab to another space, and compares what the sidebar holds after each drag with what it should. It prints each check and fails with the names of those that went wrong. `--no-build` runs the `Wren.app` already there.
+
+The checks are the scenes in `src/renderer/perf/drags.tsx`. Add a step there when you change what a drag does.
 
 ## Publishing
 

@@ -44,6 +44,20 @@ impl Perf {
         Some(Perf { config, output })
     }
 
+    /// Chromium switches for a run in the background, behind the user's
+    /// windows: Chromium stops drawing a page whose window is covered, and
+    /// slows its timers, and the run's page must go on as if it were seen.
+    pub fn development_switches(&self) -> Vec<String> {
+        if self.config.get("background").and_then(Value::as_bool) != Some(true) {
+            return Vec::new();
+        }
+        vec![
+            "--disable-backgrounding-occluded-windows".into(),
+            "--disable-renderer-backgrounding".into(),
+            "--disable-background-timer-throttling".into(),
+        ]
+    }
+
     /// Adds one of the page's reports to the output, on a line of its own.
     pub fn record(&self, entry: &Value) -> io::Result<()> {
         let mut file = OpenOptions::new()

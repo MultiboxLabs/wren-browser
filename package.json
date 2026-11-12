@@ -9,6 +9,7 @@
     "publish": "bun run scripts/publish.ts",
     "dmg": "bun run scripts/dmg.ts",
     "perf": "bun run scripts/perf.ts",
+    "drags": "bun run scripts/drags.ts",
     "check": "bun run scripts/cn-tables.ts && bun run scripts/check-chrome-pages.ts && bun run scripts/check-compiler.ts && cargo check && cargo clippy --all-targets && tsc",
     "sync-bangs": "bun run scripts/sync-bangs.ts",
     "sync-ublock": "bun run scripts/sync-ublock.ts",

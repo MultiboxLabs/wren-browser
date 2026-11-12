@@ -28,6 +28,7 @@ bun run build      # builds Wren.app; both take --channel stable|beta|dev and --
 bun run check      # every check; run it before every commit
 bun run format     # Prettier
 bun run perf       # the sidebar's performance budget
+bun run drags      # checks the sidebar's drags, in an app behind your windows
 ```
 
 `bun run check` builds `cn`'s class-merging tables, checks that what Wren restyles on Chromium's pages is still in the Chromium it runs and that React Compiler compiles the sidebar and its state, then runs `cargo check`, `cargo clippy --all-targets` and `tsc`.
