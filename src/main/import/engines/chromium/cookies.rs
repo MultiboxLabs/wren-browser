@@ -4,12 +4,13 @@
 // of its host, which goes.
 
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, Row};
 use wren::Cookie;
 
-use super::{KeyItem, unix_ms};
+use super::{KeyItem, chromium_time, unix_ms};
 use crate::import::engines::same_site;
 use crate::import::snapshot::{self, Snapshot};
 use crate::import::source::{COOKIE_BATCH, ReadError};
@@ -29,7 +30,18 @@ pub fn path(profile: &Path) -> PathBuf {
 /// How many sites have cookies, read with no key, so the user is asked for
 /// it only once they bring them over.
 pub fn count(db: &Connection) -> Result<usize, ReadError> {
-    snapshot::count(db, "SELECT COUNT(DISTINCT host_key) FROM cookies", [])
+    let sql = format!(
+        "SELECT COUNT(DISTINCT host_key) FROM cookies WHERE {}",
+        live()
+    );
+    snapshot::count(db, &sql, [])
+}
+
+// The cookies that have not expired: a session cookie, or one whose expiry
+// is still to come. Chromium keeps an expired one until it next reads it.
+fn live() -> String {
+    let now = chromium_time(SystemTime::now());
+    format!("(is_persistent = 0 OR expires_utc > {now})")
 }
 
 pub fn read(
@@ -55,7 +67,7 @@ pub fn read(
         .ok_or(ReadError::Refused)?;
     let query = format!(
         "SELECT host_key, name, value, encrypted_value, path, creation_utc, expires_utc, last_access_utc, \
-         is_secure, is_httponly, samesite, is_persistent, {}, {} FROM cookies",
+         is_secure, is_httponly, samesite, is_persistent, {}, {} FROM cookies WHERE {}",
         if has("top_frame_site_key") {
             "top_frame_site_key"
         } else {
@@ -66,6 +78,7 @@ pub fn read(
         } else {
             "0"
         },
+        live(),
     );
     snapshot.read_in_batches(&query, COOKIE_BATCH, batch, |row| {
         let plain = String::from_utf8_lossy(bytes(row, 2)?).into_owned();

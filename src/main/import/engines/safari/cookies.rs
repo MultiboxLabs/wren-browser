@@ -9,10 +9,12 @@
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use wren::{Cookie, CookieSameSite};
 
 use super::unix_ms;
+use crate::import::engines::unix_micros;
 use crate::import::source::{COOKIE_BATCH, ReadError};
 use crate::platform;
 
@@ -21,9 +23,15 @@ fn path() -> PathBuf {
         .join("Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies")
 }
 
-// Every cookie in the file.
+// Every cookie in the file that has not expired. Safari keeps an expired
+// one until it next reads it.
 fn all() -> Result<Vec<Cookie>, ReadError> {
-    parse(&fs::read(path())?).ok_or(ReadError::Unreadable("not a cookie file".into()))
+    let now = unix_micros(SystemTime::now()) / 1000;
+    let all = parse(&fs::read(path())?).ok_or(ReadError::Unreadable("not a cookie file".into()))?;
+    Ok(all
+        .into_iter()
+        .filter(|cookie| cookie.expires_ms > now)
+        .collect())
 }
 
 pub fn count() -> Result<usize, ReadError> {

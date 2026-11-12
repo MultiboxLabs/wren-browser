@@ -3,26 +3,39 @@
 // top-level site, from its origin attributes.
 
 use std::path::Path;
+use std::time::SystemTime;
 
 use rusqlite::Connection;
 use wren::Cookie;
 
-use crate::import::engines::same_site;
+use crate::import::engines::{same_site, unix_micros};
 use crate::import::snapshot::{self, Snapshot};
 use crate::import::source::{COOKIE_BATCH, ReadError};
 
 pub fn count(db: &Connection) -> Result<usize, ReadError> {
-    snapshot::count(
-        db,
-        "SELECT COUNT(DISTINCT host) FROM moz_cookies WHERE originAttributes NOT LIKE '%userContextId=%'",
-        [],
-    )
+    let sql = format!(
+        "SELECT COUNT(DISTINCT host) FROM moz_cookies \
+         WHERE originAttributes NOT LIKE '%userContextId=%' AND {}",
+        live()
+    );
+    snapshot::count(db, &sql, [])
+}
+
+// The cookies that have not expired. Gecko keeps an expired one until it
+// next reads it.
+fn live() -> String {
+    let now = unix_micros(SystemTime::now()) / 1000;
+    format!("(CASE WHEN expiry > {MS_FROM} THEN expiry ELSE expiry * 1000 END) > {now}")
 }
 
 pub fn read(profile: &Path, batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<(), ReadError> {
-    Snapshot::of(&profile.join("cookies.sqlite"))?.read_in_batches(
+    let sql = format!(
         "SELECT host, name, value, path, expiry, lastAccessed, creationTime, isSecure, isHttpOnly, \
-         sameSite, originAttributes FROM moz_cookies",
+         sameSite, originAttributes FROM moz_cookies WHERE {}",
+        live()
+    );
+    Snapshot::of(&profile.join("cookies.sqlite"))?.read_in_batches(
+        &sql,
         COOKIE_BATCH,
         batch,
         |row| {
@@ -48,10 +61,14 @@ pub fn read(profile: &Path, batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<(), Re
     )
 }
 
+/// The least expiry kept in milliseconds: no expiry in seconds is past the
+/// year 5000, and none in milliseconds is before 1973.
+const MS_FROM: i64 = 100_000_000_000;
+
 /// Its expiry, in seconds in older versions and milliseconds in newer ones,
-/// as milliseconds: no expiry in seconds is past the year 5000.
+/// as milliseconds.
 fn expiry_ms(expiry: i64) -> i64 {
-    if expiry > 100_000_000_000 {
+    if expiry > MS_FROM {
         expiry
     } else {
         expiry * 1000
