@@ -52,7 +52,7 @@ impl Engine for Gecko {
         survey.history = survey.count(history);
         let cookies = snapshot::glance(&profile.folder.join("cookies.sqlite"))
             .and_then(|db| cookies::count(&db));
-        survey.cookies = survey.count(cookies);
+        survey.count_cookies(cookies);
         survey
     }
 

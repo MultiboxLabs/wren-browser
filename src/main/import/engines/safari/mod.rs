@@ -67,7 +67,7 @@ impl Engine for Safari {
         let history =
             snapshot::glance(&profile.folder.join("History.db")).and_then(|db| history::count(&db));
         survey.history = survey.count(history);
-        survey.cookies = survey.count(cookies::count());
+        survey.count_cookies(cookies::count());
         survey
     }
 

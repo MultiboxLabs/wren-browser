@@ -10,15 +10,15 @@ use wren::Cookie;
 
 use crate::import::engines::{same_site, unix_micros};
 use crate::import::snapshot::{self, Snapshot};
-use crate::import::source::{COOKIE_BATCH, ReadError};
+use crate::import::source::{COOKIE_BATCH, CookieCount, ReadError};
 
-pub fn count(db: &Connection) -> Result<usize, ReadError> {
+pub fn count(db: &Connection) -> Result<CookieCount, ReadError> {
     let sql = format!(
-        "SELECT COUNT(DISTINCT host) FROM moz_cookies \
+        "SELECT COUNT(*), COUNT(DISTINCT host) FROM moz_cookies \
          WHERE originAttributes NOT LIKE '%userContextId=%' AND {}",
         live()
     );
-    snapshot::count(db, &sql, [])
+    snapshot::count_cookies(db, &sql)
 }
 
 // The cookies that have not expired. Gecko keeps an expired one until it

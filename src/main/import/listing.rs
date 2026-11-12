@@ -84,6 +84,7 @@ pub struct ListedSurvey {
     bookmarks: usize,
     #[serde(skip_serializing_if = "is_zero")]
     history: usize,
+    /// Sites with cookies.
     #[serde(skip_serializing_if = "is_zero")]
     cookies: usize,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -252,7 +253,7 @@ fn listed_survey(survey: Survey) -> ListedSurvey {
         spaces: survey.spaces.filter(|count| count.spaces > 0),
         bookmarks: survey.bookmarks,
         history: survey.history,
-        cookies: survey.cookies,
+        cookies: survey.cookie_sites,
         extensions: survey
             .extensions
             .into_iter()

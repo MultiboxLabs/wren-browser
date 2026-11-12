@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, OpenFlags, Params, Row};
 
-use super::source::ReadError;
+use super::source::{CookieCount, ReadError};
 
 pub struct Snapshot {
     folder: PathBuf,
@@ -98,6 +98,16 @@ pub fn glance(path: &Path) -> Result<Connection, ReadError> {
         format!("file:{encoded}?immutable=1"),
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
     )?)
+}
+
+/// The cookies and the sites `sql` counts, in its first two columns.
+pub fn count_cookies(db: &Connection, sql: &str) -> Result<CookieCount, ReadError> {
+    let (cookies, sites): (i64, i64) =
+        db.query_row(sql, [], |row| Ok((row.get(0)?, row.get(1)?)))?;
+    Ok(CookieCount {
+        cookies: cookies.max(0) as usize,
+        sites: sites.max(0) as usize,
+    })
 }
 
 /// The count `sql` selects, of its first column.

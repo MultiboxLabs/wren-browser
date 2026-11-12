@@ -13,7 +13,7 @@ use wren::Cookie;
 use super::{KeyItem, chromium_time, unix_ms};
 use crate::import::engines::same_site;
 use crate::import::snapshot::{self, Snapshot};
-use crate::import::source::{COOKIE_BATCH, ReadError};
+use crate::import::source::{COOKIE_BATCH, CookieCount, ReadError};
 use crate::platform;
 
 /// Where its cookies are: in `Network/` since Chromium 96, or beside the
@@ -27,14 +27,14 @@ pub fn path(profile: &Path) -> PathBuf {
     }
 }
 
-/// How many sites have cookies, read with no key, so the user is asked for
-/// it only once they bring them over.
-pub fn count(db: &Connection) -> Result<usize, ReadError> {
+/// How many cookies there are, and for how many sites, read with no key, so
+/// the user is asked for it only once they bring them over.
+pub fn count(db: &Connection) -> Result<CookieCount, ReadError> {
     let sql = format!(
-        "SELECT COUNT(DISTINCT host_key) FROM cookies WHERE {}",
+        "SELECT COUNT(*), COUNT(DISTINCT host_key) FROM cookies WHERE {}",
         live()
     );
-    snapshot::count(db, &sql, [])
+    snapshot::count_cookies(db, &sql)
 }
 
 // The cookies that have not expired: a session cookie, or one whose expiry

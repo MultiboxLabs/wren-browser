@@ -90,7 +90,7 @@ impl Engine for Chromium {
         survey.history = survey.count(history);
         let cookies =
             snapshot::glance(&cookies::path(&profile.folder)).and_then(|db| cookies::count(&db));
-        survey.cookies = survey.count(cookies);
+        survey.count_cookies(cookies);
         survey.extensions = extensions::read(&profile.folder).unwrap_or_default();
         survey
     }

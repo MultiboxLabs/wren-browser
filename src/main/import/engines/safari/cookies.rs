@@ -15,7 +15,7 @@ use wren::{Cookie, CookieSameSite};
 
 use super::unix_ms;
 use crate::import::engines::unix_micros;
-use crate::import::source::{COOKIE_BATCH, ReadError};
+use crate::import::source::{COOKIE_BATCH, CookieCount, ReadError};
 use crate::platform;
 
 fn path() -> PathBuf {
@@ -34,12 +34,17 @@ fn all() -> Result<Vec<Cookie>, ReadError> {
         .collect())
 }
 
-pub fn count() -> Result<usize, ReadError> {
-    Ok(all()?
+pub fn count() -> Result<CookieCount, ReadError> {
+    let all = all()?;
+    let sites = all
         .iter()
         .map(|cookie| cookie.domain.trim_start_matches('.'))
         .collect::<HashSet<_>>()
-        .len())
+        .len();
+    Ok(CookieCount {
+        cookies: all.len(),
+        sites,
+    })
 }
 
 pub fn read(batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<(), ReadError> {

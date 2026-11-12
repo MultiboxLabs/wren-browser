@@ -63,7 +63,7 @@ function Progress({ progress: { state, done, total, note, thing } }: { progress:
       <span className="h-1 w-30 overflow-hidden rounded-full bg-(--fill)">
         <span
           className="block h-full rounded-full bg-(--space) transition-[width] duration-300"
-          style={{ width: `${total ? (done / total) * 100 : 0}%` }}
+          style={{ width: `${total ? Math.min(done / total, 1) * 100 : 0}%` }}
         />
       </span>
     );

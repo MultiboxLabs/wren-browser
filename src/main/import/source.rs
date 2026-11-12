@@ -121,8 +121,10 @@ pub struct Survey {
     pub bookmarks: usize,
     /// Pages visited since `history_kept_since`.
     pub history: usize,
-    /// Sites with cookies.
+    /// Cookies, which a run counts as they land.
     pub cookies: usize,
+    /// Sites with cookies, which the page shows.
+    pub cookie_sites: usize,
     pub extensions: Vec<StoreExtension>,
     /// Some of it could not be read until the user allows it.
     pub no_access: bool,
@@ -131,16 +133,30 @@ pub struct Survey {
 impl Survey {
     /// Notes what reading a count met: a count of none, or the access it
     /// needs.
-    pub fn count(&mut self, read: Result<usize, ReadError>) -> usize {
+    pub fn count<T: Default>(&mut self, read: Result<T, ReadError>) -> T {
         match read {
             Ok(count) => count,
             Err(ReadError::NoAccess) => {
                 self.no_access = true;
-                0
+                T::default()
             }
-            Err(_) => 0,
+            Err(_) => T::default(),
         }
     }
+
+    /// Notes its cookies and the sites they are for, read as `count`.
+    pub fn count_cookies(&mut self, read: Result<CookieCount, ReadError>) {
+        let count = self.count(read);
+        self.cookies = count.cookies;
+        self.cookie_sites = count.sites;
+    }
+}
+
+/// How many cookies a profile has, and for how many sites.
+#[derive(Debug, Default)]
+pub struct CookieCount {
+    pub cookies: usize,
+    pub sites: usize,
 }
 
 /// What every browser on an engine keeps, read from its files.
