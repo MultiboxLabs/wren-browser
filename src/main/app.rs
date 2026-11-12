@@ -591,7 +591,10 @@ impl App for Wren {
     // Toasts and the find bar are the page's: the toast at the window's top
     // right, Chromium's and the app's own alike, and the bar at the active
     // tab's. The page hears of one once Chromium's call is over, when the
-    // request is open. The rest of Chromium's popovers are its own still.
+    // request is open. A page's request for permissions is the page's too,
+    // a prompt off its page info button (ipc/permission.rs), and the
+    // download bubble is its shelf or Library (ipc/downloads.rs). The rest
+    // of Chromium's popovers are its own still.
     // The zoom is a toast of the app's instead ("110%"), one for each change,
     // through the Browser's toast queue as the rest; Chromium's bubble
     // does not show.
@@ -607,6 +610,9 @@ impl App for Wren {
         }
         if request.kind == PopoverKind::Downloads {
             return ipc::show_downloads_bubble(&self.state, mt, request);
+        }
+        if request.kind == PopoverKind::Permission {
+            return ipc::show_permission_prompt(&self.state, mt, request);
         }
         if !matches!(request.kind, PopoverKind::Toast | PopoverKind::Find) {
             return PopoverAnswer::Chromium;

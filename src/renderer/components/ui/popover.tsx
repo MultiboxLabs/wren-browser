@@ -17,6 +17,7 @@ export function Popover({
   side = "bottom",
   windowMargin = 8,
   anchored = false,
+  stayOnOutsidePress = false,
   onEscape,
   children
 }: {
@@ -26,6 +27,12 @@ export function Popover({
   trigger: ReactNode;
   /** `trigger` only marks what it hangs off, and a press on it does not open or close it: `open` alone does. */
   anchored?: boolean;
+  /**
+   * A press or the keyboard's focus outside it leaves it open: for what
+   * waits for an answer, which a stray click must not throw away. Escape
+   * and a press on `trigger` still close it.
+   */
+  stayOnOutsidePress?: boolean;
   /** Escape is pressed in it, before it closes (`onOpenChange`). */
   onEscape?: () => void;
   /** What it is, for assistive technology. */
@@ -59,6 +66,9 @@ export function Popover({
           // Opened by a click, it takes no focus ring to its first control.
           onOpenAutoFocus={(event) => event.preventDefault()}
           onEscapeKeyDown={onEscape}
+          onInteractOutside={(event) => {
+            if (stayOnOutsidePress) event.preventDefault();
+          }}
           data-scheme="system"
           // Over the window's title bar too: a press in it is the
           // popover's, not a drag of the window.

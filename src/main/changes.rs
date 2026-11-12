@@ -64,6 +64,7 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
             // popover going.
             ChangeKind::Popover => {
                 ipc::send_toast(window, &browser);
+                ipc::send_permission(window, &browser);
                 ipc::send_find(window, &browser);
             }
             ChangeKind::Find => ipc::send_find(window, &browser),

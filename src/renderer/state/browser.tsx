@@ -29,6 +29,8 @@ import {
   follow,
   type PinLink,
   hasApp,
+  permission,
+  type PermissionPrompt,
   type SidePanelState,
   type Site,
   sidePanel,
@@ -281,6 +283,10 @@ export const useExtensionActions = () => useFromApp<ExtensionAction[]>(extension
 
 /** The toast showing, Chromium's or the app's own; null while there is none. */
 export const useToastShown = () => useFromApp<Toast | null>(toast.state, toast.onState) ?? null;
+
+/** The page's request for permissions, which page info's button shows; null while there is none. */
+export const usePermissionPrompt = () =>
+  useFromApp<PermissionPrompt | null>(permission.state, permission.onState) ?? null;
 
 /**
  * A value the app keeps, asked for once and heard whenever it changes. Null

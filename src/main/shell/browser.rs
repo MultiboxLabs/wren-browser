@@ -525,6 +525,12 @@ impl BrowserWindow {
         true
     }
 
+    /// Whether the window is full screen for a page, which hides the sidebar
+    /// and the page's address bar, not because the user chose it.
+    pub fn is_full_screen_for_page(&self) -> bool {
+        self.full_screen_for_page.get()
+    }
+
     /// Tells the Browsers the window has gone full screen or come back, once
     /// it has. Coming back takes their pages out of it too, and puts the
     /// window where Chromium asked it to be meanwhile (`move_to`).

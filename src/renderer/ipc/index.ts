@@ -19,6 +19,7 @@ export * from "./migrate";
 export * from "./omnibox";
 export * from "./onboarding";
 export * from "./perf";
+export * from "./permission";
 export * from "./pins";
 export * from "./profiles";
 export * from "./quit";

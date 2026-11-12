@@ -1,50 +1,21 @@
 // The page info button, and the popover it opens: what can be done with the
 // page, the extensions, the site's permissions, and how its connection
-// stands. What it shows is Chromium's, for the active tab; every change goes
-// back to it. The button is in the address field, atop the sidebar or the
-// page, and in a popup's address bar (pages/ui/popup.tsx), where the popover
-// has what a popup has.
+// stands. While the page asks for permissions, the popover is the prompt for
+// them instead (permission-prompt.tsx). What it shows is Chromium's, for the
+// active tab; every change goes back to it. The button is in the address
+// field, atop the sidebar or the page, and in a popup's address bar
+// (pages/ui/popup.tsx), where the popover has what a popup has.
 
-import {
-  AppWindow,
-  Bell,
-  Bluetooth,
-  Camera,
-  Check,
-  Clipboard,
-  Code,
-  Cookie,
-  Cpu,
-  Download,
-  Ellipsis,
-  ExternalLink,
-  Gamepad2,
-  Image,
-  Link,
-  Lock,
-  MapPin,
-  Mic,
-  Music,
-  PictureInPicture2,
-  Pin,
-  Plus,
-  Puzzle,
-  RotateCw,
-  Settings2,
-  Shield,
-  TriangleAlert,
-  Type,
-  Usb,
-  Vibrate,
-  Volume2
-} from "lucide-react";
-import { motion } from "motion/react";
+import { Check, Ellipsis, Link, Lock, Pin, Plus, Puzzle, RotateCw, Shield, TriangleAlert } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   browser,
   type ExtensionAction,
   extensions,
   iconUrl,
+  permission,
+  type PermissionPrompt,
   type Site,
   sidePanel,
   site,
@@ -58,9 +29,12 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { isNewTab } from "@/utils/url";
 import { InsecureIcon, PageInfoIcon } from "@/components/icons";
 import { type SidePanelId, sidePanels } from "@/components/side-panel";
-import { useShowing, useSidePanel, useSite } from "@/state/browser";
+import { usePermissionPrompt, useShowing, useSidePanel, useSite } from "@/state/browser";
 import type { Tab } from "@/state/space";
 import { cn } from "@/utils/cn";
+import { EASE_LEAVE, scaleTo } from "@/utils/motion";
+import { permissionIcon } from "./permission-icons";
+import { PermissionPromptContent } from "./permission-prompt";
 
 /** Where the Extensions section's add button goes. */
 const STORE = "https://chromewebstore.google.com";
@@ -95,6 +69,23 @@ export function PageInfoButton({
   // A bubble of Chromium's that opens below the button closes the popover.
   const anchored = marked && showing.includes("page-info");
   if (anchored && open) setOpen(false);
+  // The page's request for permissions, which the popover shows in place of
+  // page info while it is open. It stays on a press elsewhere, for want of
+  // anything else to bring it back. Escape and a press on the button close
+  // it with no answer, as a press closes Chromium's bubble. A quiet request
+  // is only a dot on the button, and a press asks for its full prompt.
+  const shown = usePermissionPrompt();
+  const prompt = marked ? shown : null;
+  const asking = prompt !== null && !prompt.quiet;
+  const quiet = prompt !== null && prompt.quiet;
+  if (asking && open) setOpen(false);
+  // The prompt the popover last showed, which it keeps as it goes, so it
+  // fades out as the prompt and not as page info. Page info opened puts it
+  // back.
+  const [last, setLast] = useState<PermissionPrompt | null>(null);
+  if (asking && prompt !== last) setLast(prompt);
+  if (open && last) setLast(null);
+  const promptShown = asking ? prompt : open ? null : last;
   // A press on the button while Chromium's bubble is open closes the bubble
   // (Wren does), and must not open the popover in its place, though the
   // bubble is gone by the time of the click.
@@ -102,28 +93,64 @@ export function PageInfoButton({
   return (
     <Anchor name={marked ? "page-info" : null}>
       <Popover
-        open={open}
-        onOpenChange={(next) => setOpen(next && !pressedAnchored.current)}
-        label="Page Info"
+        open={asking || open}
+        onOpenChange={(next) => {
+          if (asking) {
+            if (!next) permission.answer(prompt.id, "dismiss").catch(() => {});
+          } else if (quiet && next) {
+            permission.showFull(prompt.id).catch(() => {});
+          } else {
+            setOpen(next && !pressedAnchored.current);
+          }
+        }}
+        label={promptShown ? promptShown.title : "Page Info"}
+        stayOnOutsidePress={asking}
         windowMargin={popup ? 2 : undefined}
         trigger={
           <Button
             icon={PageInfoIcon}
             iconSize={18}
-            label="Page Info"
+            label={quiet ? "Show Permission Request" : "Page Info"}
+            shape="square"
             variant={popup ? "faint" : "plain"}
-            className={cn(popup && "rounded-full")}
+            className={cn("relative", popup && "rounded-full")}
             pressed={anchored}
             onPointerDown={() => (pressedAnchored.current = anchored)}
             onKeyDown={() => (pressedAnchored.current = anchored)}
-          />
+          >
+            <AnimatePresence>{quiet && <QuietDot />}</AnimatePresence>
+          </Button>
         }
       >
-        <PageInfo tab={tab} site={site} actions={actions} popup={popup} onClose={() => setOpen(false)} />
+        {promptShown ? (
+          <PermissionPromptContent prompt={promptShown} />
+        ) : (
+          <PageInfo tab={tab} site={site} actions={actions} popup={popup} onClose={() => setOpen(false)} />
+        )}
       </Popover>
     </Anchor>
   );
 }
+
+// A quiet request's dot. It pops in, small at first and a little past its
+// size, so a glance elsewhere catches it, and fades as it goes: when the
+// request ends, or a press opens its full prompt. With Reduced Motion it
+// only fades.
+function QuietDot() {
+  const still = useReducedMotion();
+  return (
+    <motion.span
+      aria-hidden
+      initial={{ opacity: 0, ...scaleTo(still, 0.4) }}
+      animate={{ opacity: 1, ...scaleTo(still, 1) }}
+      exit={{ opacity: 0, ...scaleTo(still, 0.6), transition: { duration: 0.12, ease: EASE_LEAVE } }}
+      transition={{ scale: DOT_ARRIVE, opacity: { duration: 0.1, ease: "easeOut" } }}
+      className="absolute top-1 right-1 size-1.5 rounded-full bg-prominent"
+    />
+  );
+}
+
+const DOT_ARRIVE = { type: "spring", duration: 0.35, bounce: 0.3 } as const;
 
 function PageInfo({
   tab,
@@ -398,34 +425,6 @@ function PermissionRow({ permission }: { permission: SitePermission }) {
     </Button>
   );
 }
-
-// Chromium's names for permissions and settings (its content settings'),
-// by a part of the name, with an icon for each.
-const permissionIcons: [string, Icon][] = [
-  ["geolocation", MapPin],
-  ["notifications", Bell],
-  ["camera", Camera],
-  ["mic", Mic],
-  ["popups", ExternalLink],
-  ["javascript", Code],
-  ["images", Image],
-  ["sound", Volume2],
-  ["automatic-downloads", Download],
-  ["clipboard", Clipboard],
-  ["midi", Music],
-  ["sensors", Vibrate],
-  ["picture-in-picture", PictureInPicture2],
-  ["window", AppWindow],
-  ["fonts", Type],
-  ["usb", Usb],
-  ["bluetooth", Bluetooth],
-  ["hid", Gamepad2],
-  ["serial", Cpu],
-  ["cookies", Cookie],
-  ["storage-access", Cookie]
-];
-
-const permissionIcon = (id: string) => permissionIcons.find(([part]) => id.includes(part))?.[1] ?? Settings2;
 
 /** How the connection stands, in a word, with Chrome's summary as its tooltip. */
 const securityLabels: Record<

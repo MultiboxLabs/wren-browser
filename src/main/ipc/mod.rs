@@ -19,6 +19,7 @@ mod migrate;
 mod omnibox;
 mod onboarding;
 mod perf;
+mod permission;
 mod pins;
 mod profiles;
 mod quit;
@@ -60,6 +61,7 @@ pub use omnibox::{
     OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox, stop_omnibox,
 };
 pub use onboarding::handle_onboarding;
+pub use permission::{send_permission, show_permission_prompt};
 pub use pins::broadcast_pins;
 pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
 pub use side_panel::send_side_panel;
@@ -111,6 +113,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     omnibox::handle(web_view, window, mt);
     find::handle(web_view, window);
     toast::handle(web_view, window);
+    permission::handle(web_view, window);
     update::handle(web_view, window);
     quit::handle(web_view, window, mt);
     perf::handle(web_view, window, mt);
@@ -134,6 +137,7 @@ pub fn send_browser(window: &BrowserWindow, browser: &Browser) {
     send_extensions(window, browser);
     send_anchors(window, browser);
     send_toast(window, browser);
+    send_permission(window, browser);
     send_find(window, browser);
     send_downloads(window, browser);
     send_indicator(window, browser);
@@ -151,6 +155,7 @@ pub fn send_no_browser(window: &BrowserWindow) {
     extensions::send_no_extensions(window);
     anchors::send_no_anchors(window);
     toast::send_no_toast(window);
+    permission::send_no_permission(window);
     find::send_no_find(window);
     downloads::send_no_indicator(window);
     send_blocked(window);
