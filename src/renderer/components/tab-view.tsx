@@ -40,7 +40,7 @@ export function TabView({
   first?: BrowserTab;
   second?: BrowserTab;
   fullScreen?: boolean;
-  /** Edge to edge, with no card round it nor loading bar over it: a popup's. */
+  /** Edge to edge, with no card round it, and nothing to show its loading: a popup's. */
   bare?: boolean;
   /** The side panel is at the page's right, which its cards meet. */
   besidePanel?: boolean;
@@ -177,7 +177,8 @@ function TabPane({
   return (
     <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
       {/* With no margins, there is no gap above the card for it, and a
-          line along the top of the page shows the loading instead. */}
+          line along the top of the page shows the loading instead. A
+          popup's page shows neither. */}
       {!fullScreen && !bare && margins && <LoadingBar loading={tab.loading} />}
       <div
         // Square where it meets another card only without margins (card.css).
@@ -192,7 +193,7 @@ function TabPane({
         <div className={cn("relative min-h-0 flex-1", onOpenLocation ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
           <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />
           {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={tab.id} />}
-          {!fullScreen && (bare || !margins) && (
+          {!fullScreen && !bare && !margins && (
             <LoadingLine loading={tab.loading} signs={`${tab.url}\n${tab.title}\n${tab.favicon}`} />
           )}
         </div>
