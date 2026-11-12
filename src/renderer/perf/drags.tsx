@@ -25,6 +25,7 @@ import {
   half,
   hasHeard,
   hear,
+  itemKeyOf,
   hasButton,
   heading,
   link,
@@ -32,7 +33,9 @@ import {
   onto,
   over,
   pickUp,
+  pressNewTab,
   picture,
+  selectedKeys,
   pin,
   settled,
   shieldFromPointer,
@@ -201,6 +204,23 @@ const menuHolds = (what: What, expected: string) => async () => {
   const { item, side } = await menuRef(what);
   const held = await perf.menu(item, side);
   if (held !== expected) throw new Error(`Its menu holds "${held}", not "${expected}".`);
+};
+
+/** Waits for the sidebar to draw these items' rows as the selected tab's, and no others. */
+const selects =
+  (...whats: What[]) =>
+  async () => {
+    const wanted = (await Promise.all(whats.map(itemKeyOf))).join();
+    await until(
+      () => selectedKeys().join() === wanted,
+      () => `The rows drawn selected are "${selectedKeys().join()}", not "${wanted}".`
+    );
+  };
+
+/** Selects the tab on a page, as a press on its row does, and waits for its row alone to be drawn selected. */
+const selected = (number: number) => async () => {
+  await browser.activate(await tabId(number));
+  await selects(tab(number))();
 };
 
 /** A drag that nothing must take: it fails if something does, and the sidebar must then hold what it did. */
@@ -519,6 +539,44 @@ const scenes = (url: string): Scene[] => [
         name: "a folder's menu",
         does: menuHolds(folder, "Rename…, New Folder | Delete Folder…"),
         shows: "pins (4|5) 2 []"
+      }
+    ]
+  },
+  {
+    name: "The selection",
+    tabs: 4,
+    steps: [
+      { name: "a tab selected, whose row alone is drawn selected", does: selected(2), shows: "tabs 0 1 2 3" },
+      { name: "another selected", does: selected(0), shows: "tabs 0 1 2 3" },
+      {
+        name: "the omnibox for a new tab opened, which leaves no tab drawn selected",
+        does: async () => {
+          pressNewTab();
+          await selects()();
+        },
+        shows: "tabs 0 1 2 3"
+      },
+      {
+        name: "the omnibox closed, which draws the tab selected again",
+        does: async () => {
+          closeOmnibox();
+          await selects(tab(0))();
+        },
+        shows: "tabs 0 1 2 3"
+      },
+      {
+        name: "the selected tab pinned, whose pin's row is drawn selected",
+        does: async () => {
+          await drag(tab(0), heading);
+          await shows("pins 0 | tabs 1 2 3");
+          await selects(pin(0))();
+        },
+        shows: "pins 0 | tabs 1 2 3"
+      },
+      {
+        name: "a tab of the list selected, which leaves the pin's row",
+        does: selected(3),
+        shows: "pins 0 | tabs 1 2 3"
       }
     ]
   },

@@ -109,7 +109,7 @@ Two commands update data in the repository for the next build:
 bun run perf
 ```
 
-It builds an optimised Dev `Wren.app`, opens 200 tabs on a data folder of its own, and measures the sidebar against the budgets in `src/renderer/perf/budgets.ts`. It fails when one is missed. `--tabs <n>` and `--seconds <n>` change the load, `--no-build` runs the `Wren.app` already there, and `--manual` hands you the window and prints each slow frame until you quit.
+It builds an optimised Dev `Wren.app`, opens 200 tabs on a data folder of its own, and measures the sidebar against the budgets in `src/renderer/perf/budgets.ts`. It fails when one is missed. Selecting a tab is budgeted in frames of the display the run is on: the time until the page hears the app's answer, then two frames. `--tabs <n>` and `--seconds <n>` change the load, `--no-build` runs the `Wren.app` already there, and `--manual` hands you the window and prints each slow frame until you quit. `--background` opens the app behind your windows so you can keep working. A run keeps drawing while its window is covered, but its frames may not come quite as they do in front, so run it in front, and leave it there, for a figure to rely on.
 
 ## Checking the sidebar's drags
 

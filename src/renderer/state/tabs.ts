@@ -5,7 +5,9 @@
 //
 // What reads one tab hears only that tab's changes (`subscribeTab`), and
 // the list reads each space's shape, which a tab's title or state leaves as
-// it was, so a change to one tab draws that tab's row and nothing else.
+// it was, so a change to one tab draws that tab's row and nothing else. A
+// row hears of the selection only as one of its own tabs is selected or no
+// longer is (`subscribeSelected`), so selecting a tab draws two rows.
 
 import {
   type ActiveChanged,
@@ -137,6 +139,10 @@ export class TabsStore {
   private listeners = new Set<() => void>();
   // What reads one tab, by its ID, which is the same in every space.
   private tabListeners = new Map<number, Set<() => void>>();
+  // What draws a tab selected, by the tab's ID.
+  private selectionListeners = new Map<number, Set<() => void>>();
+  // No tab is drawn selected: the omnibox for a new tab is open.
+  private noneSelected = false;
 
   /** The tabs of `space`, or undefined while there are none said: its Browser hasn't been heard of, or is on the way. */
   get = (space: Key) => this.spaces.get(space);
@@ -160,6 +166,40 @@ export class TabsStore {
       if (!listeners.size) this.tabListeners.delete(id);
     };
   };
+
+  /**
+   * The tab a space's sidebar draws selected, of the space's tabs as `get`
+   * or `window` gives them: its active tab, or none while none is drawn
+   * selected (`setNoneSelected`).
+   */
+  selected = (tabs: SpaceTabs | undefined) => (this.noneSelected ? null : (tabs?.shape.active ?? null));
+
+  /** Hears as any of the tabs `ids` becomes the one drawn selected, or stops being it. */
+  subscribeSelected = (ids: readonly number[], listener: () => void) => {
+    for (const id of ids) {
+      let listeners = this.selectionListeners.get(id);
+      if (!listeners) this.selectionListeners.set(id, (listeners = new Set()));
+      listeners.add(listener);
+    }
+    return () => {
+      for (const id of ids) {
+        const listeners = this.selectionListeners.get(id);
+        listeners?.delete(listener);
+        if (listeners && !listeners.size) this.selectionListeners.delete(id);
+      }
+    };
+  };
+
+  /** While `none`, no space draws a tab selected: the omnibox for a new tab is open, and its row is the selected one. */
+  setNoneSelected(none: boolean) {
+    if (none === this.noneSelected) return;
+    this.noneSelected = none;
+    for (const { shape } of this.spaces.values()) this.tellSelection(shape.active);
+  }
+
+  private tellSelection(...ids: (number | null)[]) {
+    for (const id of ids) if (id !== null) this.selectionListeners.get(id)?.forEach((listener) => listener());
+  }
 
   /** Follows the app's word on the tabs; returns what stops it. */
   follow() {
@@ -228,6 +268,8 @@ export class TabsStore {
     for (const [id, tab] of next.byId) if (kept?.byId.get(id) !== tab) changed.add(id);
     for (const id of kept?.byId.keys() ?? []) if (!next.byId.has(id)) changed.add(id);
     for (const id of changed) this.tabListeners.get(id)?.forEach((listener) => listener());
+    const was = kept?.shape.active ?? null;
+    if (was !== next.shape.active) this.tellSelection(was, next.shape.active);
     for (const listener of this.listeners) listener();
   }
 }

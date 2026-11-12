@@ -447,6 +447,28 @@ export async function drop(carrying: Carrying, where: Where) {
 /** Drags an item to a point and lets go; answers whether it was taken there. */
 export const drag = async (what: What, where: Where) => drop(await pickUp(what), where);
 
+// The selection.
+
+/** The keys of the items whose rows the sidebar draws as the selected tab's (`itemKey` in state/items.ts). */
+export const selectedKeys = () =>
+  [...document.querySelectorAll("[data-active-tab]")].map(
+    (row) => row.closest(`[${ITEM_MARK}]`)?.getAttribute(ITEM_MARK) ?? "none"
+  );
+
+/** The key of an item a check names, as `selectedKeys` gives them. */
+export async function itemKeyOf(what: What) {
+  const { item } = await menuRef(what);
+  return "tab" in item ? `tab:${item.tab}` : "pin" in item ? `pin:${item.pin}` : `group:${item.group}`;
+}
+
+/** Presses the list's New Tab row, which opens the omnibox for a new tab. */
+export function pressNewTab() {
+  const rows = [...document.querySelectorAll('[data-tab-list] [role="button"]')];
+  const row = rows.find((row) => row.textContent === "New Tab");
+  if (!row) throw new Error("The list has no New Tab row.");
+  row.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+}
+
 // Waiting for the page.
 
 /**

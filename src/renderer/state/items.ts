@@ -10,7 +10,7 @@
 // their IDs (`useSides`), and is drawn again only as they change.
 
 import type { BrowserTab, Pin, PinLink, PinPage, TabGroup, TabSplit } from "@/ipc";
-import { type TabShape, useTab, useTabShape } from "./browser";
+import { type TabShape, useSelected, useTab, useTabShape } from "./browser";
 
 /** What keeps a tab: nothing but the list, the space's pins, or the favourites. */
 export type ItemType = "normal" | "pinned" | "favorite";
@@ -144,6 +144,11 @@ export function useSides(item: TabItem): DrawnSide[] {
     tab: whole ? tabs[at] : undefined,
     away: whole && away && tabs[at] !== undefined
   }));
+}
+
+/** The tab drawn selected (`useSelected`), if it is one of a tab item's; what reads it is drawn again only as that changes. */
+export function useSelectedOf(item: TabItem) {
+  return useSelected(item.sides.flatMap((side) => (side.tab === null ? [] : [side.tab])));
 }
 
 /** What a side is called: its Chromium tab's title, or else its kept page's. */

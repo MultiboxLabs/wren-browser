@@ -7,8 +7,10 @@
 //
 // Of the tabs, what draws the list or one tab reads the Browser's shape
 // (`useTabShape`) and each tab on its own (`useTab`), so a tab's change
-// draws only what shows that tab. `useBrowser` gives every tab whole, for
-// what shows them all, and draws again for any tab's change.
+// draws only what shows that tab. A row reads whether one of its tabs is
+// the selected one (`useSelected`), so a selection draws the two rows it
+// changes. `useBrowser` gives every tab whole, for what shows them all, and
+// draws again for any tab's change.
 
 import {
   createContext,
@@ -233,6 +235,36 @@ export function useTab(id: number | null | undefined) {
   const [last, setLast] = useState({ id, tab });
   if (tab && tab !== last.tab) setLast({ id, tab });
   return tab ?? (last.id === id ? last.tab : undefined);
+}
+
+/**
+ * The tab the Browser's sidebar draws selected, as `useBrowser`'s Browser,
+ * if it is one of `tabs`: its active tab, unless none is drawn selected
+ * (`useNoneSelected`). What reads it is drawn again only as one of `tabs`
+ * becomes the selected one or stops being it.
+ */
+export function useSelected(tabs: readonly number[]) {
+  const source = useContext(SourceContext);
+  if (!source) throw new Error("useSelected is used outside a BrowserProvider");
+  const { store, read } = source;
+  return useSyncExternalStore(
+    (listener) => store.subscribeSelected(tabs, listener),
+    () => {
+      const selected = store.selected(read());
+      return selected !== null && tabs.includes(selected) ? selected : undefined;
+    }
+  );
+}
+
+/**
+ * While `none`, no tab is drawn selected in any space: the omnibox for a new
+ * tab is open, and the New Tab row is the selected one. Said before the
+ * frame that shows it, so the row and the tab change together.
+ */
+export function useNoneSelected(none: boolean) {
+  const store = useContext(TabsContext);
+  if (!store) throw new Error("useNoneSelected is used outside a BrowserProvider");
+  useLayoutEffect(() => store.setNoneSelected(none), [store, none]);
 }
 
 /** The window's open side panel, if one is. */

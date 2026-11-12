@@ -15,6 +15,7 @@ import { useEffect, useLayoutEffect } from "react";
 import { browser, perf, type PerfConfig } from "@/ipc";
 import { useBrowser } from "@/state/browser";
 import type { PerfResults, Stats } from "./budgets";
+import { closeOmnibox } from "./dragging";
 import { observeFrames, receivedAt, startMeasuring, takeCommits, takeLongestFrame, takeUpdates } from "./measure";
 
 type BrowserState = ReturnType<typeof useBrowser>;
@@ -52,6 +53,9 @@ async function run(config: PerfConfig) {
   await until((state) => state.tabs.every((tab) => !tab.loading), 30_000).catch(() => {});
   const open = { seconds: (performance.now() - opening) / 1000, longestFrame: takeLongestFrame() };
   const heap = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;
+  // A new window opens with the omnibox for a new tab, and while it is open
+  // no tab is drawn selected: closed, selecting a tab draws its row.
+  closeOmnibox();
   if (config.manual) return;
 
   // The titles change in the background.

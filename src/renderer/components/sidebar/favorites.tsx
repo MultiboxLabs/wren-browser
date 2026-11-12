@@ -23,20 +23,17 @@ import { listOrder, REORDER, TILE_IN, TILE_OUT } from "./row-motion";
 /**
  * `read`: whether the favourites have been read, before which the box is
  * not shown, so it never flashes up before them; nor before the settings
- * are, which say whether it was put away. `selected`: the selected tab's ID,
- * unless none is.
+ * are, which say whether it was put away.
  */
 export function Favorites({
   favorites,
   read,
   settings,
-  selected,
   actions
 }: {
   favorites: TabItem[];
   read: boolean;
   settings: LibrarySettings;
-  selected?: number;
   actions: ItemActions;
 }) {
   const { profile } = useSpace();
@@ -86,7 +83,7 @@ export function Favorites({
             the others close up as it does. */}
         <AnimatePresence initial={false} mode="popLayout">
           {favorites.map((item) => (
-            <Favorite key={item.pin} item={item} order={order} selected={selected} actions={actions} />
+            <Favorite key={item.pin} item={item} order={order} actions={actions} />
           ))}
         </AnimatePresence>
         {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}

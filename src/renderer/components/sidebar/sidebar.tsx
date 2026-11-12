@@ -27,7 +27,7 @@ import { SpaceSwitcher } from "./space-switcher";
 import { ListBelowContext } from "./list-edge";
 import { TabList } from "./tab-list";
 import { UpdateCard } from "./update";
-import { BrowserOfSpace, useTab, useTabShape } from "@/state/browser";
+import { BrowserOfSpace, useNoneSelected, useTab, useTabShape } from "@/state/browser";
 import { useDownloadIndicator } from "@/state/downloads";
 import { type LibrarySettings, useSettings } from "@/state/library";
 import { useItems } from "@/state/items";
@@ -104,6 +104,9 @@ function SpacePage({
 
 export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visible }: SidebarProps) {
   const { space, spaces, profile, newSpace, startNewSpace, show, showNow, slide, beside: drawnBeside } = useSpace();
+  // While the omnibox for a new tab is open, the New Tab row is the selected
+  // one, and no tab's is.
+  useNoneSelected(omnibox.shown?.target === "new-tab");
   // A swipe across the sidebar goes to the next space or the previous one;
   // the space being made is after the last.
   const area = useRef<HTMLDivElement>(null);
@@ -274,9 +277,6 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
   const items = useItems(pins.favorites, pins.pinned);
   const { actions, dialog } = useItemActions(pins.setFolderOpen);
-  // The tab drawn selected, as a pin's or a favourite's too; none while the
-  // omnibox for a new tab is open.
-  const selected = omnibox.shown?.target === "new-tab" || active === null ? undefined : active;
   // The space's pins and the settings are mostly read before it is shown
   // (state/pins.tsx, and the sidebar's), but may not be yet, nor its tabs,
   // as it comes in. Once they are, what shows them is made anew, so what is
@@ -299,13 +299,7 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
         <div aria-hidden className="-mt-2 shrink-0" />
       )}
       <ArrivalScope key={read}>
-        <Favorites
-          favorites={items.favorites}
-          read={pins.read}
-          settings={settings}
-          selected={selected}
-          actions={actions}
-        />
+        <Favorites favorites={items.favorites} read={pins.read} settings={settings} actions={actions} />
         <TabList omnibox={omnibox} pinned={items.pinned} tabs={items.tabs} actions={actions} />
       </ArrivalScope>
       {dialog}

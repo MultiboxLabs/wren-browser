@@ -49,13 +49,26 @@ export type PerfResults = {
   heapMB: number | null;
 };
 
-export type Budget = { label: string; unit: "ms" | "%"; max: number; value: (results: PerfResults) => number };
+/** How much a run may take of one thing: `max` is a number, or worked out from the run, as a frame's length is. */
+export type Budget = {
+  label: string;
+  unit: "ms" | "%";
+  max: number | ((results: PerfResults) => number);
+  value: (results: PerfResults) => number;
+};
+
+/** How long a frame of the run's display is, in milliseconds. */
+export const frameMs = (results: PerfResults) => 1000 / results.refreshRate;
 
 export const budgets: Budget[] = [
   {
     label: "Selecting a tab, to its frame (p95)",
     unit: "ms",
-    max: 17,
+    // Until the page hears the app's answer, then two frames of the display:
+    // one the page draws in, and the one that shows it. A number of
+    // milliseconds would be too loose for a slow display, and one a fast
+    // display could meet none could.
+    max: (results) => results.select.heard.p95 + 2 * frameMs(results),
     value: (results) => results.select.p95
   },
   {

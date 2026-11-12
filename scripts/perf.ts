@@ -4,11 +4,12 @@
 // when a budget is missed.
 //
 // --tabs <n> opens n tabs (200), --seconds <n> watches their titles change
-// for n seconds (10), --no-build runs the Wren.app there is, and --manual
-// opens the tabs, then leaves the window to you, printing slow frames and
-// interactions until you quit it.
+// for n seconds (10), --no-build runs the Wren.app there is, --background
+// opens the app behind your windows, where its frames may not come quite as
+// they do in front, and --manual opens the tabs, then leaves the window to you,
+// printing slow frames and interactions until you quit it.
 import { parseArgs } from "util";
-import { budgets, type PerfResults } from "../src/renderer/perf/budgets";
+import { budgets, frameMs, type PerfResults } from "../src/renderer/perf/budgets";
 import { pageRun } from "./page-run";
 
 const { values } = parseArgs({
@@ -17,6 +18,7 @@ const { values } = parseArgs({
     tabs: { type: "string", default: "200" },
     seconds: { type: "string", default: "10" },
     "no-build": { type: "boolean", default: false },
+    background: { type: "boolean", default: false },
     manual: { type: "boolean", default: false }
   }
 });
@@ -26,6 +28,7 @@ const entries = await pageRun(
   { run: "perf", tabs, seconds: Number(values.seconds), manual: values.manual },
   {
     build: !values["no-build"],
+    background: values.background,
     starting: `Opening ${tabs} tabs${values.manual ? "; quit Wren when you are done" : ""}…`,
     heard: (entry) => {
       if (entry.kind === "slow") console.log(`slow ${entry.what}: ${entry.ms.toFixed(1)} ms`);
@@ -43,7 +46,9 @@ report(results);
 
 function report(results: PerfResults) {
   const ms = (value: number) => `${value.toFixed(1)} ms`;
-  console.log(`\n${results.tabs} tabs, at ${Math.round(results.refreshRate)} Hz`);
+  console.log(
+    `\n${results.tabs} tabs, at ${Math.round(results.refreshRate)} Hz, a frame every ${ms(frameMs(results))}`
+  );
   console.log(`  opened in ${results.open.seconds.toFixed(1)} s`);
   console.log(
     `  ${results.updates.perSecond.toFixed(1)} updates a second: work ${ms(results.updates.work.p50)} p50, ` +
@@ -69,10 +74,11 @@ function report(results: PerfResults) {
   let missed = 0;
   for (const budget of budgets) {
     const value = budget.value(results);
-    const within = value <= budget.max;
+    const max = typeof budget.max === "number" ? budget.max : budget.max(results);
+    const within = value <= max;
     if (!within) missed++;
     const shown = (number: number) => `${number.toFixed(1)} ${budget.unit}`;
-    console.log(`${within ? "✓" : "✗"} ${budget.label}: ${shown(value)} (budget ${shown(budget.max)})`);
+    console.log(`${within ? "✓" : "✗"} ${budget.label}: ${shown(value)} (budget ${shown(max)})`);
   }
   if (missed) {
     console.error(`\n${missed} of ${budgets.length} budgets missed.`);

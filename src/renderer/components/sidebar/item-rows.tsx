@@ -29,8 +29,6 @@ import { Appear, IconSlot, NESTED_INDENT, Row, TitleField, useRenameClick } from
 
 type RowsProps = {
   indent?: number;
-  /** The selected tab's ID, unless none is: the New Tab omnibox is open. */
-  selected?: number;
   actions: ItemActions;
 };
 
@@ -155,16 +153,12 @@ function FolderRows({ folder, ...props }: RowsProps & { folder: FolderItem }) {
   );
 }
 
-/** `selected`, if it is one of the item's tabs. */
-const selectedIn = (item: TabItem, selected: number | undefined) =>
-  item.sides.some((side) => side.tab === selected) ? selected : undefined;
-
 /**
  * The Browser's tabs, in their groups and splits. Each brings the gap above
  * it. No row's layout is Motion's to animate, so a row coming or going need
  * not draw every other row again.
  */
-export function ListRows({ items, selected, actions }: { items: Item[]; selected?: number; actions: ItemActions }) {
+export function ListRows({ items, actions }: { items: Item[]; actions: ItemActions }) {
   const rows = items.flatMap((item) => (item.kind === "group" ? item.items : item.kind === "tab" ? [item] : []));
   const rowKey = useRowKeys(rows.map(listedTabs));
   const drag = useItemDrag();
@@ -180,17 +174,11 @@ export function ListRows({ items, selected, actions }: { items: Item[]; selected
               {...{ [BODY_MARK]: itemKey(item) }}
               className="pt-1.25"
             >
-              <GroupRows rowKey={rowKey} actions={actions} selected={selected} group={item} />
+              <GroupRows rowKey={rowKey} actions={actions} group={item} />
             </div>
           </Appear>
         ) : item.kind === "tab" ? (
-          <UnitRow
-            key={rowKey(listedTabs(item)[0])}
-            actions={actions}
-            item={item}
-            selected={selectedIn(item, selected)}
-            className="pt-1.25"
-          />
+          <UnitRow key={rowKey(listedTabs(item)[0])} actions={actions} item={item} className="pt-1.25" />
         ) : null
       )}
     </AnimatePresence>
@@ -198,30 +186,28 @@ export function ListRows({ items, selected, actions }: { items: Item[]; selected
 }
 
 /**
- * A row of the Browser's list, drawn again only when its tabs or the
- * selection in it change, not as it changes place. Its tabs draw themselves
- * again as their titles and states change (`useSides`).
+ * A row of the Browser's list, drawn again only when its tabs change, not
+ * as it changes place. Its row draws itself again as its tabs' titles and
+ * states change (`useSides`), and as one of them is selected or no longer
+ * is (`useSelectedOf`).
  */
 const UnitRow = memo(
   function UnitRow({
     actions,
     item,
     indent,
-    selected,
     className
   }: {
     actions: ItemActions;
     item: TabItem;
     indent?: number;
-    /** The selected tab, if it is one of the row's. */
-    selected?: number;
     className?: string;
   }) {
     const drag = useItemDrag();
     return (
       <Appear identities={item.sides.flatMap((side) => (side.tab === null ? [] : [tabIdentity(side.tab)]))}>
         <div {...drag(item)} className={className}>
-          <ItemRow item={item} actions={actions} selected={selected} indent={indent} />
+          <ItemRow item={item} actions={actions} indent={indent} />
         </div>
       </Appear>
     );
@@ -229,7 +215,6 @@ const UnitRow = memo(
   (before, after) =>
     before.actions === after.actions &&
     before.indent === after.indent &&
-    before.selected === after.selected &&
     before.className === after.className &&
     before.item.list?.lead === after.item.list?.lead &&
     before.item.sides.length === after.item.sides.length &&
@@ -253,13 +238,11 @@ const groupColors: Record<GroupColor, string> = {
 function GroupRows({
   rowKey,
   actions,
-  selected,
   group: item
 }: {
   /** The key of a row, by its first tab's ID (`useRowKeys`). */
   rowKey: (first: number) => string;
   actions: ItemActions;
-  selected?: number;
   group: GroupItem;
 }) {
   const { group } = item;
@@ -300,7 +283,6 @@ function GroupRows({
               actions={actions}
               item={row}
               indent={NESTED_INDENT}
-              selected={selectedIn(row, selected)}
               className="pt-1.25"
             />
           ))}

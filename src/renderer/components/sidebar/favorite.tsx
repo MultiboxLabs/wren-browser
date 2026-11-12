@@ -14,7 +14,7 @@ import { type CSSProperties, type Ref, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover } from "@/components/ui/popover";
 import { TextField } from "@/components/ui/text-field";
-import { itemKey, itemTitle, type TabItem, useSides } from "@/state/items";
+import { itemKey, itemTitle, type TabItem, useSelectedOf, useSides } from "@/state/items";
 import { cn } from "@/utils/cn";
 import { scaleTo } from "@/utils/motion";
 import { host } from "@/utils/url";
@@ -26,25 +26,23 @@ import { REORDER, TILE_IN, TILE_OUT, useStrike } from "./row-motion";
 import { pressHandlers } from "./rows";
 
 /**
- * `selected`: the selected tab's ID, unless none is. `ref` is its tile's, as
- * the grid takes a tile that goes out of its layout (`popLayout`). `order`
+ * `ref` is its tile's, as the grid takes a tile that goes out of its layout (`popLayout`). `order`
  * is the favourites' (`listOrder`): a tile slides to a new place only as it
  * changes.
  */
 export function Favorite({
   item,
   order,
-  selected,
   actions,
   ref
 }: {
   item: TabItem;
   order: string;
-  selected?: number;
   actions: ItemActions;
   ref?: Ref<HTMLDivElement>;
 }) {
   const sides = useSides(item);
+  const selected = useSelectedOf(item);
   const open = sides.some((side) => side.tab);
   const isSelected = sides.some((side) => side.tab && side.tab.id === selected);
   const away = sides.findIndex((side) => side.away);

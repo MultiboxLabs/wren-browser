@@ -144,7 +144,7 @@ export function TabList({
             {/* Each tab brings its gap with it, so the list's gap goes from
             under the first. */}
             <div data-tab-rows="" className="-mt-1.25 flex flex-col">
-              <ListRows items={items} selected={selected} actions={actions} />
+              <ListRows items={items} actions={actions} />
             </div>
             {/* Room after the last tab, as the list scrolls to: it does not
                 end at the footer, and a tab can be dropped below the last.
@@ -191,11 +191,8 @@ function PinnedSection({
       <div />
       {/* With no pins, nothing: not even its gap under the heading. */}
       <PeeksContext value={peeks}>
-        <FoldingRows
-          open={open && pinned.length > 0}
-          peek={sectionPeek && keptPeek(sectionPeek, { selected, actions })}
-        >
-          <KeptRows items={pinned} selected={selected} actions={actions} />
+        <FoldingRows open={open && pinned.length > 0} peek={sectionPeek && keptPeek(sectionPeek, { actions })}>
+          <KeptRows items={pinned} actions={actions} />
         </FoldingRows>
       </PeeksContext>
       {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}

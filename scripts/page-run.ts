@@ -39,8 +39,8 @@ type Without<Config> = Config extends unknown ? Omit<Config, "url"> : never;
 /**
  * Runs the app with `config`, and answers with what its page reported, once
  * the app has quit. `build` false runs the Wren.app there is. `background`
- * opens the app behind the user's windows and leaves them the focus, for a
- * run that measures no frames. `starting` is printed as the app opens, and
+ * opens the app behind the user's windows and leaves them the focus.
+ * `starting` is printed as the app opens, and
  * `heard` is called with each report as it comes. The script ends, failed,
  * if the page reports that the run failed.
  */
@@ -71,7 +71,7 @@ export async function pageRun(
   const run = await mkdtemp(join(tmpdir(), "wren-perf-"));
   const output = join(run, "output.jsonl");
   const settings = join(run, "config.json");
-  await Bun.write(settings, JSON.stringify({ ...config, url: server.url.origin, output, background }));
+  await Bun.write(settings, JSON.stringify({ ...config, url: server.url.origin, output }));
   await Bun.write(output, "");
   // Nothing of the last run to restore.
   await rm(dataFolder, { recursive: true, force: true });
@@ -79,7 +79,7 @@ export async function pageRun(
   // Started with open, as dev.ts does, so the window has the focus and its
   // frames are not held back; -n, so a Wren already running is not the one
   // that opens. A run in the background takes -g, which leaves the focus
-  // where it is, and the app then draws its page though it is covered
+  // where it is. Either way the app draws its page though it is covered
   // (Perf::development_switches in src/main/perf.rs).
   const bundle = `${process.cwd()}/${app}`;
   const stop = async () => {

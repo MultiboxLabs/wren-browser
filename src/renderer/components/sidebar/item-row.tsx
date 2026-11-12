@@ -13,7 +13,7 @@ import { Minus, X } from "lucide-react";
 import { Favicon } from "@/components/favicon";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { PinPage } from "@/ipc";
-import { type DrawnSide, itemKey, itemTitle, sideTitle, type TabItem, useSides } from "@/state/items";
+import { type DrawnSide, itemKey, itemTitle, sideTitle, type TabItem, useSelectedOf, useSides } from "@/state/items";
 import { cn } from "@/utils/cn";
 import { pinIdentity, tabIdentity } from "./arrival";
 import type { ItemActions } from "./item-actions";
@@ -44,8 +44,6 @@ export function SideIcon({ side }: { side: DrawnSide }) {
 export type ItemRowProps = {
   item: TabItem;
   indent?: number;
-  /** The selected tab's ID, unless none is: the New Tab omnibox is open. */
-  selected?: number;
   actions: ItemActions;
   /** It is drawn out of its folded section or folder (folding.tsx), where it stays only while its tab is open. */
   peek?: boolean;
@@ -53,8 +51,11 @@ export type ItemRowProps = {
   strike?: () => void;
 };
 
-export function ItemRow({ item, indent, selected, actions, peek = false, strike }: ItemRowProps) {
+export function ItemRow({ item, indent, actions, peek = false, strike }: ItemRowProps) {
   const sides = useSides(item);
+  // The selected tab, if it is one of the row's; none while the New Tab
+  // omnibox is open.
+  const selected = useSelectedOf(item);
   const kept = item.pin !== null;
   // A normal tab is its Chromium tabs: while the page has not all of them, it is not drawn.
   if (!kept && sides.some((side) => !side.tab)) return null;

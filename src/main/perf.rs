@@ -44,13 +44,12 @@ impl Perf {
         Some(Perf { config, output })
     }
 
-    /// Chromium switches for a run in the background, behind the user's
-    /// windows: Chromium stops drawing a page whose window is covered, and
-    /// slows its timers, and the run's page must go on as if it were seen.
+    /// Chromium switches for a run: Chromium stops drawing a page whose
+    /// window is covered, and slows its timers, and a run's page must go on
+    /// as if it were seen, behind the user's windows or once one of them
+    /// covers it. A run that waits for a frame would otherwise wait until
+    /// its window is uncovered.
     pub fn development_switches(&self) -> Vec<String> {
-        if self.config.get("background").and_then(Value::as_bool) != Some(true) {
-            return Vec::new();
-        }
         vec![
             "--disable-backgrounding-occluded-windows".into(),
             "--disable-renderer-backgrounding".into(),
