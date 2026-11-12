@@ -116,7 +116,7 @@ pub(super) fn menu_of(
     side: usize,
 ) -> Result<(Subject, Vec<MenuItem>), String> {
     let subject = Subject::find(state, mt, window, item, side)?;
-    let items = menus::item_menu(state, &subject)?;
+    let items = menus::item_menu(&subject)?;
     Ok((subject, items))
 }
 

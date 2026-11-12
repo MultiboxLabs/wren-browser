@@ -1,7 +1,7 @@
 // The menu of an item of the sidebar: a tab of the list, a pinned tab, a
 // favourite, a folder or a group. One menu for them all, built in sections,
-// each there when it applies to the item: its page, where it is kept, its
-// group, its place, its split, its name, and closing it. So a pinned tab
+// each there when it applies to the item: its page, its group and its
+// split, its name, closing it, and last, where it is kept. So a pinned tab
 // that is open has what a tab of the list has, where it applies.
 //
 // What is chosen is done by items/menu.rs, which also finds the item
@@ -11,8 +11,6 @@ use wren::{BrowserTab, MenuItem, SplitLayout, TabGroup};
 
 use super::enabled;
 use super::group::{color_items, group_name};
-use crate::app::State;
-use crate::db::{PinId, PinPlace};
 use crate::items::menu::{Subject, What};
 use crate::shell::Place;
 use crate::tabs;
@@ -31,8 +29,6 @@ pub const NEW_GROUP: &str = "new-group";
 /// Add Tab to Group's items are this and the group's ID.
 pub const JOIN_GROUP: &str = "group:";
 pub const LEAVE_GROUP: &str = "leave-group";
-pub const MOVE_UP: &str = "move-up";
-pub const MOVE_DOWN: &str = "move-down";
 pub const SPLIT: &str = "split";
 pub const SWAP: &str = "swap";
 pub const LAYOUT: &str = "layout";
@@ -54,32 +50,34 @@ pub const UNGROUP: &str = "ungroup";
 pub const CLOSE_GROUP: &str = "close-group";
 
 /// The items of `subject`'s menu.
-pub fn item_menu(state: &State, subject: &Subject) -> Result<Vec<MenuItem>, String> {
+pub fn item_menu(subject: &Subject) -> Result<Vec<MenuItem>, String> {
     let sections = match &subject.what {
-        What::Listed { tab, .. } => vec![
-            page(Some(*tab)),
-            keeps_tab(&subject.place),
-            group_of_tab(subject, *tab),
-            moves(tabs::can_move(subject.browser()?, *tab)),
-            split(subject, *tab, true),
-            closes_tab(subject, *tab)?,
-        ],
-        What::Kept { pin, favorite, .. } => {
+        What::Listed { tab, .. } => {
+            // What a tab is shown with, in one section: its group, then
+            // its split.
+            let mut with = group_of_tab(subject, *tab);
+            with.extend(split(subject, *tab, true));
+            vec![
+                page(Some(*tab)),
+                with,
+                closes_tab(subject, *tab)?,
+                keeps_tab(&subject.place),
+            ]
+        }
+        What::Kept { favorite, .. } => {
             let tab = subject.tab();
             let away = !subject.away().is_empty();
             vec![
                 opens(tab),
                 page(tab),
                 goes_back(away),
-                keeps_pin(*favorite, &subject.place),
-                moves_pin(state, pin.id)?,
                 tab.map_or_else(Vec::new, |tab| split(subject, tab, false)),
                 names(!*favorite),
-                closes_pin(tab, *favorite),
+                closes_pin(tab),
+                keeps_pin(*favorite, &subject.place),
             ]
         }
-        What::Folder(pin) => vec![
-            moves_pin(state, pin.id)?,
+        What::Folder(_) => vec![
             names(true),
             vec![MenuItem::item(DELETE_FOLDER, "Delete Folder…")],
         ],
@@ -159,17 +157,22 @@ fn keeps_tab(place: &Place) -> Vec<MenuItem> {
     ]
 }
 
-// Where else a kept tab can be kept: a favourite among the space's pins, in
-// a window on a space, and a pinned tab among the favourites.
+// Where else a kept tab can be kept, a favourite among the space's pins, in
+// a window on a space, and a pinned tab among the favourites; and keeping
+// it no longer.
 fn keeps_pin(favorite: bool, place: &Place) -> Vec<MenuItem> {
-    vec![if favorite {
-        enabled(
-            MenuItem::item(TO_SPACE, "Pin to Space"),
-            place.space().is_some(),
-        )
+    if favorite {
+        let in_space = place.space().is_some();
+        vec![
+            enabled(MenuItem::item(TO_SPACE, "Pin to Space"), in_space),
+            MenuItem::item(REMOVE, "Remove from Favourites"),
+        ]
     } else {
-        MenuItem::item(TO_FAVORITES, "Move to Favourites")
-    }]
+        vec![
+            MenuItem::item(TO_FAVORITES, "Move to Favourites"),
+            MenuItem::item(REMOVE, "Unpin"),
+        ]
+    }
 }
 
 // The group a tab of the list can join, or leave.
@@ -190,24 +193,6 @@ fn group_of_tab(subject: &Subject, tab: BrowserTab) -> Vec<MenuItem> {
         items.push(MenuItem::item(LEAVE_GROUP, "Remove from Group"));
     }
     items
-}
-
-// One place up or down, where there is one.
-fn moves((up, down): (bool, bool)) -> Vec<MenuItem> {
-    vec![
-        enabled(MenuItem::item(MOVE_UP, "Move Up"), up),
-        enabled(MenuItem::item(MOVE_DOWN, "Move Down"), down),
-    ]
-}
-
-// A pinned tab or a folder moves among those beside it, in its folder or at
-// the top. A favourite's place is in a grid, which has no up or down.
-fn moves_pin(state: &State, pin: PinId) -> Result<Vec<MenuItem>, String> {
-    let Some((PinPlace::Space { .. }, index)) = state.db.pin_place(pin)? else {
-        return Ok(Vec::new());
-    };
-    let beside = state.db.pin_siblings(pin)?;
-    Ok(moves((index > 0, index + 1 < beside)))
 }
 
 // A tab's split: its sides and its layout, and for a tab of the list
@@ -275,21 +260,12 @@ fn closes_tab(subject: &Subject, tab: BrowserTab) -> Result<Vec<MenuItem>, Strin
     ])
 }
 
-// Closing a kept tab's tabs, which leaves it unopened, and unpinning it.
-fn closes_pin(tab: Option<BrowserTab>, favorite: bool) -> Vec<MenuItem> {
-    let mut items = Vec::new();
-    if tab.is_some() {
-        items.push(MenuItem::item(CLOSE, "Close Tab"));
+// Closing an open kept tab's tabs, which leaves it unopened.
+fn closes_pin(tab: Option<BrowserTab>) -> Vec<MenuItem> {
+    match tab {
+        Some(_) => vec![MenuItem::item(CLOSE, "Close Tab")],
+        None => Vec::new(),
     }
-    items.push(MenuItem::item(
-        REMOVE,
-        if favorite {
-            "Remove from Favourites"
-        } else {
-            "Unpin"
-        },
-    ));
-    items
 }
 
 // The Browser's groups, in their order.

@@ -13,7 +13,7 @@ use crate::app::State;
 use crate::clipboard;
 use crate::db::{PinId, PinKind, PinPage, PinPlace, PinRow};
 use crate::menus::{self, item as command};
-use crate::pins::{self, PinTarget};
+use crate::pins;
 use crate::shell::{Place, WindowId};
 use crate::tabs;
 
@@ -207,7 +207,7 @@ fn act(
     match &subject.what {
         What::Listed { browser, tab } => on_listed(mt, browser, *tab, chosen)?,
         What::Kept { pin, side, .. } => return on_kept(state, subject, pin, *side, chosen),
-        What::Folder(pin) => return on_pin(state, subject, pin, chosen),
+        What::Folder(pin) => return on_pin(state, pin, chosen),
         What::Group { browser, group } => on_group(mt, browser, *group, chosen)?,
     }
     Ok(None)
@@ -250,8 +250,6 @@ fn on_listed(
         ),
         command::NEW_GROUP => tabs::new_group(mt, browser, &row).map(drop),
         command::LEAVE_GROUP => BrowserTab::ungroup(mt, &row),
-        command::MOVE_UP => tabs::move_by(mt, browser, tab, -1),
-        command::MOVE_DOWN => tabs::move_by(mt, browser, tab, 1),
         command::SPLIT => match browser.active_tab() {
             Some(active) => active.split_with(tab, SplitLayout::SideBySide).map(drop),
             None => Ok(()),
@@ -301,45 +299,26 @@ fn on_kept(
         command::UPDATE_URL => pins::update_url(state, subject.browser()?, pin.id)?,
         command::CLOSE => pins::close(subject.browser()?, pin.id)?,
         command::REMOVE => pins::delete(state, pin.id)?,
-        _ => return on_pin(state, subject, pin, chosen),
+        _ => return on_pin(state, pin, chosen),
     }
     Ok(None)
 }
 
-// What a pinned tab and a folder share: a place up or down among those
-// beside it, and a new folder, in a folder last, or after a pinned tab.
-fn on_pin(
-    state: &State,
-    subject: &Subject,
-    pin: &PinRow,
-    chosen: &str,
-) -> Result<Option<PinId>, String> {
-    if !matches!(
-        chosen,
-        command::MOVE_UP | command::MOVE_DOWN | command::NEW_FOLDER
-    ) {
+// A folder made from a pinned tab's menu or a folder's: in a folder, last,
+// and after a pinned tab.
+fn on_pin(state: &State, pin: &PinRow, chosen: &str) -> Result<Option<PinId>, String> {
+    if chosen != command::NEW_FOLDER {
         return Ok(None);
     }
     let (found, index) = state.db.pin_place(pin.id)?.ok_or("That pin is gone.")?;
     let PinPlace::Space { space, parent } = found else {
-        return Err("Only a space's pins have a place up or down, or a folder.".into());
+        return Err("A folder can only be among a space's pins.".into());
     };
-    if chosen == command::NEW_FOLDER {
-        let made = match pin.kind {
-            PinKind::Folder { .. } => pins::new_folder(state, space, Some(pin.id), None)?,
-            _ => pins::new_folder(state, space, parent, Some(index + 1))?,
-        };
-        return Ok(Some(made));
-    }
-    // Its index among the others, which is one less than among them all
-    // for those after it.
-    let to = match chosen {
-        command::MOVE_UP => index.checked_sub(1).ok_or("It is the first.")?,
-        _ => index + 1,
+    let made = match pin.kind {
+        PinKind::Folder { .. } => pins::new_folder(state, space, Some(pin.id), None)?,
+        _ => pins::new_folder(state, space, parent, Some(index + 1))?,
     };
-    let target = PinTarget::Space { parent };
-    pins::move_pin(state, &subject.place, pin.id, target, Some(to))?;
-    Ok(None)
+    Ok(Some(made))
 }
 
 fn on_group(

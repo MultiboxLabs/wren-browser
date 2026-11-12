@@ -441,7 +441,7 @@ const scenes = (url: string): Scene[] => [
         name: "a tab's menu",
         does: menuHolds(
           tab(1),
-          "Reload, Copy Link, Mute Tab | Pin Tab, Add to Favourites | Add Tab to New Group | Move Up, Move Down | Open in Split View | Close Tab, Close Other Tabs, Close Tabs Below"
+          "Reload, Copy Link, Mute Tab | Add Tab to New Group, Open in Split View | Close Tab, Close Other Tabs, Close Tabs Below | Pin Tab, Add to Favourites"
         ),
         shows: "tabs 0 1 2 3 4 5"
       },
@@ -451,11 +451,10 @@ const scenes = (url: string): Scene[] => [
         name: "an open pinned tab's menu",
         does: menuHolds(
           pin(2),
-          "Reload, Copy Link, Mute Tab | Move to Favourites | [Move Up], Move Down | Rename…, New Folder | Close Tab, Unpin"
+          "Reload, Copy Link, Mute Tab | Rename…, New Folder | Close Tab | Move to Favourites, Unpin"
         ),
         shows: "pins 2 1 | tabs 0 3 4 5"
       },
-      { name: "a pinned tab's Move Down", does: chosen(pin(2), "Move Down"), shows: "pins 1 2 | tabs 0 3 4 5" },
       {
         name: "Move to Favourites",
         does: chosen(pin(1), "Move to Favourites"),
@@ -476,10 +475,7 @@ const scenes = (url: string): Scene[] => [
       { name: "a pinned tab's Close Tab", does: chosen(pin(2), "Close Tab"), shows: "pins 2 | tabs 3 4 5" },
       {
         name: "an unopened pinned tab's menu",
-        does: menuHolds(
-          pin(2),
-          "Open | Copy Link | Move to Favourites | [Move Up], [Move Down] | Rename…, New Folder | Unpin"
-        ),
+        does: menuHolds(pin(2), "Open | Copy Link | Rename…, New Folder | Move to Favourites, Unpin"),
         shows: "pins 2 | tabs 3 4 5"
       },
       { name: "a tab onto a tab", does: dragged(tab(4), half(tab(5), "right")), shows: "pins 2 | tabs 3 (5|4)" },
@@ -513,7 +509,7 @@ const scenes = (url: string): Scene[] => [
         name: "an open pinned split's menu",
         does: menuHolds(
           pin(5),
-          "Reload, Copy Link, Mute Tab | Move to Favourites | [Move Up], Move Down | Swap Sides, Show Stacked | Rename…, New Folder | Close Tab, Unpin"
+          "Reload, Copy Link, Mute Tab | Swap Sides, Show Stacked | Rename…, New Folder | Close Tab | Move to Favourites, Unpin"
         ),
         shows: "pins (5|4) 2"
       },
@@ -521,10 +517,9 @@ const scenes = (url: string): Scene[] => [
       { name: "a pinned tab's New Folder", does: chosen(pin(2), "New Folder"), shows: "pins (4|5) 2 []" },
       {
         name: "a folder's menu",
-        does: menuHolds(folder, "Move Up, [Move Down] | Rename…, New Folder | Delete Folder…"),
+        does: menuHolds(folder, "Rename…, New Folder | Delete Folder…"),
         shows: "pins (4|5) 2 []"
-      },
-      { name: "a folder's Move Up", does: chosen(folder, "Move Up"), shows: "pins (4|5) [] 2" }
+      }
     ]
   },
   {

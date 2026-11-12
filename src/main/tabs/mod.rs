@@ -161,14 +161,6 @@ fn runs(browser: &Browser, tab: BrowserTab) -> Result<(Vec<Vec<BrowserTab>>, usi
     Ok((runs, mine))
 }
 
-/// Whether a tab can move up the list, and down: there is a run before it,
-/// or after it.
-pub fn can_move(browser: &Browser, tab: BrowserTab) -> (bool, bool) {
-    runs(browser, tab).map_or((false, false), |(runs, mine)| {
-        (mine > 0, mine + 1 < runs.len())
-    })
-}
-
 /// Moves a tab one place up the list (`by` -1) or down (1), past a tab, a
 /// split or a whole group, as dragging it there would. Its split goes with it.
 pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) -> Result<(), Error> {
