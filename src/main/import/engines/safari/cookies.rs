@@ -1,10 +1,16 @@
 // Safari's cookies: `Cookies.binarycookies` in its container, a format of
 // Apple's, small enough to read here. The file is the magic "cook", its page
 // count and each page's size (big-endian); a page, its cookie count and
-// each cookie's offset (little-endian); a cookie, its size, its flags (1
-// secure, 4 HttpOnly), the offsets of its domain, name, path and value
-// (NUL-terminated), then its expiry and creation, seconds since 2001 as
-// little-endian f64s. It says nothing of SameSite.
+// each cookie's offset (little-endian); a cookie, its size, its flags, the
+// offsets of its domain, name, path and value (NUL-terminated), then its
+// expiry and creation, seconds since 2001 as little-endian f64s.
+//
+// Of the flags, 1 is Secure and 4 HttpOnly. A file of a Safari that keeps
+// SameSite has it in two more: 8 alone is Lax, 16 alone unspecified, both
+// Strict, and neither None. A file without them, where no cookie has
+// either, is read as unspecified throughout. Apple documents none of this:
+// it was found by comparing a file's cookies with Chromium's of the same
+// sites.
 
 use std::collections::HashSet;
 use std::fs;
@@ -55,6 +61,39 @@ pub fn read(batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<usize, ReadError> {
 }
 
 pub fn parse(file: &[u8]) -> Option<Vec<Cookie>> {
+    let read = pages(file)?;
+    let keeps_same_site = read.iter().any(|(_, flags)| flags & SAME_SITE != 0);
+    Some(
+        read.into_iter()
+            .map(|(cookie, flags)| Cookie {
+                same_site: if keeps_same_site {
+                    same_site(flags)
+                } else {
+                    CookieSameSite::Unspecified
+                },
+                ..cookie
+            })
+            .collect(),
+    )
+}
+
+const SECURE: usize = 1;
+const HTTP_ONLY: usize = 4;
+const LAX: usize = 8;
+const UNSPECIFIED: usize = 16;
+const SAME_SITE: usize = LAX | UNSPECIFIED;
+
+fn same_site(flags: usize) -> CookieSameSite {
+    match flags & SAME_SITE {
+        LAX => CookieSameSite::Lax,
+        UNSPECIFIED => CookieSameSite::Unspecified,
+        SAME_SITE => CookieSameSite::Strict,
+        _ => CookieSameSite::None,
+    }
+}
+
+// Every cookie in the file, with its flags.
+fn pages(file: &[u8]) -> Option<Vec<(Cookie, usize)>> {
     let be = |at: usize| Some(u32::from_be_bytes(file.get(at..at + 4)?.try_into().ok()?) as usize);
     if file.get(..4)? != b"cook" {
         return None;
@@ -75,7 +114,7 @@ fn le(bytes: &[u8], at: usize) -> Option<usize> {
     Some(u32::from_le_bytes(bytes.get(at..at + 4)?.try_into().ok()?) as usize)
 }
 
-fn read_page(page: &[u8]) -> Option<Vec<Cookie>> {
+fn read_page(page: &[u8]) -> Option<Vec<(Cookie, usize)>> {
     let count = le(page, 4)?;
     (0..count)
         .map(|index| {
@@ -86,7 +125,7 @@ fn read_page(page: &[u8]) -> Option<Vec<Cookie>> {
         .collect()
 }
 
-fn read_cookie(cookie: &[u8]) -> Option<Cookie> {
+fn read_cookie(cookie: &[u8]) -> Option<(Cookie, usize)> {
     let flags = le(cookie, 8)?;
     let text = |offset_at: usize| -> Option<String> {
         let from = le(cookie, offset_at)?;
@@ -97,7 +136,7 @@ fn read_cookie(cookie: &[u8]) -> Option<Cookie> {
     let time = |at: usize| -> Option<f64> {
         Some(f64::from_le_bytes(cookie.get(at..at + 8)?.try_into().ok()?))
     };
-    Some(Cookie {
+    let read = Cookie {
         domain: text(16)?,
         name: text(20)?,
         path: text(24)?,
@@ -105,20 +144,21 @@ fn read_cookie(cookie: &[u8]) -> Option<Cookie> {
         expires_ms: unix_ms(time(40)?),
         created_ms: unix_ms(time(48)?),
         last_access_ms: 0,
-        secure: flags & 1 != 0,
-        http_only: flags & 4 != 0,
+        secure: flags & SECURE != 0,
+        http_only: flags & HTTP_ONLY != 0,
         same_site: CookieSameSite::Unspecified,
         partition_site: None,
         partition_cross_site_ancestor: false,
-    })
+    };
+    Some((read, flags))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // One cookie, as Safari writes it.
-    fn cookie() -> Vec<u8> {
+    // One cookie with `flags`, as Safari writes it.
+    fn cookie(flags: u32) -> Vec<u8> {
         let strings = [".example.com", "id", "/", "abc"];
         let header = 56;
         let mut offsets = Vec::new();
@@ -131,7 +171,7 @@ mod tests {
         let mut out = Vec::new();
         out.extend(((header + body.len()) as u32).to_le_bytes());
         out.extend(0u32.to_le_bytes());
-        out.extend(5u32.to_le_bytes());
+        out.extend(flags.to_le_bytes());
         out.extend(0u32.to_le_bytes());
         for offset in offsets {
             out.extend(offset.to_le_bytes());
@@ -143,19 +183,29 @@ mod tests {
         out
     }
 
-    #[test]
-    fn reads_a_cookie_file() {
-        let cookie = cookie();
+    // A file of one page with `cookies`.
+    fn file(cookies: &[Vec<u8>]) -> Vec<u8> {
         let mut page = vec![0, 0, 1, 0];
-        page.extend(1u32.to_le_bytes());
-        page.extend(16u32.to_le_bytes());
+        page.extend((cookies.len() as u32).to_le_bytes());
+        let mut at = 8 + 4 * cookies.len() + 4;
+        for cookie in cookies {
+            page.extend((at as u32).to_le_bytes());
+            at += cookie.len();
+        }
         page.extend(0u32.to_le_bytes());
-        page.extend(cookie);
+        for cookie in cookies {
+            page.extend(cookie);
+        }
         let mut file = b"cook".to_vec();
         file.extend(1u32.to_be_bytes());
         file.extend((page.len() as u32).to_be_bytes());
         file.extend(page);
-        let cookies = parse(&file).unwrap();
+        file
+    }
+
+    #[test]
+    fn reads_a_cookie_file() {
+        let cookies = parse(&file(&[cookie(5)])).unwrap();
         assert_eq!(cookies.len(), 1);
         let cookie = &cookies[0];
         assert_eq!(
@@ -168,5 +218,32 @@ mod tests {
         );
         assert!(cookie.secure && cookie.http_only);
         assert_eq!(cookie.expires_ms, 1_678_307_200_000);
+    }
+
+    // SameSite is read from a file that keeps it, and is unspecified
+    // throughout one that does not.
+    #[test]
+    fn reads_same_site_where_the_file_keeps_it() {
+        let read = |flags: &[u32]| -> Vec<CookieSameSite> {
+            let cookies: Vec<Vec<u8>> = flags.iter().map(|flags| cookie(*flags)).collect();
+            parse(&file(&cookies))
+                .unwrap()
+                .iter()
+                .map(|cookie| cookie.same_site)
+                .collect()
+        };
+        assert_eq!(
+            read(&[1, 1 | 8, 1 | 16, 1 | 24]),
+            [
+                CookieSameSite::None,
+                CookieSameSite::Lax,
+                CookieSameSite::Unspecified,
+                CookieSameSite::Strict
+            ]
+        );
+        assert_eq!(
+            read(&[1, 5]),
+            [CookieSameSite::Unspecified, CookieSameSite::Unspecified]
+        );
     }
 }
