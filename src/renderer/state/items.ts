@@ -151,9 +151,17 @@ export function useSelectedOf(item: TabItem) {
   return useSelected(item.sides.flatMap((side) => (side.tab === null ? [] : [side.tab])));
 }
 
-/** Whether a tab item's row is marked (`useMarked`): only a normal tab's is. */
+/**
+ * What a tab item is marked by (state/marks.ts): a kept tab by its pin, and
+ * a normal one by each of its Chromium tabs, as the one its row is kept by
+ * changes with a split.
+ */
+export const markIds = (item: TabItem) =>
+  item.pin !== null ? [`pin:${item.pin}`] : listedTabs(item).map((tab) => `tab:${tab}`);
+
+/** Whether a tab item's row is marked (`useMarked`). A favourite's never is. */
 export function useMarkedOf(item: TabItem) {
-  return useMarked(item.pin === null ? listedTabs(item) : []);
+  return useMarked(item.type === "favorite" ? [] : markIds(item));
 }
 
 /** What a side is called: its Chromium tab's title, or else its kept page's. */

@@ -259,20 +259,20 @@ const marks =
     );
   };
 
-/** One tab of each row on these pages, as the menu of rows marked together takes them. */
-const leads = (numbers: number[]) => Promise.all(numbers.map(tabId));
+/** Rows marked together, as their menu's call names them (ipc/items.ts). */
+const refsOf = (whats: What[]) => Promise.all(whats.map(async (what) => (await menuRef(what)).item));
 
-/** Fails unless the menu of the rows on these pages, marked together, holds `expected`. */
-const markedMenuHolds = (numbers: number[], expected: string) => async () => {
-  const marked = await leads(numbers);
-  const held = await perf.menu({ tab: marked[0] }, 0, marked);
+/** Fails unless the menu of these rows, marked together, holds `expected`. */
+const markedMenuHolds = (whats: What[], expected: string) => async () => {
+  const marked = await refsOf(whats);
+  const held = await perf.menu(marked[0], 0, marked);
   if (held !== expected) throw new Error(`Their menu holds "${held}", not "${expected}".`);
 };
 
-/** What the menu of the rows on these pages, marked together, would do for the item of a label. */
-const chosenOfMarked = (numbers: number[], label: string) => async () => {
-  const marked = await leads(numbers);
-  await perf.choose({ tab: marked[0] }, 0, label, marked);
+/** What the menu of these rows, marked together, would do for the item of a label. */
+const chosenOfMarked = (whats: What[], label: string) => async () => {
+  const marked = await refsOf(whats);
+  await perf.choose(marked[0], 0, label, marked);
 };
 
 /** A drag that nothing must take: it fails if something does, and the sidebar must then hold what it did. */
@@ -780,12 +780,15 @@ const scenes = (url: string): Scene[] => [
       },
       {
         name: "the menu of marked rows",
-        does: markedMenuHolds([5, 2, 4, 6], "Add Tabs to New Group | Close Tabs | Pin Tabs, Add to Favourites"),
+        does: markedMenuHolds(
+          [tab(5), tab(2), tab(4), tab(6)],
+          "Add Tabs to New Group | Close Tabs | Pin Tabs, Add to Favourites"
+        ),
         shows: "tabs 0 1 3 5 2 4 6 7"
       },
       {
         name: "Add Tabs to New Group",
-        does: chosenOfMarked([5, 2, 4, 6], "Add Tabs to New Group"),
+        does: chosenOfMarked([tab(5), tab(2), tab(4), tab(6)], "Add Tabs to New Group"),
         shows: "tabs 0 1 3 {5 2 4 6} 7"
       },
       {
@@ -810,7 +813,7 @@ const scenes = (url: string): Scene[] => [
         does: async () => {
           await pressed(tab(0), { command: true }, tab(0))();
           await pressed(tab(3), { command: true }, tab(0), tab(3))();
-          await chosenOfMarked([0, 3, 6], "Close Tabs")();
+          await chosenOfMarked([tab(0), tab(3), tab(6)], "Close Tabs")();
         },
         shows: "tabs {5 2 4} 7"
       },
@@ -819,7 +822,7 @@ const scenes = (url: string): Scene[] => [
         does: async () => {
           await selected(4)();
           await pressed(tab(7), { command: true }, tab(7))();
-          await chosenOfMarked([4, 7], "Pin Tabs")();
+          await chosenOfMarked([tab(4), tab(7)], "Pin Tabs")();
         },
         shows: "pins 4 7 | tabs {5 2}"
       },
@@ -831,19 +834,129 @@ const scenes = (url: string): Scene[] => [
           await drag(tab(2), heading);
         },
         shows: "pins 5 2 4 7"
+      }
+    ]
+  },
+  {
+    name: "Several pinned tabs",
+    tabs: 7,
+    steps: [
+      {
+        name: "five marked tabs onto the space's heading",
+        does: async () => {
+          await selected(0)();
+          for (const number of [1, 2, 3, 4]) await press(tab(number), { command: true });
+          await drag(tab(0), heading);
+        },
+        shows: "pins 0 1 2 3 4 | tabs 5 6"
+      },
+      { name: "a tab of the list selected", does: selected(6), shows: "pins 0 1 2 3 4 | tabs 5 6" },
+      {
+        name: "a press with Command held on a pinned tab, which marks its row and selects nothing",
+        does: async () => {
+          await pressed(pin(1), { command: true }, pin(1))();
+          await selects(tab(6))();
+        },
+        shows: "pins 0 1 2 3 4 | tabs 5 6"
       },
       {
-        name: "two pins asked to move together, which the app refuses, as only tabs of the list do",
+        name: "another pinned tab marked",
+        does: pressed(pin(3), { command: true }, pin(1), pin(3)),
+        shows: "pins 0 1 2 3 4 | tabs 5 6"
+      },
+      {
+        name: "a tab of the list marked, which leaves no pinned tab marked",
+        does: pressed(tab(5), { command: true }, tab(5)),
+        shows: "pins 0 1 2 3 4 | tabs 5 6"
+      },
+      {
+        name: "a pinned tab marked, which leaves no tab of the list marked",
         does: async () => {
-          const made = await items
-            .move([{ pin: 0 }, { pin: 1 }], { space: spaces[0], to: "tabs", group: null, index: 0 })
-            .then(
-              () => true,
-              () => false
-            );
+          await pressed(pin(1), { command: true }, pin(1))();
+          await pressed(pin(3), { command: true }, pin(1), pin(3))();
+        },
+        shows: "pins 0 1 2 3 4 | tabs 5 6"
+      },
+      {
+        name: "a marked pinned tab to the end of the pins, with the other",
+        does: dragged(pin(1), after(pin(4))),
+        shows: "pins 0 2 4 1 3 | tabs 5 6"
+      },
+      {
+        name: "the menu of marked pinned tabs",
+        does: markedMenuHolds([pin(1), pin(3)], "Add Tabs to New Folder | Close Tabs | Move to Favourites, Unpin"),
+        shows: "pins 0 2 4 1 3 | tabs 5 6"
+      },
+      {
+        name: "Add Tabs to New Folder, which makes it where the first of them was",
+        does: chosenOfMarked([pin(1), pin(3)], "Add Tabs to New Folder"),
+        shows: "pins 0 2 4 [1 3] | tabs 5 6"
+      },
+      {
+        name: "a press on a pinned tab that is not marked, which selects it and leaves none marked",
+        does: async () => {
+          await pressed(pin(0), {})();
+          await selects(pin(0))();
+        },
+        shows: "pins 0 2 4 [1 3] | tabs 5 6"
+      },
+      {
+        name: "a press with Shift held, which marks the pinned tabs from the selected one to it",
+        does: pressed(pin(4), { shift: true }, pin(2), pin(4)),
+        shows: "pins 0 2 4 [1 3] | tabs 5 6"
+      },
+      {
+        name: "their menu, which has the space's folders",
+        does: markedMenuHolds(
+          [pin(0), pin(2), pin(4)],
+          "Add Tabs to New Folder, Add Tabs to Folder > | Close Tabs | Move to Favourites, Unpin"
+        ),
+        shows: "pins 0 2 4 [1 3] | tabs 5 6"
+      },
+      {
+        name: "Add Tabs to Folder, which puts them last in it",
+        does: chosenOfMarked([pin(0), pin(2), pin(4)], "New Folder"),
+        shows: "pins [1 3 0 2 4] | tabs 5 6"
+      },
+      {
+        name: "marked pinned tabs to a place in the list, which unpins them in their order",
+        does: dragged(pin(2), after(tab(5))),
+        shows: "pins [1 3] | tabs 5 0 2 4 6"
+      },
+      {
+        name: "Move to Favourites",
+        does: async () => {
+          await pressed(pin(1), { command: true }, pin(1))();
+          await pressed(pin(3), { command: true }, pin(1), pin(3))();
+          await chosenOfMarked([pin(1), pin(3)], "Move to Favourites")();
+        },
+        shows: "favs 1 3 | pins [] | tabs 5 0 2 4 6"
+      },
+      {
+        name: "two tabs marked and pinned, then Unpin, which removes them",
+        does: async () => {
+          await selected(5)();
+          await pressed(tab(6), { command: true }, tab(6))();
+          await chosenOfMarked([tab(5), tab(6)], "Pin Tabs")();
+          await shows("favs 1 3 | pins 5 6 [] | tabs 0 2 4");
+          await selected(0)();
+          await pressed(pin(5), { command: true }, pin(5))();
+          await pressed(pin(6), { command: true }, pin(5), pin(6))();
+          await chosenOfMarked([pin(5), pin(6)], "Unpin")();
+        },
+        shows: "favs 1 3 | pins [] | tabs 0 2 4"
+      },
+      {
+        name: "a tab of the list and a favourite asked to move together, which the app refuses",
+        does: async () => {
+          const mixed = await refsOf([tab(0), pin(1)]);
+          const made = await items.move(mixed, { space: spaces[0], to: "tabs", group: null, index: 0 }).then(
+            () => true,
+            () => false
+          );
           if (made) throw new Error("The app made the move.");
         },
-        shows: "pins 5 2 4 7"
+        shows: "favs 1 3 | pins [] | tabs 0 2 4"
       }
     ]
   },

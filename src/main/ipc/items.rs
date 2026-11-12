@@ -1,5 +1,5 @@
 // The calls a page makes for the items of its sidebar: an item moved to a
-// place, or several marked tabs ("items.move"), an address put at one ("items.add"), and an item's
+// place, or several marked ones ("items.move"), an address put at one ("items.add"), and an item's
 // menu ("items.menu"). The app decides what each does (items/).
 // src/renderer/ipc/items.ts is the page's side.
 
@@ -41,14 +41,14 @@ struct MenuAt {
 }
 
 /// An item, the side of it that was pressed (of a split's two), and, if it
-/// is one of several rows of the list marked together, one tab of each of
-/// them, in the list's order.
+/// is one of several rows marked together, each of them in the sidebar's
+/// order: all tabs of the list, or all pinned tabs.
 #[derive(Deserialize)]
 pub(super) struct MenuOf {
     item: ItemRef,
     side: usize,
     #[serde(default)]
-    marked: Vec<i32>,
+    marked: Vec<ItemRef>,
 }
 
 /// What was chosen from an item's menu, if anything was, once the app has
@@ -61,7 +61,7 @@ pub(super) struct MenuChoice {
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // An item of the sidebar dropped at a place in it, or several marked
-    // tabs. Answered once it is there: a space without a Browser gets one
+    // ones. Answered once it is there: a space without a Browser gets one
     // first.
     let weak = window.clone();
     let _ = web_view.handle_call("items.move", move |call| {

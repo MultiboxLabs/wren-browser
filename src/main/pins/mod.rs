@@ -192,6 +192,31 @@ pub fn keep_group(
     Ok(folder)
 }
 
+/// The pins of `place`, in order: a profile's favourites, or those at the
+/// top of a space's pins or in one of its folders.
+pub fn siblings(state: &State, place: &PinPlace) -> Result<Vec<PinId>, String> {
+    let rows = match place {
+        PinPlace::Favorites { profile } => state.db.favorites(profile)?,
+        PinPlace::Space { space, parent } => {
+            let all = state.db.space_pins(*space)?;
+            match parent {
+                Some(folder) => in_folder(all, *folder).ok_or("That folder is gone.")?,
+                None => all,
+            }
+        }
+    };
+    Ok(rows.into_iter().map(|row| row.id).collect())
+}
+
+// What is in `folder`, which is among `rows` or in a folder of them.
+fn in_folder(rows: Vec<PinRow>, folder: PinId) -> Option<Vec<PinRow>> {
+    rows.into_iter().find_map(|row| match row.kind {
+        PinKind::Folder { items, .. } if row.id == folder => Some(items),
+        PinKind::Folder { items, .. } => in_folder(items, folder),
+        _ => None,
+    })
+}
+
 /// Opens pin `id` in `browser`, the window's on `place`: selects its tab if
 /// it is open there, or else opens it there, linked. A split pin opens its
 /// two pages as a split.

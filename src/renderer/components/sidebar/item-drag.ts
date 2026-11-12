@@ -6,22 +6,22 @@
 // child; where a drag lands is found from the marks (item-landing.ts), and
 // what takes the drop asks the app to move the item (item-drop.ts).
 //
-// A row of the list that is one of several marked (state/marks.ts) is
-// dragged with the others: the drag carries them all, in the list's order,
-// and its image is the row held, with how many they are.
+// A row that is one of several marked (marking.ts) is dragged with the
+// others: the drag carries them all, in the sidebar's order, and its image
+// is the row held, with how many they are.
 
 import type { CSSProperties, DragEvent, PointerEvent } from "react";
 import type { ItemRef } from "@/ipc";
-import { useMarks } from "@/state/browser";
-import { type Item, itemKey, type ItemType, listedTabs } from "@/state/items";
+import { type Item, itemKey, type ItemType } from "@/state/items";
 import { useDrawnSpace } from "@/state/space";
 import { holdForDrag } from "./drag-hold";
 import { carriesAddress } from "./dropped-address";
+import { useMarking } from "./marking";
 
 /**
  * The kinds of item that move as one: a tab alone, a split's two, a group
- * with its tabs, or a folder with all in it; and "tabs", several rows of
- * the list marked together.
+ * with its tabs, or a folder with all in it; and "tabs", several rows
+ * marked together, of the list or of the pins.
  */
 export type ItemKind = "tab" | "split" | "tabs" | "group" | "folder";
 
@@ -130,6 +130,9 @@ export function droppedItem(data: DataTransfer): DroppedItem | null {
 /** The attribute that marks an element as an item's, by the item's key. */
 export const ITEM_MARK = "data-item";
 
+/** The attribute of an item's element whose row can be marked: a press on it decides the marks itself (item-actions.tsx). */
+export const MARKS_MARK = "data-item-marks";
+
 // The row an item's element draws: its first child, or, for a group, whose
 // element holds its tabs too, its heading.
 const rowOf = (element: Element, kind: ItemKind) => {
@@ -162,15 +165,7 @@ function showCount(row: Element, count: number) {
  */
 export function useItemDrag() {
   const space = useDrawnSpace().id;
-  const marks = useMarks();
-  // The rows marked with a normal tab's, each by its first tab, if it is
-  // one of several: they are dragged with it.
-  const markedWith = (item: Item) => {
-    if (item.kind !== "tab" || item.pin !== null) return [];
-    const [lead] = listedTabs(item);
-    const rows = marks.rows();
-    return rows.some((row) => row.includes(lead)) ? rows.map(([first]) => first) : [];
-  };
+  const marking = useMarking();
   return (item: Item, { renaming = false, peek = false } = {}) => {
     const kind = kindOf(item);
     const type = typeOf(item);
@@ -178,6 +173,7 @@ export function useItemDrag() {
     return {
       draggable: !renaming || undefined,
       [ITEM_MARK]: peek ? undefined : key,
+      [MARKS_MARK]: !peek && item.kind === "tab" && type !== "favorite" ? "" : undefined,
       // Chromium draws the drag's image from the nearest stacking context,
       // over the box of the dragged element and all within it, however
       // clipped (as a selected favourite's glow is): as its own, it shows
@@ -192,11 +188,12 @@ export function useItemDrag() {
         if ((event.target as Element).closest("[draggable=true]") !== element) return;
         const row = rowOf(element, kind);
         const box = row.getBoundingClientRect();
-        const together = markedWith(item);
+        // The rows marked with it, if it is one of several, go with it.
+        const together = marking.with(item);
         const said: DroppedItem = together.length
-          ? { items: together.map((tab) => ({ tab })), kind: "tabs", type }
+          ? { items: together.map(refOf), kind: "tabs", type }
           : { items: [refOf(item)], kind, type };
-        const keys = together.length ? together.map((tab) => `tab:${tab}`) : [key];
+        const keys = together.length ? together.map(itemKey) : [key];
         const mine: Carried = { ...said, key, keys, space, grab: event.clientX - box.left, element };
         const data = event.dataTransfer;
         data.effectAllowed = "move";

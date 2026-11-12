@@ -4,12 +4,12 @@
 // with a Chromium tab open on it is selected, and one without is opened; a
 // normal tab closes, and a kept one closes its tabs or is unpinned.
 //
-// Rows of the list are marked to act together (state/marks.ts): a press
-// with Command held marks a row or no longer, and one with Shift held marks
-// the rows from the selected tab's to it, neither selecting. A press on a
-// row that is not among them leaves none marked. One on a row that is
-// among them waits to be a click, as it may begin a drag of them all, and
-// their menu is one for them all.
+// Rows of the list, or of the pins, are marked to act together
+// (marking.ts): a press with Command held marks a row or no longer, and one
+// with Shift held marks the rows from the selected tab's to it, neither
+// selecting. A press on a row that is not among them leaves none marked.
+// One on a row that is among them waits to be a click, as it may begin a
+// drag of them all, and their menu is one for them all.
 //
 // The menu is the app's (ipc/items.ts), one for every item, which does what
 // is chosen and leaves the page to rename in place, and to ask before a
@@ -20,9 +20,9 @@ import { Dialog } from "@/components/ui/dialog";
 import { useHoldUntil } from "@/components/ui/hold";
 import { browser, groups, items, pins } from "@/ipc";
 import type { ItemRef } from "@/ipc";
-import { useMarks } from "@/state/browser";
-import { type FolderItem, type GroupItem, type Item, itemKey, listedTabs, type TabItem } from "@/state/items";
+import { type FolderItem, type GroupItem, type Item, itemKey, type TabItem } from "@/state/items";
 import { refOf } from "./item-drag";
+import type { Marking } from "./marking";
 
 /**
  * The item as its menu's call names it (ipc/items.ts): as a drag does
@@ -44,8 +44,9 @@ export const heldIn = (event: PointerEvent | MouseEvent): Held => ({ command: ev
 export type ItemActions = {
   /**
    * A press on a tab item's side: selects its Chromium tab, or opens a kept
-   * tab that has none. With a key `held`, it marks a normal tab's row, and
-   * on one of several marked rows it does nothing until it is a click.
+   * tab that has none. With a key `held`, it marks the row of a normal or a
+   * pinned tab, and on one of several marked rows it does nothing until it
+   * is a click.
    */
   onSelect: (item: TabItem, side: number, held?: Held) => void;
   /** A press on a tab item's side that was no drag: on one of several marked rows, it selects the tab and leaves none marked. */
@@ -70,22 +71,18 @@ export type ItemActions = {
 /**
  * The actions of a space's items, and the dialog that asks before a folder
  * is deleted, to draw with them. `setFolderOpen` opens a folder of the
- * space's pins or folds it (state/pins.tsx).
+ * space's pins or folds it (state/pins.tsx), and `marking` is the space's
+ * marks.
  */
-export function useItemActions(setFolderOpen: (folder: number, open: boolean) => void): {
+export function useItemActions(
+  setFolderOpen: (folder: number, open: boolean) => void,
+  marking: Marking
+): {
   actions: ItemActions;
   dialog: ReactNode;
 } {
   // A menu holds the floating sidebar out until it closes.
   const holdUntil = useHoldUntil();
-  const marks = useMarks();
-  // The rows marked with a normal tab's, if it is one of several.
-  const markedWith = (item: Item) => {
-    if (item.kind !== "tab" || item.pin !== null) return [];
-    const [lead] = listedTabs(item);
-    const rows = marks.rows();
-    return rows.some((row) => row.includes(lead)) ? rows : [];
-  };
   const select = (item: TabItem, side: number) => {
     const tab = item.sides[side]?.tab;
     // The app makes each change, and the page hears it back as new tabs.
@@ -108,8 +105,8 @@ export function useItemActions(setFolderOpen: (folder: number, open: boolean) =>
     if (!named) return;
     // One of several marked rows shows the menu for them all; any other
     // row's is its own, and leaves none marked.
-    const marked = markedWith(item).map(([lead]) => lead);
-    if (!marked.length) marks.clear();
+    const marked = marking.with(item).map(refOf);
+    if (!marked.length) marking.clear();
     holdUntil(items.menu(named, side, x, y, marked)).then(
       ({ chosen, folder }) => {
         if (chosen === "rename") startRename(itemKey(item));
@@ -154,18 +151,15 @@ export function useItemActions(setFolderOpen: (folder: number, open: boolean) =>
   return {
     actions: {
       onSelect: (item, side, held) => {
-        if (item.pin === null) {
-          const tabs = listedTabs(item);
-          if (held?.command) return marks.toggle(tabs);
-          if (held?.shift) return marks.extendTo(tabs[0]);
-          if (markedWith(item).length) return;
-          marks.clear();
-        }
+        if (held?.command) return marking.toggle(item);
+        if (held?.shift) return marking.extendTo(item);
+        if (marking.with(item).length) return;
+        marking.clear();
         select(item, side);
       },
       onClicked: (item, side, held) => {
-        if (held.command || held.shift || !markedWith(item).length) return;
-        marks.clear();
+        if (held.command || held.shift || !marking.with(item).length) return;
+        marking.clear();
         select(item, side);
       },
       onClose: (item, side) => {

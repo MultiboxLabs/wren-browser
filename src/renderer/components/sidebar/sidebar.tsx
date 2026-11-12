@@ -20,7 +20,8 @@ import { Shelf, useShelf } from "@/components/downloads/shelf";
 import { ArrivalScope } from "./arrival";
 import { Favorites } from "./favorites";
 import { useItemActions } from "./item-actions";
-import { ITEM_MARK } from "./item-drag";
+import { MARKS_MARK } from "./item-drag";
+import { MarkingProvider, useSpaceMarking } from "./marking";
 import { NewSpaceForm } from "./new-space";
 import { SpaceColours } from "./space-colours";
 import { useSpaceSwipe } from "./space-swipe";
@@ -108,13 +109,13 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   // While the omnibox for a new tab is open, the New Tab row is the selected
   // one, and no tab's is.
   useNoneSelected(omnibox.shown?.target === "new-tab");
-  // Escape, or a press on anything but a tab of a list, leaves no row
-  // marked: a tab's row decides for itself (item-actions.tsx).
+  // Escape, or a press on anything but a row that can be marked, leaves no
+  // row marked: such a row decides for itself (item-actions.tsx).
   const clearMarks = useClearMarks();
   useEffect(() => {
     const over = new AbortController();
     const pressed = (event: PointerEvent) => {
-      if (!(event.target as Element).closest(`[${ITEM_MARK}^="tab:"]`)) clearMarks();
+      if (!(event.target as Element).closest(`[${MARKS_MARK}]`)) clearMarks();
     };
     window.addEventListener("pointerdown", pressed, { signal: over.signal, capture: true });
     window.addEventListener("keydown", (event) => event.key === "Escape" && clearMarks(), { signal: over.signal });
@@ -289,7 +290,8 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
   // A window on a profile shows its favourites; a made-up space has none.
   const pins = usePins(profile ? null : space.id > 0 ? space.id : undefined);
   const items = useItems(pins.favorites, pins.pinned);
-  const { actions, dialog } = useItemActions(pins.setFolderOpen);
+  const marking = useSpaceMarking(items);
+  const { actions, dialog } = useItemActions(pins.setFolderOpen, marking);
   // The space's pins and the settings are mostly read before it is shown
   // (state/pins.tsx, and the sidebar's), but may not be yet, nor its tabs,
   // as it comes in. Once they are, what shows them is made anew, so what is
@@ -311,10 +313,12 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
       ) : (
         <div aria-hidden className="-mt-2 shrink-0" />
       )}
-      <ArrivalScope key={read}>
-        <Favorites favorites={items.favorites} read={pins.read} settings={settings} actions={actions} />
-        <TabList omnibox={omnibox} pinned={items.pinned} tabs={items.tabs} actions={actions} />
-      </ArrivalScope>
+      <MarkingProvider value={marking}>
+        <ArrivalScope key={read}>
+          <Favorites favorites={items.favorites} read={pins.read} settings={settings} actions={actions} />
+          <TabList omnibox={omnibox} pinned={items.pinned} tabs={items.tabs} actions={actions} />
+        </ArrivalScope>
+      </MarkingProvider>
       {dialog}
     </>
   );

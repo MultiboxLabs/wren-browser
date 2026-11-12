@@ -61,10 +61,10 @@ export const perf = {
    * submenu's label followed by ">". `marked` is as `items.menu` takes it.
    * Only in a run.
    */
-  menu: (item: ItemRef, side: number, marked: number[] = []) =>
+  menu: (item: ItemRef, side: number, marked: ItemRef[] = []) =>
     wren.invoke<string>("perf.menu", { item, side, marked }),
   /** Does what the item of a label would, chosen from an item's menu (`items.menu`). Only in a run. */
-  choose: (item: ItemRef, side: number, label: string, marked: number[] = []) =>
+  choose: (item: ItemRef, side: number, label: string, marked: ItemRef[] = []) =>
     wren.invoke<MenuChoice>("perf.choose", { item, side, label, marked }),
   /** Ends the run: the app quits. */
   done: () => wren.invoke<null>("perf.done")

@@ -10,8 +10,8 @@
 // destination's Browser first (windows/move_tabs.rs), then lands as one of
 // its own would.
 //
-// Several tabs of the list that are marked move together (together.rs),
-// each as it would alone, one after another.
+// Several tabs of the list that are marked move together, or several
+// pinned tabs (together.rs), each as it would alone, one after another.
 //
 // What an item's menu does is in menu.rs. Keeping a tab from there is a
 // move here.
@@ -132,9 +132,9 @@ pub fn move_item(
 
 /// Moves `items` to `to` in window `window`, then calls `done` with what
 /// each move did, or why they did not move. One item moves as `move_item`
-/// moves it. Several, which only tabs of the list may be, land together
-/// from the place `to` names, in the order they are given: where one of
-/// them may not go, none go.
+/// moves it. Several, which are all tabs of the list or all pinned tabs,
+/// land together from the place `to` names, in the order they are given:
+/// where one of them may not go, none go.
 pub fn move_items(
     state: &Rc<State>,
     mt: MainThread,

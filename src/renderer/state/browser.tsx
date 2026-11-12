@@ -43,7 +43,6 @@ import {
 } from "@/ipc";
 import { updateCommitted, updateRendering } from "@/perf/measure";
 import { FindProvider } from "./find";
-import { markedRows, tabsBetween } from "./marks";
 import { type BrowserShape, type Key, type SpaceTabs, type TabShape, TabsStore } from "./tabs";
 
 export type { BrowserShape, TabShape };
@@ -272,48 +271,32 @@ export function useNoneSelected(none: boolean) {
 }
 
 /**
- * Whether any of `tabs`, a row's, is marked (marks.ts). What reads it is
- * drawn again only as that changes.
+ * Whether a row is marked, by the IDs it is held by (`markIds` in
+ * items.ts). What reads it is drawn again only as that changes.
  */
-export function useMarked(tabs: readonly number[]) {
+export function useMarked(ids: readonly string[]) {
   const store = useContext(TabsContext);
   if (!store) throw new Error("useMarked is used outside a BrowserProvider");
   const { marks } = store;
   return useSyncExternalStore(
-    (listener) => marks.subscribe(tabs, listener),
-    () => tabs.some(marks.has)
+    (listener) => marks.subscribe(ids, listener),
+    () => ids.some(marks.has)
   );
 }
 
 /**
- * The marks of the Browser's list, as `useBrowser`'s Browser, for a
- * handler: what calls it doesn't draw again as they change.
+ * The marks, and what reads the tab the Browser's sidebar draws selected,
+ * as `useBrowser`'s Browser: for what works out which rows are marked
+ * together (components/sidebar/marking.ts), in its handlers.
  */
-export function useMarks() {
+export function useMarkSource() {
   const source = useContext(SourceContext);
-  if (!source) throw new Error("useMarks is used outside a BrowserProvider");
+  if (!source) throw new Error("useMarkSource is used outside a BrowserProvider");
   const { store, read } = source;
-  const { marks } = store;
-  const selected = () => store.selected(read());
-  return {
-    /**
-     * The rows that act together, each by its tabs' IDs, in the list's
-     * order: the marked ones and the selected tab's. None unless they are
-     * two or more.
-     */
-    rows: () => markedRows(read(), marks, selected()),
-    /** Marks a row, by its tabs, or no longer; the selected tab's row is left as it is, as it counts already. */
-    toggle: (tabs: readonly number[]) => {
-      const drawn = selected();
-      if (drawn === null || !tabs.includes(drawn)) marks.toggle(tabs);
-    },
-    /** Marks the rows from the selected tab's to the one of tab `to`, and no others. */
-    extendTo: (to: number) => marks.set(tabsBetween(read(), selected(), to)),
-    clear: () => marks.clear()
-  };
+  return { marks: store.marks, selected: () => store.selected(read()) };
 }
 
-/** Leaves no tab of any list marked. For a handler, as `useMarks`. */
+/** Leaves nothing marked. For a handler: what calls it doesn't draw again as the marks change. */
 export function useClearMarks() {
   const store = useContext(TabsContext);
   if (!store) throw new Error("useClearMarks is used outside a BrowserProvider");

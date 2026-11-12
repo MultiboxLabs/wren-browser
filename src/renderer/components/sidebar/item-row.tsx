@@ -9,9 +9,9 @@
 // and the icon takes the tab back. A right click shows the item's menu, and
 // a kept tab's name is edited in its row, as a double click on it does.
 //
-// A normal tab's row is marked by a press with Command or Shift held, to
-// act with other rows (item-actions.tsx), and is then drawn as a selected
-// row is.
+// The row of a normal tab or a pinned one is marked by a press with Command
+// or Shift held, to act with other rows (item-actions.tsx), and is then
+// drawn as a selected row is.
 
 import { Minus, X } from "lucide-react";
 import { Favicon } from "@/components/favicon";

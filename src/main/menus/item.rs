@@ -3,8 +3,8 @@
 // each there when it applies to the item: its page, its group and its
 // split, its name, closing it, and last, where it is kept. So a pinned tab
 // that is open has what a tab of the list has, where it applies. Several
-// rows of the list marked together have what acts on them all, and nothing
-// that is about one page.
+// rows marked together, of the list or of the pins, have what acts on them
+// all, and nothing that is about one page.
 //
 // What is chosen is done by items/menu.rs, which also finds the item
 // (`Subject`).
@@ -13,7 +13,9 @@ use wren::{BrowserTab, MenuItem, SplitLayout, TabGroup};
 
 use super::enabled;
 use super::group::{color_items, group_name};
+use crate::db::PinId;
 use crate::items::menu::{Subject, What};
+use crate::pins;
 use crate::shell::Place;
 use crate::tabs;
 
@@ -30,6 +32,8 @@ pub const TO_SPACE: &str = "to-space";
 pub const NEW_GROUP: &str = "new-group";
 /// Add Tab to Group's items are this and the group's ID.
 pub const JOIN_GROUP: &str = "group:";
+/// Add Tabs to Folder's items are this and the folder's ID.
+pub const JOIN_FOLDER: &str = "folder:";
 pub const LEAVE_GROUP: &str = "leave-group";
 pub const SPLIT: &str = "split";
 pub const SWAP: &str = "swap";
@@ -37,6 +41,7 @@ pub const LAYOUT: &str = "layout";
 pub const UNSPLIT: &str = "unsplit";
 /// The page's to do, as it has the field: for a pin, a folder and a group.
 pub const RENAME: &str = "rename";
+/// The page names the folder made, as it has the field.
 pub const NEW_FOLDER: &str = "new-folder";
 pub const CLOSE: &str = "close";
 pub const CLOSE_OTHERS: &str = "close-others";
@@ -75,6 +80,25 @@ pub fn item_menu(subject: &Subject) -> Result<Vec<MenuItem>, String> {
             vec![MenuItem::item(CLOSE, "Close Tabs")],
             keeps_tab(&subject.place, true),
         ],
+        What::MarkedPins {
+            pins,
+            browser,
+            folders,
+        } => {
+            let open = browser.as_ref().is_some_and(|browser| {
+                let open = pins::open_pins(browser);
+                open.iter().any(|open| pins.contains(&open.pin))
+            });
+            vec![
+                joins_folder(folders),
+                if open {
+                    vec![MenuItem::item(CLOSE, "Close Tabs")]
+                } else {
+                    Vec::new()
+                },
+                keeps_pin(false, &subject.place),
+            ]
+        }
         What::Kept { favorite, .. } => {
             let tab = subject.tab();
             let away = !subject.away().is_empty();
@@ -245,6 +269,20 @@ fn split(subject: &Subject, tab: BrowserTab, leaves: bool) -> Vec<MenuItem> {
     ];
     if leaves {
         items.push(MenuItem::item(UNSPLIT, "Exit Split View"));
+    }
+    items
+}
+
+// The folder marked pinned tabs can go into: a new one, made where the
+// first of them is, or one of the space's `folders`.
+fn joins_folder(folders: &[(PinId, String)]) -> Vec<MenuItem> {
+    let into: Vec<MenuItem> = folders
+        .iter()
+        .map(|(id, name)| MenuItem::item(format!("{JOIN_FOLDER}{id}"), name.as_str()))
+        .collect();
+    let mut items = vec![MenuItem::item(NEW_FOLDER, "Add Tabs to New Folder")];
+    if !into.is_empty() {
+        items.push(MenuItem::submenu("Add Tabs to Folder", into));
     }
     items
 }

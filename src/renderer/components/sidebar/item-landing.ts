@@ -7,7 +7,7 @@
 // favourites are a grid of tiles (`gridLandingAt`).
 
 import type { ItemPlace } from "@/ipc";
-import { type Item, itemKey, listedTabs } from "@/state/items";
+import { type Item, itemKey } from "@/state/items";
 import { type Dragged, ITEM_MARK, type ItemKind, kindOf, refOf, rowBox } from "./item-drag";
 import { NESTED_INDENT, ROW_GAP } from "./rows";
 
@@ -205,19 +205,25 @@ export function listLandingAt(
   if (!rows.length) return section === "pinned" ? pinnedFirst() : firstInList(zone, content);
   // The row held, if it is one of this list's.
   const own = mine ? rows.find((row) => row.el === mine.element) : undefined;
-  // The list's tabs that go with it, by their indices in the list: its
-  // own, and those of the rows marked with it.
-  const carried = section === "tabs" && mine ? rows.filter((row) => mine.keys.includes(row.key)) : [];
-  const moving = carried.flatMap(({ item }) => Array.from({ length: sizeOf(item) }, (_, at) => startOf(item) + at));
+  // The rows of this list that go: the one held, and those marked with it.
+  // Each leaves before it lands, so a place's index is among the rest.
+  const carried = mine ? rows.filter((row) => mine.keys.includes(row.key)) : [];
+  // The list's tabs that go, by their indices in the list.
+  const moving =
+    section === "tabs"
+      ? carried.flatMap(({ item }) => Array.from({ length: sizeOf(item) }, (_, at) => startOf(item) + at))
+      : [];
+  // Several rows from apart are brought together, wherever they land; one
+  // alone has nowhere to go where it already is.
+  const alone = carried.length === 1;
   const total = items.reduce((count, item) => count + sizeOf(item), 0);
 
   /** `place` as the app takes it; null where the held item already is. */
   const placeOf = (place: Place): ItemPlace | null => {
     const sameParent = own !== undefined && own.up === place.up;
     if (section === "pinned") {
-      const at = sameParent ? own.index : Infinity;
-      const index = indexAt(place.index, at, 1);
-      if (index === at) return null;
+      const index = place.index - carried.filter((row) => row.up === place.up && row.index < place.index).length;
+      if (alone && sameParent && index === own.index) return null;
       const folder = place.up && place.up.item.kind === "folder" ? place.up.item.pin : null;
       return { to: "pinned", folder, index };
     }
@@ -225,10 +231,8 @@ export function listLandingAt(
     // group, or of the list.
     const next = (place.up ? within(place.up.item) : items)[place.index];
     const gap = next ? startOf(next) : place.up ? startOf(place.up.item) + sizeOf(place.up.item) : total;
-    // Those that go leave before they land: the index is among the rest.
     const index = gap - moving.filter((at) => at < gap).length;
-    // Several rows from apart are brought together, wherever they land.
-    if (carried.length === 1 && index === moving[0] && sameParent) return null;
+    if (alone && sameParent && index === moving[0]) return null;
     const group = place.up && place.up.item.kind === "group" ? place.up.item.group.id : null;
     return { to: "tabs", group, index };
   };

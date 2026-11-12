@@ -9,7 +9,7 @@
 // row hears of the selection only as one of its own tabs is selected or no
 // longer is (`subscribeSelected`), so selecting a tab draws two rows.
 //
-// The store also holds which tabs of the lists are marked (marks.ts).
+// The store also holds what is marked in the sidebar (marks.ts).
 
 import {
   type ActiveChanged,
@@ -146,10 +146,7 @@ export class TabsStore {
   private selectionListeners = new Map<number, Set<() => void>>();
   // No tab is drawn selected: the omnibox for a new tab is open.
   private noneSelected = false;
-  /**
-   * The tabs of the lists that are marked. A tab that leaves its list is
-   * no longer, and none are once the window shows another space.
-   */
+  /** What is marked in the sidebar. Nothing is once the window shows another space. */
   readonly marks = new Marks();
 
   /** The tabs of `space`, or undefined while there are none said: its Browser hasn't been heard of, or is on the way. */
@@ -279,8 +276,6 @@ export class TabsStore {
     for (const [id, tab] of next.byId) if (kept?.byId.get(id) !== tab) changed.add(id);
     for (const id of kept?.byId.keys() ?? []) if (!next.byId.has(id)) changed.add(id);
     for (const id of changed) this.tabListeners.get(id)?.forEach((listener) => listener());
-    const listed = new Set(next.listed.map((tab) => tab.id));
-    this.marks.drop((kept?.listed ?? []).flatMap((tab) => (listed.has(tab.id) ? [] : [tab.id])));
     const was = kept?.shape.active ?? null;
     if (was !== next.shape.active) this.tellSelection(was, next.shape.active);
     for (const listener of this.listeners) listener();
