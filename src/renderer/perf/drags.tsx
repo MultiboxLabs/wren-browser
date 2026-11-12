@@ -37,6 +37,9 @@ import {
   hasHeard,
   hear,
   itemKeyOf,
+  markedKeys,
+  press,
+  pressEscape,
   hasButton,
   heading,
   link,
@@ -234,6 +237,44 @@ const selected = (number: number) => async () => {
   await selects(tab(number))();
 };
 
+/**
+ * Presses an item's row, with Command or Shift held or neither, and waits
+ * for these items' rows alone to be drawn marked, from the top.
+ */
+const pressed =
+  (what: What, held: Parameters<typeof press>[1], ...marked: What[]) =>
+  async () => {
+    await press(what, held);
+    await marks(...marked)();
+  };
+
+/** Waits for the sidebar to draw these items' rows as marked, from the top, and no others. */
+const marks =
+  (...whats: What[]) =>
+  async () => {
+    const wanted = (await Promise.all(whats.map(itemKeyOf))).join();
+    await until(
+      () => markedKeys().join() === wanted,
+      () => `The rows drawn marked are "${markedKeys().join()}", not "${wanted}".`
+    );
+  };
+
+/** One tab of each row on these pages, as the menu of rows marked together takes them. */
+const leads = (numbers: number[]) => Promise.all(numbers.map(tabId));
+
+/** Fails unless the menu of the rows on these pages, marked together, holds `expected`. */
+const markedMenuHolds = (numbers: number[], expected: string) => async () => {
+  const marked = await leads(numbers);
+  const held = await perf.menu({ tab: marked[0] }, 0, marked);
+  if (held !== expected) throw new Error(`Their menu holds "${held}", not "${expected}".`);
+};
+
+/** What the menu of the rows on these pages, marked together, would do for the item of a label. */
+const chosenOfMarked = (numbers: number[], label: string) => async () => {
+  const marked = await leads(numbers);
+  await perf.choose({ tab: marked[0] }, 0, label, marked);
+};
+
 /** A drag that nothing must take: it fails if something does, and the sidebar must then hold what it did. */
 const refused = (what: What, where: Where) => async () => {
   if (await drag(what, where)) throw new Error("It was taken.");
@@ -246,7 +287,7 @@ const refused = (what: What, where: Where) => async () => {
  */
 const moveRefused = (what: What, to: () => Promise<ItemPlace>) => async () => {
   const { item } = await menuRef(what);
-  const made = await items.move(item, { space: spaces[0], ...(await to()) }).then(
+  const made = await items.move([item], { space: spaces[0], ...(await to()) }).then(
     () => true,
     () => false
   );
@@ -689,6 +730,120 @@ const scenes = (url: string): Scene[] => [
         name: "a tab of the list selected, which leaves the pin's row",
         does: selected(3),
         shows: "pins 0 | tabs 1 2 3"
+      }
+    ]
+  },
+  {
+    name: "Several tabs",
+    tabs: 8,
+    steps: [
+      { name: "a tab selected", does: selected(5), shows: "tabs 0 1 2 3 4 5 6 7" },
+      {
+        name: "a press with Command held, which marks the row and selects nothing",
+        does: async () => {
+          await pressed(tab(1), { command: true }, tab(1))();
+          await selects(tab(5))();
+        },
+        shows: "tabs 0 1 2 3 4 5 6 7"
+      },
+      {
+        name: "another row marked",
+        does: pressed(tab(3), { command: true }, tab(1), tab(3)),
+        shows: "tabs 0 1 2 3 4 5 6 7"
+      },
+      {
+        name: "a marked row to the end of the list, which takes the marked rows and the selected tab's",
+        does: dragged(tab(1), after(tab(7))),
+        shows: "tabs 0 2 4 6 7 1 3 5"
+      },
+      {
+        name: "a marked row to a place further up, with the others, which stay marked",
+        does: async () => {
+          await drag(tab(3), after(tab(0)));
+          await shows("tabs 0 1 3 5 2 4 6 7");
+          await marks(tab(1), tab(3))();
+        },
+        shows: "tabs 0 1 3 5 2 4 6 7"
+      },
+      {
+        name: "a press on a row that is not marked, which selects it and leaves none marked",
+        does: async () => {
+          await pressed(tab(6), {})();
+          await selects(tab(6))();
+        },
+        shows: "tabs 0 1 3 5 2 4 6 7"
+      },
+      {
+        name: "a press with Shift held, which marks the rows from the selected tab's to it",
+        does: pressed(tab(5), { shift: true }, tab(5), tab(2), tab(4)),
+        shows: "tabs 0 1 3 5 2 4 6 7"
+      },
+      {
+        name: "the menu of marked rows",
+        does: markedMenuHolds([5, 2, 4, 6], "Add Tabs to New Group | Close Tabs | Pin Tabs, Add to Favourites"),
+        shows: "tabs 0 1 3 5 2 4 6 7"
+      },
+      {
+        name: "Add Tabs to New Group",
+        does: chosenOfMarked([5, 2, 4, 6], "Add Tabs to New Group"),
+        shows: "tabs 0 1 3 {5 2 4 6} 7"
+      },
+      {
+        name: "a tab closed that is not marked, which leaves the marks",
+        does: async () => {
+          await browser.close(await tabId(1));
+          await shows("tabs 0 3 {5 2 4 6} 7");
+          await marks(tab(5), tab(2), tab(4))();
+        },
+        shows: "tabs 0 3 {5 2 4 6} 7"
+      },
+      {
+        name: "Escape, which leaves none marked",
+        does: async () => {
+          pressEscape();
+          await marks()();
+        },
+        shows: "tabs 0 3 {5 2 4 6} 7"
+      },
+      {
+        name: "two rows marked, and Close Tabs, which closes them and the selected tab",
+        does: async () => {
+          await pressed(tab(0), { command: true }, tab(0))();
+          await pressed(tab(3), { command: true }, tab(0), tab(3))();
+          await chosenOfMarked([0, 3, 6], "Close Tabs")();
+        },
+        shows: "tabs {5 2 4} 7"
+      },
+      {
+        name: "Pin Tabs, which pins the marked rows in their order",
+        does: async () => {
+          await selected(4)();
+          await pressed(tab(7), { command: true }, tab(7))();
+          await chosenOfMarked([4, 7], "Pin Tabs")();
+        },
+        shows: "pins 4 7 | tabs {5 2}"
+      },
+      {
+        name: "marked rows of a group onto the space's heading",
+        does: async () => {
+          await selected(5)();
+          await pressed(tab(2), { command: true }, tab(2))();
+          await drag(tab(2), heading);
+        },
+        shows: "pins 5 2 4 7"
+      },
+      {
+        name: "two pins asked to move together, which the app refuses, as only tabs of the list do",
+        does: async () => {
+          const made = await items
+            .move([{ pin: 0 }, { pin: 1 }], { space: spaces[0], to: "tabs", group: null, index: 0 })
+            .then(
+              () => true,
+              () => false
+            );
+          if (made) throw new Error("The app made the move.");
+        },
+        shows: "pins 5 2 4 7"
       }
     ]
   },

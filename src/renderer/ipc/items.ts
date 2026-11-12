@@ -3,7 +3,8 @@
 // favourite or a folder). The page says which item goes where, and the app
 // decides what that does (src/main/ipc/items.rs): a move in the list, into a
 // group or out of one, pinning, unpinning, a move among the pins, a split,
-// or a group kept as a folder. The app builds each item's menu too, and does what is chosen.
+// or a group kept as a folder. Several tabs of the list that are marked
+// move together. The app builds each item's menu too, and does what is chosen.
 
 /**
  * An item, as the app finds it. `tab` names a tab of the list, or its split
@@ -34,13 +35,15 @@ export type MenuChoice = { chosen: string | null; folder: number | null };
 
 export const items = {
   /**
-   * Moves an item to a place. A tab of another of the window's spaces, of
+   * Moves an item to a place, or several tabs of the list that are marked,
+   * which land together from that place in the order given. A tab of another of the window's spaces, of
    * the same profile, moves to the destination's space first. A group
    * moved to the pins becomes a folder of pinned tabs. Fails where the item
    * may not go: a group to the favourites, a folder anywhere but the pins,
    * or anything but a tab alone, of the list or kept, onto another tab.
+   * Where one of several may not go, none go.
    */
-  move: (item: ItemRef, to: Destination) => wren.invoke<null>("items.move", { item, to }),
+  move: (items: ItemRef[], to: Destination) => wren.invoke<null>("items.move", { items, to }),
   /**
    * Puts a web or file address dropped on the sidebar at a place: a tab on
    * it in the list, shown, or an unopened pin among the pins or favourites.
@@ -49,8 +52,10 @@ export const items = {
   /**
    * Shows an item's context menu at a point in the page. `item` names a tab
    * of the list by the tab that was pressed, of a split's two, and `side`
-   * says which page of a kept tab was.
+   * says which page of a kept tab was. If the item is one of several rows
+   * of the list marked together, `marked` is one tab of each, in the list's
+   * order, and the menu is for them all.
    */
-  menu: (item: ItemRef, side: number, x: number, y: number) =>
-    wren.invoke<MenuChoice>("items.menu", { item, side, x, y })
+  menu: (item: ItemRef, side: number, x: number, y: number, marked: number[] = []) =>
+    wren.invoke<MenuChoice>("items.menu", { item, side, x, y, marked })
 };

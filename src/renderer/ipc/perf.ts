@@ -58,11 +58,14 @@ export const perf = {
   /**
    * What an item's menu holds, without showing it: its items' labels, with
    * " | " for each line between them, a disabled one in brackets, and a
-   * submenu's label followed by ">". Only in a run.
+   * submenu's label followed by ">". `marked` is as `items.menu` takes it.
+   * Only in a run.
    */
-  menu: (item: ItemRef, side: number) => wren.invoke<string>("perf.menu", { item, side }),
+  menu: (item: ItemRef, side: number, marked: number[] = []) =>
+    wren.invoke<string>("perf.menu", { item, side, marked }),
   /** Does what the item of a label would, chosen from an item's menu (`items.menu`). Only in a run. */
-  choose: (item: ItemRef, side: number, label: string) => wren.invoke<MenuChoice>("perf.choose", { item, side, label }),
+  choose: (item: ItemRef, side: number, label: string, marked: number[] = []) =>
+    wren.invoke<MenuChoice>("perf.choose", { item, side, label, marked }),
   /** Ends the run: the app quits. */
   done: () => wren.invoke<null>("perf.done")
 };

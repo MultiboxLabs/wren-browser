@@ -1,5 +1,5 @@
 // The calls a page makes for the items of its sidebar: an item moved to a
-// place ("items.move"), an address put at one ("items.add"), and an item's
+// place, or several marked tabs ("items.move"), an address put at one ("items.add"), and an item's
 // menu ("items.menu"). The app decides what each does (items/).
 // src/renderer/ipc/items.ts is the page's side.
 
@@ -21,7 +21,7 @@ use crate::shell::WindowId;
 
 #[derive(Deserialize)]
 struct Move {
-    item: ItemRef,
+    items: Vec<ItemRef>,
     to: Destination,
 }
 
@@ -31,14 +31,24 @@ struct Add {
     to: Destination,
 }
 
-/// An item whose menu is asked for, the side of it that was pressed (of a
-/// split's two), and the point in the page.
+/// An item whose menu is asked for, and the point in the page.
 #[derive(Deserialize)]
 struct MenuAt {
-    item: ItemRef,
-    side: usize,
+    #[serde(flatten)]
+    of: MenuOf,
     x: f64,
     y: f64,
+}
+
+/// An item, the side of it that was pressed (of a split's two), and, if it
+/// is one of several rows of the list marked together, one tab of each of
+/// them, in the list's order.
+#[derive(Deserialize)]
+pub(super) struct MenuOf {
+    item: ItemRef,
+    side: usize,
+    #[serde(default)]
+    marked: Vec<i32>,
 }
 
 /// What was chosen from an item's menu, if anything was, once the app has
@@ -50,16 +60,17 @@ pub(super) struct MenuChoice {
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
-    // An item of the sidebar dropped at a place in it. Answered once it is
-    // there: a space without a Browser gets one first.
+    // An item of the sidebar dropped at a place in it, or several marked
+    // tabs. Answered once it is there: a space without a Browser gets one
+    // first.
     let weak = window.clone();
     let _ = web_view.handle_call("items.move", move |call| {
         let Some((moving, state, call)) = asked::<Move>(&weak, call) else {
             return;
         };
         let counted = state.clone();
-        items::move_item(&state, mt, weak.id, moving.item, moving.to, move |moved| {
-            answer(call, moved.map(|moved| count_move(&counted, moved)));
+        items::move_items(&state, mt, weak.id, moving.items, moving.to, move |moved| {
+            answer(call, moved.map(|moved| count_moves(&counted, moved)));
         });
     });
 
@@ -71,7 +82,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let Some((at, state, call)) = asked::<MenuAt>(&weak, call) else {
             return;
         };
-        let found = menu_of(&state, mt, weak.id, &at.item, at.side).and_then(|found| {
+        let found = menu_of(&state, mt, weak.id, &at.of).and_then(|found| {
             let window = state.windows.get(weak.id).ok_or("The window is closing.")?;
             Ok((window.page.web_view.view(), found))
         });
@@ -106,16 +117,15 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 }
 
-/// The item the page names in window `window`, pressed on `side`, and the
-/// items of its menu.
+/// The item the page names in window `window`, or the rows marked with it,
+/// and the items of its menu.
 pub(super) fn menu_of(
     state: &State,
     mt: MainThread,
     window: WindowId,
-    item: &ItemRef,
-    side: usize,
+    of: &MenuOf,
 ) -> Result<(Subject, Vec<MenuItem>), String> {
-    let subject = Subject::find(state, mt, window, item, side)?;
+    let subject = Subject::find(state, mt, window, &of.item, of.side, &of.marked)?;
     let items = menus::item_menu(&subject)?;
     Ok((subject, items))
 }
@@ -140,9 +150,7 @@ pub(super) fn choose(
     items::menu::choose(state, mt, subject, &id.clone(), move |did| {
         let folder = match did {
             Ok(did) => {
-                if let Some(moved) = did.moved {
-                    count_move(&counted, moved);
-                }
+                count_moves(&counted, did.moved);
                 did.folder
             }
             Err(error) => {
@@ -181,6 +189,12 @@ fn answer(call: PageCall, result: Result<(), String>) {
         Ok(()) => call.answer(&()),
         Err(error) => call.fail(&error),
     };
+}
+
+fn count_moves(state: &State, moved: Vec<Moved>) {
+    for moved in moved {
+        count_move(state, moved);
+    }
 }
 
 fn count_move(state: &State, moved: Moved) {

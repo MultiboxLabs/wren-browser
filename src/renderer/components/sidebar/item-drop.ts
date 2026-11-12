@@ -143,7 +143,7 @@ export function useItemDrop({
         if (dragged.kind === "address") return void addAll(addressesOf(event.dataTransfer), to);
         const dropped = droppedItem(event.dataTransfer);
         if (!dropped) return;
-        const moved = items.move(dropped.item, to);
+        const moved = items.move(dropped.items, to);
         const { mine } = dragged;
         // One of the list's own rows, moved in it: the app answers with the
         // new order a moment later, which the rows then slide to from here.

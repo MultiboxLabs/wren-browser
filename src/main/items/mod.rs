@@ -10,10 +10,14 @@
 // destination's Browser first (windows/move_tabs.rs), then lands as one of
 // its own would.
 //
+// Several tabs of the list that are marked move together (together.rs),
+// each as it would alone, one after another.
+//
 // What an item's menu does is in menu.rs. Keeping a tab from there is a
 // move here.
 
 pub mod menu;
+mod together;
 
 use std::rc::Rc;
 
@@ -124,6 +128,28 @@ pub fn move_item(
             move_listed(state, mt, window, place, item, to.target, done)
         }
     }
+}
+
+/// Moves `items` to `to` in window `window`, then calls `done` with what
+/// each move did, or why they did not move. One item moves as `move_item`
+/// moves it. Several, which only tabs of the list may be, land together
+/// from the place `to` names, in the order they are given: where one of
+/// them may not go, none go.
+pub fn move_items(
+    state: &Rc<State>,
+    mt: MainThread,
+    window: WindowId,
+    mut items: Vec<ItemRef>,
+    to: Destination,
+    done: impl FnOnce(Result<Vec<Moved>, String>) + 'static,
+) {
+    if items.len() != 1 {
+        return together::move_together(state, mt, window, items, to, Box::new(done));
+    }
+    let Some(item) = items.pop() else { return };
+    move_item(state, mt, window, item, to, |moved| {
+        done(moved.map(|moved| vec![moved]));
+    });
 }
 
 /// Puts an address dropped on the sidebar at `to`: a tab on it in the list,

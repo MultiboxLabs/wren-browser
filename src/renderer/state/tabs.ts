@@ -8,6 +8,8 @@
 // it was, so a change to one tab draws that tab's row and nothing else. A
 // row hears of the selection only as one of its own tabs is selected or no
 // longer is (`subscribeSelected`), so selecting a tab draws two rows.
+//
+// The store also holds which tabs of the lists are marked (marks.ts).
 
 import {
   type ActiveChanged,
@@ -22,6 +24,7 @@ import {
 } from "@/ipc";
 import { updateReceived } from "@/perf/measure";
 import { settle } from "@/utils/settle";
+import { Marks } from "./marks";
 
 /** A tab of the sidebar's list, as far as where its row goes. */
 export type TabShape = { id: number; group: string | null; split: string | null };
@@ -143,6 +146,11 @@ export class TabsStore {
   private selectionListeners = new Map<number, Set<() => void>>();
   // No tab is drawn selected: the omnibox for a new tab is open.
   private noneSelected = false;
+  /**
+   * The tabs of the lists that are marked. A tab that leaves its list is
+   * no longer, and none are once the window shows another space.
+   */
+  readonly marks = new Marks();
 
   /** The tabs of `space`, or undefined while there are none said: its Browser hasn't been heard of, or is on the way. */
   get = (space: Key) => this.spaces.get(space);
@@ -227,7 +235,10 @@ export class TabsStore {
     for (const said of every) {
       updateReceived();
       const kept = this.spaces.get(said.space)?.said;
-      if (said.front) this.front = said.space;
+      if (said.front && this.front !== said.space) {
+        this.front = said.space;
+        this.marks.clear();
+      }
       this.update(said.space, {
         ...said,
         tabs: settle(kept?.tabs, said.tabs),
@@ -268,6 +279,8 @@ export class TabsStore {
     for (const [id, tab] of next.byId) if (kept?.byId.get(id) !== tab) changed.add(id);
     for (const id of kept?.byId.keys() ?? []) if (!next.byId.has(id)) changed.add(id);
     for (const id of changed) this.tabListeners.get(id)?.forEach((listener) => listener());
+    const listed = new Set(next.listed.map((tab) => tab.id));
+    this.marks.drop((kept?.listed ?? []).flatMap((tab) => (listed.has(tab.id) ? [] : [tab.id])));
     const was = kept?.shape.active ?? null;
     if (was !== next.shape.active) this.tellSelection(was, next.shape.active);
     for (const listener of this.listeners) listener();

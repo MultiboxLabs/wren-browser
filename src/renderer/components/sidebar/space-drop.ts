@@ -1,7 +1,7 @@
-// Dragging a tab of the list, or its split or its group (item-drag.ts), onto
-// the space switcher. A space of the same profile takes it: let go on its
-// button, it moves to the top of that space's list, and the window stays
-// where it is. Held over the button a moment, as the platform springs a
+// Dragging a tab of the list, its split, its group or several marked tabs
+// (item-drag.ts), onto the space switcher. A space of the same profile
+// takes it: let go on its button, it moves to the top of that space's
+// list, and the window stays where it is. Held over the button a moment, as the platform springs a
 // folder open, the window switches to that space, and the drag goes on
 // there: to a place in its list, or to another space's button.
 
@@ -76,7 +76,7 @@ export function useSpaceDrop() {
       if (!unit || unit.space === id) return;
       event.preventDefault();
       const top = { space: id, to: "tabs", group: null, index: 0 } as const;
-      items.move(unit.item, top).catch(() => {});
+      items.move(unit.items, top).catch(() => {});
     }
   });
 

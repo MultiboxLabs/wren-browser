@@ -18,15 +18,18 @@ export const NESTED_INDENT = 16;
 /** The gap each row of a list brings above it (`pt-1.25`). */
 export const ROW_GAP = 5;
 
+/** The attribute of a row that is marked to act with others (state/marks.ts). */
+export const MARKED_MARK = "data-marked";
+
 /**
  * The handlers of a row pressed: `onPress` as the primary button goes down,
  * `onMiddlePress` as the middle one does, which is kept from starting an
  * autoscroll.
  */
-export function pressHandlers(onPress?: () => void, onMiddlePress?: () => void) {
+export function pressHandlers(onPress?: (event: PointerEvent) => void, onMiddlePress?: () => void) {
   return {
     onPointerDown: (event: PointerEvent) => {
-      if (event.button === 0) onPress?.();
+      if (event.button === 0) onPress?.(event);
       else if (event.button === 1 && onMiddlePress) {
         event.preventDefault();
         onMiddlePress();
@@ -40,6 +43,7 @@ export function pressHandlers(onPress?: () => void, onMiddlePress?: () => void) 
 
 export function Row({
   selected,
+  marked,
   active,
   indent = 0,
   still,
@@ -52,15 +56,17 @@ export function Row({
   children
 }: {
   selected?: boolean;
+  /** One of the rows marked to act together, drawn as the selected one is. */
+  marked?: boolean;
   /** The row of the active tab, which the list scrolls to. */
   active?: boolean;
   indent?: number;
   /** Not scaled as it is pressed. */
   still?: boolean;
   className?: string;
-  onPress?: () => void;
+  onPress?: (event: PointerEvent) => void;
   /** For a row that can be dragged: what a press does is done once it is a click, which a drag is not. */
-  onClick?: () => void;
+  onClick?: (event: MouseEvent) => void;
   onMenu?: (x: number, y: number) => void;
   onMiddlePress?: () => void;
   /** What it draws, by which it slides from where that was (arrival.ts). */
@@ -76,6 +82,7 @@ export function Row({
       tabIndex={-1}
       aria-pressed={selected}
       data-active-tab={active ? "" : undefined}
+      {...{ [MARKED_MARK]: marked ? "" : undefined }}
       // Selects on press, as a native list does.
       {...pressHandlers(onPress, onMiddlePress)}
       onClick={onClick}
@@ -92,7 +99,7 @@ export function Row({
         // A tab dragged to its left or right half has the other half left to
         // it, past the row's own padding: its title shortens, as the tab's would in a split.
         "in-data-[drop-side=left]:pl-[calc(50%-var(--indent)/2+var(--spacing)*2.5)] in-data-[drop-side=right]:pr-[calc(50%-var(--indent)/2+var(--spacing)*1.25)]",
-        selected ? "bg-selected" : "hover:bg-hover",
+        selected || marked ? "bg-selected" : "hover:bg-hover",
         className
       )}
     >
@@ -104,15 +111,18 @@ export function Row({
 /**
  * A split's row: its two halves side by side, as they show in the window,
  * hovered whole as one row. Selected (`active`), the halves show as two,
- * each filled over the row's fill; otherwise a line parts them.
+ * each filled over the row's fill; otherwise a line parts them. `marked`,
+ * it has the row's fill, and the line still.
  */
 export function SplitFrame({
   active,
+  marked,
   indent,
   identities = [],
   children
 }: {
   active: boolean;
+  marked?: boolean;
   indent?: number;
   /** What it draws as a whole, by which it slides from where that was (arrival.ts). */
   identities?: string[];
@@ -125,10 +135,11 @@ export function SplitFrame({
       {...press(0.985)}
       role="group"
       data-active-tab={active ? "" : undefined}
+      {...{ [MARKED_MARK]: marked ? "" : undefined }}
       style={{ marginLeft: indent }}
       className={cn(
         "no-drag group flex h-9 shrink-0 items-center rounded-row p-1",
-        active ? "bg-selected" : "hover:bg-hover"
+        active || marked ? "bg-selected" : "hover:bg-hover"
       )}
     >
       {children}
@@ -142,6 +153,7 @@ export function SplitHalf({
   active,
   pressed,
   onPress,
+  onClick,
   onMiddlePress,
   onMenu,
   identities = [],
@@ -152,7 +164,8 @@ export function SplitHalf({
   active: boolean;
   /** Whether this half's tab is the selected one. */
   pressed: boolean;
-  onPress: () => void;
+  onPress: (event: PointerEvent) => void;
+  onClick?: (event: MouseEvent) => void;
   onMiddlePress?: () => void;
   onMenu?: (x: number, y: number) => void;
   /** What it draws, by which it slides from where that was (arrival.ts). */
@@ -169,6 +182,7 @@ export function SplitHalf({
         tabIndex={-1}
         aria-pressed={pressed}
         {...pressHandlers(onPress, onMiddlePress)}
+        onClick={onClick}
         onContextMenu={(event) => {
           if (!onMenu) return;
           event.preventDefault();

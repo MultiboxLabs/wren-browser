@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use wren::{Browser, BrowserTab, MainThread, SplitLayout, TabGroup};
 
-use super::{Destination, ItemRef, Moved, Target, failed, move_item, tab_of};
+use super::{Destination, ItemRef, Moved, Target, failed, move_items, tab_of};
 use crate::app::State;
 use crate::clipboard;
 use crate::db::{PinId, PinKind, PinPage, PinPlace, PinRow};
@@ -47,30 +47,50 @@ pub enum What {
         browser: Browser,
         group: TabGroup,
     },
+    /// Several rows of the list, marked together: one tab of each, which
+    /// stands for its split, in the list's order.
+    Marked {
+        browser: Browser,
+        tabs: Vec<BrowserTab>,
+    },
 }
 
 /// What a choice did: the folder New Folder made, for the page to name, and
-/// what a move did, for what counts it.
+/// what each move did, for what counts it.
 #[derive(Default)]
 pub struct Did {
     pub folder: Option<PinId>,
-    pub moved: Option<Moved>,
+    pub moved: Vec<Moved>,
 }
 
 impl Subject {
-    /// The item the page names in `window`, pressed on `side`.
+    /// The item the page names in `window`, pressed on `side`; or, if it is
+    /// one of several rows marked there, all of them: `marked` names one
+    /// tab of each.
     pub fn find(
         state: &State,
         mt: MainThread,
         window: WindowId,
         item: &ItemRef,
         side: usize,
+        marked: &[i32],
     ) -> Result<Subject, String> {
         let found = state.windows.get(window).ok_or("The window is closing.")?;
         let place = found.place().ok_or("The window is on no space.")?;
         let browser = found.browser();
         let shown = || browser.clone().ok_or("The window has no tabs.");
         let what = match item {
+            _ if marked.len() > 1 => {
+                let browser = shown()?;
+                let tabs: Vec<BrowserTab> = marked
+                    .iter()
+                    .map(|id| tab_of(mt, &browser, *id))
+                    .collect::<Result<_, _>>()?;
+                if tabs.iter().any(|tab| tabs::is_pinned(*tab)) {
+                    return Err("Only tabs of the list are marked.".into());
+                }
+                What::Marked { browser, tabs }
+            }
             ItemRef::Tab(id) => {
                 let browser = shown()?;
                 let tab = tab_of(mt, &browser, *id)?;
@@ -115,7 +135,9 @@ impl Subject {
     /// The Browser the item's tabs are in.
     pub fn browser(&self) -> Result<&Browser, String> {
         let browser = match &self.what {
-            What::Listed { browser, .. } | What::Group { browser, .. } => Some(browser),
+            What::Listed { browser, .. }
+            | What::Group { browser, .. }
+            | What::Marked { browser, .. } => Some(browser),
             What::Kept { browser, .. } => browser.as_ref(),
             What::Folder(_) => None,
         };
@@ -128,7 +150,7 @@ impl Subject {
         match &self.what {
             What::Listed { tab, .. } => Some(*tab),
             What::Kept { tabs, side, .. } => tabs.get(*side).or(tabs.first()).copied(),
-            What::Folder(_) | What::Group { .. } => None,
+            What::Folder(_) | What::Group { .. } | What::Marked { .. } => None,
         }
     }
 
@@ -154,17 +176,20 @@ pub fn choose(
 ) {
     // Keeping a tab, or keeping a pin elsewhere, is a move: a tab first
     // among the space's pins or last among the favourites, and a pin the
-    // same.
+    // same. Marked rows go together, in their order.
     let kept = match (&subject.what, chosen) {
         (What::Listed { tab, .. }, command::PIN_TAB | command::ADD_FAVORITE) => {
-            Some(ItemRef::Tab(tab.id()))
+            vec![ItemRef::Tab(tab.id())]
+        }
+        (What::Marked { tabs, .. }, command::PIN_TAB | command::ADD_FAVORITE) => {
+            tabs.iter().map(|tab| ItemRef::Tab(tab.id())).collect()
         }
         (What::Kept { pin, .. }, command::TO_SPACE | command::TO_FAVORITES) => {
-            Some(ItemRef::Pin(pin.id))
+            vec![ItemRef::Pin(pin.id)]
         }
-        _ => None,
+        _ => Vec::new(),
     };
-    if let Some(item) = kept {
+    if !kept.is_empty() {
         let target = match chosen {
             command::PIN_TAB | command::TO_SPACE => Target::Pinned {
                 folder: None,
@@ -176,9 +201,9 @@ pub fn choose(
             space: None,
             target,
         };
-        return move_item(state, mt, subject.window, item, to, |moved| {
+        return move_items(state, mt, subject.window, kept, to, |moved| {
             done(moved.map(|moved| Did {
-                moved: Some(moved),
+                moved,
                 ..Did::default()
             }));
         });
@@ -215,6 +240,7 @@ fn act(
         What::Kept { pin, side, .. } => return on_kept(state, subject, pin, *side, chosen),
         What::Folder(pin) => return on_pin(state, pin, chosen),
         What::Group { browser, group } => on_group(mt, browser, *group, chosen)?,
+        What::Marked { browser, tabs } => on_marked(mt, browser, tabs, chosen)?,
     }
     Ok(None)
 }
@@ -348,6 +374,30 @@ fn on_group(
         command::CLOSE_GROUP => tabs::close(browser, &members),
         _ => match chosen.strip_prefix(command::COLOR) {
             Some(name) => menus::set_group_color(group, name),
+            None => Ok(()),
+        },
+    };
+    done.map_err(failed)
+}
+
+// What is done to marked rows at once. Each row goes whole, a split's two
+// together, which keeps the split. Close Tabs closes each tab on its own:
+// a page that asks to stay keeps its tab, and the others close.
+fn on_marked(
+    mt: MainThread,
+    browser: &Browser,
+    tabs: &[BrowserTab],
+    chosen: &str,
+) -> Result<(), String> {
+    let all: Vec<BrowserTab> = tabs.iter().flat_map(|tab| tabs::with_split(*tab)).collect();
+    let done = match chosen {
+        command::NEW_GROUP => tabs::new_group(mt, browser, &all).map(drop),
+        command::CLOSE => tabs::close(browser, &all),
+        _ => match chosen.strip_prefix(command::JOIN_GROUP) {
+            Some(id) => match tabs::group(mt, browser, id) {
+                Some(group) => group.add(&all),
+                None => Ok(()),
+            },
             None => Ok(()),
         },
     };

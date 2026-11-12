@@ -205,8 +205,10 @@ export function listLandingAt(
   if (!rows.length) return section === "pinned" ? pinnedFirst() : firstInList(zone, content);
   // The row held, if it is one of this list's.
   const own = mine ? rows.find((row) => row.el === mine.element) : undefined;
-  // How many of the list's tabs go with it, the first of them at `from`.
-  const [from, size] = own && section === "tabs" ? [startOf(own.item), sizeOf(own.item)] : [Infinity, 0];
+  // The list's tabs that go with it, by their indices in the list: its
+  // own, and those of the rows marked with it.
+  const carried = section === "tabs" && mine ? rows.filter((row) => mine.keys.includes(row.key)) : [];
+  const moving = carried.flatMap(({ item }) => Array.from({ length: sizeOf(item) }, (_, at) => startOf(item) + at));
   const total = items.reduce((count, item) => count + sizeOf(item), 0);
 
   /** `place` as the app takes it; null where the held item already is. */
@@ -223,8 +225,10 @@ export function listLandingAt(
     // group, or of the list.
     const next = (place.up ? within(place.up.item) : items)[place.index];
     const gap = next ? startOf(next) : place.up ? startOf(place.up.item) + sizeOf(place.up.item) : total;
-    const index = indexAt(gap, from, size);
-    if (index === from && sameParent) return null;
+    // Those that go leave before they land: the index is among the rest.
+    const index = gap - moving.filter((at) => at < gap).length;
+    // Several rows from apart are brought together, wherever they land.
+    if (carried.length === 1 && index === moving[0] && sameParent) return null;
     const group = place.up && place.up.item.kind === "group" ? place.up.item.group.id : null;
     return { to: "tabs", group, index };
   };

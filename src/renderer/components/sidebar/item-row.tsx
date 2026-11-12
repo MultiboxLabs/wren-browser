@@ -8,15 +8,28 @@
 // side is away: a slash between the kept page's icon and the tab's title,
 // and the icon takes the tab back. A right click shows the item's menu, and
 // a kept tab's name is edited in its row, as a double click on it does.
+//
+// A normal tab's row is marked by a press with Command or Shift held, to
+// act with other rows (item-actions.tsx), and is then drawn as a selected
+// row is.
 
 import { Minus, X } from "lucide-react";
 import { Favicon } from "@/components/favicon";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { PinPage } from "@/ipc";
-import { type DrawnSide, itemKey, itemTitle, sideTitle, type TabItem, useSelectedOf, useSides } from "@/state/items";
+import {
+  type DrawnSide,
+  itemKey,
+  itemTitle,
+  sideTitle,
+  type TabItem,
+  useMarkedOf,
+  useSelectedOf,
+  useSides
+} from "@/state/items";
 import { cn } from "@/utils/cn";
 import { pinIdentity, tabIdentity } from "./arrival";
-import type { ItemActions } from "./item-actions";
+import { heldIn, type ItemActions } from "./item-actions";
 import { CloseButton, Row, SplitFrame, SplitHalf, TitleField, useRenameClick } from "./rows";
 import { TabAlert } from "./tab-alert";
 
@@ -56,6 +69,7 @@ export function ItemRow({ item, indent, actions, peek = false, strike }: ItemRow
   // The selected tab, if it is one of the row's; none while the New Tab
   // omnibox is open.
   const selected = useSelectedOf(item);
+  const marked = useMarkedOf(item);
   const kept = item.pin !== null;
   // A normal tab is its Chromium tabs: while the page has not all of them, it is not drawn.
   if (!kept && sides.some((side) => !side.tab)) return null;
@@ -96,9 +110,11 @@ export function ItemRow({ item, indent, actions, peek = false, strike }: ItemRow
     return (
       <Row
         selected={active}
+        marked={marked}
         active={active}
         indent={indent}
-        onPress={() => actions.onSelect(item, 0)}
+        onPress={(event) => actions.onSelect(item, 0, heldIn(event))}
+        onClick={(event) => actions.onClicked(item, 0, heldIn(event))}
         onMiddlePress={() => dismiss(0)}
         onMenu={(x, y) => actions.onMenu(item, 0, x, y)}
         identities={identitiesOf(item)}
@@ -130,7 +146,12 @@ export function ItemRow({ item, indent, actions, peek = false, strike }: ItemRow
   }
   return (
     // A kept split as a whole, and each half its tab, so either can slide here.
-    <SplitFrame active={active} indent={indent} identities={item.pin === null ? [] : [pinIdentity(item.pin)]}>
+    <SplitFrame
+      active={active}
+      marked={marked}
+      indent={indent}
+      identities={item.pin === null ? [] : [pinIdentity(item.pin)]}
+    >
       {sides.map((side, at) => (
         // A normal split's halves go with their tabs, as its sides swap.
         <SplitHalf
@@ -138,7 +159,8 @@ export function ItemRow({ item, indent, actions, peek = false, strike }: ItemRow
           side={at}
           active={active}
           pressed={side.tab !== undefined && side.tab.id === selected}
-          onPress={() => actions.onSelect(item, at)}
+          onPress={(event) => actions.onSelect(item, at, heldIn(event))}
+          onClick={(event) => actions.onClicked(item, at, heldIn(event))}
           onMiddlePress={() => dismiss(at)}
           onMenu={(x, y) => actions.onMenu(item, at, x, y)}
           identities={side.tab ? [tabIdentity(side.tab.id)] : []}

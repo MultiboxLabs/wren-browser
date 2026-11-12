@@ -5,7 +5,7 @@
 
 import { Archive, Plus } from "lucide-react";
 import { motion, type MotionValue, useMotionValue, useMotionValueEvent, useTransform } from "motion/react";
-import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AddressField } from "@/components/address/field";
 import { useAddressBar } from "@/state/address-bar";
@@ -20,6 +20,7 @@ import { Shelf, useShelf } from "@/components/downloads/shelf";
 import { ArrivalScope } from "./arrival";
 import { Favorites } from "./favorites";
 import { useItemActions } from "./item-actions";
+import { ITEM_MARK } from "./item-drag";
 import { NewSpaceForm } from "./new-space";
 import { SpaceColours } from "./space-colours";
 import { useSpaceSwipe } from "./space-swipe";
@@ -27,7 +28,7 @@ import { SpaceSwitcher } from "./space-switcher";
 import { ListBelowContext } from "./list-edge";
 import { TabList } from "./tab-list";
 import { UpdateCard } from "./update";
-import { BrowserOfSpace, useNoneSelected, useTab, useTabShape } from "@/state/browser";
+import { BrowserOfSpace, useClearMarks, useNoneSelected, useTab, useTabShape } from "@/state/browser";
 import { useDownloadIndicator } from "@/state/downloads";
 import { type LibrarySettings, useSettings } from "@/state/library";
 import { useItems } from "@/state/items";
@@ -107,6 +108,18 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   // While the omnibox for a new tab is open, the New Tab row is the selected
   // one, and no tab's is.
   useNoneSelected(omnibox.shown?.target === "new-tab");
+  // Escape, or a press on anything but a tab of a list, leaves no row
+  // marked: a tab's row decides for itself (item-actions.tsx).
+  const clearMarks = useClearMarks();
+  useEffect(() => {
+    const over = new AbortController();
+    const pressed = (event: PointerEvent) => {
+      if (!(event.target as Element).closest(`[${ITEM_MARK}^="tab:"]`)) clearMarks();
+    };
+    window.addEventListener("pointerdown", pressed, { signal: over.signal, capture: true });
+    window.addEventListener("keydown", (event) => event.key === "Escape" && clearMarks(), { signal: over.signal });
+    return () => over.abort();
+  }, []);
   // A swipe across the sidebar goes to the next space or the previous one;
   // the space being made is after the last.
   const area = useRef<HTMLDivElement>(null);

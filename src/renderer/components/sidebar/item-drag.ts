@@ -5,24 +5,35 @@
 // is marked as its own (`data-item`), with the row it draws its first
 // child; where a drag lands is found from the marks (item-landing.ts), and
 // what takes the drop asks the app to move the item (item-drop.ts).
+//
+// A row of the list that is one of several marked (state/marks.ts) is
+// dragged with the others: the drag carries them all, in the list's order,
+// and its image is the row held, with how many they are.
 
 import type { CSSProperties, DragEvent, PointerEvent } from "react";
 import type { ItemRef } from "@/ipc";
+import { useMarks } from "@/state/browser";
 import { type Item, itemKey, type ItemType, listedTabs } from "@/state/items";
 import { useDrawnSpace } from "@/state/space";
 import { holdForDrag } from "./drag-hold";
 import { carriesAddress } from "./dropped-address";
 
-/** The kinds of item that move as one: a tab alone, a split's two, a group with its tabs, or a folder with all in it. */
-export type ItemKind = "tab" | "split" | "group" | "folder";
+/**
+ * The kinds of item that move as one: a tab alone, a split's two, a group
+ * with its tabs, or a folder with all in it; and "tabs", several rows of
+ * the list marked together.
+ */
+export type ItemKind = "tab" | "split" | "tabs" | "group" | "folder";
 
-/** What a drag of an item says of it once it is dropped. */
-export type DroppedItem = { item: ItemRef; kind: ItemKind; type: ItemType };
+/** What a drag says of what it carries once it is dropped: the item, or for "tabs" each marked row, in the list's order. */
+export type DroppedItem = { items: ItemRef[]; kind: ItemKind; type: ItemType };
 
-/** An item this window's page is dragging. */
+/** What this window's page is dragging. */
 export type Carried = DroppedItem & {
-  /** Its key (`itemKey`), by which its element is marked. */
+  /** The key (`itemKey`) of the item held, by which its element is marked. */
   key: string;
+  /** The keys of all it carries: the item held alone, or each marked row. */
+  keys: string[];
   /** The space whose sidebar it is dragged from. */
   space: number;
   /** How far into its row the pointer took it. */
@@ -46,7 +57,7 @@ const ITEM_TYPE = "application/x-wren-item";
 const kindType = (kind: ItemKind) => `${ITEM_TYPE}-kind-${kind}`;
 const typeType = (type: ItemType) => `${ITEM_TYPE}-type-${type}`;
 
-const KINDS: ItemKind[] = ["tab", "split", "group", "folder"];
+const KINDS: ItemKind[] = ["tab", "split", "tabs", "group", "folder"];
 const TYPES: ItemType[] = ["normal", "pinned", "favorite"];
 
 // The item this window's page is dragging, until the drag ends: a drag says
@@ -129,6 +140,18 @@ const rowOf = (element: Element, kind: ItemKind) => {
 /** The box of the row the element of an item of `kind` draws. */
 export const rowBox = (element: Element, kind: ItemKind) => rowOf(element, kind).getBoundingClientRect();
 
+// Shows how many rows a drag carries, at the end of the row held, for the
+// drag's image alone: Chromium draws the image from the row once the drag
+// has begun, and the count goes with the next frame.
+function showCount(row: Element, count: number) {
+  const badge = document.createElement("span");
+  badge.textContent = String(count);
+  badge.className =
+    "ml-auto grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-accent px-1.5 text-caption font-semibold text-white";
+  row.append(badge);
+  requestAnimationFrame(() => badge.remove());
+}
+
 /**
  * Gives what lets an item be dragged, in the sidebar of the space drawn
  * around what calls it: the props that mark an element as the item's
@@ -139,6 +162,15 @@ export const rowBox = (element: Element, kind: ItemKind) => rowOf(element, kind)
  */
 export function useItemDrag() {
   const space = useDrawnSpace().id;
+  const marks = useMarks();
+  // The rows marked with a normal tab's, each by its first tab, if it is
+  // one of several: they are dragged with it.
+  const markedWith = (item: Item) => {
+    if (item.kind !== "tab" || item.pin !== null) return [];
+    const [lead] = listedTabs(item);
+    const rows = marks.rows();
+    return rows.some((row) => row.includes(lead)) ? rows.map(([first]) => first) : [];
+  };
   return (item: Item, { renaming = false, peek = false } = {}) => {
     const kind = kindOf(item);
     const type = typeOf(item);
@@ -160,15 +192,21 @@ export function useItemDrag() {
         if ((event.target as Element).closest("[draggable=true]") !== element) return;
         const row = rowOf(element, kind);
         const box = row.getBoundingClientRect();
-        const said: DroppedItem = { item: refOf(item), kind, type };
-        const mine: Carried = { ...said, key, space, grab: event.clientX - box.left, element };
+        const together = markedWith(item);
+        const said: DroppedItem = together.length
+          ? { items: together.map((tab) => ({ tab })), kind: "tabs", type }
+          : { items: [refOf(item)], kind, type };
+        const keys = together.length ? together.map((tab) => `tab:${tab}`) : [key];
+        const mine: Carried = { ...said, key, keys, space, grab: event.clientX - box.left, element };
         const data = event.dataTransfer;
         data.effectAllowed = "move";
         data.setData(ITEM_TYPE, JSON.stringify(said));
-        data.setData(kindType(kind), "");
+        data.setData(kindType(said.kind), "");
         data.setData(typeType(type), "");
         // A row of the list as it is, held where the pointer took it: a
-        // group by its heading, without its tabs.
+        // group by its heading, without its tabs; and one of several marked
+        // rows with how many they are.
+        if (together.length) showCount(row, together.length);
         if (type === "normal") data.setDragImage(row, event.clientX - box.left, event.clientY - box.top);
         carry(mine);
       }

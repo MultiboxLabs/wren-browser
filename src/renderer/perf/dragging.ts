@@ -15,7 +15,7 @@
 import { appWindow, type BrowserTab, type ItemRef, type Pin, pins, type TabGroup, type TabSplit } from "@/ipc";
 import { ITEM_MARK, rowBox } from "@/components/sidebar/item-drag";
 import { ZONE_MARK } from "@/components/sidebar/item-landing";
-import { NESTED_INDENT } from "@/components/sidebar/rows";
+import { MARKED_MARK, NESTED_INDENT } from "@/components/sidebar/rows";
 
 /** The spaces of the run, the window's first: `picture` shows each. */
 export const spaces: number[] = [];
@@ -447,11 +447,37 @@ export async function drop(carrying: Carrying, where: Where) {
 /** Drags an item to a point and lets go; answers whether it was taken there. */
 export const drag = async (what: What, where: Where) => drop(await pickUp(what), where);
 
+/**
+ * Presses an item's row and lets go, as a click does, with Command or Shift
+ * held or neither, and waits for the app's answer to the press.
+ */
+export async function press(what: What, held: { command?: boolean; shift?: boolean } = {}) {
+  const box = boxOf(keyOf(await read(), what));
+  const at = { x: box.left + Math.min(GRAB, box.width / 2), y: box.top + box.height / 2 };
+  const pressed = under(at);
+  const keys = { metaKey: held.command ?? false, shiftKey: held.shift ?? false };
+  const pointer = { bubbles: true, cancelable: true, button: 0, clientX: at.x, clientY: at.y, ...keys };
+  pressed.dispatchEvent(new PointerEvent("pointerdown", { ...pointer, buttons: 1 }));
+  pressed.dispatchEvent(new PointerEvent("pointerup", pointer));
+  pressed.dispatchEvent(new MouseEvent("click", pointer));
+  await sleep(PRESS_WAIT_MS);
+}
+
+/** Presses Escape, with nothing focused. */
+export const pressEscape = () =>
+  void document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
 // The selection.
 
 /** The keys of the items whose rows the sidebar draws as the selected tab's (`itemKey` in state/items.ts). */
 export const selectedKeys = () =>
   [...document.querySelectorAll("[data-active-tab]")].map(
+    (row) => row.closest(`[${ITEM_MARK}]`)?.getAttribute(ITEM_MARK) ?? "none"
+  );
+
+/** The keys of the items whose rows the sidebar draws as marked, from the top. */
+export const markedKeys = () =>
+  [...document.querySelectorAll(`[${MARKED_MARK}]`)].map(
     (row) => row.closest(`[${ITEM_MARK}]`)?.getAttribute(ITEM_MARK) ?? "none"
   );
 

@@ -2,7 +2,9 @@
 // favourite, a folder or a group. One menu for them all, built in sections,
 // each there when it applies to the item: its page, its group and its
 // split, its name, closing it, and last, where it is kept. So a pinned tab
-// that is open has what a tab of the list has, where it applies.
+// that is open has what a tab of the list has, where it applies. Several
+// rows of the list marked together have what acts on them all, and nothing
+// that is about one page.
 //
 // What is chosen is done by items/menu.rs, which also finds the item
 // (`Subject`).
@@ -55,15 +57,24 @@ pub fn item_menu(subject: &Subject) -> Result<Vec<MenuItem>, String> {
         What::Listed { tab, .. } => {
             // What a tab is shown with, in one section: its group, then
             // its split.
-            let mut with = group_of_tab(subject, *tab);
+            let own = tab.state().ok().and_then(|state| state.group);
+            let mut with = joins(subject, own, false);
+            if own.is_some() {
+                with.push(MenuItem::item(LEAVE_GROUP, "Remove from Group"));
+            }
             with.extend(split(subject, *tab, true));
             vec![
                 page(Some(*tab)),
                 with,
                 closes_tab(subject, *tab)?,
-                keeps_tab(&subject.place),
+                keeps_tab(&subject.place, false),
             ]
         }
+        What::Marked { .. } => vec![
+            joins(subject, None, true),
+            vec![MenuItem::item(CLOSE, "Close Tabs")],
+            keeps_tab(&subject.place, true),
+        ],
         What::Kept { favorite, .. } => {
             let tab = subject.tab();
             let away = !subject.away().is_empty();
@@ -145,11 +156,13 @@ fn goes_back(away: bool) -> Vec<MenuItem> {
     ]
 }
 
-// Where a tab of the list can be kept, as the window it is in allows: pins
-// only in a window on a space, and favourites not in an off-the-record one.
-fn keeps_tab(place: &Place) -> Vec<MenuItem> {
+// Where a tab of the list can be kept, or `several` marked together, as
+// the window it is in allows: pins only in a window on a space, and
+// favourites not in an off-the-record one.
+fn keeps_tab(place: &Place, several: bool) -> Vec<MenuItem> {
+    let pin = if several { "Pin Tabs" } else { "Pin Tab" };
     vec![
-        enabled(MenuItem::item(PIN_TAB, "Pin Tab"), place.space().is_some()),
+        enabled(MenuItem::item(PIN_TAB, pin), place.space().is_some()),
         enabled(
             MenuItem::item(ADD_FAVORITE, "Add to Favourites"),
             !place.is_off_the_record(),
@@ -175,9 +188,14 @@ fn keeps_pin(favorite: bool, place: &Place) -> Vec<MenuItem> {
     }
 }
 
-// The group a tab of the list can join, or leave.
-fn group_of_tab(subject: &Subject, tab: BrowserTab) -> Vec<MenuItem> {
-    let own = tab.state().ok().and_then(|state| state.group);
+// The groups a tab of the list can join, but its `own`, or `several` tabs
+// marked together, which may each be in any.
+fn joins(subject: &Subject, own: Option<TabGroup>, several: bool) -> Vec<MenuItem> {
+    let (new, join) = if several {
+        ("Add Tabs to New Group", "Add Tabs to Group")
+    } else {
+        ("Add Tab to New Group", "Add Tab to Group")
+    };
     let others: Vec<MenuItem> = subject
         .browser()
         .map_or_else(|_| Vec::new(), groups)
@@ -185,12 +203,9 @@ fn group_of_tab(subject: &Subject, tab: BrowserTab) -> Vec<MenuItem> {
         .filter(|group| Some(*group) != own)
         .map(|group| MenuItem::item(format!("{JOIN_GROUP}{group}"), group_name(group)))
         .collect();
-    let mut items = vec![MenuItem::item(NEW_GROUP, "Add Tab to New Group")];
+    let mut items = vec![MenuItem::item(NEW_GROUP, new)];
     if !others.is_empty() {
-        items.push(MenuItem::submenu("Add Tab to Group", others));
-    }
-    if own.is_some() {
-        items.push(MenuItem::item(LEAVE_GROUP, "Remove from Group"));
+        items.push(MenuItem::submenu(join, others));
     }
     items
 }

@@ -4,19 +4,11 @@ use serde::Deserialize;
 use serde_json::Value;
 use wren::{BrowserTab, MainThread, MenuItem, WebView};
 
-use super::items::{choose, menu_of};
+use super::items::{MenuOf, choose, menu_of};
 use super::{WindowRef, with_browser, with_window};
 use crate::app::State;
-use crate::items::ItemRef;
 use crate::perf::PageCounts;
 use crate::tabs;
-
-/// An item and the side of it whose menu a run asks about.
-#[derive(Deserialize)]
-struct MenuOf {
-    item: ItemRef,
-    side: usize,
-}
 
 #[derive(Deserialize)]
 struct Choose {
@@ -77,7 +69,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("perf.menu", move |of: MenuOf| {
         let state = run(&weak)?;
-        let (_, items) = menu_of(&state, mt, weak.id, &of.item, of.side)?;
+        let (_, items) = menu_of(&state, mt, weak.id, &of)?;
         Ok::<_, String>(picture(&items))
     });
 
@@ -91,8 +83,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             .map_err(|error| error.to_string())
             .and_then(|choose| {
                 let state = run(&weak)?;
-                let of = &choose.of;
-                let (subject, items) = menu_of(&state, mt, weak.id, &of.item, of.side)?;
+                let (subject, items) = menu_of(&state, mt, weak.id, &choose.of)?;
                 let id = id_of(&items, &choose.label).ok_or("The menu has no such item.")?;
                 Ok((state, subject, id))
             });

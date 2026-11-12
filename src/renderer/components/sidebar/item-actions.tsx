@@ -4,16 +4,24 @@
 // with a Chromium tab open on it is selected, and one without is opened; a
 // normal tab closes, and a kept one closes its tabs or is unpinned.
 //
+// Rows of the list are marked to act together (state/marks.ts): a press
+// with Command held marks a row or no longer, and one with Shift held marks
+// the rows from the selected tab's to it, neither selecting. A press on a
+// row that is not among them leaves none marked. One on a row that is
+// among them waits to be a click, as it may begin a drag of them all, and
+// their menu is one for them all.
+//
 // The menu is the app's (ipc/items.ts), one for every item, which does what
 // is chosen and leaves the page to rename in place, and to ask before a
 // folder and all in it are deleted.
 
-import { type ReactNode, useRef, useState } from "react";
+import { type MouseEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useHoldUntil } from "@/components/ui/hold";
 import { browser, groups, items, pins } from "@/ipc";
 import type { ItemRef } from "@/ipc";
-import { type FolderItem, type GroupItem, type Item, itemKey, type TabItem } from "@/state/items";
+import { useMarks } from "@/state/browser";
+import { type FolderItem, type GroupItem, type Item, itemKey, listedTabs, type TabItem } from "@/state/items";
 import { refOf } from "./item-drag";
 
 /**
@@ -27,9 +35,21 @@ function menuRef(item: Item, side: number): ItemRef | null {
   return tab == null ? null : { tab };
 }
 
+/** The keys held with a press that mark a row: Command, or Shift. */
+export type Held = { command: boolean; shift: boolean };
+
+/** The keys that mark a row, as they are held with a press or a click. */
+export const heldIn = (event: PointerEvent | MouseEvent): Held => ({ command: event.metaKey, shift: event.shiftKey });
+
 export type ItemActions = {
-  /** A press on a tab item's side: selects its Chromium tab, or opens a kept tab that has none. */
-  onSelect: (item: TabItem, side: number) => void;
+  /**
+   * A press on a tab item's side: selects its Chromium tab, or opens a kept
+   * tab that has none. With a key `held`, it marks a normal tab's row, and
+   * on one of several marked rows it does nothing until it is a click.
+   */
+  onSelect: (item: TabItem, side: number, held?: Held) => void;
+  /** A press on a tab item's side that was no drag: on one of several marked rows, it selects the tab and leaves none marked. */
+  onClicked: (item: TabItem, side: number, held: Held) => void;
   /** Closes a normal tab's side, or all of a kept tab's Chromium tabs, which leaves it unopened. */
   onClose: (item: TabItem, side: number) => void;
   /** Unpins a kept tab, or removes it from the favourites, closing its tabs. */
@@ -58,6 +78,20 @@ export function useItemActions(setFolderOpen: (folder: number, open: boolean) =>
 } {
   // A menu holds the floating sidebar out until it closes.
   const holdUntil = useHoldUntil();
+  const marks = useMarks();
+  // The rows marked with a normal tab's, if it is one of several.
+  const markedWith = (item: Item) => {
+    if (item.kind !== "tab" || item.pin !== null) return [];
+    const [lead] = listedTabs(item);
+    const rows = marks.rows();
+    return rows.some((row) => row.includes(lead)) ? rows : [];
+  };
+  const select = (item: TabItem, side: number) => {
+    const tab = item.sides[side]?.tab;
+    // The app makes each change, and the page hears it back as new tabs.
+    if (tab != null) void browser.activate(tab);
+    else if (item.pin !== null) pins.open(item.pin).catch(() => {});
+  };
   const [renaming, setRenaming] = useState<string | null>(null);
   // As it is now: the first answer of a renaming is the one taken (a field
   // that leaves may be heard after what closed it).
@@ -72,7 +106,11 @@ export function useItemActions(setFolderOpen: (folder: number, open: boolean) =>
   const onMenu = (item: Item, side: number, x: number, y: number) => {
     const named = menuRef(item, side);
     if (!named) return;
-    holdUntil(items.menu(named, side, x, y)).then(
+    // One of several marked rows shows the menu for them all; any other
+    // row's is its own, and leaves none marked.
+    const marked = markedWith(item).map(([lead]) => lead);
+    if (!marked.length) marks.clear();
+    holdUntil(items.menu(named, side, x, y, marked)).then(
       ({ chosen, folder }) => {
         if (chosen === "rename") startRename(itemKey(item));
         else if (chosen === "delete-folder" && item.kind === "folder") setDeleting({ folder: item, open: true });
@@ -115,11 +153,20 @@ export function useItemActions(setFolderOpen: (folder: number, open: boolean) =>
 
   return {
     actions: {
-      // The app makes each change, and the page hears it back as new tabs.
-      onSelect: (item, side) => {
-        const tab = item.sides[side]?.tab;
-        if (tab != null) void browser.activate(tab);
-        else if (item.pin !== null) pins.open(item.pin).catch(() => {});
+      onSelect: (item, side, held) => {
+        if (item.pin === null) {
+          const tabs = listedTabs(item);
+          if (held?.command) return marks.toggle(tabs);
+          if (held?.shift) return marks.extendTo(tabs[0]);
+          if (markedWith(item).length) return;
+          marks.clear();
+        }
+        select(item, side);
+      },
+      onClicked: (item, side, held) => {
+        if (held.command || held.shift || !markedWith(item).length) return;
+        marks.clear();
+        select(item, side);
       },
       onClose: (item, side) => {
         const tab = item.sides[side]?.tab;
