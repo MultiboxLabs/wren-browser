@@ -222,7 +222,7 @@ export function listLandingAt(
     const gap = next ? startOf(next) : place.up ? startOf(place.up.item) + sizeOf(place.up.item) : total;
     const index = indexAt(gap, from, size);
     if (index === from && sameParent) return null;
-    const group = place.up && place.up.item.kind === "group" ? listedTabs(place.up.item.items[0])[0] : null;
+    const group = place.up && place.up.item.kind === "group" ? place.up.item.group.id : null;
     return { to: "tabs", group, index };
   };
 

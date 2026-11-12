@@ -6,9 +6,9 @@
 
 /**
  * An item, as the app finds it. `tab` names a tab of the list, or its split
- * if it is in one; `group` names a group by one of its tabs.
+ * if it is in one; `group` is a group's ID, which it keeps as it moves.
  */
-export type ItemRef = { tab: number } | { group: number } | { pin: number };
+export type ItemRef = { tab: number } | { group: string } | { pin: number };
 
 /** A place in a sidebar. */
 export type ItemPlace =
@@ -16,8 +16,8 @@ export type ItemPlace =
   | { to: "favorites"; index: number | null }
   /** Among the space's pins, at the top or in `folder`, at `index` there (null: last). */
   | { to: "pinned"; folder: number | null; index: number | null }
-  /** In the list, its first tab at `index` among the list's tabs, in the group of the tab `group` names, or in none. */
-  | { to: "tabs"; group: number | null; index: number }
+  /** In the list, its first tab at `index` among the list's tabs, in the group of the ID `group`, or in none. */
+  | { to: "tabs"; group: string | null; index: number }
   /** On `side` of the row of another tab, to make a split with it. */
   | { to: "split"; with: ItemRef; side: "left" | "right" };
 

@@ -5,8 +5,8 @@
 //
 // The pins are few, so each row slides to a new place as their order
 // changes (`listOrder`). The tabs may be hundreds: a row is drawn again only
-// when its tabs or the selection in it change, and is kept
-// through a split or a group being made again by its key (keys.ts).
+// when its tabs or the selection in it change, and is kept through a split
+// being made or ended by its key (keys.ts).
 
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { AnimatePresence } from "motion/react";
@@ -20,7 +20,7 @@ import { FolderMenu } from "./folder-menu";
 import { FoldingRows, foldRow } from "./folding";
 import type { ItemActions } from "./item-actions";
 import { identitiesOf, ItemRow } from "./item-row";
-import { useGroupKeys, useRowKeys } from "./keys";
+import { useRowKeys } from "./keys";
 import { usePeek } from "./peeks";
 import { useItemDrag } from "./item-drag";
 import { BODY_MARK } from "./item-landing";
@@ -165,21 +165,14 @@ const selectedIn = (item: TabItem, selected: number | undefined) =>
  * not draw every other row again.
  */
 export function ListRows({ items, selected, actions }: { items: Item[]; selected?: number; actions: ItemActions }) {
-  const groups = items.filter((item): item is GroupItem => item.kind === "group");
   const rows = items.flatMap((item) => (item.kind === "group" ? item.items : item.kind === "tab" ? [item] : []));
-  const groupKey = useGroupKeys(
-    groups.flatMap(({ group, items }) =>
-      items.flatMap((row) => listedTabs(row).map((id) => ({ id, group: group.id })))
-    ),
-    groups.map(({ group }) => group)
-  );
   const rowKey = useRowKeys(rows.map(listedTabs));
   const drag = useItemDrag();
   return (
     <AnimatePresence initial={false} presenceAffectsLayout={false}>
       {items.map((item) =>
         item.kind === "group" ? (
-          <Appear key={`group-${groupKey(item.group.id)}`}>
+          <Appear key={`group-${item.group.id}`}>
             <div
               // The group whole, with its tabs, picked up by its heading:
               // not while its title is edited, which a drag would take.

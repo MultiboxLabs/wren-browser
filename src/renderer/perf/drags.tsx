@@ -21,6 +21,7 @@ import {
   favorites,
   folder,
   group,
+  groupId,
   half,
   hasHeard,
   hear,
@@ -174,6 +175,20 @@ const grouped =
 
 const dragged = (what: What, where: Where) => () => drag(what, where);
 
+/**
+ * A step that the group of the tab on a page must come through as itself,
+ * with its ID: the sidebar names a group by it, and keeps its row by it.
+ */
+const sameGroup = (number: number, step: Step): Step => ({
+  ...step,
+  does: async () => {
+    const was = await groupId(number);
+    await step.does();
+    await shows(step.shows);
+    if ((await groupId(number)) !== was) throw new Error("The group has a new ID.");
+  }
+});
+
 /** A drag that nothing must take: it fails if something does, and the sidebar must then hold what it did. */
 const refused = (what: What, where: Where) => async () => {
   if (await drag(what, where)) throw new Error("It was taken.");
@@ -234,16 +249,16 @@ const scenes = (url: string): Scene[] => [
         shows: "tabs (5|1) 2 0 (4|3)"
       },
       { name: "two tabs put in a group", does: grouped(2, 0), shows: "tabs (5|1) {2 0} (4|3)" },
-      {
+      sameGroup(2, {
         name: "a group to a place further down",
         does: dragged(group(2), after(tab(4))),
         shows: "tabs (5|1) (4|3) {2 0}"
-      },
-      {
+      }),
+      sameGroup(2, {
         name: "a group to a place further up",
         does: dragged(group(2), before(tab(5))),
         shows: "tabs {2 0} (5|1) (4|3)"
-      }
+      })
     ]
   },
   {
@@ -252,41 +267,41 @@ const scenes = (url: string): Scene[] => [
     steps: [
       { name: "three tabs put in a group", does: grouped(1, 2, 3), shows: "tabs 0 {1 2 3} 4 5" },
       { name: "a tab onto a tab", does: dragged(tab(4), half(tab(5), "right")), shows: "tabs 0 {1 2 3} (5|4)" },
-      {
+      sameGroup(1, {
         name: "a split into a group, between two of its tabs",
         does: dragged(tab(5), after(tab(1), 1)),
         shows: "tabs 0 {1 (5|4) 2 3}"
-      },
+      }),
       {
         name: "a split to the last place of its group",
         does: dragged(tab(5), after(tab(3), 1)),
         shows: "tabs 0 {1 2 3 (5|4)}"
       },
-      {
+      sameGroup(1, {
         name: "a split out of the end of its group, held further out",
         does: dragged(tab(5), after(tab(5), 0)),
         shows: "tabs 0 {1 2 3} (5|4)"
-      },
+      }),
       {
         name: "a split into the end of a group, held further in",
         does: dragged(tab(5), after(tab(3), 1)),
         shows: "tabs 0 {1 2 3 (5|4)}"
       },
-      {
+      sameGroup(1, {
         name: "a split out of its group, above it",
         does: dragged(tab(5), before(group(1))),
         shows: "tabs 0 (5|4) {1 2 3}"
-      },
-      {
+      }),
+      sameGroup(1, {
         name: "a tab out of the end of its group, held further out",
         does: dragged(tab(3), after(tab(3), 0)),
         shows: "tabs 0 (5|4) {1 2} 3"
-      },
-      {
+      }),
+      sameGroup(1, {
         name: "a tab into a group, under its heading",
         does: dragged(tab(0), after(group(1))),
         shows: "tabs (5|4) {0 1 2} 3"
-      }
+      })
     ]
   },
   {
@@ -433,16 +448,26 @@ const scenes = (url: string): Scene[] => [
         does: dragged(tab(0), spaceButton(1)),
         shows: "tabs 1 2 3 / tabs 0"
       },
+      { name: "two tabs put in a group", does: grouped(2, 3), shows: "tabs 1 {2 3} / tabs 0" },
+      sameGroup(2, {
+        name: "a group onto another space's button",
+        does: dragged(group(2), spaceButton(1)),
+        shows: "tabs 1 / tabs {2 3} 0"
+      }),
       {
         name: "a tab held over another space's button, then to a place in that space's list",
         does: () => draggedThroughButton(tab(1), after(tab(0))),
-        shows: "tabs 2 3 / tabs 0 1"
+        shows: "nothing / tabs {2 3} 0 1"
       },
-      { name: "a tab onto that space's heading", does: dragged(tab(0), heading), shows: "tabs 2 3 / pins 0 | tabs 1" },
+      {
+        name: "a tab onto that space's heading",
+        does: dragged(tab(0), heading),
+        shows: "nothing / pins 0 | tabs {2 3} 1"
+      },
       {
         name: "a pinned tab onto another space's button, which takes none",
         does: refused(pin(0), spaceButton(0)),
-        shows: "tabs 2 3 / pins 0 | tabs 1"
+        shows: "nothing / pins 0 | tabs {2 3} 1"
       }
     ]
   }

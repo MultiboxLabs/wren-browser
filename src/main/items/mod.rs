@@ -22,18 +22,27 @@ use crate::shell::{Place, WindowId};
 use crate::tabs;
 
 /// An item, as the page names it: a tab of the list, which stands for its
-/// split if it is in one; a group, by one of its tabs; or a pin.
-#[derive(Clone, Copy, Debug, Deserialize)]
+/// split if it is in one; a group, by its ID, which Chromium keeps as the
+/// group moves, to another Browser too; or a pin.
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ItemRef {
     Tab(i32),
-    Group(i32),
+    Group(String),
     Pin(PinId),
+}
+
+// An item of the list, found: a tab, which stands for its split if it is in
+// one, or a group.
+#[derive(Clone, Copy)]
+enum Listed {
+    Tab(BrowserTab),
+    Group(TabGroup),
 }
 
 /// Where an item goes: a place in the sidebar of `space`, or of the window's
 /// own place if it names none, as a window on a profile does.
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Destination {
     pub space: Option<SpaceId>,
     #[serde(flatten)]
@@ -41,7 +50,7 @@ pub struct Destination {
 }
 
 /// A place in a sidebar.
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "to", rename_all = "camelCase")]
 pub enum Target {
     /// Among the favourites, at `index` (None: last).
@@ -53,8 +62,11 @@ pub enum Target {
         index: Option<usize>,
     },
     /// In the list, its first tab at `index` among the list's tabs
-    /// (`tabs::listed`), in the group of the tab `group` names, or in none.
-    Tabs { group: Option<i32>, index: usize },
+    /// (`tabs::listed`), in the group of the ID `group`, or in none.
+    Tabs {
+        group: Option<String>,
+        index: usize,
+    },
     /// On `side` of the row of another tab, to make a split with it.
     Split { with: ItemRef, side: Side },
 }
@@ -102,8 +114,8 @@ pub fn move_item(
     };
     match item {
         ItemRef::Pin(id) => move_pin(state, mt, window, place, id, to.target, done),
-        ItemRef::Tab(id) | ItemRef::Group(id) => {
-            move_listed(state, mt, window, place, item, id, to.target, done)
+        ItemRef::Tab(_) | ItemRef::Group(_) => {
+            move_listed(state, mt, window, place, item, to.target, done)
         }
     }
 }
@@ -131,7 +143,7 @@ pub fn add_address(
         Target::Pinned { folder, index } => done(pin(PinTarget::Space { parent: folder }, index)),
         Target::Tabs { group, index } => with_browser(state, mt, window, place, move |browser| {
             done(browser.and_then(|browser| {
-                let group = group_of(mt, &browser, group)?;
+                let group = group_of(mt, &browser, group.as_deref())?;
                 tabs::open_at(mt, &browser, &url, index, group).map_err(failed)?;
                 Ok(Added::Tab)
             }));
@@ -163,7 +175,7 @@ fn move_pin(
             let (inner, to) = (state.clone(), place.clone());
             with_browser(state, mt, window, place, move |browser| {
                 done(browser.and_then(|browser| {
-                    let group = group_of(mt, &browser, group)?;
+                    let group = group_of(mt, &browser, group.as_deref())?;
                     pins::to_list(&inner, mt, &browser, &to, id, index, group)?;
                     Ok(Moved::Unpinned)
                 }));
@@ -173,36 +185,33 @@ fn move_pin(
     }
 }
 
-// A tab of the list, its split or its group, named by tab `id`: it lands in
-// its own Browser at once, or moves to the destination's first.
-#[allow(clippy::too_many_arguments)]
+// A tab of the list, its split or a group: it lands in its own Browser at
+// once, or moves to the destination's first.
 fn move_listed(
     state: &Rc<State>,
     mt: MainThread,
     window: WindowId,
     place: Place,
     item: ItemRef,
-    id: i32,
     target: Target,
     done: impl FnOnce(Result<Moved, String>) + 'static,
 ) {
     let found = (|| {
         let found = state.windows.get(window).ok_or("The window is closing.")?;
-        let tab = BrowserTab::from_id(mt, id).ok_or("There is no such tab.")?;
-        let source = tab
-            .browser()
-            .filter(|browser| found.has_browser(browser))
-            .ok_or("There is no such tab.")?;
-        let moving = moving(&source, tab, item)?;
-        may_land(item, moving.len(), target)?;
-        Ok::<_, String>((tab, source, moving, found.browser_of(&place)))
+        let (listed, source) = listed(mt, &item)?;
+        if !found.has_browser(&source) {
+            return Err("There is no such item.".to_owned());
+        }
+        let moving = moving(&source, listed)?;
+        may_land(listed, moving.len(), &target)?;
+        Ok((listed, source, moving, found.browser_of(&place)))
     })();
-    let (tab, source, moving, there) = match found {
+    let (listed, source, moving, there) = match found {
         Ok(found) => found,
         Err(error) => return done(Err(error)),
     };
     if there.as_ref() == Some(&source) {
-        return done(land(state, mt, &source, &place, tab, item, target));
+        return done(land(state, mt, &source, &place, listed, target));
     }
     let Place::Space(space) = place else {
         return done(Err("A tab moves only among a window's spaces.".into()));
@@ -224,30 +233,45 @@ fn move_listed(
     };
     let inner = state.clone();
     state.move_to_space(mt, window, moving, space, index, move |moved| {
-        done(moved.and_then(|browser| land(&inner, mt, &browser, &place, tab, item, target)));
+        done(moved.and_then(|browser| land(&inner, mt, &browser, &place, listed, target)));
     });
 }
 
-// The tabs that move with `tab` as `item`: its group's, its split's two, or
-// itself.
-fn moving(source: &Browser, tab: BrowserTab, item: ItemRef) -> Result<Vec<BrowserTab>, String> {
-    let state = tab.state().map_err(failed)?;
-    match (item, state.split) {
-        (ItemRef::Group(_), _) => {
-            let group = state.group.ok_or("The tab is in no group.")?;
-            Ok(tabs::in_group(source, group))
+// The item of a list the page names, and the Browser it is in.
+fn listed(mt: MainThread, item: &ItemRef) -> Result<(Listed, Browser), String> {
+    match item {
+        ItemRef::Tab(id) => {
+            let tab = BrowserTab::from_id(mt, *id).ok_or("There is no such tab.")?;
+            let source = tab.browser().ok_or("There is no such tab.")?;
+            Ok((Listed::Tab(tab), source))
         }
-        (_, Some(split)) => tabs::in_split(split).map_err(failed),
-        (_, None) => Ok(vec![tab]),
+        ItemRef::Group(id) => {
+            let group = TabGroup::parse(mt, id).ok_or("There is no such group.")?;
+            let source = group.browser().ok_or("There is no such group.")?;
+            Ok((Listed::Group(group), source))
+        }
+        ItemRef::Pin(_) => Err("A pin is not of the list.".into()),
+    }
+}
+
+// The tabs that move as `item`: a group's, a tab's split's two, or the tab
+// itself.
+fn moving(source: &Browser, item: Listed) -> Result<Vec<BrowserTab>, String> {
+    match item {
+        Listed::Group(group) => Ok(tabs::in_group(source, group)),
+        Listed::Tab(tab) => match tab.state().map_err(failed)?.split {
+            Some(split) => tabs::in_split(split).map_err(failed),
+            None => Ok(vec![tab]),
+        },
     }
 }
 
 // Whether `item`, of `count` tabs, may go to `target` at all: a group stays
 // in the list, and only a lone tab makes a split.
-fn may_land(item: ItemRef, count: usize, target: Target) -> Result<(), String> {
+fn may_land(item: Listed, count: usize, target: &Target) -> Result<(), String> {
     match (item, target) {
-        (ItemRef::Group(_), Target::Tabs { .. }) => Ok(()),
-        (ItemRef::Group(_), _) => Err("A group stays in the list.".into()),
+        (Listed::Group(_), Target::Tabs { .. }) => Ok(()),
+        (Listed::Group(_), _) => Err("A group stays in the list.".into()),
         (_, Target::Split { .. }) if count != 1 => {
             Err("Only a tab alone makes a split with another.".into())
         }
@@ -255,37 +279,38 @@ fn may_land(item: ItemRef, count: usize, target: Target) -> Result<(), String> {
     }
 }
 
-// Puts `tab`, a tab of `browser` (the Browser of `place`), or its split or
-// its group as `item` says, at `target`. Its split and its group are read
-// now: either may be a new one once it has come from another Browser.
+// Puts `item`, of `browser` (the Browser of `place`), at `target`: a group,
+// or a tab with its split. A tab's split is read now, as it is a new one once
+// the tab has come from another Browser. A group comes with its ID.
 fn land(
     state: &State,
     mt: MainThread,
     browser: &Browser,
     place: &Place,
-    tab: BrowserTab,
-    item: ItemRef,
+    item: Listed,
     target: Target,
 ) -> Result<Moved, String> {
+    let tab = match (item, &target) {
+        (Listed::Tab(tab), _) => tab,
+        (Listed::Group(group), Target::Tabs { index, .. }) => {
+            if group.browser().as_ref() != Some(browser) {
+                return Err("The group did not come to the space.".into());
+            }
+            tabs::move_group(browser, group, *index).map_err(failed)?;
+            return Ok(Moved::Placed);
+        }
+        (Listed::Group(_), _) => return Err("A group stays in the list.".into()),
+    };
     let now = tab.state().map_err(failed)?;
     let pin = |target, index| {
         pins::pin_tab(state, browser, place, tab, target, index).map(|_| Moved::Pinned(target))
     };
     match target {
         Target::Tabs { group, index } => {
-            let moved = match (item, now.split) {
-                (ItemRef::Group(_), _) => {
-                    let group = now.group.ok_or("The tab is in no group.")?;
-                    tabs::move_group(browser, group, index)
-                }
-                (_, Some(split)) => {
-                    let group = group_of(mt, browser, group)?;
-                    tabs::move_split(mt, browser, split, index, group)
-                }
-                (_, None) => {
-                    let group = group_of(mt, browser, group)?;
-                    tabs::move_tab(mt, browser, tab, index, group)
-                }
+            let group = group_of(mt, browser, group.as_deref())?;
+            let moved = match now.split {
+                Some(split) => tabs::move_split(mt, browser, split, index, group),
+                None => tabs::move_tab(mt, browser, tab, index, group),
             };
             moved.map_err(failed)?;
             Ok(Moved::Placed)
@@ -367,18 +392,17 @@ fn tab_of(mt: MainThread, browser: &Browser, id: i32) -> Result<BrowserTab, Stri
         .ok_or_else(|| "There is no such tab.".into())
 }
 
-// The group of the tab the page names, if it names one: the group an item
-// is to be in.
+// The group the page names, if it names one: the group an item is to be in.
 fn group_of(
     mt: MainThread,
     browser: &Browser,
-    member: Option<i32>,
+    id: Option<&str>,
 ) -> Result<Option<TabGroup>, String> {
-    let Some(member) = member else {
+    let Some(id) = id else {
         return Ok(None);
     };
-    let state = tab_of(mt, browser, member)?.state().map_err(failed)?;
-    Ok(Some(state.group.ok_or("The tab is in no group.")?))
+    let group = tabs::group(mt, browser, id).ok_or("There is no such group.")?;
+    Ok(Some(group))
 }
 
 fn failed(error: wren::Error) -> String {

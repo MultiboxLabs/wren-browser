@@ -1,49 +1,13 @@
-// Keys that keep the list's rows themselves through changes the app makes by
-// making them again, or that end or make a split, so they stay or slide to
-// their new places rather than fade out and in.
+// Keys that keep the list's rows themselves through changes that end or make
+// a split, so they stay or slide to their new places rather than fade out
+// and in. A group needs none: Chromium keeps its ID as it moves, so its
+// row is keyed by that.
 //
-// Each hook works out the keys from the last ones as the list renders, and
+// The hook works out the keys from the last ones as the list renders, and
 // keeps them in state when they change, as rendering again with the same
 // rows gives the same keys.
 
 import { useState } from "react";
-
-type GroupKeys = {
-  /** Each group's key, by its ID. */
-  keys: Map<string, string>;
-  /** The group each tab was in. */
-  was: Map<number, string>;
-};
-
-/**
- * A key for each group that stays with it when the app makes it again (a
- * moved group is taken apart and put together, with a new ID): a group with
- * an ID not seen before, whose tab was in a group that has gone, is that
- * group. Returns the key of a group's ID.
- */
-export function useGroupKeys(tabs: { id: number; group: string | null }[], groups: { id: string }[]) {
-  const [last, setLast] = useState(() => groupKeys(tabs, groups, { keys: new Map(), was: new Map() }));
-  const next = groupKeys(tabs, groups, last);
-  if (!same(next.keys, last.keys) || !same(next.was, last.was)) setLast(next);
-  return (id: string) => next.keys.get(id) ?? id;
-}
-
-function groupKeys(tabs: { id: number; group: string | null }[], groups: { id: string }[], last: GroupKeys) {
-  const live = new Set(groups.map((group) => group.id));
-  const keys = new Map<string, string>();
-  for (const group of groups) {
-    let key = last.keys.get(group.id);
-    if (key === undefined) {
-      const old = tabs
-        .map((tab) => (tab.group === group.id ? last.was.get(tab.id) : undefined))
-        .find((id) => id !== undefined && !live.has(id));
-      key = (old !== undefined && last.keys.get(old)) || group.id;
-    }
-    keys.set(group.id, key);
-  }
-  const was = new Map(tabs.flatMap((tab) => (tab.group ? [[tab.id, tab.group] as const] : [])));
-  return { keys, was };
-}
 
 /**
  * A key for each row of tabs, a tab's or a split's two, that stays with the

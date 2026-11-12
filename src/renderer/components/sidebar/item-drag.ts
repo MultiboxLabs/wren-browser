@@ -81,9 +81,9 @@ function carry(mine: Carried) {
 export const kindOf = (item: Item): ItemKind =>
   item.kind === "tab" ? (item.sides.length > 1 ? "split" : "tab") : item.kind;
 
-/** The item as the app finds it (ipc/items.ts): a normal tab or split by one of its tabs, as a group is. */
+/** The item as the app finds it (ipc/items.ts): a normal tab or split by one of its tabs, and a group by its ID. */
 export function refOf(item: Item): ItemRef {
-  if (item.kind === "group") return { group: listedTabs(item.items[0])[0] };
+  if (item.kind === "group") return { group: item.group.id };
   if (item.kind === "folder") return { pin: item.pin };
   return item.pin !== null ? { pin: item.pin } : { tab: item.sides[0].tab ?? -1 };
 }

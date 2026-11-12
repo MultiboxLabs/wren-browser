@@ -3,6 +3,7 @@ use wren::{Browser, MainThread, TabGroup, TabGroupColor, WebView};
 
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::menus;
+use crate::tabs;
 
 /// A tab group, as the sidebar heads its tabs.
 #[derive(Serialize)]
@@ -70,7 +71,5 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
 
 // The group an ID from the page names, if it is the Browser's.
 fn group(mt: MainThread, browser: &Browser, id: &str) -> Result<TabGroup, String> {
-    TabGroup::parse(mt, id)
-        .filter(|group| group.browser().as_ref() == Some(browser))
-        .ok_or_else(|| "There is no such group.".into())
+    tabs::group(mt, browser, id).ok_or_else(|| "There is no such group.".into())
 }

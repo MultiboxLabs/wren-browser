@@ -354,6 +354,11 @@ pub fn copy_url(browser: &Browser) -> Result<(), Error> {
     ipc::show_toast(browser, OwnToast::UrlCopied)
 }
 
+/// The group an ID from a page names, if it is `browser`'s.
+pub fn group(mt: MainThread, browser: &Browser, id: &str) -> Option<TabGroup> {
+    TabGroup::parse(mt, id).filter(|group| group.browser().as_ref() == Some(browser))
+}
+
 /// The tabs of `group`, in their order.
 pub fn in_group(browser: &Browser, group: TabGroup) -> Vec<BrowserTab> {
     browser

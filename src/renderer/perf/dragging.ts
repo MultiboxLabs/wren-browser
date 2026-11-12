@@ -162,6 +162,15 @@ export async function tabId(number: number) {
   return found.id;
 }
 
+/** The ID of the group the tab on the run's page of a number is in, in a list; null in none. */
+export async function groupId(number: number) {
+  const said = await read();
+  const listed = spaces.flatMap((space) => listedIn(said, space));
+  const found = listed.find((tab) => numberOf(tab.url) === String(number));
+  if (!found) throw new Error(`No tab of a list is on page ${number}.`);
+  return found.group;
+}
+
 /** The key an item's element is marked with (`itemKey` in state/items.ts). */
 function keyOf(said: Said, what: What) {
   if (what === "folder" || "pin" in what) {
