@@ -1,0 +1,125 @@
+/* The loading line along the top of a page (loading-line.tsx), which moves
+   it: this draws it with its head at the page's right edge. Its colours are
+   the space's hue, at lightnesses that show over a light page and a dark
+   one alike, and far more vivid than the space, whose own colour is often
+   too pale to see as a line.
+
+   The line is thin and even, fainter only towards where it started. Its
+   last stretch, the head, is drawn again over it, brightening to a paler
+   tint at the tip, still coloured enough to show over a white page. The
+   glow is that same stretch blurred a little, so it hugs the line and
+   swells towards the tip, with a small bright dot on the tip itself. The
+   head and its glow breathe, dimmer and brighter each 0.75s, which is
+   what makes the tip look lit and not painted.
+
+   Below the line its colour washes down over the top of the page, light
+   enough that the page still reads through it, strongest under the head,
+   and reaching a little way ahead of it with a soft edge. The room for
+   that edge (--ahead) is why the moving part is wider than the page, and
+   the room above the line (--above) lets the glow reach up over the edge
+   of an address bar atop the page. */
+.loading-line {
+  --line: oklch(from var(--space) 0.64 min(c * 3.5, 0.22) h / 1);
+  --head: oklch(from var(--space) 0.8 min(c * 3.5, 0.2) h / 1);
+  --tip: color-mix(in oklch, var(--head), white 28%);
+  --ahead: 64px;
+  --above: 10px;
+  position: absolute;
+  inset: calc(var(--above) * -1) 0 auto;
+  z-index: 10;
+  height: calc(48px + var(--above));
+  overflow: hidden;
+  pointer-events: none;
+}
+.loading-line > div {
+  position: absolute;
+  inset-block: var(--above) 0;
+  left: 0;
+  width: calc(100% + var(--ahead));
+  will-change: transform;
+}
+/* The wash. */
+.loading-line > div::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(
+    rgb(from var(--line) r g b / 0.3),
+    rgb(from var(--line) r g b / 0.16) 22%,
+    rgb(from var(--line) r g b / 0.065) 50%,
+    rgb(from var(--line) r g b / 0.018) 78%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    rgb(0 0 0 / 0.45) 35%,
+    black calc(100% - var(--ahead) - 32px),
+    rgb(0 0 0 / 0.35) calc(100% - var(--ahead) * 0.55),
+    transparent
+  );
+}
+/* The line. */
+.loading-line i {
+  position: absolute;
+  inset: 0 var(--ahead) auto 0;
+  height: 2px;
+  background: linear-gradient(to right, rgb(from var(--line) r g b / 0.3), rgb(from var(--line) r g b / 0.8) 40%);
+}
+/* The head: the line's last stretch. */
+.loading-line b {
+  --lit: linear-gradient(
+    to right,
+    transparent,
+    rgb(from var(--head) r g b / 0.2) 45%,
+    rgb(from var(--head) r g b / 0.75) 82%,
+    var(--tip)
+  );
+  position: absolute;
+  top: 0;
+  right: var(--ahead);
+  width: min(280px, 60%);
+  animation: loading-line-breathe 0.75s ease-in-out infinite alternate;
+}
+.loading-line b::before,
+.loading-line b::after {
+  position: absolute;
+  inset-inline: 0;
+  content: "";
+  background: var(--lit);
+}
+.loading-line b::before {
+  top: 0;
+  height: 2px;
+}
+/* Its glow. */
+.loading-line b::after {
+  top: -2px;
+  height: 6px;
+  border-radius: 3px;
+  filter: blur(4px);
+}
+/* The dot on its tip. */
+.loading-line span {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tip);
+  filter: blur(2.5px);
+}
+@keyframes loading-line-breathe {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-line b {
+    animation: none;
+  }
+}

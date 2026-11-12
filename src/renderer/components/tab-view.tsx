@@ -8,6 +8,7 @@ import { PageAddressBar } from "./address/page-bar";
 import { FindBar } from "./find-bar";
 import { LinkStatus } from "./link-status";
 import { LoadingBar } from "./loading-bar";
+import { LoadingLine } from "./loading-line";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { browser, type BrowserTab, splits, type TabSplit } from "@/ipc";
@@ -175,7 +176,8 @@ function TabPane({
   const margins = useWindowMargins();
   return (
     <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
-      {/* With no margins, there is no gap above the card for it. */}
+      {/* With no margins, there is no gap above the card for it, and a
+          line along the top of the page shows the loading instead. */}
       {!fullScreen && !bare && margins && <LoadingBar loading={tab.loading} />}
       <div
         // Square where it meets another card only without margins (card.css).
@@ -190,6 +192,9 @@ function TabPane({
         <div className={cn("relative min-h-0 flex-1", onOpenLocation ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
           <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />
           {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={tab.id} />}
+          {!fullScreen && (bare || !margins) && (
+            <LoadingLine loading={tab.loading} signs={`${tab.url}\n${tab.title}\n${tab.favicon}`} />
+          )}
         </div>
       </div>
       {active && <FindBar tab={tab.id} belowBar={onOpenLocation !== undefined} />}

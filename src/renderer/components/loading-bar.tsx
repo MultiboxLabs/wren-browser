@@ -1,11 +1,13 @@
-// A tab's loading, inspired by Arc's: a pill in the gap above the page's
-// card, centred on it. As the page starts to load, the pill blinks, small.
-// If the page is still loading after a couple of blinks, the pill comes
-// back wider, and a line sweeps through it over and over until the page
-// has loaded. Neither says how far the page has got.
-// Once the page has loaded, the pill goes out from wherever it has got to.
-// If the page starts loading again as it does (its loading often turns off
-// and on as it settles), the pill picks up from there, not from nothing.
+// A tab's loading: a pill in the gap above the page's card, centred on it.
+// As the page starts to load, the pill blinks, small. If the page is still
+// loading after a couple of blinks, the pill comes back wider, and a line
+// sweeps through it over and over until the page has loaded. Neither says
+// how far the page has got. Once the page has loaded, the pill goes out
+// from wherever it has got to. If the page starts loading again as it does
+// (its loading often turns off and on as it settles), the pill picks up
+// from there, not from nothing. Where the window leaves no gap above the
+// card, a line along the top of the page stands in for it
+// (loading-line.tsx).
 
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useRef, useState } from "react";
