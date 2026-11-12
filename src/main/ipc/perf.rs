@@ -63,6 +63,19 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
+    // Reopens what the window's Browser in front closed last, as the main
+    // menu's Reopen Closed Tab does. The run that checks the sidebar's drags
+    // brings a pin's closed tab back with it.
+    let weak = window.clone();
+    let _ = web_view.handle("perf.reopenClosedTab", move |()| {
+        run(&weak)?;
+        with_browser(&weak, |_, browser| {
+            browser
+                .reopen_closed_tab()
+                .map_err(|error| format!("{error:?}"))
+        })
+    });
+
     // What an item's menu holds, without showing it: its items' labels,
     // with " | " for each line between them, a disabled one in brackets,
     // and a submenu's label followed by ">".

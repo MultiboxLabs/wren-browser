@@ -40,9 +40,10 @@ export type PerfEntry =
   /**
    * One check of the sidebar's drags, by its scene and its own name: what
    * went wrong with it, or null, and the checks after it in its scene, which
-   * were then not tried.
+   * were then not tried. `known` is why it went wrong, for a check marked as
+   * failing until a change to come (`Step.fails` in perf/drag-steps.ts).
    */
-  | { kind: "drag"; scene: string; name: string; wrong: string | null; untried: string[] }
+  | { kind: "drag"; scene: string; name: string; wrong: string | null; known: string | null; untried: string[] }
   | { kind: "failed"; error: string };
 
 export const perf = {
@@ -66,6 +67,8 @@ export const perf = {
   /** Does what the item of a label would, chosen from an item's menu (`items.menu`). Only in a run. */
   choose: (item: ItemRef, side: number, label: string, marked: ItemRef[] = []) =>
     wren.invoke<MenuChoice>("perf.choose", { item, side, label, marked }),
+  /** Reopens what the window's space closed last, as Reopen Closed Tab does, which no call of the page's does. Only in a run. */
+  reopenClosedTab: () => wren.invoke<null>("perf.reopenClosedTab"),
   /** Ends the run: the app quits. */
   done: () => wren.invoke<null>("perf.done")
 };

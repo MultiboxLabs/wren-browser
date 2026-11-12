@@ -119,7 +119,9 @@ bun run drags
 
 It builds an optimised Dev `Wren.app` and opens it on a data folder of its own, behind your windows, so you can keep working. The sidebar's page then drags its own rows, such as a tab into a group, a split out of a folder, a link onto the favourites and a tab to another space, and compares what the sidebar holds after each drag with what it should. It prints each check and fails with the names of those that went wrong. `--no-build` runs the `Wren.app` already there.
 
-The checks are the scenes in `src/renderer/perf/drags.tsx`. Add a step there when you change what a drag does.
+After every check, each open tab must also have a row in a sidebar. A tab that is open and drawn nowhere fails the check that left it so.
+
+The checks are the scenes in `src/renderer/perf/drag-scenes.ts`. Add a step there when you change what a drag does. A step that checks what a later change will fix has `fails`, with the reason. The run passes while that step fails, and fails once it passes, so the mark comes off with the fix.
 
 ## Publishing
 

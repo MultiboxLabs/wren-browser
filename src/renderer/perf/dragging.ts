@@ -12,7 +12,16 @@
 // Where to press and to let go is measured in the page just before each
 // event: rows move as a pin or a favourite comes.
 
-import { appWindow, type BrowserTab, type ItemRef, type Pin, pins, type TabGroup, type TabSplit } from "@/ipc";
+import {
+  appWindow,
+  type BrowserTab,
+  type ItemRef,
+  type Pin,
+  type PinLink,
+  pins,
+  type TabGroup,
+  type TabSplit
+} from "@/ipc";
 import { ITEM_MARK, rowBox } from "@/components/sidebar/item-drag";
 import { ZONE_MARK } from "@/components/sidebar/item-landing";
 import { MARKED_MARK, NESTED_INDENT } from "@/components/sidebar/rows";
@@ -48,7 +57,7 @@ export async function until<A>(ready: () => A | Promise<A>, otherwise: () => str
 // What the app says the run's spaces hold.
 
 /** A space's tabs, as the page has them (`useBrowser`, state/browser.tsx). */
-export type Heard = { tabs: BrowserTab[]; groups: TabGroup[]; splits: TabSplit[] };
+export type Heard = { tabs: BrowserTab[]; groups: TabGroup[]; splits: TabSplit[]; links: PinLink[] };
 
 const heard = new Map<number, Heard>();
 
@@ -131,6 +140,29 @@ export async function picture() {
       return parts.map((part) => part.join(" ")).join(" | ") || "nothing";
     })
     .join(" / ");
+}
+
+/**
+ * A tab of the run's spaces that is open and that no sidebar has a row for,
+ * as "the tab on page 3 of the second space", or null if every tab has one.
+ * A tab has a row in the list unless Chromium has pinned it, and then on
+ * the pin it is open for, if that is a favourite or a pin its space shows.
+ * Read from what the app says, as `picture` is, so it holds for a space the
+ * window does not show too.
+ */
+export async function tabWithoutRow() {
+  const said = await read();
+  for (const [at, space] of spaces.entries()) {
+    const browser = said.browsers.get(space);
+    const kept = new Set(allPins([...said.kept[at].favorites, ...said.kept[at].pinned]).map((pin) => pin.id));
+    const rowless = (browser?.tabs ?? []).find((tab) => {
+      if (!tab.pinned) return false;
+      const link = browser?.links.find((link) => link.tabs.includes(tab.id));
+      return !link || !kept.has(link.pin);
+    });
+    if (rowless) return `the tab on page ${numberOf(rowless.url)} of the ${at === 0 ? "window's" : "second"} space`;
+  }
+  return null;
 }
 
 // Naming an item, and finding its row.
