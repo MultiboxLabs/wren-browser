@@ -86,8 +86,7 @@ impl State {
     /// user makes.
     pub fn update_title(&self, window: &BrowserWindow) {
         let tab = window
-            .browser_with_tabs()
-            .and_then(|browser| browser.active_tab())
+            .active_tab()
             .map(|tab| tab.title())
             .filter(|title| !title.is_empty());
         let making = window.left_space().map(|_| "New Space".to_owned());

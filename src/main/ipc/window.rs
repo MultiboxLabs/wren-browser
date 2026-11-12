@@ -107,6 +107,15 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         with_window(&weak, |window| Ok(window.is_blocked()))
     });
 
+    // Whether the place in front has an active tab, as the app knows it now.
+    // The page opens the omnibox for a new tab in a window that opens with
+    // none. The tabs it was told can be behind: a window opened for links
+    // shows its Browser with only its placeholder, then opens them.
+    let weak = window.clone();
+    let _ = web_view.handle("window.hasActiveTab", move |()| {
+        with_window(&weak, |window| Ok(window.active_tab().is_some()))
+    });
+
     // Brings a space forward in the window; "window.space" follows.
     let weak = window.clone();
     let _ = web_view.handle("window.showSpace", move |space: SpaceId| {

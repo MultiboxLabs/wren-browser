@@ -9,7 +9,7 @@
 // space a Browser, with no tab yet, for it to ask.
 
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { hasApp, omnibox, type OmniboxTarget } from "@/ipc";
+import { appWindow, hasApp, omnibox, type OmniboxTarget } from "@/ipc";
 import type { OmniboxPlace } from "./omnibox";
 
 export type ShownOmnibox = {
@@ -85,18 +85,21 @@ export function useShownOmnibox(address: RefObject<HTMLElement | null>, hasBrows
 }
 
 /**
- * Opens the omnibox for a new tab, once, in a window that opens with no tab
- * in front, so the address can be typed at once. `ready`: the app has said
- * the window's tabs. That includes a restored window whose space has no
- * Browser yet, for which the omnibox makes one. `active`: the active tab's
- * ID, null while the placeholder that stands in for a Browser's tabs is all
- * there is. A window that opens on a tab is left as it is.
+ * Opens the omnibox for a new tab, once, in a window that opens with no
+ * active tab in its space, so the address can be typed at once. That
+ * includes a restored window whose space has no Browser yet, for which the
+ * omnibox makes one. `ready`: the app has said the window's tabs. The app
+ * says whether there is an active tab, as the tabs said first can be behind
+ * it (`appWindow.hasActiveTab`).
  */
-export function useOpenForEmptyWindow(omnibox: OmniboxState, ready: boolean, active: number | null) {
+export function useOpenWithoutActiveTab(shown: OmniboxState, ready: boolean) {
   const decided = useRef(false);
   useEffect(() => {
     if (!hasApp || !ready || decided.current) return;
     decided.current = true;
-    if (active === null) omnibox.toggle("new-tab");
+    appWindow.hasActiveTab().then(
+      (has) => has || shown.toggle("new-tab"),
+      () => {}
+    );
   }, [ready]);
 }

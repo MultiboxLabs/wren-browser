@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use serde::Serialize;
-use wren::{Browser, BubbleAnchor, Error, RequestedBounds, WindowState};
+use wren::{Browser, BrowserTab, BubbleAnchor, Error, RequestedBounds, WindowState};
 
 use super::Place;
 use super::page_tabs::PageTabs;
@@ -204,6 +204,14 @@ impl BrowserWindow {
     /// Browser to ask, tabs or not.
     pub fn browser_with_tabs(&self) -> Option<Browser> {
         self.browser().filter(placeholder::has_tabs)
+    }
+
+    /// The active tab of the place in front, if it has one: none with no
+    /// Browser, or one holding only its placeholder, which the page neither
+    /// lists nor shows.
+    pub fn active_tab(&self) -> Option<BrowserTab> {
+        let tab = self.browser()?.active_tab()?;
+        (!placeholder::is_placeholder(tab)).then_some(tab)
     }
 
     /// The window's Browser for `place`, if it has one open.

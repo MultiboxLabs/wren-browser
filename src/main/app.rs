@@ -648,10 +648,7 @@ impl App for Wren {
         else {
             return;
         };
-        let Some(tab) = browser.active_tab() else {
-            return;
-        };
-        if placeholder::is_placeholder(tab) || window.has_new_tab_omnibox() {
+        if window.active_tab().is_none() || window.has_new_tab_omnibox() {
             return;
         }
         ipc::send_show_omnibox(&window, OmniboxTarget::Current, false);

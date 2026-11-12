@@ -36,6 +36,8 @@ export const appWindow = {
    */
   blocked: () => wren.invoke<boolean>("window.blocked"),
   onBlocked: (listener: (blocked: boolean) => void) => wren.on<boolean>("window.blocked", listener),
+  /** Whether the window's space has an active tab, as the app knows it now, not as the page was last told. */
+  hasActiveTab: () => wren.invoke<boolean>("window.hasActiveTab"),
   /** The space the window shows; null while it waits for its first Browser, or shows a profile. */
   space: () => wren.invoke<WindowSpace | null>("window.space"),
   onSpace: (listener: (space: WindowSpace | null) => void) => wren.on<WindowSpace | null>("window.space", listener),

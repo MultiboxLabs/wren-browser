@@ -13,7 +13,7 @@ import { useSpaceBlend } from "@/state/space-blend";
 import { useWindowMargins, useWindowMarginsSetting, WindowMarginsContext } from "@/state/margins";
 import { AddressBarContext, useAddressBar, useAddressBarSetting } from "@/state/address-bar";
 import { Omnibox } from "@/components/omnibox/omnibox";
-import { useOpenForEmptyWindow, useShownOmnibox } from "@/components/omnibox/shown";
+import { useOpenWithoutActiveTab, useShownOmnibox } from "@/components/omnibox/shown";
 import { SidePanel } from "@/components/side-panel";
 import { SpaceBackground } from "@/components/space-background";
 import { Sidebar } from "@/components/sidebar/sidebar";
@@ -95,7 +95,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const pageBar = shown !== undefined && !fullScreen && addressBar === "top";
   const address = useRef<HTMLDivElement>(null);
   const omnibox = useShownOmnibox(address, browser !== null);
-  useOpenForEmptyWindow(omnibox, ready, active);
+  useOpenWithoutActiveTab(omnibox, ready);
   // The omnibox is the space's: it closes as the window switches.
   const lastSpace = useRef(space.id);
   useEffect(() => {
