@@ -199,6 +199,9 @@ fn count_move(state: &State, moved: Moved) {
         Moved::Split { pin: true } => Event::SplitOpened {
             from: SplitFrom::Pin,
         },
+        Moved::Folder => Event::PinAdded {
+            kind: analytics::PinKind::Folder,
+        },
     };
     state.analytics.record(event);
 }

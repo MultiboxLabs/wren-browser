@@ -154,6 +154,44 @@ pub fn new_folder(
     Ok(id)
 }
 
+/// Makes `group`, of `browser`'s list, a folder among the pins of the space
+/// of `place`, in `parent` at `index` (None: last), and answers the folder's
+/// ID. The folder takes the group's title, or "New Folder" for an untitled
+/// one, and the group's tabs are pinned into it in their order, a split as
+/// one split pin. The group ends as its last tab is pinned, and its colour
+/// with it, as a folder has none. A folded group makes a folded folder.
+pub fn keep_group(
+    state: &State,
+    browser: &Browser,
+    place: &Place,
+    group: TabGroup,
+    parent: Option<PinId>,
+    index: Option<usize>,
+) -> Result<PinId, String> {
+    let to = PinTarget::Space { parent }.resolve(state, place)?;
+    let grouped = tabs::in_group(browser, group);
+    let folded = group.visuals().is_ok_and(|(_, collapsed)| collapsed);
+    let name = match group.title() {
+        title if !title.trim().is_empty() => title,
+        _ => "New Folder".into(),
+    };
+    let folder = state.db.create_pin(&to, index, NewPin::Folder { name })?;
+    let inside = PinTarget::Space {
+        parent: Some(folder),
+    };
+    for tab in grouped {
+        // A split's second tab was pinned with its first.
+        if open_tabs::pin_of(browser, tab).is_none() {
+            pin_tab(state, browser, place, tab, inside, None)?;
+        }
+    }
+    if folded {
+        state.db.set_folder_open(folder, false)?;
+    }
+    crate::ipc::broadcast_pins(state);
+    Ok(folder)
+}
+
 /// Opens pin `id` in `browser`, the window's on `place`: selects its tab if
 /// it is open there, or else opens it there, linked. A split pin opens its
 /// two pages as a split.
@@ -192,8 +230,9 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
 
 /// Makes tab pin `id` a split of its page and `tab`'s, `tab` on `side` (0:
 /// first), side by side, as a tab of the list dropped on half of the pin's
-/// row does: `tab` leaves the list, and the two open as the pin's split. An
-/// unopened pin opens first.
+/// row does, or the pin on half of the tab's: `tab` leaves the list, and the
+/// two open as the pin's split, where the pin is kept. An unopened pin opens
+/// first.
 pub fn split_with(
     state: &State,
     browser: &Browser,

@@ -2,9 +2,9 @@
 // tab of the list (or its split), a group, or a pin (pins/), which is a
 // pinned tab, a favourite or a folder. The page says which item goes where
 // (ipc/items.rs), and this decides what that means: a move in the list, into
-// a group or out of one, pinning, unpinning, a move among the pins, or a
-// split. It is the one place that knows which item may go where, and calls
-// tabs/ and pins/ for each.
+// a group or out of one, pinning, unpinning, a move among the pins, a
+// split, or a group kept as a folder. It is the one place that knows which
+// item may go where, and calls tabs/ and pins/ for each.
 //
 // An item of the list that is in another of the window's spaces moves to the
 // destination's Browser first (windows/move_tabs.rs), then lands as one of
@@ -94,7 +94,11 @@ pub enum Moved {
     Unpinned,
     /// Two tabs became a split, one of them a pin's if `pin`.
     Split { pin: bool },
+    /// A group became a folder of the pins.
+    Folder,
 }
+
+const NO_PLACE_FOR_GROUP: &str = "A group goes only to the list or the pins.";
 
 /// What a dropped address became.
 pub enum Added {
@@ -158,7 +162,9 @@ pub fn add_address(
 }
 
 // A pin goes among the pins or the favourites as it is, and to the list as
-// an ordinary tab. The database refuses a folder in the favourites.
+// an ordinary tab. The database refuses a folder in the favourites. A tab
+// pin dropped on half of a tab of the list takes that tab as its split's
+// other side, and stays where it is kept.
 fn move_pin(
     state: &Rc<State>,
     mt: MainThread,
@@ -186,7 +192,28 @@ fn move_pin(
                 }));
             });
         }
-        Target::Split { .. } => done(Err("A pin is not dropped on a tab.".into())),
+        Target::Split {
+            with: ItemRef::Tab(with),
+            side,
+        } => done((|| {
+            let found = state.windows.get(window).ok_or("The window is closing.")?;
+            let browser = found.browser_of(&place).ok_or("There is no such tab.")?;
+            let tab = tab_of(mt, &browser, with)?;
+            if tab.state().map_err(failed)?.split.is_some() {
+                return Err("A pin makes a split only with a tab alone.".into());
+            }
+            // The pin's page takes the half it was dropped on, and the tab
+            // the other.
+            let side = match side {
+                Side::Left => 1,
+                Side::Right => 0,
+            };
+            pins::split_with(state, &browser, &place, id, tab, side)?;
+            Ok(Moved::Split { pin: true })
+        })()),
+        Target::Split { .. } => {
+            done(Err("A pin makes a split only with a tab of the list.".into()))
+        }
     }
 }
 
@@ -271,12 +298,12 @@ fn moving(source: &Browser, item: Listed) -> Result<Vec<BrowserTab>, String> {
     }
 }
 
-// Whether `item`, of `count` tabs, may go to `target` at all: a group stays
-// in the list, and only a lone tab makes a split.
+// Whether `item`, of `count` tabs, may go to `target` at all: a group to
+// the list or the pins, and only a lone tab makes a split.
 fn may_land(item: Listed, count: usize, target: &Target) -> Result<(), String> {
     match (item, target) {
-        (Listed::Group(_), Target::Tabs { .. }) => Ok(()),
-        (Listed::Group(_), _) => Err("A group stays in the list.".into()),
+        (Listed::Group(_), Target::Tabs { .. } | Target::Pinned { .. }) => Ok(()),
+        (Listed::Group(_), _) => Err(NO_PLACE_FOR_GROUP.into()),
         (_, Target::Split { .. }) if count != 1 => {
             Err("Only a tab alone makes a split with another.".into())
         }
@@ -295,16 +322,9 @@ fn land(
     item: Listed,
     target: Target,
 ) -> Result<Moved, String> {
-    let tab = match (item, &target) {
-        (Listed::Tab(tab), _) => tab,
-        (Listed::Group(group), Target::Tabs { index, .. }) => {
-            if group.browser().as_ref() != Some(browser) {
-                return Err("The group did not come to the space.".into());
-            }
-            tabs::move_group(browser, group, *index).map_err(failed)?;
-            return Ok(Moved::Placed);
-        }
-        (Listed::Group(_), _) => return Err("A group stays in the list.".into()),
+    let tab = match item {
+        Listed::Tab(tab) => tab,
+        Listed::Group(group) => return land_group(state, browser, place, group, target),
     };
     let now = tab.state().map_err(failed)?;
     let pin = |target, index| {
@@ -349,6 +369,31 @@ fn land(
             with: ItemRef::Group(_),
             ..
         } => Err("A tab makes no split with a group.".into()),
+    }
+}
+
+// Puts `group`, of `browser`, at `target`: a place in the list, outside any
+// group, or among the pins, where it is kept as a folder of pinned tabs.
+fn land_group(
+    state: &State,
+    browser: &Browser,
+    place: &Place,
+    group: TabGroup,
+    target: Target,
+) -> Result<Moved, String> {
+    if group.browser().as_ref() != Some(browser) {
+        return Err("The group did not come to the space.".into());
+    }
+    match target {
+        Target::Tabs { index, .. } => {
+            tabs::move_group(browser, group, index).map_err(failed)?;
+            Ok(Moved::Placed)
+        }
+        Target::Pinned { folder, index } => {
+            pins::keep_group(state, browser, place, group, folder, index)?;
+            Ok(Moved::Folder)
+        }
+        _ => Err(NO_PLACE_FOR_GROUP.into()),
     }
 }
 

@@ -10,7 +10,18 @@
 // What fires a drag's events and reads the sidebar is dragging.ts.
 
 import { useEffect, useLayoutEffect, useState } from "react";
-import { appWindow, browser, type DragsConfig, perf, pins, spaces as spacesOfApp } from "@/ipc";
+import {
+  appWindow,
+  browser,
+  type DragsConfig,
+  groups,
+  type ItemPlace,
+  items,
+  perf,
+  type Pin,
+  pins,
+  spaces as spacesOfApp
+} from "@/ipc";
 import { BrowserOfSpace, useBrowser } from "@/state/browser";
 import {
   after,
@@ -229,6 +240,53 @@ const refused = (what: What, where: Where) => async () => {
   await sleep(REFUSED_WAIT_MS);
 };
 
+/**
+ * Asks the app for a move the page offers no drop for, which the app must
+ * refuse: it fails if the app makes it.
+ */
+const moveRefused = (what: What, to: () => Promise<ItemPlace>) => async () => {
+  const { item } = await menuRef(what);
+  const made = await items.move(item, { space: spaces[0], ...(await to()) }).then(
+    () => true,
+    () => false
+  );
+  if (made) throw new Error("The app made the move.");
+};
+
+/** Onto a half of the row of the tab on a page, as the app is asked for it. */
+const splitWith = (number: number, side: "left" | "right") => async (): Promise<ItemPlace> => ({
+  to: "split",
+  with: (await menuRef(tab(number))).item,
+  side
+});
+
+/** Folds the group of the tab on a page, or opens it. */
+const folded = (number: number) => async () => {
+  const id = await groupId(number);
+  if (id === null) throw new Error(`The tab on page ${number} is in no group.`);
+  await groups.toggle(id);
+};
+
+const foldersIn = (kept: Pin[]): Extract<Pin, { kind: "folder" }>[] =>
+  kept.flatMap((pin) => (pin.kind === "folder" ? [pin, ...foldersIn(pin.items)] : []));
+
+/**
+ * A step that must leave a folder of a name among the window's space's
+ * pins, open or folded: the one a group became, which takes the group's
+ * name and whether it was folded.
+ */
+const makesFolder = (name: string, open: boolean, step: Step): Step => ({
+  ...step,
+  does: async () => {
+    await step.does();
+    await shows(step.shows);
+    const all = foldersIn((await pins.list(spaces[0])).pinned);
+    const made = all.find((folder) => folder.name === name);
+    if (!made) throw new Error(`No folder is named "${name}": ${all.map((folder) => `"${folder.name}"`).join(", ")}.`);
+    if (made.open !== open) throw new Error(`The folder "${name}" is ${made.open ? "open" : "folded"}.`);
+  }
+});
+
 /** A link to the run's page of a number, dropped from outside the window. */
 const linked = (url: string, number: number, where: Where) => () => drop(link(`${url}/tab/${number}`), where);
 
@@ -368,6 +426,22 @@ const scenes = (url: string): Scene[] => [
         name: "a pinned split to a place in the list",
         does: dragged(pin(3), before(tab(4))),
         shows: "pins 1 | tabs (3|2) 4 0 5"
+      },
+      {
+        name: "a pinned tab onto the left half of a tab, which it takes as its split's other side",
+        does: dragged(pin(1), half(tab(4), "left")),
+        shows: "pins (1|4) | tabs (3|2) 0 5"
+      },
+      {
+        name: "a pinned split onto a tab, which the app refuses",
+        does: moveRefused(pin(1), splitWith(0, "right")),
+        shows: "pins (1|4) | tabs (3|2) 0 5"
+      },
+      { name: "a tab onto the space's heading", does: dragged(tab(0), heading), shows: "pins 0 (1|4) | tabs (3|2) 5" },
+      {
+        name: "a pinned tab onto a split of the list, which the app refuses",
+        does: moveRefused(pin(0), splitWith(3, "left")),
+        shows: "pins 0 (1|4) | tabs (3|2) 5"
       }
     ]
   },
@@ -415,10 +489,43 @@ const scenes = (url: string): Scene[] => [
       },
       { name: "two tabs put in a group", does: grouped(3, 4), shows: "pins [2 0] 1 | tabs {3 4} 5" },
       {
-        name: "a group onto the pins, which take none",
-        does: refused(group(3), after(pin(1))),
+        name: "a group onto the favourites, which take none",
+        does: refused(group(3), favorites),
         shows: "pins [2 0] 1 | tabs {3 4} 5"
-      }
+      },
+      makesFolder("Group 1", true, {
+        name: "a group to a place among the pins, which keep it as a folder of its name",
+        does: dragged(group(3), after(pin(1))),
+        shows: "pins [2 0] 1 [3 4] | tabs 5"
+      })
+    ]
+  },
+  {
+    name: "A group kept",
+    tabs: 6,
+    steps: [
+      { name: "a tab onto a tab", does: dragged(tab(1), half(tab(2), "right")), shows: "tabs 0 (2|1) 3 4 5" },
+      { name: "a split and a tab put in a group", does: grouped(2, 1, 3), shows: "tabs 0 {(2|1) 3} 4 5" },
+      { name: "the group folded", does: folded(2), shows: "tabs 0 {(2|1) 3} 4 5" },
+      makesFolder("Group 1", false, {
+        name: "a folded group onto the space's heading, which makes a folded folder, its split a pinned split",
+        does: dragged(group(2), heading),
+        shows: "pins [(2|1) 3] | tabs 0 4 5"
+      }),
+      {
+        name: "two tabs put in a group, which is given a name",
+        does: async () => {
+          await grouped(0, 4)();
+          await shows("pins [(2|1) 3] | tabs {0 4} 5");
+          await groups.rename((await groupId(0)) ?? "", "Reading");
+        },
+        shows: "pins [(2|1) 3] | tabs {0 4} 5"
+      },
+      makesFolder("Reading", true, {
+        name: "a group onto a folder, which takes it as a folder in it",
+        does: dragged(group(0), onto(folder)),
+        shows: "pins [(2|1) 3 [0 4]] | tabs 5"
+      })
     ]
   },
   {
@@ -450,6 +557,11 @@ const scenes = (url: string): Scene[] => [
         name: "a favourite to a place in the list",
         does: dragged(pin(1), after(tab(2))),
         shows: "favs 0 | tabs 2 1 3 4 5"
+      },
+      {
+        name: "a favourite onto the right half of a tab, which it takes as its split's other side",
+        does: dragged(pin(0), half(tab(3), "right")),
+        shows: "favs (3|0) | tabs 2 1 4 5"
       }
     ]
   },
