@@ -329,19 +329,6 @@ pub fn open_pins(browser: &Browser) -> Vec<OpenPin> {
         .collect()
 }
 
-/// Whether pin `id` is open in `browser`.
-pub fn is_open(browser: &Browser, id: PinId) -> bool {
-    open_tabs::find(browser, id).is_some()
-}
-
-/// The sides of pin `id` open in `browser` whose tabs are away from its
-/// pages; none if it is not open there.
-pub fn away_sides(browser: &Browser, id: PinId) -> Vec<usize> {
-    let open = open_pins(browser).into_iter().find(|open| open.pin == id);
-    let away = open.map(|open| open.away).unwrap_or_default();
-    (0..away.len()).filter(|side| away[*side]).collect()
-}
-
 /// Makes the pages of the open pin's tabs in `browser` that are away the
 /// pin's own: it keeps where they are now, in every Browser it is open in.
 pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), String> {

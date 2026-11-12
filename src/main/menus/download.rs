@@ -5,8 +5,8 @@ use wren::{Download, DownloadAction, Error, MainThread, MenuItem, NativeView};
 use crate::clipboard;
 use crate::downloads;
 
-/// Shows a download's menu at `point` in the page's `view`, as
-/// `show_tab_menu` does a tab's, and does what is chosen.
+/// Shows a download's menu at `point` in the page's `view`, and does what
+/// is chosen.
 pub fn show_download_menu(
     mt: MainThread,
     view: NativeView,

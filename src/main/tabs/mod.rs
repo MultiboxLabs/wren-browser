@@ -67,6 +67,14 @@ pub fn split_of(tab: BrowserTab) -> Option<TabSplit> {
     tab.state().ok()?.split
 }
 
+/// `tab`, and the other of its split if it is in one, in their order: the
+/// tabs of its row.
+pub fn with_split(tab: BrowserTab) -> Vec<BrowserTab> {
+    split_of(tab)
+        .and_then(|split| in_split(split).ok())
+        .unwrap_or_else(|| vec![tab])
+}
+
 /// Whether Chromium has pinned `tab`.
 pub fn is_pinned(tab: BrowserTab) -> bool {
     tab.state().is_ok_and(|state| state.pinned)

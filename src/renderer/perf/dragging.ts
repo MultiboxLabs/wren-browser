@@ -12,7 +12,7 @@
 // Where to press and to let go is measured in the page just before each
 // event: rows move as a pin or a favourite comes.
 
-import { appWindow, type BrowserTab, type Pin, pins, type TabGroup, type TabSplit } from "@/ipc";
+import { appWindow, type BrowserTab, type ItemRef, type Pin, pins, type TabGroup, type TabSplit } from "@/ipc";
 import { ITEM_MARK, rowBox } from "@/components/sidebar/item-drag";
 import { ZONE_MARK } from "@/components/sidebar/item-landing";
 import { NESTED_INDENT } from "@/components/sidebar/rows";
@@ -169,6 +169,31 @@ export async function groupId(number: number) {
   const found = listed.find((tab) => numberOf(tab.url) === String(number));
   if (!found) throw new Error(`No tab of a list is on page ${number}.`);
   return found.group;
+}
+
+/**
+ * An item as its menu's call names it (ipc/items.ts), and the side of it a
+ * check means: the tab on a page itself, of a split's two, and the side of
+ * a kept tab that has the page.
+ */
+export async function menuRef(what: What): Promise<{ item: ItemRef; side: number }> {
+  if (what !== "folder" && "tab" in what) return { item: { tab: await tabId(what.tab) }, side: 0 };
+  if (what !== "folder" && "group" in what) {
+    const id = await groupId(what.group);
+    if (id === null) throw new Error(`The tab on page ${what.group} is in no group.`);
+    return { item: { group: id }, side: 0 };
+  }
+  const said = await read();
+  const kept = allPins(said.kept.flatMap(({ favorites, pinned }) => [...favorites, ...pinned]));
+  for (const pin of kept) {
+    if (
+      what === "folder" ? pin.kind === "folder" : pagesOf(pin).some((page) => numberOf(page.url) === String(what.pin))
+    ) {
+      const side = what === "folder" ? -1 : pagesOf(pin).findIndex((page) => numberOf(page.url) === String(what.pin));
+      return { item: { pin: pin.id }, side: Math.max(side, 0) };
+    }
+  }
+  throw new Error(`No pin is ${what === "folder" ? "a folder" : `on page ${what.pin}`}.`);
 }
 
 /** The key an item's element is marked with (`itemKey` in state/items.ts). */

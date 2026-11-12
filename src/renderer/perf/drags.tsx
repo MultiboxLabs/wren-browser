@@ -28,6 +28,7 @@ import {
   hasButton,
   heading,
   link,
+  menuRef,
   onto,
   over,
   pickUp,
@@ -188,6 +189,19 @@ const sameGroup = (number: number, step: Step): Step => ({
     if ((await groupId(number)) !== was) throw new Error("The group has a new ID.");
   }
 });
+
+/** What an item's menu would do for the item of a label, done as if it were chosen there. */
+const chosen = (what: What, label: string) => async () => {
+  const { item, side } = await menuRef(what);
+  await perf.choose(item, side, label);
+};
+
+/** Fails unless an item's menu holds `expected` (`perf.menu`, ipc/perf.ts). */
+const menuHolds = (what: What, expected: string) => async () => {
+  const { item, side } = await menuRef(what);
+  const held = await perf.menu(item, side);
+  if (held !== expected) throw new Error(`Its menu holds "${held}", not "${expected}".`);
+};
 
 /** A drag that nothing must take: it fails if something does, and the sidebar must then hold what it did. */
 const refused = (what: What, where: Where) => async () => {
@@ -417,6 +431,100 @@ const scenes = (url: string): Scene[] => [
         does: dragged(pin(1), after(tab(2))),
         shows: "favs 0 | tabs 2 1 3 4 5"
       }
+    ]
+  },
+  {
+    name: "The menu",
+    tabs: 6,
+    steps: [
+      {
+        name: "a tab's menu",
+        does: menuHolds(
+          tab(1),
+          "Reload, Copy Link, Mute Tab | Pin Tab, Add to Favourites | Add Tab to New Group | Move Up, Move Down | Open in Split View | Close Tab, Close Other Tabs, Close Tabs Below"
+        ),
+        shows: "tabs 0 1 2 3 4 5"
+      },
+      { name: "Pin Tab", does: chosen(tab(1), "Pin Tab"), shows: "pins 1 | tabs 0 2 3 4 5" },
+      { name: "Pin Tab, above the pins there are", does: chosen(tab(2), "Pin Tab"), shows: "pins 2 1 | tabs 0 3 4 5" },
+      {
+        name: "an open pinned tab's menu",
+        does: menuHolds(
+          pin(2),
+          "Reload, Copy Link, Mute Tab | Move to Favourites | [Move Up], Move Down | Rename…, New Folder | Close Tab, Unpin"
+        ),
+        shows: "pins 2 1 | tabs 0 3 4 5"
+      },
+      { name: "a pinned tab's Move Down", does: chosen(pin(2), "Move Down"), shows: "pins 1 2 | tabs 0 3 4 5" },
+      {
+        name: "Move to Favourites",
+        does: chosen(pin(1), "Move to Favourites"),
+        shows: "favs 1 | pins 2 | tabs 0 3 4 5"
+      },
+      {
+        name: "Add to Favourites",
+        does: chosen(tab(0), "Add to Favourites"),
+        shows: "favs 1 0 | pins 2 | tabs 3 4 5"
+      },
+      { name: "Pin to Space", does: chosen(pin(0), "Pin to Space"), shows: "favs 1 | pins 0 2 | tabs 3 4 5" },
+      { name: "Unpin", does: chosen(pin(0), "Unpin"), shows: "favs 1 | pins 2 | tabs 3 4 5" },
+      {
+        name: "Remove from Favourites",
+        does: chosen(pin(1), "Remove from Favourites"),
+        shows: "pins 2 | tabs 3 4 5"
+      },
+      { name: "a pinned tab's Close Tab", does: chosen(pin(2), "Close Tab"), shows: "pins 2 | tabs 3 4 5" },
+      {
+        name: "an unopened pinned tab's menu",
+        does: menuHolds(
+          pin(2),
+          "Open | Copy Link | Move to Favourites | [Move Up], [Move Down] | Rename…, New Folder | Unpin"
+        ),
+        shows: "pins 2 | tabs 3 4 5"
+      },
+      { name: "a tab onto a tab", does: dragged(tab(4), half(tab(5), "right")), shows: "pins 2 | tabs 3 (5|4)" },
+      {
+        name: "a split's Add Tab to New Group, which keeps the split",
+        does: chosen(tab(4), "Add Tab to New Group"),
+        shows: "pins 2 | tabs 3 {(5|4)}"
+      },
+      {
+        name: "a split's Remove from Group, which keeps the split",
+        does: chosen(tab(5), "Remove from Group"),
+        shows: "pins 2 | tabs 3 (5|4)"
+      },
+      {
+        name: "a split's Close Other Tabs, which keeps its other side",
+        does: chosen(tab(4), "Close Other Tabs"),
+        shows: "pins 2 | tabs (5|4)"
+      },
+      {
+        name: "a group's menu",
+        does: async () => {
+          await chosen(tab(4), "Add Tab to New Group")();
+          await shows("pins 2 | tabs {(5|4)}");
+          await menuHolds(group(4), "New Tab in Group, Rename Group…, Colour > | Ungroup, Close Group")();
+        },
+        shows: "pins 2 | tabs {(5|4)}"
+      },
+      { name: "Ungroup", does: chosen(group(4), "Ungroup"), shows: "pins 2 | tabs (5|4)" },
+      { name: "a split onto the space's heading", does: dragged(tab(5), heading), shows: "pins (5|4) 2" },
+      {
+        name: "an open pinned split's menu",
+        does: menuHolds(
+          pin(5),
+          "Reload, Copy Link, Mute Tab | Move to Favourites | [Move Up], Move Down | Swap Sides, Show Stacked | Rename…, New Folder | Close Tab, Unpin"
+        ),
+        shows: "pins (5|4) 2"
+      },
+      { name: "a pinned split's Swap Sides", does: chosen(pin(5), "Swap Sides"), shows: "pins (4|5) 2" },
+      { name: "a pinned tab's New Folder", does: chosen(pin(2), "New Folder"), shows: "pins (4|5) 2 []" },
+      {
+        name: "a folder's menu",
+        does: menuHolds(folder, "Move Up, [Move Down] | Rename…, New Folder | Delete Folder…"),
+        shows: "pins (4|5) 2 []"
+      },
+      { name: "a folder's Move Up", does: chosen(folder, "Move Up"), shows: "pins (4|5) [] 2" }
     ]
   },
   {

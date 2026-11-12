@@ -4,16 +4,28 @@
 // with a Chromium tab open on it is selected, and one without is opened; a
 // normal tab closes, and a kept one closes its tabs or is unpinned.
 //
-// The menus are the app's (ipc/browser.ts, ipc/pins.ts, ipc/groups.ts),
-// which does what it can and leaves the page to open a pin (it may make
-// the window's Browser first), to rename in place, and to ask before a
+// The menu is the app's (ipc/items.ts), one for every item, which does what
+// is chosen and leaves the page to rename in place, and to ask before a
 // folder and all in it are deleted.
 
 import { type ReactNode, useRef, useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useHoldUntil } from "@/components/ui/hold";
-import { browser, groups, pins } from "@/ipc";
+import { browser, groups, items, pins } from "@/ipc";
+import type { ItemRef } from "@/ipc";
 import { type FolderItem, type GroupItem, type Item, itemKey, type TabItem } from "@/state/items";
+import { refOf } from "./item-drag";
+
+/**
+ * The item as its menu's call names it (ipc/items.ts): as a drag does
+ * (`refOf`), but a tab of the list by the tab that was pressed, of a
+ * split's two. Null for a tab item that has neither a tab nor a pin.
+ */
+function menuRef(item: Item, side: number): ItemRef | null {
+  if (item.kind !== "tab" || item.pin !== null) return refOf(item);
+  const tab = item.sides[side]?.tab;
+  return tab == null ? null : { tab };
+}
 
 export type ItemActions = {
   /** A press on a tab item's side: selects its Chromium tab, or opens a kept tab that has none. */
@@ -58,23 +70,11 @@ export function useItemActions(setFolderOpen: (folder: number, open: boolean) =>
   const [deleting, setDeleting] = useState<{ folder: FolderItem; open: boolean } | null>(null);
 
   const onMenu = (item: Item, side: number, x: number, y: number) => {
-    if (item.kind === "group") {
-      holdUntil(groups.menu(item.group.id, x, y)).then(
-        (chosen) => chosen === "rename" && startRename(itemKey(item)),
-        () => {}
-      );
-      return;
-    }
-    const pin = item.pin;
-    if (pin === null) {
-      const tab = item.kind === "tab" ? item.sides[side]?.tab : null;
-      if (tab != null) holdUntil(browser.menu(tab, x, y)).catch(() => {});
-      return;
-    }
-    holdUntil(pins.menu(pin, x, y)).then(
+    const named = menuRef(item, side);
+    if (!named) return;
+    holdUntil(items.menu(named, side, x, y)).then(
       ({ chosen, folder }) => {
-        if (chosen === "open") pins.open(pin).catch(() => {});
-        else if (chosen === "rename") startRename(itemKey(item));
+        if (chosen === "rename") startRename(itemKey(item));
         else if (chosen === "delete-folder" && item.kind === "folder") setDeleting({ folder: item, open: true });
         else if (folder !== null) {
           // Made in a folder, which opens to show it.

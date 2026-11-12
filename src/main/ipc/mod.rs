@@ -158,8 +158,8 @@ pub fn send_no_browser(window: &BrowserWindow) {
     send_space(window);
 }
 
-/// Where a context menu goes: what it is for (a tab's or a group's ID),
-/// and the point in the page.
+/// Where a context menu goes: what it is for (a download's ID, or a
+/// permission's), and the point in the page.
 #[derive(Deserialize)]
 struct MenuAt<Id> {
     id: Id,

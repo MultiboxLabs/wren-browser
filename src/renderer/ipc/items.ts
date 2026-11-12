@@ -1,8 +1,9 @@
-// What is dropped in the sidebar. Everything it draws is an item: a tab of
-// the list, a group, or a pin (a pinned tab, a favourite or a folder). The
-// page says which item goes where, and the app decides what that does
-// (src/main/ipc/items.rs): a move in the list, into a group or out of one,
-// pinning, unpinning, a move among the pins, or a split.
+// What is dropped in the sidebar, and its items' menu. Everything it draws
+// is an item: a tab of the list, a group, or a pin (a pinned tab, a
+// favourite or a folder). The page says which item goes where, and the app
+// decides what that does (src/main/ipc/items.rs): a move in the list, into a
+// group or out of one, pinning, unpinning, a move among the pins, or a
+// split. The app builds each item's menu too, and does what is chosen.
 
 /**
  * An item, as the app finds it. `tab` names a tab of the list, or its split
@@ -24,6 +25,13 @@ export type ItemPlace =
 /** Where an item goes: a place in the sidebar of `space`, or of the window's own if it is null, as on a profile. */
 export type Destination = { space: number | null } & ItemPlace;
 
+/**
+ * What was chosen from an item's menu, by its ID, once the app has done it;
+ * null for nothing. "rename" and "delete-folder" are the page's to do. For
+ * "new-folder", `folder` is the folder made, for the page to name.
+ */
+export type MenuChoice = { chosen: string | null; folder: number | null };
+
 export const items = {
   /**
    * Moves an item to a place. A tab of another of the window's spaces, of
@@ -36,5 +44,12 @@ export const items = {
    * Puts a web or file address dropped on the sidebar at a place: a tab on
    * it in the list, shown, or an unopened pin among the pins or favourites.
    */
-  add: (url: string, to: Destination) => wren.invoke<null>("items.add", { url, to })
+  add: (url: string, to: Destination) => wren.invoke<null>("items.add", { url, to }),
+  /**
+   * Shows an item's context menu at a point in the page. `item` names a tab
+   * of the list by the tab that was pressed, of a split's two, and `side`
+   * says which page of a kept tab was.
+   */
+  menu: (item: ItemRef, side: number, x: number, y: number) =>
+    wren.invoke<MenuChoice>("items.menu", { item, side, x, y })
 };

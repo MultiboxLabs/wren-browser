@@ -28,8 +28,6 @@ export const browser = {
   /** Closes the list's tabs but the active one, or the active one when it is the only one; the pins stay. */
   clear: () => wren.invoke<null>("tabs.clear"),
   setMuted: (id: number, muted: boolean) => wren.invoke<null>("tabs.setMuted", { id, muted }),
-  /** Shows a tab's context menu at a point in the page; the app does what is chosen, then answers with its ID. */
-  menu: (id: number, x: number, y: number) => wren.invoke<string | null>("tabs.menu", { id, x, y }),
   /** Back, forward, reload and stop act on the active tab. */
   back: () => wren.invoke<null>("tabs.back"),
   forward: () => wren.invoke<null>("tabs.forward"),

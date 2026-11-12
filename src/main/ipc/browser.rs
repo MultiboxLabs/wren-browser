@@ -1,18 +1,15 @@
-// The calls a page makes that act on its Browser's tabs: open, switch, close
-// and their menus, and what the app says of a tab beside the list: the link
+// The calls a page makes that act on its Browser's tabs: open, switch and
+// close, and what the app says of a tab beside the list: the link
 // under the pointer and its picture. The tabs themselves, as the page draws
 // them, are in tabs.rs, and what moves them in items.rs.
 
 use serde::{Deserialize, Serialize};
 use wren::{Browser, BrowserTab, MainThread, TabStatus, WebView};
 
-use super::{MenuAt, WindowRef, failed, menu_call, with_browser, with_window};
+use super::{WindowRef, failed, with_browser, with_window};
 use crate::analytics::{Event, TabFrom};
-use crate::app::State;
 use crate::clipboard;
-use crate::menus::{self, ADD_FAVORITE, Keeps, PIN_TAB};
-use crate::pins::{self, PinTarget};
-use crate::shell::{BrowserWindow, Place};
+use crate::shell::BrowserWindow;
 use crate::tabs;
 
 /// What "tabs.previewChanged" says: a new picture of a tab's page.
@@ -117,30 +114,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |_, browser| tabs::clear(browser).map_err(failed))
     });
 
-    // A tab's context menu, at the point the page names. Answers with what
-    // was chosen, once the app has done it, or null.
-    let weak = window.clone();
-    let _ = web_view.handle_call("tabs.menu", move |call| {
-        menu_call(&weak, call, |view, browser, at: MenuAt<i32>, done| {
-            let tab = tab(mt, browser, at.id)?;
-            let place = with_window(&weak, |found| Ok(found.place_of(browser)))?;
-            let keeps = Keeps {
-                favorites: place
-                    .as_ref()
-                    .is_some_and(|place| !place.is_off_the_record()),
-                pins: place.as_ref().and_then(Place::space).is_some(),
-            };
-            let (weak, owner) = (weak.clone(), browser.clone());
-            let done = move |chosen: Option<String>| {
-                if let (Some(place), Ok(state)) = (&place, weak.state()) {
-                    keep_chosen(&state, &owner, place, tab, chosen.as_deref());
-                }
-                done(chosen);
-            };
-            menus::show_tab_menu(mt, view, browser, tab, (at.x, at.y), keeps, done).map_err(failed)
-        })
-    });
-
     // Back, forward, reload and stop, in the active tab.
     for (name, run) in [
         ("tabs.back", BrowserTab::go_back as fn(BrowserTab) -> _),
@@ -174,25 +147,6 @@ fn link(tab: BrowserTab) -> Option<String> {
         .is_ok_and(|state| state.status == TabStatus::Link)
         .then(|| tab.status_text())
         .filter(|text| !text.is_empty())
-}
-
-// Pins `tab` as Pin Tab or Add to Favourites, chosen from its menu, would:
-// first among the space's pins, or last among the favourites.
-fn keep_chosen(
-    state: &State,
-    browser: &Browser,
-    place: &Place,
-    tab: BrowserTab,
-    chosen: Option<&str>,
-) {
-    let (target, index) = match chosen {
-        Some(PIN_TAB) => (PinTarget::Space { parent: None }, Some(0)),
-        Some(ADD_FAVORITE) => (PinTarget::Favorites, None),
-        _ => return,
-    };
-    if let Err(error) = pins::pin_tab(state, browser, place, tab, target, index) {
-        eprintln!("Wren kept no pin: {error}");
-    }
 }
 
 // The tab an ID from the page names, if it is the Browser's.

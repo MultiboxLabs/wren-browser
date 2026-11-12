@@ -267,6 +267,14 @@ impl Db {
         }))
     }
 
+    /// How many pins are beside a pin, itself among them: those of its
+    /// folder, or of the top of its space or of the favourites.
+    pub fn pin_siblings(&self, id: PinId) -> Result<usize, String> {
+        let transaction = self.conn.unchecked_transaction().map_err(sql)?;
+        let spot = kept_spot(&transaction, id)?;
+        Ok(siblings(&transaction, &spot.profile, spot.space, spot.parent)?.len())
+    }
+
     /// Makes a pin's page on `side` another: its address, title and favicon.
     pub fn set_pin_page(&self, id: PinId, side: usize, page: &PinPage) -> Result<(), String> {
         let changed = self

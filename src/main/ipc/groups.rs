@@ -1,7 +1,7 @@
 use serde::Serialize;
 use wren::{Browser, MainThread, TabGroup, TabGroupColor, WebView};
 
-use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
+use super::{WindowRef, failed, with_browser};
 use crate::menus;
 use crate::tabs;
 
@@ -35,16 +35,6 @@ struct Rename {
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
-    // A group's context menu, the same way as a tab's ("tabs.menu").
-    // "rename" is the page's to do.
-    let weak = window.clone();
-    let _ = web_view.handle_call("groups.menu", move |call| {
-        menu_call(&weak, call, |view, browser, at: MenuAt<String>, done| {
-            let group = group(mt, browser, &at.id)?;
-            menus::show_group_menu(mt, view, browser, group, (at.x, at.y), done).map_err(failed)
-        })
-    });
-
     // Collapses an open group, or opens a collapsed one.
     let weak = window.clone();
     let _ = web_view.handle("groups.toggle", move |id: String| {

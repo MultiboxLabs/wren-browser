@@ -9,6 +9,11 @@
 // An item of the list that is in another of the window's spaces moves to the
 // destination's Browser first (windows/move_tabs.rs), then lands as one of
 // its own would.
+//
+// What an item's menu does is in menu.rs. Keeping a tab from there is a
+// move here.
+
+pub mod menu;
 
 use std::rc::Rc;
 

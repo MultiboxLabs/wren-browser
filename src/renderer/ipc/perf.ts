@@ -1,4 +1,5 @@
 import type { PerfResults } from "@/perf/budgets";
+import type { ItemRef, MenuChoice } from "./items";
 
 /** The settings of the sidebar's performance run (scripts/perf.ts). */
 export type PerfConfig = {
@@ -54,6 +55,14 @@ export const perf = {
   counts: () => wren.invoke<PerfCounts>("perf.counts"),
   /** Puts tabs of the window's list in a new group, as the tab's menu does, which no drag can. Only in a run. */
   group: (tabs: number[]) => wren.invoke<null>("perf.group", tabs),
+  /**
+   * What an item's menu holds, without showing it: its items' labels, with
+   * " | " for each line between them, a disabled one in brackets, and a
+   * submenu's label followed by ">". Only in a run.
+   */
+  menu: (item: ItemRef, side: number) => wren.invoke<string>("perf.menu", { item, side }),
+  /** Does what the item of a label would, chosen from an item's menu (`items.menu`). Only in a run. */
+  choose: (item: ItemRef, side: number, label: string) => wren.invoke<MenuChoice>("perf.choose", { item, side, label }),
   /** Ends the run: the app quits. */
   done: () => wren.invoke<null>("perf.done")
 };

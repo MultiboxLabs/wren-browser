@@ -1,19 +1,23 @@
-// The calls a page makes for what is dropped in its sidebar: an item moved
-// to a place ("items.move"), or an address put at one ("items.add"). The
-// app decides what each does (items/). src/renderer/ipc/items.ts is the
-// page's side.
+// The calls a page makes for the items of its sidebar: an item moved to a
+// place ("items.move"), an address put at one ("items.add"), and an item's
+// menu ("items.menu"). The app decides what each does (items/).
+// src/renderer/ipc/items.ts is the page's side.
 
 use std::rc::Rc;
 
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use wren::{MainThread, PageCall, WebView};
+use serde::{Deserialize, Serialize};
+use wren::{MainThread, MenuItem, PageCall, WebView};
 
 use super::WindowRef;
 use crate::analytics::{self, Event, SplitFrom, TabFrom};
 use crate::app::State;
+use crate::db::PinId;
+use crate::items::menu::Subject;
 use crate::items::{self, Added, Destination, ItemRef, Moved};
+use crate::menus;
 use crate::pins::PinTarget;
+use crate::shell::WindowId;
 
 #[derive(Deserialize)]
 struct Move {
@@ -25,6 +29,24 @@ struct Move {
 struct Add {
     url: String,
     to: Destination,
+}
+
+/// An item whose menu is asked for, the side of it that was pressed (of a
+/// split's two), and the point in the page.
+#[derive(Deserialize)]
+struct MenuAt {
+    item: ItemRef,
+    side: usize,
+    x: f64,
+    y: f64,
+}
+
+/// What was chosen from an item's menu, if anything was, once the app has
+/// done it; for New Folder, the folder's ID, for the page to name it.
+#[derive(Serialize)]
+pub(super) struct MenuChoice {
+    chosen: Option<String>,
+    folder: Option<PinId>,
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
@@ -41,6 +63,35 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         });
     });
 
+    // An item's context menu, at the point the page names. Answered with
+    // what was chosen, once the app has done it. A menu that is not shown
+    // drops the call, which fails it.
+    let weak = window.clone();
+    let _ = web_view.handle_call("items.menu", move |call| {
+        let Some((at, state, call)) = asked::<MenuAt>(&weak, call) else {
+            return;
+        };
+        let found = menu_of(&state, mt, weak.id, &at.item, at.side).and_then(|found| {
+            let window = state.windows.get(weak.id).ok_or("The window is closing.")?;
+            Ok((window.page.web_view.view(), found))
+        });
+        let (view, (subject, items)) = match found {
+            Ok(found) => found,
+            Err(error) => {
+                let _ = call.fail(&error);
+                return;
+            }
+        };
+        let shown = mt.show_context_menu(&items, view, (at.x, at.y), move |chosen| {
+            choose(&state, mt, subject, chosen, move |choice| {
+                let _ = call.answer(&choice);
+            });
+        });
+        if let Err(error) = shown {
+            eprintln!("Wren showed no menu: {error:?}");
+        }
+    });
+
     // A web address or a file dropped on the sidebar: a tab on it in the
     // list, or an unopened pin.
     let weak = window.clone();
@@ -51,6 +102,57 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let counted = state.clone();
         items::add_address(&state, mt, weak.id, adding.url, adding.to, move |added| {
             answer(call, added.map(|added| count_add(&counted, added)));
+        });
+    });
+}
+
+/// The item the page names in window `window`, pressed on `side`, and the
+/// items of its menu.
+pub(super) fn menu_of(
+    state: &State,
+    mt: MainThread,
+    window: WindowId,
+    item: &ItemRef,
+    side: usize,
+) -> Result<(Subject, Vec<MenuItem>), String> {
+    let subject = Subject::find(state, mt, window, item, side)?;
+    let items = menus::item_menu(state, &subject)?;
+    Ok((subject, items))
+}
+
+/// Does what was chosen from `subject`'s menu, counts it, and calls `done`
+/// with what to answer the page. What fails is logged: the page hears what
+/// was chosen all the same, as the menu has closed.
+pub(super) fn choose(
+    state: &Rc<State>,
+    mt: MainThread,
+    subject: Subject,
+    chosen: Option<String>,
+    done: impl FnOnce(MenuChoice) + 'static,
+) {
+    let Some(id) = chosen else {
+        return done(MenuChoice {
+            chosen: None,
+            folder: None,
+        });
+    };
+    let counted = state.clone();
+    items::menu::choose(state, mt, subject, &id.clone(), move |did| {
+        let folder = match did {
+            Ok(did) => {
+                if let Some(moved) = did.moved {
+                    count_move(&counted, moved);
+                }
+                did.folder
+            }
+            Err(error) => {
+                eprintln!("Wren did not do what was chosen from a menu: {error}");
+                None
+            }
+        };
+        done(MenuChoice {
+            chosen: Some(id),
+            folder,
         });
     });
 }

@@ -1,66 +1,33 @@
-// A tab group's menu, in the sidebar, and the colours a group may have.
+// The colours a tab group may have, and its name in a menu. A group's menu
+// is built with every item's (item.rs).
 
-use wren::{Browser, BrowserTab, Error, MainThread, MenuItem, NativeView, TabGroup, TabGroupColor};
+use wren::{Error, MenuItem, TabGroup, TabGroupColor};
 
-use crate::tabs;
-
-/// Shows a group's menu, as `show_tab_menu` does a tab's. "rename" is left
-/// to the page, which has the field.
-pub fn show_group_menu(
-    mt: MainThread,
-    view: NativeView,
-    browser: &Browser,
-    group: TabGroup,
-    point: (f64, f64),
-    done: impl FnOnce(Option<String>) + 'static,
-) -> Result<(), Error> {
-    let (current, _) = group.visuals()?;
-    let colors = COLORS
+/// The items of a group's Colour menu, its own checked: each one's ID is
+/// `prefix` and the colour's name.
+pub(super) fn color_items(group: TabGroup, prefix: &str) -> Result<Vec<MenuItem>, String> {
+    let (current, _) = group.visuals().map_err(|error| format!("{error:?}"))?;
+    Ok(COLORS
         .iter()
         .map(|&color| MenuItem::Item {
-            id: format!("color:{}", color_name(color)),
+            id: format!("{prefix}{}", color_name(color)),
             label: color_label(color).into(),
             enabled: true,
             checked: color == current,
             hidden: false,
             key: None,
         })
-        .collect();
-    let items = [
-        MenuItem::item("new-tab", "New Tab in Group"),
-        MenuItem::item("rename", "Rename Group…"),
-        MenuItem::submenu("Colour", colors),
-        MenuItem::Separator,
-        MenuItem::item("ungroup", "Ungroup"),
-        MenuItem::item("close", "Close Group"),
-    ];
-    let browser = browser.clone();
-    mt.show_context_menu(&items, view, point, move |chosen| {
-        let members = tabs::in_group(&browser, group);
-        let _ = match chosen.as_deref() {
-            Some("new-tab") => {
-                let after = members
-                    .last()
-                    .and_then(|tab| tab.index())
-                    .map(|index| index + 1);
-                browser
-                    .add_tab("", after, true)
-                    .and_then(|tab| group.add(&[tab]))
-            }
-            Some(id) if id.starts_with("color:") => {
-                match COLORS.iter().find(|&&color| color_name(color) == &id[6..]) {
-                    Some(&color) => group.visuals().and_then(|(_, collapsed)| {
-                        group.set_visuals(&group.title(), color, collapsed)
-                    }),
-                    None => Ok(()),
-                }
-            }
-            Some("ungroup") => BrowserTab::ungroup(mt, &members),
-            Some("close") => tabs::close(&browser, &members),
-            _ => Ok(()),
-        };
-        done(chosen);
-    })
+        .collect())
+}
+
+/// Gives a group the colour of a name (`color_name`); an unknown name
+/// changes nothing.
+pub fn set_group_color(group: TabGroup, name: &str) -> Result<(), Error> {
+    let Some(&color) = COLORS.iter().find(|&&color| color_name(color) == name) else {
+        return Ok(());
+    };
+    let (_, collapsed) = group.visuals()?;
+    group.set_visuals(&group.title(), color, collapsed)
 }
 
 const COLORS: [TabGroupColor; 9] = [

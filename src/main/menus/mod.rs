@@ -1,15 +1,14 @@
 // The main menu: the system's items, Chromium's commands, and the app's own,
 // which reach `App::menu_command` by their IDs here. And the menus the page
-// asks for and the app acts on, one file for each: the sidebar's tabs',
-// groups' and pins', the page info popover's, and a download's. And the app
+// asks for and the app acts on, one file for each: an item's of the sidebar,
+// the page info popover's, and a download's. And the app
 // icon's.
 
 mod download;
 mod group;
 mod icon;
-pub mod pin;
+pub mod item;
 mod site;
-mod tab;
 
 use wren::{
     ChromiumCommand as Command, DefaultBrowser, DefaultBrowserState, MainThread, MenuItem, MenuKey,
@@ -19,10 +18,10 @@ use wren::{
 use crate::db::SpaceId;
 
 pub use download::show_download_menu;
-pub use group::{color_name, least_used_color, show_group_menu};
+pub use group::{color_name, least_used_color, set_group_color};
 pub use icon::set_icon_menu;
 pub use site::{show_permission_menu, show_site_menu};
-pub use tab::{ADD_FAVORITE, Keeps, PIN_TAB, show_tab_menu};
+pub use item::item_menu;
 
 pub const NEW_WINDOW: &str = "new-window";
 pub const NEW_INCOGNITO_WINDOW: &str = "new-incognito-window";

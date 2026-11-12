@@ -3,17 +3,15 @@
 // any window changes any.
 
 use serde::{Deserialize, Serialize};
-use wren::{Browser, BrowserTab, MainThread, PageCall, WebView};
+use wren::{MainThread, WebView};
 
-use super::{MenuAt, WindowRef, failed, with_browser, with_window};
+use super::{WindowRef, with_browser, with_window};
 use crate::analytics::{self, Event};
 use crate::app::State;
-use crate::clipboard;
-use crate::db::{PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
-use crate::menus::pin::{self as menu, PinMenu};
+use crate::db::{PinId, PinKind, PinLayout, PinPage, PinRow, SpaceId};
 use crate::pages::icons;
-use crate::pins::{self, PinTarget};
-use crate::shell::{BrowserWindow, Place};
+use crate::pins;
+use crate::shell::Place;
 
 /// A pin as the page draws it.
 #[derive(Serialize)]
@@ -87,14 +85,6 @@ struct NewFolder {
 struct PinSide {
     id: PinId,
     side: usize,
-}
-
-/// What was chosen from a pin's menu, if anything was; for New Folder, the
-/// folder's ID, for the page to name it.
-#[derive(Serialize)]
-struct MenuChoice {
-    chosen: Option<String>,
-    folder: Option<PinId>,
 }
 
 #[derive(Deserialize)]
@@ -175,10 +165,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         }
     });
 
-    // A pin's context menu, or a folder's.
-    let weak = window.clone();
-    let _ = web_view.handle_call("pins.menu", move |call| show_menu(mt, &weak, call));
-
     // Takes an open pin's tab back to the pin's page.
     let weak = window.clone();
     let _ = web_view.handle("pins.back", move |at: PinSide| {
@@ -190,143 +176,6 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("pins.close", move |id: PinId| {
         with_browser(&weak, |_, browser| pins::close(browser, id))
     });
-}
-
-// The tabs of a pin open in the Browser: its one, or a split pin's two.
-fn open_tabs(browser: &Browser, pin: PinId) -> Vec<BrowserTab> {
-    pins::open_pins(browser)
-        .into_iter()
-        .find(|open| open.pin == pin)
-        .map_or_else(Vec::new, |open| open.tabs)
-}
-
-// Whether all of `tabs` are muted, which unmutes them; or else mutes them.
-fn all_muted(tabs: &[BrowserTab]) -> bool {
-    tabs.iter()
-        .all(|tab| tab.state().is_ok_and(|state| state.muted))
-}
-
-// Shows a pin's menu, or a folder's, where the page asks, acts on what is
-// chosen, and answers with it (`MenuChoice`). A menu that is not shown
-// drops the call, which fails it.
-fn show_menu(mt: MainThread, weak: &WindowRef, call: PageCall) {
-    let found = call
-        .value::<MenuAt<PinId>>()
-        .map_err(|error| error.to_string())
-        .and_then(|at| {
-            let state = weak.state()?;
-            let (view, browser, place) = with_window(weak, |window| {
-                Ok((
-                    window.page.web_view.view(),
-                    window.browser(),
-                    place(window)?,
-                ))
-            })?;
-            let (_, space, pin) = state.db.pin(at.id)?.ok_or("That pin is gone.")?;
-            Ok((state, view, browser, place, space, pin, at))
-        });
-    let (state, view, browser, place, space, pin, at) = match found {
-        Ok(found) => found,
-        Err(error) => {
-            let _ = call.fail(&error);
-            return;
-        }
-    };
-    let kind = match pin.kind {
-        PinKind::Folder { .. } => PinMenu::Folder,
-        ref kind => PinMenu::Pin {
-            favorite: space.is_none(),
-            open: browser
-                .as_ref()
-                .is_some_and(|browser| pins::is_open(browser, pin.id)),
-            muted: browser.as_ref().and_then(|browser| {
-                let tabs = open_tabs(browser, pin.id);
-                (!tabs.is_empty()).then(|| all_muted(&tabs))
-            }),
-            away: browser
-                .as_ref()
-                .is_some_and(|browser| !pins::away_sides(browser, pin.id).is_empty()),
-            single: matches!(kind, PinKind::Tab(_)),
-            in_space: matches!(place, Place::Space(_)),
-        },
-    };
-    let shown = mt.show_context_menu(&menu::pin_menu(&kind), view, (at.x, at.y), move |chosen| {
-        let folder = act(&state, browser.as_ref(), &place, &pin, chosen.as_deref()).unwrap_or_else(
-            |error| {
-                eprintln!("Wren did not do what was chosen from a pin's menu: {error}");
-                None
-            },
-        );
-        let _ = call.answer(&MenuChoice { chosen, folder });
-    });
-    if let Err(error) = shown {
-        eprintln!("Wren showed no menu: {error:?}");
-    }
-}
-
-// Does what was chosen from `pin`'s menu that is the app's to do, in the
-// window on `place`, whose Browser is `browser`. Answers the folder New
-// Folder made: in a folder, last; next to a pin, after it.
-fn act(
-    state: &State,
-    browser: Option<&Browser>,
-    place: &Place,
-    pin: &PinRow,
-    chosen: Option<&str>,
-) -> Result<Option<PinId>, String> {
-    let id = pin.id;
-    let browser = || browser.ok_or("The window has no tabs.");
-    match chosen {
-        Some(menu::CLOSE_TAB) => pins::close(browser()?, id)?,
-        Some(menu::GO_BACK) => {
-            for side in pins::away_sides(browser()?, id) {
-                pins::back(browser()?, id, side)?;
-            }
-        }
-        Some(menu::UPDATE_URL) => pins::update_url(state, browser()?, id)?,
-        Some(menu::COPY_LINK) => {
-            if let PinKind::Tab(page) = &pin.kind {
-                let off_the_record = place.is_off_the_record();
-                clipboard::copy_link(&page.url, Some(page.title.clone()), off_the_record)
-                    .map_err(failed)?;
-            }
-        }
-        Some(menu::MUTE) => {
-            let tabs = open_tabs(browser()?, id);
-            let muted = !all_muted(&tabs);
-            for tab in tabs {
-                tab.set_muted(muted).map_err(failed)?;
-            }
-        }
-        Some(menu::TO_FAVORITES) => {
-            pins::move_pin(state, place, id, PinTarget::Favorites, None)?;
-        }
-        // First among the pins, as Pin Tab puts a tab.
-        Some(menu::TO_SPACE) => {
-            pins::move_pin(state, place, id, PinTarget::Space { parent: None }, Some(0))?;
-        }
-        Some(menu::NEW_FOLDER) => {
-            let (found, index) = state.db.pin_place(id)?.ok_or("That pin is gone.")?;
-            let PinPlace::Space { space, parent } = found else {
-                return Err("A folder can only be among a space's pins.".into());
-            };
-            let made = match pin.kind {
-                PinKind::Folder { .. } => pins::new_folder(state, space, Some(id), None)?,
-                _ => pins::new_folder(state, space, parent, Some(index + 1))?,
-            };
-            return Ok(Some(made));
-        }
-        Some(menu::REMOVE) => pins::delete(state, id)?,
-        _ => {}
-    }
-    Ok(None)
-}
-
-// The place the window is on, whose pins it shows.
-fn place(window: &BrowserWindow) -> Result<Place, String> {
-    window
-        .place()
-        .ok_or_else(|| "The window is on no space.".into())
 }
 
 // Answers a call with what was done, or why not.
