@@ -1,8 +1,8 @@
 /* A toast (toast.tsx): a gradient of the space's colour, lighter and calmer
    at the top, deeper at the bottom, with black text; dark enough for it at
    the bottom, and light enough at the top, whatever the space. A darker
-   ring for an edge, the gradient's own colour darkened. Its icon (or
-   button) sits on a frosted tile with a faint ring. */
+   ring for an edge, the gradient's own colour darkened. Its button
+   is a frosted tile with a faint ring. */
 :root[data-scheme] .toast {
   color: rgb(0 0 0);
   background: linear-gradient(
@@ -14,7 +14,7 @@
     inset 0 0 0 1px rgb(0 0 0 / 0.3),
     0 4px 14px rgb(0 0 0 / 0.22);
 }
-.toast-tile {
+.toast-button {
   border-radius: var(--radius-control);
   background: linear-gradient(rgb(255 255 255 / 0.65), rgb(255 255 255 / 0.58));
   font-size: var(--text-subtitle);

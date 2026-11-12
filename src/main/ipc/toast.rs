@@ -27,10 +27,10 @@ pub enum OwnToast {
 impl OwnToast {
     fn text(self) -> String {
         match self {
-            OwnToast::UrlCopied => "Copied Current URL".into(),
+            OwnToast::UrlCopied => "Copied current URL".into(),
             OwnToast::Zoom(percent) => format!("{percent}%"),
-            OwnToast::UpToDate => "Wren Is Up to Date".into(),
-            OwnToast::UpdateCheckFailed => "Couldn’t Check for Updates".into(),
+            OwnToast::UpToDate => "Wren is up to date".into(),
+            OwnToast::UpdateCheckFailed => "Couldn’t check for updates".into(),
         }
     }
 

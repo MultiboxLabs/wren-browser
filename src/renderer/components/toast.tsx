@@ -33,8 +33,10 @@ export function BrowserToast({ belowBar = false }: { belowBar?: boolean }) {
       className={cn("fixed right-4.5 z-30", belowBar ? "top-13.5" : "top-4.5")}
       toast={
         toast && {
-          // Each request comes in afresh, the same toast shown again too.
-          key: toast.id,
+          // Another toast comes in afresh. The same one asked for again
+          // (⇧⌘C twice) stays, and jumps.
+          key: toast.name,
+          request: toast.id,
           text: toast.text,
           icon: toastIcon(toast),
           action: toast.button ? { label: toast.button, onPress: () => toasts.press(toast.id) } : undefined,
@@ -50,9 +52,9 @@ const bare = new Set(["Zoom"]);
 
 function toastIcon(toast: Toast): ReactNode {
   if (bare.has(toast.name)) return null;
-  if (toast.busy) return <LoaderCircle size={15} strokeWidth={2} className="animate-spin" />;
+  if (toast.busy) return <LoaderCircle size={16} strokeWidth={2.5} className="animate-spin" />;
   const Own = icons[toast.name];
-  if (Own) return <Own size={15} strokeWidth={2} />;
+  if (Own) return <Own size={16} strokeWidth={2.5} />;
   if (!toast.icon) return null;
   // Chromium's, drawn in its own colour for the window's appearance, which
   // may not be the toast's: its shape in the toast's text colour instead.
