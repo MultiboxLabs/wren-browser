@@ -193,9 +193,7 @@ function TabPane({
         <div className={cn("relative min-h-0 flex-1", onOpenLocation ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
           <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />
           {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={tab.id} />}
-          {!fullScreen && !bare && !margins && (
-            <LoadingLine loading={tab.loading} signs={`${tab.url}\n${tab.title}\n${tab.favicon}`} />
-          )}
+          {!fullScreen && !bare && !margins && <LoadingLine loading={tab.loading} progress={tab.progress} />}
         </div>
       </div>
       {active && <FindBar tab={tab.id} belowBar={onOpenLocation !== undefined} />}

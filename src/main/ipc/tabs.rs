@@ -30,7 +30,13 @@ pub struct Tab {
     url: String,
     /// Its favicon's icon ID (`iconUrl`), if it has one.
     favicon: Option<String>,
+    /// Its page loads, from the start of a navigation to the page's load
+    /// event, while Chromium would show its spinner and Stop button. An
+    /// iframe that loads after the page has loaded doesn't count.
     loading: bool,
+    /// How far its page's load has got, in whole percent from 1 to 100 while
+    /// `loading`, and 0 otherwise.
+    progress: i32,
     can_go_back: bool,
     can_go_forward: bool,
     crashed: bool,
@@ -150,7 +156,8 @@ fn drawn() -> TabFields {
     TabFields::TITLE
         | TabFields::URL
         | TabFields::FAVICON
-        | TabFields::LOADING
+        | TabFields::SHOWS_LOADING
+        | TabFields::LOAD_PROGRESS
         | TabFields::HISTORY
         | TabFields::CRASHED
         | TabFields::ALERTS
@@ -343,7 +350,8 @@ fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> T
         title: window.page_tabs.title(tab),
         url: window.page_tabs.url(tab),
         favicon: window.page_tabs.favicon(tab),
-        loading: state.is_some_and(|state| state.loading),
+        loading: state.is_some_and(|state| state.shows_loading),
+        progress: state.map_or(0, |state| state.load_progress),
         can_go_back: state.is_some_and(|state| state.can_go_back),
         can_go_forward: state.is_some_and(|state| state.can_go_forward),
         crashed: state.is_some_and(|state| state.crash != TabCrash::None),

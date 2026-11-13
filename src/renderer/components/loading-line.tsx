@@ -4,18 +4,12 @@
 // its head, which glows and breathes, and its colour washes down over the
 // top of the page below it, most under the head.
 //
-// The head moves when the page does. It sets off as the page starts to
-// load, and goes a share of the way that is left each time the page shows
-// a sign of having got further: its address changing as it commits, its
-// title arriving, its favicon arriving. Between signs it creeps, so a slow
-// page is never still. The head never claims to have arrived while the page
-// is loading. Once the page has loaded, the head runs to the right edge and
-// on past it, and the rest of the line follows it out, fading as it goes.
-// The styles are in loading-line.css.
-//
-// TODO: Wren Runtime says only whether a tab is loading, not how far it has
-// got, so the signs stand in for that. Once it reports a tab's load
-// progress, take that in place of `signs`, and put the head where it says.
+// The head shows how far the page's load has got. It goes there each time
+// the tab's progress changes, and creeps on between changes, so a slow page
+// is never still. The head never claims to have arrived while the page is
+// loading. Once the page has loaded, the head runs to the right edge and on
+// past it, and the rest of the line follows it out, fading as it goes. The
+// styles are in loading-line.css.
 
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -23,21 +17,19 @@ import { EASE_LEAVE, EASE_SLIDE } from "@/utils/motion";
 
 // The furthest the head gets while the page is loading.
 const LATE = 0.94;
-// The share of the way left to there that the head goes as the page starts,
-// at each sign after, and creeping between them.
-const START = 0.3;
-const SIGN = 0.4;
+// The share of the way left to there that the head creeps between changes
+// of the progress.
 const CREEP = 0.5;
 
 type Running = ReturnType<typeof animate>;
 
 export function LoadingLine({
   loading,
-  signs
+  progress
 }: {
   loading: boolean;
-  /** What changes as the page gets further, such as its address, title and favicon together. */
-  signs: string;
+  /** How far the page's load has got, in whole percent (`BrowserTab.progress`). */
+  progress: number;
 }) {
   const [shown, setShown] = useState(false);
   // Where the head is: 0 at the page's left edge, 1 at its right, and 2
@@ -49,15 +41,15 @@ export function LoadingLine({
   const still = useReducedMotion();
   // What the last run of the effect saw, and the animations it started,
   // the first of which is the one that says when they are done.
-  const latest = useRef({ loading: false, signs, running: [] as Running[] });
+  const latest = useRef({ loading: false, progress, running: [] as Running[] });
 
   useEffect(() => {
     const state = latest.current;
     const wasLoading = state.loading;
-    const sign = loading && wasLoading && state.signs !== signs;
+    const moved = loading && wasLoading && state.progress !== progress;
     state.loading = loading;
-    state.signs = signs;
-    if (loading === wasLoading && !sign) return;
+    state.progress = progress;
+    if (loading === wasLoading && !moved) return;
 
     // Starts these in place of what is running, and returns the first.
     const run = (...running: Running[]) => {
@@ -91,8 +83,9 @@ export function LoadingLine({
     // Loading again before the head got out (a page's loading often turns
     // off and on as it settles), it carries on from where it is.
     if (!wasLoading && at.get() >= LATE) at.set(0);
+    // Never back, as the creep may have gone past the progress.
     const from = at.get();
-    const to = from + (LATE - from) * (sign ? SIGN : START);
+    const to = Math.max(from, Math.min(progress / 100, LATE));
     const push = run(
       animate(at, to, { duration: 0.5, ease: EASE_SLIDE }),
       animate(opacity, 1, { duration: 0.1, ease: "easeOut" })
@@ -100,7 +93,7 @@ export function LoadingLine({
     void push.then(() => {
       if (current(push)) run(animate(at, to + (LATE - to) * CREEP, { duration: 12, ease: "easeOut" }));
     });
-  }, [loading, signs, still, at, opacity]);
+  }, [loading, progress, still, at, opacity]);
 
   // Unmounted, it stops.
   useEffect(() => {

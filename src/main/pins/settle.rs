@@ -188,7 +188,7 @@ fn keep_look(state: &State, pin: PinId, side: usize, tab: BrowserTab) -> bool {
     let Some(page) = open::kept(pin).and_then(|kept| kept.pages.get(side).cloned()) else {
         return false;
     };
-    if is_away(&page.url, &tab.url()) || tab.state().is_ok_and(|state| state.loading) {
+    if is_away(&page.url, &tab.url()) || tab.state().is_ok_and(|state| state.shows_loading) {
         return false;
     }
     let title = tab.title();

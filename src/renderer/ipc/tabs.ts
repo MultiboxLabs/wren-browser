@@ -14,7 +14,14 @@ export type BrowserTab = {
   url: string;
   /** Its favicon's icon ID (`iconUrl`), or null for none. */
   favicon: string | null;
+  /**
+   * Its page loads, from the start of a navigation to the page's load event,
+   * while Chromium would show its spinner and Stop button. An iframe that
+   * loads after the page has loaded doesn't count.
+   */
   loading: boolean;
+  /** How far its page's load has got, in whole percent from 1 to 100 while `loading`, and 0 otherwise. */
+  progress: number;
   canGoBack: boolean;
   canGoForward: boolean;
   crashed: boolean;
