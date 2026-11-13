@@ -7,6 +7,7 @@
 import { appWindow, browser, groups, type ItemPlace, items, perf, type Pin, pins, spaces as spacesOfApp } from "@/ipc";
 import {
   drag,
+  drawnOpenEverywhere,
   drop,
   groupId,
   hasButton,
@@ -14,6 +15,7 @@ import {
   link,
   markedKeys,
   menuRef,
+  openingsOf,
   over,
   pickUp,
   picture,
@@ -248,6 +250,84 @@ export const makesFolder = (name: string, open: boolean, step: Step): Step => ({
 
 /** A link to the run's page of a number, dropped from outside the window. */
 export const linked = (url: string, number: number, where: Where) => () => drop(link(`${url}/tab/${number}`), where);
+
+/** Has the window show one of the run's spaces, and waits for its sidebar to be still. */
+export const shownSpace = (at: number) => async () => {
+  await appWindow.showSpace(spaces[at]);
+  await until(
+    async () => {
+      const space = await appWindow.space();
+      return space?.kind === "space" && space.id === spaces[at];
+    },
+    () => "The window did not switch to the space."
+  );
+  await settled();
+};
+
+/** The ID of the pin an item is: a pinned tab's or a favourite's. */
+async function pinIdOf(what: What) {
+  const { item } = await menuRef(what);
+  if (!("pin" in item)) throw new Error("Only a pin has an ID of its own.");
+  return item.pin;
+}
+
+/** Opens a pinned tab or a favourite in the window's space, as a press on its row does. */
+export const opened = (what: What) => async () => pins.open(await pinIdOf(what));
+
+/** Waits for a pin's tabs to be open in one of the run's spaces alone, by its index, and answers them. */
+async function openIn(pin: number, at: number) {
+  return until(
+    () => {
+      const found = openingsOf(pin);
+      return found.length === 1 && found[0].at === at ? found[0].tabs : null;
+    },
+    () =>
+      `The pin is open in the spaces ${
+        openingsOf(pin)
+          .map((each) => each.at)
+          .join(", ") || "none"
+      }, not ${at}.`
+  );
+}
+
+/**
+ * A step that must leave a pin's tabs open in one of the run's spaces
+ * alone, by its index, and the same tabs, by their IDs, that it had open
+ * before, wherever they were.
+ */
+export const keepsTabs = (what: What, at: number, step: Step): Step => ({
+  ...step,
+  does: async () => {
+    const pin = await pinIdOf(what);
+    const was = openingsOf(pin).flatMap((each) => each.tabs);
+    if (was.length === 0) throw new Error("The pin has no tab open to keep.");
+    await step.does();
+    await shows(step.shows);
+    const now = await openIn(pin, at);
+    if (now.join() !== was.join()) throw new Error(`The pin's tabs are ${now.join()}, not ${was.join()}.`);
+  }
+});
+
+/** Waits for a pin to be open in one of the run's spaces alone, by its index. */
+export const isOpenIn = (what: What, at: number) => async () => void (await openIn(await pinIdOf(what), at));
+
+/** Waits for a pin to be open in no space of the run. */
+export const isUnopened = (what: What) => async () => {
+  const pin = await pinIdOf(what);
+  await until(
+    () => openingsOf(pin).length === 0,
+    () => "The pin is still open."
+  );
+};
+
+/** Waits for every space of the run to draw a pin open, whichever space's Browser has its tab. */
+export const isDrawnOpen = (what: What) => async () => {
+  const pin = await pinIdOf(what);
+  await until(
+    () => drawnOpenEverywhere(pin),
+    () => "A space draws the pin unopened."
+  );
+};
 
 /** Makes a second space, of the first's profile, and waits for its button. */
 export async function secondSpace() {

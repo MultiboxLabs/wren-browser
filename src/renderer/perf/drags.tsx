@@ -7,18 +7,30 @@
 // from what the last left. A drag that goes wrong ends its scene, as those
 // after it would start from the wrong place; the next scene starts anew.
 // After every step, each open tab must also have a row in a sidebar: a tab
-// that is open and drawn nowhere fails the step that left it so.
+// that is open and drawn nowhere fails the step that left it so. No pin may
+// be open in two spaces of the window either.
 //
 // The scenes are in drag-scenes.ts, what their steps are made of in
 // drag-steps.ts, and what fires a drag's events and reads the sidebar in
 // dragging.ts.
 
 import { useEffect, useLayoutEffect, useState } from "react";
-import { appWindow, browser, type DragsConfig, perf, pins } from "@/ipc";
+import { appWindow, browser, type DragsConfig, type Pins, perf, pins } from "@/ipc";
 import { BrowserOfSpace, useBrowser } from "@/state/browser";
+import { type Item, useItems } from "@/state/items";
 import { scenes } from "./drag-scenes";
 import { addSpace, onSpaceAdded, shows, type Step } from "./drag-steps";
-import { closeOmnibox, hasHeard, hear, shieldFromPointer, spaces, tabsOf, tabWithoutRow, until } from "./dragging";
+import {
+  closeOmnibox,
+  hasHeard,
+  hear,
+  pinOpenTwice,
+  shieldFromPointer,
+  spaces,
+  tabsOf,
+  tabWithoutRow,
+  until
+} from "./dragging";
 
 /** How long a step may take before it has failed. */
 const STEP_TIMEOUT_MS = 20_000;
@@ -39,12 +51,49 @@ export function DragsRun({ config }: { config: DragsConfig }) {
   ));
 }
 
-/** Tells the run what the page has of a space's tabs, each time it draws them. */
+const NO_PINS: Pins = { favorites: [], pinned: [] };
+
+/**
+ * Tells the run what the page has of a space's tabs, and which pins its
+ * sidebar draws open, each time it draws them. The run is outside the
+ * sidebar's PinsProvider, so it reads the space's pins itself.
+ */
 function Hears({ space }: { space: number }) {
   const { tabs, groups, splits, links } = useBrowser();
-  useLayoutEffect(() => hear(space, { tabs, groups, splits, links }));
+  const kept = useSpacePins(space);
+  const items = useItems(kept.favorites, kept.pinned);
+  const open = [...items.favorites, ...items.pinned].flatMap(openPins);
+  useLayoutEffect(() => hear(space, { tabs, groups, splits, links, open }));
   return null;
 }
+
+/** A space's favourites and pins, read again as any change. */
+function useSpacePins(space: number) {
+  const [kept, setKept] = useState<Pins>(NO_PINS);
+  useEffect(() => {
+    let live = true;
+    const read = () =>
+      void pins.list(space).then(
+        (read) => live && setKept(read),
+        () => {}
+      );
+    read();
+    const stop = pins.onChanged(read);
+    return () => {
+      live = false;
+      stop();
+    };
+  }, [space]);
+  return kept;
+}
+
+/** The pins of an item, and of what is in it, that are drawn open: with a Chromium tab on a side. */
+const openPins = (item: Item): number[] =>
+  item.kind === "folder"
+    ? item.items.flatMap(openPins)
+    : item.kind === "tab" && item.pin !== null && item.sides.some((side) => side.tab !== null)
+      ? [item.pin]
+      : [];
 
 async function run(config: DragsConfig) {
   shieldFromPointer();
@@ -88,7 +137,8 @@ async function wrongWith(step: Step) {
       step
         .does()
         .then(() => shows(step.shows))
-        .then(everyTabHasRow),
+        .then(everyTabHasRow)
+        .then(noPinOpenTwice),
       late
     ]);
     return null;
@@ -111,6 +161,12 @@ async function everyTabHasRow() {
     () => `A tab is open and no sidebar has a row for it: ${found}.`,
     4000
   );
+}
+
+/** Fails if a pin is open in two spaces of the window (`pinOpenTwice`). */
+function noPinOpenTwice() {
+  const found = pinOpenTwice();
+  if (found !== null) throw new Error(`A pin is open in two spaces: ${found}.`);
 }
 
 const numbered = (count: number) => `tabs ${[...Array(count).keys()].join(" ")}`;

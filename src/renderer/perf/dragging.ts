@@ -57,8 +57,11 @@ export async function until<A>(ready: () => A | Promise<A>, otherwise: () => str
 
 // What the app says the run's spaces hold.
 
-/** A space's tabs, as the page has them (`useBrowser`, state/browser.tsx). */
-export type Heard = { tabs: BrowserTab[]; groups: TabGroup[]; splits: TabSplit[]; links: PinLink[] };
+/**
+ * A space's tabs, as the page has them (`useBrowser`, state/browser.tsx),
+ * and the pins its sidebar draws open (`useItems`, state/items.ts).
+ */
+export type Heard = { tabs: BrowserTab[]; groups: TabGroup[]; splits: TabSplit[]; links: PinLink[]; open: number[] };
 
 const heard = new Map<number, Heard>();
 
@@ -169,6 +172,38 @@ export async function tabWithoutRow() {
     ? null
     : `the tab on page ${numberOf(leaving)}, which is closing for a pin that has gone`;
 }
+
+/**
+ * A pin open in two spaces of the window, as "the pin on page 3", or null
+ * if each is open in one at most. A favourite has one tab in a window,
+ * which moves to the space that opens it.
+ */
+export function pinOpenTwice() {
+  const seen = new Map<number, number>();
+  for (const [space, browser] of heard) {
+    if (!spaces.includes(space)) continue;
+    for (const link of browser.links) {
+      const first = seen.get(link.pin);
+      if (first !== undefined && first !== space) {
+        const tab = browser.tabs.find((tab) => tab.id === link.tabs[0]);
+        return `the pin on page ${numberOf(tab?.url ?? "")}`;
+      }
+      seen.set(link.pin, space);
+    }
+  }
+  return null;
+}
+
+/** The spaces of the run whose Browser has a pin's tabs open, by their index in `spaces`, each with those tabs. */
+export function openingsOf(pin: number) {
+  return spaces.flatMap((space, at) => {
+    const link = heard.get(space)?.links.find((link) => link.pin === pin);
+    return link ? [{ at, tabs: link.tabs }] : [];
+  });
+}
+
+/** Whether every space of the run draws a pin open. */
+export const drawnOpenEverywhere = (pin: number) => spaces.every((space) => heard.get(space)?.open.includes(pin));
 
 // Naming an item, and finding its row.
 
