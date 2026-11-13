@@ -23,6 +23,8 @@ mod request;
 mod session;
 mod switch;
 
+pub use session::keep_session_data;
+
 use std::rc::Rc;
 
 use wren::{MainThread, Profile};

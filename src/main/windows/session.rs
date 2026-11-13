@@ -4,17 +4,33 @@
 // with a session tag that names its window and place (`BrowserWindow::add`).
 // At startup the windows open first, each drawing its place empty, and the
 // restored Browsers find their way back into them by their tags. An
-// off-the-record window is never kept.
+// off-the-record window is never kept. Each profile keeps its session
+// cookies and sessionStorage for the restore, so a restored tab is still
+// signed in where a site keeps the sign-in only for the session.
 
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use wren::{Browser, MainThread, Profile, RequestedBounds};
+use wren::{Browser, Error, MainThread, Profile, ProfileKind, RequestedBounds};
 
 use crate::app::State;
 use crate::db::{SavedWindow, WindowFrame};
 use crate::shell::{BrowserWindow, Place, Tag};
 use crate::tabs::placeholder;
+
+/// Has a profile Chromium loaded (`ChangeKind::ProfileOpened`) keep its
+/// session data for the next restore. A profile reads the setting as it
+/// loads, so this applies from its next load. Policy may keep it off, which
+/// is no error. An off-the-record or ephemeral profile has none to keep.
+pub fn keep_session_data(profile: &Profile) {
+    if profile.kind() != ProfileKind::Persistent || profile.keeps_session_data() {
+        return;
+    }
+    match profile.set_keeps_session_data(true) {
+        Ok(()) | Err(Error::NotAllowed) => {}
+        Err(error) => eprintln!("Wren could not keep a profile's session data: {error:?}"),
+    }
+}
 
 impl State {
     /// Opens the windows kept at the last quit, in the order they opened,

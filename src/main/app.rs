@@ -30,6 +30,7 @@ use crate::shell::{BrowserWindow, WindowId, Windows};
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
 use crate::updates::{self, Updates};
+use crate::windows;
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -389,7 +390,10 @@ impl App for Wren {
             record_tab_crash(state, change);
             if let Some(profile) = &change.profile {
                 match change.kind {
-                    ChangeKind::ProfileOpened => password_manager::opened(profile),
+                    ChangeKind::ProfileOpened => {
+                        password_manager::opened(profile);
+                        windows::keep_session_data(profile);
+                    }
                     ChangeKind::ProfileClosed => password_manager::closed(&profile.id()),
                     _ => {}
                 }
