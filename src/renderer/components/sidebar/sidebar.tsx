@@ -315,7 +315,13 @@ function SpaceContent({ omnibox, address, settings }: SpaceContentProps) {
       )}
       <MarkingProvider value={marking}>
         <ArrivalScope key={read}>
-          <Favorites favorites={items.favorites} read={pins.read} settings={settings} actions={actions} />
+          <Favorites
+            favorites={items.favorites}
+            read={pins.read}
+            settled={read === "read"}
+            settings={settings}
+            actions={actions}
+          />
           <TabList omnibox={omnibox} pinned={items.pinned} tabs={items.tabs} actions={actions} />
         </ArrivalScope>
       </MarkingProvider>

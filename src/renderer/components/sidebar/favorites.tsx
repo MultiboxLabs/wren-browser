@@ -23,16 +23,20 @@ import { listOrder, REORDER, TILE_IN, TILE_OUT } from "./row-motion";
 /**
  * `read`: whether the favourites have been read, before which the box is
  * not shown, so it never flashes up before them; nor before the settings
- * are, which say whether it was put away.
+ * are, which say whether it was put away. `settled`: whether the space's
+ * content is read whole (sidebar.tsx), before which their room takes what
+ * comes in at once rather than easing to it.
  */
 export function Favorites({
   favorites,
   read,
+  settled,
   settings,
   actions
 }: {
   favorites: TabItem[];
   read: boolean;
+  settled: boolean;
   settings: LibrarySettings;
   actions: ItemActions;
 }) {
@@ -50,7 +54,7 @@ export function Favorites({
   if (favorites.length === 0) {
     const tip = keeps && read && settings.read && !settings.values.favoritesTipDismissed;
     return (
-      <EasedHeight>
+      <EasedHeight eases={settled}>
         <AnimatePresence initial={false}>
           {tip && (
             <motion.div
@@ -70,7 +74,7 @@ export function Favorites({
     );
   }
   return (
-    <EasedHeight>
+    <EasedHeight eases={settled}>
       <div
         {...drop.handlers}
         className={cn(
@@ -96,23 +100,37 @@ export function Favorites({
  * The favourites' room, eased to what is in it as that grows or shrinks (a
  * tile on a new row, the box giving way to the first tile), so the pins and
  * the tabs under it slide rather than jump. What is past its edge as it does
- * is hidden, but for the tiles' glow and shadow just past it.
+ * is hidden, but for the tiles' glow and shadow just past it. Unless it
+ * `eases`, it takes what is in it at once: the favourites read as the
+ * sidebar comes in are simply there, rather than sliding everything down.
+ * While it is not drawn, as the sidebar is not under a page's full screen,
+ * what is in it measures nothing: it keeps its height, and takes what is in
+ * it at once as it is drawn again, rather than easing open from nothing.
  */
-function EasedHeight({ children }: { children: ReactNode }) {
-  const still = useReducedMotion();
+function EasedHeight({ eases, children }: { eases: boolean; children: ReactNode }) {
+  const reduced = useReducedMotion();
   const inner = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number | "auto">("auto");
+  const [room, setRoom] = useState<{ height: number | "auto"; eases: boolean }>({ height: "auto", eases: true });
   useLayoutEffect(() => {
     const element = inner.current;
     if (!element) return;
-    const observer = new ResizeObserver(() => setHeight(element.offsetHeight));
+    let undrawn = false;
+    const observer = new ResizeObserver(() => {
+      if (!element.checkVisibility()) {
+        undrawn = true;
+        return;
+      }
+      setRoom({ height: element.offsetHeight, eases: !undrawn });
+      undrawn = false;
+    });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+  const still = reduced || !eases || !room.eases;
   return (
     <motion.div
       initial={false}
-      animate={{ height }}
+      animate={{ height: room.height }}
       transition={still ? { duration: 0 } : REORDER}
       className="shrink-0 overflow-clip [overflow-clip-margin:8px]"
     >
