@@ -1,37 +1,31 @@
-// What analytics sends: each event, by its name in PostHog, with what it
-// carries. A property is a number or one of the app's own names, never text
-// from a page or the user; the versions, a crash's place and a setting's
-// value are the app's. An event marked "page" is one only a window's page
-// knows of, which it records with `analytics.record` (ipc/analytics.rs).
+// What analytics counts: each event, by its name, with what it carries. None
+// is sent by itself: each adds to a count (`tally`), and the counts go to
+// PostHog with the next `app_opened`. A property is a number or one of the
+// app's own names, never text from a page or the user; a crash's place and a
+// setting's value are the app's. An event marked "page" is one only a
+// window's page knows of, which it records with `analytics.record`
+// (ipc/analytics.rs).
+
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use wren::{SuggestionKind, TabCrash};
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum Event {
-    /// The app opened, and showed its first window this long after it
-    /// started.
-    AppOpened {
-        launch_ms: u64,
-    },
-    /// The app quits, having run this long.
-    AppQuit {
-        session_minutes: u64,
-    },
-    /// The app runs a new version for the first time.
-    AppUpdated {
-        from_version: String,
-    },
     /// The app crashed: it panicked in its last run, at `location`, a file
-    /// and line of its source; or Chromium's Crashpad caught a crash, at
-    /// `crashed_at` (analytics/crashpad.rs).
+    /// and line of its source; or Chromium's Crashpad caught a crash
+    /// (analytics/crashpad.rs).
     AppCrashed {
         kind: CrashKind,
         #[serde(skip_serializing_if = "Option::is_none")]
         location: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        crashed_at: Option<String>,
+    },
+    /// The app ran this long, to the nearest minute, before it quit.
+    MinutesUsed {
+        minutes: u64,
     },
     /// A window's page crashed, and was reloaded.
     PageCrashed,
@@ -41,13 +35,9 @@ pub enum Event {
     },
 
     // Wren's own features.
-    /// The user made a space, and now has `total`.
-    SpaceCreated {
-        total: usize,
-    },
-    SpaceDeleted {
-        total: usize,
-    },
+    /// The user made a space.
+    SpaceCreated,
+    SpaceDeleted,
     /// A window was brought to another space.
     SpaceSwitched,
     /// A space's name, icon or theme was changed: one event for each.
@@ -115,6 +105,39 @@ pub enum Event {
     /// The downloads shelf was shown, hovering over the Library's button
     /// (page).
     DownloadsShelfOpened,
+}
+
+impl Event {
+    /// The count this event adds to, and by how much. The count is named by
+    /// the event, then each of its properties that is a name, in the order of
+    /// their names, all joined by dots; a yes or no is named with its
+    /// property, as in `sidebar_toggled.docked=true`. A number is never part
+    /// of the name: it is what `tabs_archived` and `minutes_used` add, and
+    /// every other event adds 1.
+    pub fn tally(&self) -> (String, u64) {
+        let amount = match self {
+            Event::TabsArchived { count } => *count as u64,
+            Event::MinutesUsed { minutes } => *minutes,
+            _ => 1,
+        };
+        let Ok(Value::Object(mut fields)) = serde_json::to_value(self) else {
+            unreachable!("an event is a tagged enum")
+        };
+        let mut name = match fields.remove("event") {
+            Some(Value::String(event)) => event,
+            _ => unreachable!("an event is tagged with its name"),
+        };
+        // Sorted here, as the map keeps them in order only by default.
+        let fields: BTreeMap<String, Value> = fields.into_iter().collect();
+        for (field, value) in fields {
+            match value {
+                Value::String(value) => name = format!("{name}.{value}"),
+                Value::Bool(value) => name = format!("{name}.{field}={value}"),
+                _ => {}
+            }
+        }
+        (name, amount)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -273,6 +296,45 @@ mod tests {
         assert_eq!(
             serde_json::to_value(Event::PageCrashed).unwrap(),
             json!({ "event": "page_crashed" })
+        );
+    }
+
+    #[test]
+    fn tallies_by_the_event_and_its_names() {
+        let tally = |event: Event| event.tally();
+        assert_eq!(tally(Event::PageCrashed), ("page_crashed".into(), 1));
+        assert_eq!(
+            tally(Event::OmniboxChose {
+                kind: OmniboxPick::Bang,
+                opens_in: OpensIn::NewTab,
+            }),
+            ("omnibox_chose.bang.new_tab".into(), 1)
+        );
+        assert_eq!(
+            tally(Event::SidebarToggled { docked: false }),
+            ("sidebar_toggled.docked=false".into(), 1)
+        );
+        assert_eq!(
+            tally(Event::SettingChanged {
+                setting: Setting::ArchiveAfter,
+                value: json!("12h"),
+            }),
+            ("setting_changed.archive_after.12h".into(), 1)
+        );
+        assert_eq!(
+            tally(Event::AppCrashed {
+                kind: CrashKind::Panic,
+                location: Some("src/main/app.rs:10".into()),
+            }),
+            ("app_crashed.panic.src/main/app.rs:10".into(), 1)
+        );
+        assert_eq!(
+            tally(Event::TabsArchived { count: 4 }),
+            ("tabs_archived".into(), 4)
+        );
+        assert_eq!(
+            tally(Event::MinutesUsed { minutes: 25 }),
+            ("minutes_used".into(), 25)
         );
     }
 }

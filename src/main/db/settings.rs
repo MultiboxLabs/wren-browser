@@ -195,14 +195,7 @@ impl Db {
 
     // A setting's value, or none if it was never set or can't be read.
     pub(super) fn setting<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, String> {
-        let json: Option<String> = self
-            .conn
-            .query_row("SELECT value FROM settings WHERE key = ?1", [key], |row| {
-                row.get(0)
-            })
-            .optional()
-            .map_err(sql)?;
-        Ok(json.and_then(|json| serde_json::from_str(&json).ok()))
+        get(&self.conn, key)
     }
 
     // Takes a setting back to never having been set.
@@ -212,6 +205,20 @@ impl Db {
             .map(drop)
             .map_err(sql)
     }
+}
+
+// A setting's value in `conn`, or none if it was never set or can't be read.
+pub(super) fn get<T: DeserializeOwned>(
+    conn: &rusqlite::Connection,
+    key: &str,
+) -> Result<Option<T>, String> {
+    let json: Option<String> = conn
+        .query_row("SELECT value FROM settings WHERE key = ?1", [key], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(sql)?;
+    Ok(json.and_then(|json| serde_json::from_str(&json).ok()))
 }
 
 pub(super) fn set(

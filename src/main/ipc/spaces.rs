@@ -47,8 +47,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             return Err("That profile is gone.".to_owned());
         }
         let space = state.db.create_space(&create.profile, create.space)?;
-        let total = state.db.list_spaces()?.len();
-        state.analytics.record(Event::SpaceCreated { total });
+        state.analytics.record(Event::SpaceCreated);
         broadcast_spaces(&state);
         Ok::<SpaceRow, String>(space)
     });

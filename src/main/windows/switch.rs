@@ -134,8 +134,7 @@ impl State {
         let delete = move || {
             let state = state.upgrade().ok_or("Wren is quitting.")?;
             state.db.delete_space(space)?;
-            let total = state.db.list_spaces()?.len();
-            state.analytics.record(Event::SpaceDeleted { total });
+            state.analytics.record(Event::SpaceDeleted);
             state.leave_gone_spaces(Some(&profile));
             ipc::broadcast_spaces(&state);
             Ok(())

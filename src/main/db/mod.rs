@@ -23,7 +23,7 @@ use std::path::Path;
 
 use rusqlite::Connection;
 
-pub use analytics::record_crash;
+pub use analytics::{UsageCounts, UsageStore, record_crash};
 pub use imports::{Added, ImportedPin, ImportedSpace, NamedPin};
 pub use onboarding::FirstSpace;
 pub use pins::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow};

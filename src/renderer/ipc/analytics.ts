@@ -1,5 +1,6 @@
 // What the page records for analytics: the events only it knows of. The app
-// sends them with the rest, if the user shares usage data.
+// counts them with the rest, and sends the counts if the user shares usage
+// data.
 
 /** A section of the Library. */
 export type LibrarySection = "profiles" | "spaces" | "boosts" | "downloads" | "settings";
