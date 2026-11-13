@@ -310,7 +310,7 @@ export const scenes = (url: string): Scene[] => [
         name: "a tab's menu",
         does: menuHolds(
           tab(1),
-          "Reload, Copy Link, Mute Tab | Add Tab to New Group, Open in Split View | Close Tab, Close Other Tabs, Close Tabs Below | Pin Tab, Add to Favourites"
+          "Reload, Duplicate, Copy Link, Mute Tab | Add Tab to New Group, Open in Split View | Close Tab, Close Other Tabs, Close Tabs Below | Pin Tab, Add to Favourites"
         ),
         shows: "tabs 0 1 2 3 4 5"
       },
