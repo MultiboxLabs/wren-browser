@@ -4,6 +4,12 @@
    one alike, and far more vivid than the space, whose own colour is often
    too pale to see as a line.
 
+   A space with little or no colour, such as black or white, would draw a
+   grey line that is lost over a white page. As the space's colour fades,
+   the line darkens, the head pales less, and the line and head take a thin
+   dark edge, which shows over a light page and is lost over a dark one. A
+   space with clear colour (a chroma of 0.04 or more) has none of this.
+
    The line is thin and even, fainter only towards where it started. Its
    last stretch, the head, is drawn again over it, brightening to a paler
    tint at the tip, still coloured enough to show over a white page. The
@@ -19,8 +25,13 @@
    the room above the line (--above) lets the glow reach up over the edge
    of an address bar atop the page. */
 .loading-line {
-  --line: oklch(from var(--space) 0.64 min(c * 3.5, 0.22) h / 1);
-  --head: oklch(from var(--space) 0.8 min(c * 3.5, 0.2) h / 1);
+  /* Each `1 - min(c * 25, 1)` is how little colour the space has: 0 with a
+     chroma of 0.04 or more, 1 with none. */
+  --line: oklch(from var(--space) calc(0.64 - 0.26 * (1 - min(c * 25, 1))) min(c * 3.5, 0.22) h / 1);
+  --head: oklch(from var(--space) calc(0.8 - 0.08 * (1 - min(c * 25, 1))) min(c * 3.5, 0.2) h / 1);
+  --edge-1: oklch(from var(--space) 0 0 0 / calc(0.4 * (1 - min(c * 25, 1))));
+  --edge-2: oklch(from var(--space) 0 0 0 / calc(0.25 * (1 - min(c * 25, 1))));
+  --edge: drop-shadow(0 0 0.5px var(--edge-1)) drop-shadow(0 0.5px 1px var(--edge-2));
   --tip: color-mix(in oklch, var(--head), white 28%);
   --ahead: 64px;
   --above: 10px;
@@ -65,6 +76,7 @@
   inset: 0 var(--ahead) auto 0;
   height: 2px;
   background: linear-gradient(to right, rgb(from var(--line) r g b / 0.3), rgb(from var(--line) r g b / 0.8) 40%);
+  filter: var(--edge);
 }
 /* The head: the line's last stretch. */
 .loading-line b {
@@ -91,6 +103,7 @@
 .loading-line b::before {
   top: 0;
   height: 2px;
+  filter: var(--edge);
 }
 /* Its glow. */
 .loading-line b::after {
