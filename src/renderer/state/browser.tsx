@@ -223,14 +223,16 @@ export function useReadTabs() {
 }
 
 /**
- * Tab `id` of the Browser, as `useBrowser`'s Browser, drawn again only as
- * it changes; none for no ID. A tab that goes is kept as it was last, for
- * a row that leaves to draw it as it does.
+ * Tab `id` of the Browser, as `useBrowser`'s Browser, or of the Browser of
+ * `space` if one is given, drawn again only as it changes; none for no ID.
+ * A tab that goes is kept as it was last, for a row that leaves to draw it
+ * as it does.
  */
-export function useTab(id: number | null | undefined) {
+export function useTab(id: number | null | undefined, space?: number | null) {
   const source = useContext(SourceContext);
   if (!source) throw new Error("useTab is used outside a BrowserProvider");
-  const { store, read } = source;
+  const { store } = source;
+  const read = space == null ? source.read : () => store.get(space);
   const tab = useSyncExternalStore(
     (listener) => (id == null ? () => {} : store.subscribeTab(id, listener)),
     () => (id == null ? undefined : read()?.byId.get(id))
@@ -268,6 +270,16 @@ export function useNoneSelected(none: boolean) {
   const store = useContext(TabsContext);
   if (!store) throw new Error("useNoneSelected is used outside a BrowserProvider");
   useLayoutEffect(() => store.setNoneSelected(none), [store, none]);
+}
+
+/**
+ * The pins open in each of the window's Browsers, with their spaces
+ * (`TabsStore.links`), drawn again only as one changes.
+ */
+export function useWindowLinks() {
+  const store = useContext(TabsContext);
+  if (!store) throw new Error("useWindowLinks is used outside a BrowserProvider");
+  return useSyncExternalStore(store.subscribe, store.links);
 }
 
 /**

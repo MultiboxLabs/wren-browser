@@ -8,9 +8,13 @@
 // so it says which rows there are and where, and is the same while only a
 // tab's title or state changes. What draws a row reads its Chromium tabs by
 // their IDs (`useSides`), and is drawn again only as they change.
+//
+// A window has one tab for each favourite, which moves to the space that
+// opens it, so every space draws a favourite open while any space's Browser
+// has its tab. Only the space whose Browser has it can draw it selected.
 
 import type { BrowserTab, Pin, PinLink, PinPage, TabGroup, TabSplit } from "@/ipc";
-import { type TabShape, useMarked, useSelected, useTab, useTabShape } from "./browser";
+import { type TabShape, useMarked, useSelected, useTab, useTabShape, useWindowLinks } from "./browser";
 
 /** What keeps a tab: nothing but the list, the space's pins, or the favourites. */
 export type ItemType = "normal" | "pinned" | "favorite";
@@ -23,6 +27,12 @@ export type Side = {
   page: PinPage | null;
   /** Its Chromium tab has left the kept page. */
   away: boolean;
+  /**
+   * The space whose Browser has its Chromium tab, if that is another space
+   * of the window than the one drawn: a favourite's, which a press moves
+   * here (`pins.open`). Null for a tab of this space's Browser, or none.
+   */
+  elsewhere: number | null;
 };
 
 /** A tab, or a split's two as one. */
@@ -58,13 +68,18 @@ export type Items = { favorites: TabItem[]; pinned: Item[]; tabs: Item[] };
 /** A side as it is drawn: with its Chromium tab whole, if one is open on it. */
 export type DrawnSide = { page: PinPage | null; tab: BrowserTab | undefined; away: boolean };
 
-/** A pin as an item, with the Chromium tabs `links` say are open on it; a folder with all in it. */
-function keptItem(pin: Pin, type: "pinned" | "favorite", links: PinLink[]): Item {
+/** Where a pin is open: its link, and the space whose Browser has it if it is another's. */
+type Found = { link: PinLink; elsewhere: number | null };
+
+/** A pin as an item, with the Chromium tabs `find` says are open on it; a folder with all in it. */
+function keptItem(pin: Pin, type: "pinned" | "favorite", find: (pin: number) => Found | undefined): Item {
   if (pin.kind === "folder") {
-    const items = pin.items.map((each) => keptItem(each, type, links));
+    const items = pin.items.map((each) => keptItem(each, type, find));
     return { kind: "folder", pin: pin.id, name: pin.name, open: pin.open, items };
   }
-  const link = links.find((link) => link.pin === pin.id);
+  const found = find(pin.id);
+  const link = found?.link;
+  const elsewhere = found?.elsewhere ?? null;
   const pages = pin.kind === "tab" ? [pin.page] : pin.pages;
   return {
     kind: "tab",
@@ -72,19 +87,24 @@ function keptItem(pin: Pin, type: "pinned" | "favorite", links: PinLink[]): Item
     pin: pin.id,
     name: pin.name,
     lastActive: pin.lastActive,
-    sides: pages.map((page, side) => ({ page, tab: link?.tabs[side] ?? null, away: link?.away[side] ?? false })),
+    sides: pages.map((page, side) => ({
+      page,
+      tab: link?.tabs[side] ?? null,
+      away: link?.away[side] ?? false,
+      elsewhere
+    })),
     list: null
   };
 }
 
 /** The favourites as items; they hold no folder. */
-const favoriteItems = (favorites: Pin[], links: PinLink[]) =>
+const favoriteItems = (favorites: Pin[], find: (pin: number) => Found | undefined) =>
   favorites.flatMap((pin) => {
-    const item = keptItem(pin, "favorite", links);
+    const item = keptItem(pin, "favorite", find);
     return item.kind === "tab" ? [item] : [];
   });
 
-const side = (tab: number): Side => ({ tab, page: null, away: false });
+const side = (tab: number): Side => ({ tab, page: null, away: false, elsewhere: null });
 
 /**
  * The list's tabs as items, in its order: a split's two as one, where it
@@ -123,10 +143,22 @@ function listItems(listed: TabShape[], groups: TabGroup[], splits: TabSplit[]): 
  * (`BrowserOfSpace`), from its favourites and pins as they were read.
  */
 export function useItems(favorites: Pin[], pinned: Pin[]): Items {
-  const { listed, groups, splits, links } = useTabShape();
+  const { space, listed, groups, splits, links } = useTabShape();
+  const every = useWindowLinks();
+  const own = (pin: number): Found | undefined => {
+    const link = links.find((link) => link.pin === pin);
+    return link && { link, elsewhere: null };
+  };
+  // A favourite's tab in another space's Browser is drawn here too.
+  const anywhere = (pin: number): Found | undefined => {
+    const found = own(pin);
+    if (found) return found;
+    const other = every.find((each) => each.space !== space && each.space !== null && each.link.pin === pin);
+    return other && { link: other.link, elsewhere: other.space };
+  };
   return {
-    favorites: favoriteItems(favorites, links),
-    pinned: pinned.map((pin) => keptItem(pin, "pinned", links)),
+    favorites: favoriteItems(favorites, anywhere),
+    pinned: pinned.map((pin) => keptItem(pin, "pinned", own)),
     tabs: listItems(listed, groups, splits)
   };
 }
@@ -137,7 +169,8 @@ export function useItems(favorites: Pin[], pinned: Pin[]): Items {
  * unopened, both sides of it.
  */
 export function useSides(item: TabItem): DrawnSide[] {
-  const tabs = [useTab(item.sides[0].tab), useTab(item.sides[1]?.tab)];
+  const [first, second] = item.sides;
+  const tabs = [useTab(first.tab, first.elsewhere), useTab(second?.tab, second?.elsewhere)];
   const whole = item.sides.every((side, at) => side.tab === null || tabs[at] !== undefined);
   return item.sides.map(({ page, away }, at) => ({
     page,
@@ -146,7 +179,11 @@ export function useSides(item: TabItem): DrawnSide[] {
   }));
 }
 
-/** The tab drawn selected (`useSelected`), if it is one of a tab item's; what reads it is drawn again only as that changes. */
+/**
+ * The tab drawn selected (`useSelected`), if it is one of a tab item's;
+ * what reads it is drawn again only as that changes. A tab in another
+ * space's Browser is never this space's selected one.
+ */
 export function useSelectedOf(item: TabItem) {
   return useSelected(item.sides.flatMap((side) => (side.tab === null ? [] : [side.tab])));
 }

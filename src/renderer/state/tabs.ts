@@ -130,6 +130,13 @@ function settleLinks(kept: PinLink[], next: PinLink[]) {
 /** Whose tabs: a space's ID, or null for the window while it shows no space. */
 export type Key = number | null;
 
+/** A pin open in one of the window's Browsers, and the space whose Browser it is. */
+export type SpaceLink = { space: Key; link: PinLink };
+
+/** Each the same space and the same link. */
+const sameSpaceLinks = (a: SpaceLink[], b: SpaceLink[]) =>
+  a.length === b.length && a.every((each, at) => each.space === b[at].space && each.link === b[at].link);
+
 /**
  * Every Browser's tabs, by space. Each said again as it was is kept as the
  * object it was (utils/settle.ts), and each space's tabs are a new object
@@ -138,6 +145,8 @@ export type Key = number | null;
  */
 export class TabsStore {
   private spaces = new Map<Key, SpaceTabs>();
+  // The pins open in every space's Browser, the same array while they are.
+  private everyLink: SpaceLink[] = [];
   // The space the window's tabs are under; undefined until any are said so.
   private front: Key | undefined = undefined;
   private listeners = new Set<() => void>();
@@ -152,6 +161,13 @@ export class TabsStore {
 
   /** The tabs of `space`, or undefined while there are none said: its Browser hasn't been heard of, or is on the way. */
   get = (space: Key) => this.spaces.get(space);
+
+  /**
+   * The pins open in each of the window's Browsers, with their spaces. A
+   * window has one tab for each favourite, which every space draws open
+   * (state/items.ts). The same array until one changes.
+   */
+  links = () => this.everyLink;
 
   /** The window's tabs; undefined until the app has said them. */
   window = () => (this.front === undefined ? undefined : this.spaces.get(this.front));
@@ -273,6 +289,8 @@ export class TabsStore {
     const kept = this.spaces.get(space);
     const next = spaceTabs(said, kept);
     this.spaces.set(space, next);
+    const links = [...this.spaces].flatMap(([space, tabs]) => tabs.said.links.map((link) => ({ space, link })));
+    if (!sameSpaceLinks(this.everyLink, links)) this.everyLink = links;
     const changed = new Set<number>();
     for (const [id, tab] of next.byId) if (kept?.byId.get(id) !== tab) changed.add(id);
     for (const id of kept?.byId.keys() ?? []) if (!next.byId.has(id)) changed.add(id);

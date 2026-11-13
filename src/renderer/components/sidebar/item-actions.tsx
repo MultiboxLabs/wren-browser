@@ -84,9 +84,10 @@ export function useItemActions(
   // A menu holds the floating sidebar out until it closes.
   const holdUntil = useHoldUntil();
   const select = (item: TabItem, side: number) => {
-    const tab = item.sides[side]?.tab;
-    // The app makes each change, and the page hears it back as new tabs.
-    if (tab != null) void browser.activate(tab);
+    const { tab, elsewhere } = item.sides[side] ?? {};
+    // The app makes each change, and the page hears it back as new tabs. A
+    // favourite's tab in another space's Browser moves here as it opens.
+    if (tab != null && elsewhere == null) void browser.activate(tab);
     else if (item.pin !== null) pins.open(item.pin).catch(() => {});
   };
   const [renaming, setRenaming] = useState<string | null>(null);

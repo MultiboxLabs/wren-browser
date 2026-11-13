@@ -850,9 +850,7 @@ export const scenes = (url: string): Scene[] => [
       {
         name: "the split favourite, open in the second space, drawn open in both",
         does: isDrawnOpen(pin(7)),
-        shows: "favs (7|8) | pins 1 0 / favs (7|8) | pins 2 | tabs 2 0 {3}",
-        fails:
-          "Phase 3 of favourite-per-window.md: a space draws a favourite open only while its own Browser has the tab."
+        shows: "favs (7|8) | pins 1 0 / favs (7|8) | pins 2 | tabs 2 0 {3}"
       }
     ]
   }
