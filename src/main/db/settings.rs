@@ -35,8 +35,12 @@ pub struct Settings {
     /// (extensions/ad_block.rs).
     pub block_ads_in_new_profiles: bool,
     /// Chromium's password manager is on in every profile; off, it saves,
-    /// fills and suggests no password (password_manager.rs).
+    /// fills and suggests no password (filling.rs).
     pub password_manager: bool,
+    /// Chromium's autofill is on in every profile; off, it saves, fills and
+    /// suggests no address, payment method or value typed before
+    /// (filling.rs).
+    pub autofill: bool,
     /// A gap is left round the page, between it and the window's edges; off,
     /// the page fills the window (pages/ui/app.tsx).
     pub window_margins: bool,
@@ -56,6 +60,7 @@ impl Default for Settings {
             share_usage_data: true,
             block_ads_in_new_profiles: true,
             password_manager: true,
+            autofill: true,
             window_margins: true,
             address_bar: AddressBar::default(),
         }
@@ -73,6 +78,7 @@ pub struct SettingsChange {
     pub share_usage_data: Option<bool>,
     pub block_ads_in_new_profiles: Option<bool>,
     pub password_manager: Option<bool>,
+    pub autofill: Option<bool>,
     pub window_margins: Option<bool>,
     pub address_bar: Option<AddressBar>,
 }
@@ -139,6 +145,7 @@ impl Db {
             password_manager: self
                 .setting("passwordManager")?
                 .unwrap_or(defaults.password_manager),
+            autofill: self.setting("autofill")?.unwrap_or(defaults.autofill),
             window_margins: self
                 .setting("windowMargins")?
                 .unwrap_or(defaults.window_margins),
@@ -169,6 +176,9 @@ impl Db {
         }
         if let Some(on) = change.password_manager {
             set(&transaction, "passwordManager", &on)?;
+        }
+        if let Some(on) = change.autofill {
+            set(&transaction, "autofill", &on)?;
         }
         if let Some(on) = change.window_margins {
             set(&transaction, "windowMargins", &on)?;
@@ -296,6 +306,13 @@ mod tests {
             ..SettingsChange::default()
         };
         assert!(!db.update_settings(change).unwrap().password_manager);
+        // So is autofill.
+        assert!(settings.autofill);
+        let change = SettingsChange {
+            autofill: Some(false),
+            ..SettingsChange::default()
+        };
+        assert!(!db.update_settings(change).unwrap().autofill);
         // The address is atop the sidebar until moved.
         assert_eq!(settings.address_bar, AddressBar::Sidebar);
         let change = SettingsChange {

@@ -188,6 +188,7 @@ export function useSettings(open: boolean) {
     shareUsageData: true,
     blockAdsInNewProfiles: true,
     passwordManager: true,
+    autofill: true,
     windowMargins: true,
     addressBar: "sidebar"
   });

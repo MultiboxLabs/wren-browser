@@ -24,6 +24,8 @@ export type Settings = {
   blockAdsInNewProfiles: boolean;
   /** Chromium's password manager, in every profile: off, it saves, fills and suggests no password; what is saved stays. */
   passwordManager: boolean;
+  /** Chromium's autofill, in every profile: off, it saves, fills and suggests no address, payment method or value typed before; what is saved stays. */
+  autofill: boolean;
   /** A gap is left round the page, between it and the window's edges; off, the page fills the window. */
   windowMargins: boolean;
   /** Where the page's address shows, and Chromium's bubbles hang off: atop the sidebar, or atop the page (each side's, in a split). */

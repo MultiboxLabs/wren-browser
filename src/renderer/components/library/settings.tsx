@@ -78,14 +78,24 @@ export function Settings({ query, settings }: { query: string; settings: Library
           )
         },
         {
+          name: "Help Improve Wren",
+          about: "Send anonymous feature counts and crash reports. Wren never sends what you browse.",
+          control: toggle("Help Improve Wren", values.shareUsageData, (shareUsageData) => update({ shareUsageData }))
+        }
+      ]
+    },
+    {
+      name: "Autofill & Passwords",
+      settings: [
+        {
           name: "Password Manager",
           about: "Offer to save and fill passwords. Turning it off keeps the ones already saved.",
           control: toggle("Password Manager", values.passwordManager, (passwordManager) => update({ passwordManager }))
         },
         {
-          name: "Help Improve Wren",
-          about: "Send anonymous feature counts and crash reports. Wren never sends what you browse.",
-          control: toggle("Help Improve Wren", values.shareUsageData, (shareUsageData) => update({ shareUsageData }))
+          name: "Form Autofill",
+          about: "Fill in forms with your saved addresses, cards and what you’ve typed before.",
+          control: toggle("Form Autofill", values.autofill, (autofill) => update({ autofill }))
         }
       ]
     },

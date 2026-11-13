@@ -13,7 +13,7 @@ use super::WindowRef;
 use crate::analytics::{Event, Setting};
 use crate::app::State;
 use crate::db::{AddressBar, Settings, SettingsChange};
-use crate::password_manager;
+use crate::filling::{self, Filler};
 use crate::tabs::archive;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
@@ -25,15 +25,22 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let _ = web_view.handle("settings.update", move |change: SettingsChange| {
         let state = weak.state()?;
         let changed = changed(&change);
-        let password_manager = change.password_manager;
+        let fillers = [
+            (Filler::PasswordManager, change.password_manager),
+            (Filler::Autofill, change.autofill),
+        ];
         let updates = change.automatic_updates.is_some() || change.beta_updates.is_some();
         let beta_was = state.db.settings()?.beta_updates;
         let settings = state.db.update_settings(change)?;
         if updates {
             state.updates.settings_changed(&settings, beta_was);
         }
-        if let (Some(on), Some(mt)) = (password_manager, MainThread::get()) {
-            password_manager::set(mt, on);
+        if let Some(mt) = MainThread::get() {
+            for (filler, on) in fillers {
+                if let Some(on) = on {
+                    filling::set(mt, filler, on);
+                }
+            }
         }
         state.analytics.set_on(settings.share_usage_data);
         for (setting, value) in changed {
@@ -88,7 +95,8 @@ pub fn toggle_address_bar(state: &State) -> Result<(), String> {
     Ok(())
 }
 
-fn broadcast_settings(state: &State, settings: &Settings) {
+/// Tells every window the settings as they are now.
+pub fn broadcast_settings(state: &State, settings: &Settings) {
     for window in state.windows.all() {
         let _ = window.page.web_view.send("settings.changed", settings);
     }

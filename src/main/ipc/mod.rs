@@ -63,7 +63,7 @@ pub use onboarding::handle_onboarding;
 pub use permission::{send_permission, show_permission_prompt};
 pub use pins::broadcast_pins;
 pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
-pub use settings::toggle_address_bar;
+pub use settings::{broadcast_settings, toggle_address_bar};
 pub use side_panel::send_side_panel;
 pub use sidebar::check_sidebar_hover;
 pub use site::send_site;

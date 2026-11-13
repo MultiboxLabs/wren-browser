@@ -15,11 +15,11 @@ use wren::MainThread;
 use crate::app::State;
 use crate::db::{FirstSpace, SettingsChange};
 use crate::extensions::ad_block;
+use crate::filling::{self, Filler};
 use crate::import::Landing;
 use crate::import::run::{self, Plan, RunState};
 use crate::ipc;
 use crate::pages::ONBOARDING;
-use crate::password_manager;
 use crate::platform::{PageWindow, TitleBarKind, WindowSize};
 
 /// The window's content, which the user cannot resize, as a setup
@@ -103,9 +103,9 @@ impl State {
         // The profiles there are already follow them: those brought over in
         // onboarding, and every one after Reset Onboarding. The password
         // manager is set in those loaded, and the rest follow it as they
-        // load (password_manager.rs).
+        // load (filling.rs).
         ad_block::set_in_every_profile(mt, choices.ad_block);
-        password_manager::set(mt, choices.password_manager);
+        filling::set(mt, Filler::PasswordManager, choices.password_manager);
         if let Err(error) = self.db.set_onboarded(true) {
             eprintln!("Wren could not note that onboarding is done: {error}");
         }

@@ -16,11 +16,11 @@ use crate::changes;
 use crate::channel::Channel;
 use crate::db::Db;
 use crate::extensions::{ad_block, components};
+use crate::filling;
 use crate::import;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{self, SCHEME, Source, serve_page};
-use crate::password_manager;
 use crate::perf::Perf;
 use crate::pins;
 use crate::platform::{
@@ -73,7 +73,7 @@ impl State {
     pub fn new(data: PathBuf, channel: Channel, perf: Option<Perf>) -> State {
         let db = Db::open(&data);
         let settings = db.settings().unwrap_or_default();
-        password_manager::start(settings.password_manager);
+        filling::start(&settings);
         let on = settings.share_usage_data;
         // The one place that notes the version: noting it forgets the last.
         let updated_from = db.note_version(updates::VERSION).unwrap_or_else(|error| {
@@ -391,10 +391,11 @@ impl App for Wren {
             if let Some(profile) = &change.profile {
                 match change.kind {
                     ChangeKind::ProfileOpened => {
-                        password_manager::opened(profile);
+                        filling::opened(profile);
                         windows::keep_session_data(profile);
                     }
-                    ChangeKind::ProfileClosed => password_manager::closed(&profile.id()),
+                    ChangeKind::ProfileClosed => filling::closed(&profile.id()),
+                    ChangeKind::Autofill => filling::autofill_changed(state, mt, profile),
                     _ => {}
                 }
             }
