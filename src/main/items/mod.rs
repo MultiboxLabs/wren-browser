@@ -6,9 +6,9 @@
 // split, or a group kept as a folder. It is the one place that knows which
 // item may go where, and calls tabs/ and pins/ for each.
 //
-// An item of the list that is in another of the window's spaces moves to the
-// destination's Browser first (windows/move_tabs.rs), then lands as one of
-// its own would.
+// An item of the list that is in another of the window's spaces, or in
+// another window, moves to the destination's Browser first
+// (windows/move_tabs.rs), then lands as one of its own would.
 //
 // Several tabs of the list that are marked move together, or several
 // pinned tabs (together.rs), each as it would alone, one after another.
@@ -236,8 +236,8 @@ fn move_pin(
     }
 }
 
-// A tab of the list, its split or a group: it lands in its own Browser at
-// once, or moves to the destination's first.
+// A tab of the list, its split or a group, of any window: it lands in its
+// own Browser at once, or moves to the destination's first.
 fn move_listed(
     state: &Rc<State>,
     mt: MainThread,
@@ -250,7 +250,7 @@ fn move_listed(
     let found = (|| {
         let found = state.windows.get(window).ok_or("The window is closing.")?;
         let (listed, source) = listed(mt, &item)?;
-        if !found.has_browser(&source) {
+        if state.windows.of(&source).is_none() {
             return Err("There is no such item.".to_owned());
         }
         let moving = moving(&source, listed)?;
@@ -264,9 +264,6 @@ fn move_listed(
     if there.as_ref() == Some(&source) {
         return done(land(state, mt, &source, &place, listed, target));
     }
-    let Place::Space(space) = place else {
-        return done(Err("A tab moves only among a window's spaces.".into()));
-    };
     // Where it is dropped in the list, or beside the tab it splits with;
     // what is pinned goes to the top first.
     let index = match target {
@@ -283,7 +280,7 @@ fn move_listed(
         _ => 0,
     };
     let inner = state.clone();
-    state.move_to_space(mt, window, moving, space, index, move |moved| {
+    state.move_to_place(mt, window, moving, place.clone(), index, move |moved| {
         done(moved.and_then(|browser| land(&inner, mt, &browser, &place, listed, target)));
     });
 }

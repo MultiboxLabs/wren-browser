@@ -1,37 +1,36 @@
-// Moving tabs from one of a window's spaces to another of the same profile,
-// as the sidebar drags them: onto a space's button, or, once the window has
-// switched to it, onto its list. They keep their pages and history. A space
-// the window has no Browser for gets one first.
+// Moving tabs to a place of a window, as the sidebar drags them: from
+// another of its spaces, onto a space's button or, once the window has
+// switched to it, onto its list; or from another window, onto its sidebar.
+// They go only to a place of their own profile, and keep their pages and
+// history. A place the window has no Browser for gets one first.
 
 use std::rc::Rc;
 
 use wren::{Browser, BrowserTab, MainThread};
 
 use crate::app::State;
-use crate::db::SpaceId;
 use crate::shell::{Place, WindowId};
 use crate::tabs;
 
 impl State {
-    /// Moves `moving`, all of one of window `id`'s Browsers, to `space`'s,
-    /// at `index` of its list, then calls `done` with that Browser, or why
-    /// they did not move: a space of another profile, or the one they are
-    /// in. Should the space have no Browser yet, one is made, and the move
-    /// waits for it.
-    pub fn move_to_space(
+    /// Moves `moving`, all of one Browser of any window, to window `id`'s
+    /// Browser for `place`, at `index` of its list, then calls `done` with
+    /// that Browser, or why they did not move: a place of another profile,
+    /// or the Browser they are in. Should the window have no Browser for
+    /// `place` yet, one is made, and the move waits for it.
+    pub fn move_to_place(
         self: &Rc<Self>,
         mt: MainThread,
         id: WindowId,
         moving: Vec<BrowserTab>,
-        space: SpaceId,
+        place: Place,
         index: usize,
         done: impl FnOnce(Result<Browser, String>) + 'static,
     ) {
-        let source = match self.moving_from(id, &moving, space) {
+        let source = match self.moving_from(&moving, &place) {
             Ok(source) => source,
             Err(error) => return done(Err(error)),
         };
-        let place = Place::Space(space);
         let window = self.windows.get(id);
         if let Some(browser) = window.as_ref().and_then(|w| w.browser_of(&place)) {
             return done(move_into(&source, browser, &moving, index));
@@ -47,29 +46,24 @@ impl State {
         });
     }
 
-    // The Browser `moving` move from, if they can move to `space`: one of
-    // window `id`'s, of another space of the same profile.
-    fn moving_from(
-        &self,
-        id: WindowId,
-        moving: &[BrowserTab],
-        space: SpaceId,
-    ) -> Result<Browser, String> {
-        let window = self.windows.get(id).ok_or("The window is closing.")?;
+    // The Browser `moving` move from, if they can move to `place`: one of
+    // any window's, of the profile `place` shows, or its off-the-record
+    // side's for that side.
+    fn moving_from(&self, moving: &[BrowserTab], place: &Place) -> Result<Browser, String> {
         let source = moving
             .first()
             .and_then(|tab| tab.browser())
-            .filter(|browser| window.has_browser(browser))
+            .filter(|browser| self.windows.of(browser).is_some())
             .ok_or("There is no such tab.")?;
-        let from = window.space_of(&source).ok_or("The tab is in no space.")?;
-        if from == space {
-            return Err("The tab is in that space already.".into());
-        }
-        let profile = |space| -> Result<String, String> {
-            let row = self.db.space(space)?.ok_or("That space is gone.")?;
-            Ok(row.profile)
+        let profile = source.profile().ok_or("There is no such tab.")?;
+        let shown = match place {
+            Place::Space(space) => Place::Profile {
+                id: self.db.space(*space)?.ok_or("That space is gone.")?.profile,
+                off_the_record: false,
+            },
+            Place::Profile { .. } => place.clone(),
         };
-        if profile(from)? != profile(space)? {
+        if Place::of_profile(&profile) != shown {
             return Err("A tab moves only among its profile's spaces.".into());
         }
         Ok(source)
@@ -89,6 +83,9 @@ fn move_into(
         .any(|tab| tab.browser().as_ref() != Some(source))
     {
         return Err("The tabs have moved.".into());
+    }
+    if browser == *source {
+        return Err("The tab is there already.".into());
     }
     tabs::move_in(&browser, moving, index).map_err(|error| format!("{error:?}"))?;
     Ok(browser)

@@ -56,7 +56,7 @@ pub(super) fn move_together(
     let checked = (|| {
         let place = place_of(state, window, to.space)?;
         // All may go there, or none go.
-        let (tabs, kept) = movable(state, mt, window, &items, &to.target)?;
+        let (tabs, kept) = movable(state, mt, &items, &to.target)?;
         let anchor = match &to.target {
             Target::Split { .. } => {
                 return Err("Only a tab alone makes a split with another.".into());
@@ -94,16 +94,14 @@ pub(super) fn move_together(
     }
 }
 
-// The tabs of the list that `items` move, or the pins: all of one kind, in
-// window `window`, and each free to go to `target`.
+// The tabs of the list that `items` move, of any window, or the pins: all
+// of one kind, and each free to go to `target`.
 fn movable(
     state: &State,
     mt: MainThread,
-    window: WindowId,
     items: &[ItemRef],
     target: &Target,
 ) -> Result<(Vec<BrowserTab>, Vec<PinId>), String> {
-    let found = state.windows.get(window).ok_or("The window is closing.")?;
     let (mut tabs, mut kept) = (Vec::new(), Vec::new());
     for item in items {
         match item {
@@ -118,7 +116,7 @@ fn movable(
                 let (Listed::Tab(tab), source) = listed(mt, item)? else {
                     return Err("A group does not move with others.".into());
                 };
-                if !found.has_browser(&source) {
+                if state.windows.of(&source).is_none() {
                     return Err("There is no such item.".into());
                 }
                 let row = moving(&source, Listed::Tab(tab))?;
