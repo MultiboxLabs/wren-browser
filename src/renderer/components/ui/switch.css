@@ -5,6 +5,7 @@
   --switch-height: 18px;
   --switch-knob-width: 14px;
   --switch-knob: rgb(255 255 255);
+  --switch-knob-on: transparent;
 }
 /* The system's switch: wider, its knob a pill, not a circle. */
 :root[data-platform="mac"] {
@@ -16,14 +17,22 @@
 
 /* Its track: off, deep enough to stand out of the window's colour; on, the
    space's colour, more of it, and darker than the window in light, lighter
-   in dark, so it stands out of it as well. */
+   in dark, so it stands out of it as well. A space with no colour, such
+   as black, has none to mark it on, and in dark its grey would be near the
+   grey of off; so there, on, the track is near white and the knob dark, as
+   Button's solid is. --switch-knob-on is that dark knob, drawn over the
+   white one, and clear in a space with colour; the clamp is 1 below a
+   chroma of 0.02, a grey, and 0 above it, so a muted space keeps its
+   colour. */
 :root[data-scheme="light"],
 :root[data-system-scheme="light"] [data-scheme="system"] {
   --switch-off: rgb(0 0 0 / 0.2);
   --switch-on: oklch(from var(--space) 0.52 calc(c * 1.3) h);
+  --switch-knob-on: transparent;
 }
 :root[data-scheme="dark"],
 :root[data-system-scheme="dark"] [data-scheme="system"] {
   --switch-off: rgb(255 255 255 / 0.25);
-  --switch-on: oklch(from var(--space) 0.72 calc(c * 1.3) h);
+  --switch-on: oklch(from var(--space) calc(0.72 + 0.24 * clamp(0, (0.02 - c) * 1000, 1)) calc(c * 1.3) h);
+  --switch-knob-on: oklch(from var(--space) 0.24 0 0 / clamp(0, (0.02 - c) * 1000, 1));
 }

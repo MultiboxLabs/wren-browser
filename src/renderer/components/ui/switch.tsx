@@ -7,7 +7,8 @@
 // macOS, the knob is a pill too. Its fill is the space's colour, set apart
 // from the window's: lighter in dark, darker in light. What eases, in the
 // system's time and curve, is the knob's place and how much of the fill
-// shows, never a colour: a colour that eased would also ease from light to
+// shows (and, in a space with no colour, how much of the dark knob does),
+// never a colour: a colour that eased would also ease from light to
 // dark as the space's scheme changes, where all else changes at once.
 
 import { Switch as Radix } from "radix-ui";
@@ -99,7 +100,14 @@ export function Switch({
           "relative block h-[calc(var(--switch-height)_-_4px)] w-(--switch-knob-width) rounded-full bg-(--switch-knob) shadow-[0_0_0_0.5px_rgb(0_0_0/0.08),0_1px_2px_rgb(0_0_0/0.2)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
           on ? "translate-x-[calc(var(--switch-width)_-_var(--switch-knob-width)_-_2px)]" : "translate-x-0.5"
         )}
-      />
+      >
+        <span
+          className={cn(
+            "absolute inset-0 rounded-[inherit] bg-(--switch-knob-on) transition-opacity duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+            on ? "opacity-100" : "opacity-0"
+          )}
+        />
+      </Radix.Thumb>
     </Radix.Root>
   );
 }
