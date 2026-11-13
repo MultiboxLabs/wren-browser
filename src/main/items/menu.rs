@@ -136,10 +136,10 @@ impl Subject {
                 if matches!(pin.kind, PinKind::Folder { .. }) {
                     What::Folder(pin)
                 } else {
-                    let open = browser.as_ref().and_then(|browser| {
-                        let open = pins::open_pins(browser);
-                        open.into_iter().find(|open| open.pin == *id)
-                    });
+                    // Wherever in the window its tabs are.
+                    let open = browser
+                        .as_ref()
+                        .and_then(|browser| pins::open_pin(state, browser, *id));
                     let (tabs, away) = open.map_or_else(Default::default, |open| {
                         let away = (0..open.away.len()).filter(|side| open.away[*side]);
                         (open.tabs, away.collect())
@@ -430,11 +430,11 @@ fn on_kept(
         }
         command::GO_BACK => {
             for side in subject.away() {
-                pins::back(subject.browser()?, pin.id, *side)?;
+                pins::back(state, subject.browser()?, pin.id, *side)?;
             }
         }
         command::UPDATE_URL => pins::update_url(state, subject.browser()?, pin.id)?,
-        command::CLOSE => pins::close(subject.browser()?, pin.id)?,
+        command::CLOSE => pins::close(state, subject.browser()?, pin.id)?,
         command::REMOVE => pins::delete(state, pin.id)?,
         _ => return on_pin(state, pin, chosen),
     }
@@ -534,7 +534,7 @@ fn on_marked_pins(
 ) -> Result<(), String> {
     for pin in pins {
         match (chosen, browser) {
-            (command::CLOSE, Some(browser)) => pins::close(browser, *pin)?,
+            (command::CLOSE, Some(browser)) => pins::close(state, browser, *pin)?,
             (command::REMOVE, _) => pins::delete(state, *pin)?,
             _ => {}
         }

@@ -1,5 +1,6 @@
 // The pins that are open: for each, what it keeps of its pages while a tab
-// is open for it, and its tabs in a Browser.
+// is open for it, and its tabs in a Browser, of which a window has one at
+// most (`opening_near`).
 //
 // Which tab is open for which pin is the tab's claim (tabs/roles.rs), and
 // nothing here keeps it again: a pin's tabs in a Browser (`Opening`) are
@@ -130,6 +131,26 @@ pub fn openings(browser: &Browser) -> Vec<Opening> {
 /// The pin's tabs in the Browser, if it is open there.
 pub fn opening(browser: &Browser, pin: PinId) -> Option<Opening> {
     openings(browser).into_iter().find(|each| each.pin == pin)
+}
+
+/// The pin's tabs in `browser`, or else in another Browser of its window,
+/// with that Browser; not tabs closing there, which are as good as gone. A
+/// window has one opening of a pin at most: a favourite's tab moves to the
+/// space that opens it, and a space's pin is shown by that space's Browser
+/// alone. Other windows have their own.
+pub fn opening_near(state: &State, browser: &Browser, pin: PinId) -> Option<(Browser, Opening)> {
+    if let Some(opening) = opening(browser, pin) {
+        return Some((browser.clone(), opening));
+    }
+    let window = state.windows.of(browser)?;
+    roles::claims_of(pin)
+        .into_iter()
+        .filter_map(|(tab, _)| tab.browser())
+        .find(|other| window.has_browser(other))
+        .and_then(|other| {
+            let found = opening(&other, pin).filter(|opening| !opening.closing)?;
+            Some((other, found))
+        })
 }
 
 // How many sides a pin has, as it keeps them: at least one.

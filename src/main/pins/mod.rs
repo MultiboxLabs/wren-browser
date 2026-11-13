@@ -6,7 +6,9 @@
 // (tabs/roles.rs), which pins the tab in Chromium's sense so it is never in
 // the list's order, and the sidebar draws the tab on the pin's row. A pin
 // and its tab are one: the tab may navigate away and come back, and closing
-// it leaves the pin unopened, while removing the pin closes it. What an
+// it leaves the pin unopened, while removing the pin closes it. A window has
+// one tab for each pin: a favourite's moves to whichever of the window's
+// spaces opens it (`bring`), and other windows have their own. What an
 // open pin keeps, and its tabs in a Browser, are in open.rs, and the pins
 // are settled as Chromium changes their tabs in settle.rs. A pin's tab
 // never lasts: it is kept out of Chromium's session, so a restore brings
@@ -217,12 +219,12 @@ fn in_folder(rows: Vec<PinRow>, folder: PinId) -> Option<Vec<PinRow>> {
 }
 
 /// Opens pin `id` in `browser`, the window's on `place`: selects its tab if
-/// it is open there, or else opens it there, in a tab that claims it. A
-/// split pin opens its two pages as a split.
+/// it is open there or in another space of the window, which it moves here
+/// from (`bring`), or else opens it there, in a tab that claims it. A split
+/// pin opens its two pages as a split.
 pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Result<(), String> {
     let pin = pin_for(state, place, id)?;
-    let open = open::opening(browser, id).and_then(|opening| opening.tabs().first().copied());
-    if let Some(tab) = open {
+    if let Some(tab) = bring(state, browser, id, true)? {
         return tab.activate().map_err(failed);
     }
     match pin.kind {
@@ -343,8 +345,30 @@ pub fn open_favorite(state: &Rc<State>, mt: MainThread, window: &BrowserWindow, 
     });
 }
 
-/// Takes the open pin's tab on `side` back to the pin's page, and selects it.
-pub fn back(browser: &Browser, id: PinId, side: usize) -> Result<(), String> {
+/// Moves the pin's tabs to `browser` from another Browser of its window
+/// that has them, shown there if `activate`, and answers its first tab;
+/// None if the window has the pin open nowhere. A favourite has one tab in
+/// a window, which moves to the space that opens it.
+fn bring(
+    state: &State,
+    browser: &Browser,
+    id: PinId,
+    activate: bool,
+) -> Result<Option<BrowserTab>, String> {
+    let Some((from, opening)) = open::opening_near(state, browser, id) else {
+        return Ok(None);
+    };
+    let tabs = opening.tabs();
+    if from != *browser {
+        tabs::move_here(browser, &tabs, activate).map_err(failed)?;
+    }
+    Ok(tabs.first().copied())
+}
+
+/// Takes the open pin's tab on `side` back to the pin's page, and selects
+/// it, moving the pin's tabs here from another space of the window first.
+pub fn back(state: &State, browser: &Browser, id: PinId, side: usize) -> Result<(), String> {
+    bring(state, browser, id, true)?;
     let opening = open::opening(browser, id).ok_or("That pin is not open.")?;
     let tab = opening.sides.get(side).copied().flatten();
     let tab = tab.ok_or("The pin's tab is gone.")?;
@@ -367,31 +391,39 @@ pub struct OpenPin {
 pub fn open_pins(browser: &Browser) -> Vec<OpenPin> {
     open::openings(browser)
         .into_iter()
-        .filter_map(|opening| {
-            let tabs = opening.whole()?;
-            let kept = open::kept(opening.pin)?;
-            let away = kept
-                .pages
-                .iter()
-                .zip(&tabs)
-                .map(|(page, tab)| is_away(&page.url, &tab.url()))
-                .collect();
-            Some(OpenPin {
-                pin: opening.pin,
-                tabs,
-                away,
-            })
-        })
+        .filter_map(open_pin_of)
         .collect()
 }
 
-/// Makes the pages of the open pin's tabs in `browser` that are away the
-/// pin's own: it keeps where they are now, in every Browser it is open in.
+/// Pin `id`, if it is open in `browser` or another Browser of its window,
+/// as `open_pins` has it: what a window's menus act on, whichever of its
+/// spaces has the pin's tab.
+pub fn open_pin(state: &State, browser: &Browser, id: PinId) -> Option<OpenPin> {
+    open_pin_of(open::opening_near(state, browser, id)?.1)
+}
+
+// An opening as `open_pins` has it, if it is whole.
+fn open_pin_of(opening: open::Opening) -> Option<OpenPin> {
+    let tabs = opening.whole()?;
+    let kept = open::kept(opening.pin)?;
+    let away = kept
+        .pages
+        .iter()
+        .zip(&tabs)
+        .map(|(page, tab)| is_away(&page.url, &tab.url()))
+        .collect();
+    Some(OpenPin {
+        pin: opening.pin,
+        tabs,
+        away,
+    })
+}
+
+/// Makes the pages of the open pin's tabs in `browser`'s window that are
+/// away the pin's own: it keeps where they are now, in every Browser it is
+/// open in.
 pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), String> {
-    let open = open_pins(browser)
-        .into_iter()
-        .find(|open| open.pin == id)
-        .ok_or("That pin is not open.")?;
+    let open = open_pin(state, browser, id).ok_or("That pin is not open.")?;
     for (side, tab) in open.tabs.iter().enumerate() {
         if open.away[side] {
             open::set_page(state, id, side, &page_of(*tab))?;
@@ -413,14 +445,16 @@ pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), Str
     Ok(())
 }
 
-/// Closes the open pin's tabs, all or none, leaving the pin unopened. Each
-/// page may ask first, and if one keeps its tab, every tab stays open and
-/// the pin stays as it was. The tabs keep their claims until they have gone
-/// (`end_broken` in settle.rs), marked as closing.
-pub fn close(browser: &Browser, id: PinId) -> Result<(), String> {
-    let Some(opening) = open::opening(browser, id) else {
+/// Closes the open pin's tabs in `browser`'s window, all or none, wherever
+/// in it they are, leaving the pin unopened. Each page may ask first, and
+/// if one keeps its tab, every tab stays open and the pin stays as it was.
+/// The tabs keep their claims until they have gone (`end_broken` in
+/// settle.rs), marked as closing.
+pub fn close(state: &State, browser: &Browser, id: PinId) -> Result<(), String> {
+    let Some((browser, opening)) = open::opening_near(state, browser, id) else {
         return Ok(());
     };
+    let browser = &browser;
     if opening.closing {
         return Ok(());
     }
@@ -449,8 +483,10 @@ pub fn delete(state: &State, id: PinId) -> Result<(), String> {
 }
 
 /// Moves pin `id` to `target` of the window on `place`, at `index` (None:
-/// last). A favourite that becomes a space's pin is closed in the Browsers
-/// of the other spaces, which no longer show it.
+/// last). A favourite that becomes a space's pin keeps its tab in each
+/// window that has that space's Browser, moved there from another space if
+/// it is in one, and is closed in the Browsers of the other spaces, which
+/// no longer show it.
 pub fn move_pin(
     state: &State,
     place: &Place,
@@ -462,6 +498,14 @@ pub fn move_pin(
     state.db.move_pin(id, &to, index)?;
     open::moved(state, id);
     if let PinPlace::Space { space, .. } = to {
+        for window in state.windows.all() {
+            let Some(target) = window.browser_of(&Place::Space(space)) else {
+                continue;
+            };
+            if let Err(error) = bring(state, &target, id, false) {
+                eprintln!("Wren could not keep a favourite's tab as it became a pin: {error}");
+            }
+        }
         close_where(state, &[id], |window, browser| {
             window.space_of(browser) != Some(space)
         });
@@ -471,9 +515,9 @@ pub fn move_pin(
 }
 
 /// Makes pin `id` an ordinary tab at `index` of the list, in `group`, and
-/// removes the pin: its tab in `browser` stays, unpinned (a split's two
-/// still a split), or, unopened, opens there. Its tabs elsewhere close with
-/// it.
+/// removes the pin: its tab in `browser`'s window, moved here from another
+/// space if it is in one, stays, unpinned (a split's two still a split),
+/// or, unopened, opens here. Its tabs in other windows close with it.
 pub fn to_list(
     state: &State,
     mt: MainThread,
@@ -484,6 +528,7 @@ pub fn to_list(
     group: Option<TabGroup>,
 ) -> Result<(), String> {
     let pin = pin_for(state, place, id)?;
+    bring(state, browser, id, false)?;
     let open = open::opening(browser, id).map_or_else(Vec::new, |opening| opening.tabs());
     match (pin.kind, open.as_slice()) {
         (PinKind::Tab(_), [tab]) => {

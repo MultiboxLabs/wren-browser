@@ -750,11 +750,11 @@ export const scenes = (url: string): Scene[] => [
         does: chosen(tab(1), "Add to Favourites"),
         shows: "favs 1 / favs 1 | pins 0 | tabs {2 3}"
       },
-      {
-        name: "an open favourite moved to the other space's pins, which closes its tab in this one",
+      keepsTabs(pin(1), 0, {
+        name: "an open favourite moved to the other space's pins, which keeps its tab, moved to that space",
         does: movedToPins(pin(1), 0),
         shows: "pins 1 / pins 0 | tabs {2 3}"
-      },
+      }),
       {
         name: "a pinned tab's Close Tab",
         does: chosen(pin(0), "Close Tab"),
@@ -787,8 +787,7 @@ export const scenes = (url: string): Scene[] => [
           await shownSpace(0)();
           await opened(pin(2))();
         },
-        shows: "favs 2 | pins 1 0 / favs 2 | tabs 0 {3}",
-        fails: "Phase 2 of favourite-per-window.md: the first space opens a second tab for the favourite."
+        shows: "favs 2 | pins 1 0 / favs 2 | tabs 0 {3}"
       }),
       {
         name: "Close Tab from the favourite's menu in the second space, which closes its tab in the first",
@@ -797,8 +796,7 @@ export const scenes = (url: string): Scene[] => [
           await chosen(pin(2), "Close Tab")();
           await isUnopened(pin(2))();
         },
-        shows: "favs 2 | pins 1 0 / favs 2 | tabs 0 {3}",
-        fails: "Phase 2 of favourite-per-window.md: Close Tab looks for the tab in the second space's Browser alone."
+        shows: "favs 2 | pins 1 0 / favs 2 | tabs 0 {3}"
       },
       {
         name: "a split of two new tabs made a favourite in the second space",
@@ -806,6 +804,7 @@ export const scenes = (url: string): Scene[] => [
           await browser.open(`${url}/tab/7`);
           await browser.open(`${url}/tab/8`);
           closeOmnibox();
+          await shows("favs 2 | pins 1 0 / favs 2 | tabs 8 7 0 {3}");
           await dragged(tab(8), half(tab(7), "right"))();
           await shows("favs 2 | pins 1 0 / favs 2 | tabs (7|8) 0 {3}");
           await chosen(tab(7), "Add to Favourites")();
@@ -818,8 +817,7 @@ export const scenes = (url: string): Scene[] => [
           await shownSpace(0)();
           await opened(pin(7))();
         },
-        shows: "favs 2 (7|8) | pins 1 0 / favs 2 (7|8) | tabs 0 {3}",
-        fails: "Phase 2 of favourite-per-window.md: the first space opens a second split for the favourite."
+        shows: "favs 2 (7|8) | pins 1 0 / favs 2 (7|8) | tabs 0 {3}"
       }),
       keepsTabs(pin(7), 1, {
         name: "the split favourite pressed in the second space, which leaves the first with no tab of its own",
@@ -827,8 +825,7 @@ export const scenes = (url: string): Scene[] => [
           await shownSpace(1)();
           await opened(pin(7))();
         },
-        shows: "favs 2 (7|8) | pins 1 0 / favs 2 (7|8) | tabs 0 {3}",
-        fails: "Phase 2 of favourite-per-window.md: the second space opens a second split for the favourite."
+        shows: "favs 2 (7|8) | pins 1 0 / favs 2 (7|8) | tabs 0 {3}"
       }),
       {
         name: "the favourite's tab closed in the second space and opened in the first, then Reopen Closed Tab in the second, which brings it back as a tab of the list",
@@ -843,15 +840,12 @@ export const scenes = (url: string): Scene[] => [
           await shownSpace(1)();
           await perf.reopenClosedTab();
         },
-        shows: "favs 2 (7|8) | pins 1 0 / favs 2 (7|8) | tabs 2 0 {3}",
-        fails:
-          "Phase 2 of favourite-per-window.md: Reopen Closed Tab gives the tab back its favourite, open in the first space too."
+        shows: "favs 2 (7|8) | pins 1 0 / favs 2 (7|8) | tabs 2 0 {3}"
       },
       keepsTabs(pin(2), 1, {
         name: "the favourite open in the first space moved to the second space's pins, which keeps its tab",
         does: movedToPins(pin(2), 1),
-        shows: "favs (7|8) | pins 1 0 / favs (7|8) | pins 2 | tabs 2 0 {3}",
-        fails: "Phase 2 of favourite-per-window.md: moving the favourite closes its tab in the first space."
+        shows: "favs (7|8) | pins 1 0 / favs (7|8) | pins 2 | tabs 2 0 {3}"
       }),
       {
         name: "the split favourite, open in the second space, drawn open in both",

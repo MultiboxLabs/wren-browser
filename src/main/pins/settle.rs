@@ -20,15 +20,17 @@ use crate::tabs::roles::{self, Role};
 /// told its tabs again. A change of one tab that leaves its pinning and its
 /// split as they were only keeps that tab's look. Any other settles them
 /// all:
-/// - a claim holds only for a pin that the Browser's place shows, and whose
-///   tabs are all open, pinned and, for a split pin, one split. The tabs of
-///   one that fails are tabs of the list again, and never closed;
+/// - a claim holds only for a pin that the Browser's place shows, that no
+///   other Browser of its window has open, and whose tabs are all open,
+///   pinned and, for a split pin, one split. The tabs of one that fails are
+///   tabs of the list again, and never closed;
 /// - a split pin whose tabs are no longer a split becomes a tab pin of the
 ///   one it keeps (its first, while both are open), and the other is a tab
 ///   of the list, unless the pin's tabs are closing (`Claim::closing`);
 /// - a tab Chromium has pinned that is a tab of the list by its role takes
-///   its claim again, if it was a pin's tab before it closed and its
-///   Browser's place still shows that pin, or else is unpinned;
+///   its claim again, if it was a pin's tab before it closed, its Browser's
+///   place still shows that pin, and its window has the pin open nowhere,
+///   or else is unpinned;
 /// - while a pin's tab is on the pin's page, the pin keeps its title and
 ///   favicon;
 /// - a split pin keeps its split's order, layout and ratio;
@@ -63,7 +65,9 @@ pub fn settle(state: &State, browser: &Browser, change: &Change) -> bool {
         let Some(kept) = open::kept(opening.pin) else {
             continue;
         };
-        if !is_shown(&kept, browser, place.as_ref()) {
+        if !is_shown(&kept, browser, place.as_ref())
+            || is_open_elsewhere(state, browser, opening.pin)
+        {
             changed = true;
             opening.tabs().into_iter().for_each(roles::release);
             continue;
@@ -109,6 +113,21 @@ fn is_shown(kept: &Kept, browser: &Browser, place: Option<&Place>) -> bool {
         (Some(owner), Some(place)) => owner.is_shown_in(browser, place),
         _ => true,
     }
+}
+
+// Whether another Browser of `browser`'s window has the pin open, its tabs
+// not closing. A window has one opening of a pin (`open::opening_near`), so
+// the one settled second is let go: nothing in the app makes two.
+fn is_open_elsewhere(state: &State, browser: &Browser, pin: PinId) -> bool {
+    let Some(window) = state.windows.of(browser) else {
+        return false;
+    };
+    roles::claims_of(pin).into_iter().any(|(tab, claim)| {
+        !claim.closing
+            && tab
+                .browser()
+                .is_some_and(|other| other != *browser && window.has_browser(&other))
+    })
 }
 
 // A pin's tabs, if they are all open and pinned, and a split pin's two are
@@ -254,13 +273,13 @@ fn keep_active(state: &State, pin: PinId, whole: &[BrowserTab]) -> bool {
 
 // A tab Chromium has pinned that is a tab of the list by its role: it
 // takes its claim again on the tab pin it was open for before it closed,
-// if the Browser's place still shows that pin and it is not open in the
-// Browser. Otherwise it stays a tab of the list, and is unpinned. A pin
-// that has moved to another space since would be drawn in no sidebar of
-// this one.
+// if the Browser's place still shows that pin and the pin is open in no
+// Browser of the window, which has one tab for it. Otherwise it stays a
+// tab of the list, and is unpinned. A pin that has moved to another space
+// since would be drawn in no sidebar of this one.
 fn relink(state: &State, browser: &Browser, place: Option<&Place>, tab: BrowserTab) {
     let pin = roles::closed_pin(&tab.persistent_id())
-        .filter(|pin| open::opening(browser, *pin).is_none())
+        .filter(|pin| open::opening_near(state, browser, *pin).is_none())
         .and_then(|pin| pin_for(state, place?, pin).ok());
     let linked = match pin {
         Some(PinRow {

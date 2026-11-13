@@ -168,13 +168,19 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // Takes an open pin's tab back to the pin's page.
     let weak = window.clone();
     let _ = web_view.handle("pins.back", move |at: PinSide| {
-        with_browser(&weak, |_, browser| pins::back(browser, at.id, at.side))
+        with_browser(&weak, |_, browser| {
+            let state = weak.state()?;
+            pins::back(&state, browser, at.id, at.side)
+        })
     });
 
     // Closes an open pin's tabs, leaving it unopened.
     let weak = window.clone();
     let _ = web_view.handle("pins.close", move |id: PinId| {
-        with_browser(&weak, |_, browser| pins::close(browser, id))
+        with_browser(&weak, |_, browser| {
+            let state = weak.state()?;
+            pins::close(&state, browser, id)
+        })
     });
 }
 

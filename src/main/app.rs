@@ -230,7 +230,7 @@ impl State {
             // split's, and leaves the pin unopened.
             Some((tab, browser)) => match tabs::roles::pin_of(tab) {
                 Some(pin) => {
-                    let _ = pins::close(&browser, pin);
+                    let _ = pins::close(self, &browser, pin);
                 }
                 None => {
                     let _ = tabs::closes::close(&browser, tab, analytics::TabFrom::Command);

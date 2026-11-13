@@ -259,6 +259,19 @@ pub fn move_in(browser: &Browser, moving: &[BrowserTab], to: usize) -> Result<()
     browser.move_tabs(moving, Some(at_list(browser, to)), true)
 }
 
+/// Moves `moving`, a pin's tabs in another Browser of the same profile, to
+/// `browser`, the first of them shown there if `activate`. They are pinned,
+/// so Chromium puts them among the pinned tabs, and a split stays one. When
+/// they are all their Browser has, a placeholder stands in for them, as
+/// `move_in` does.
+pub fn move_here(browser: &Browser, moving: &[BrowserTab], activate: bool) -> Result<(), Error> {
+    let Some(from) = moving.first().and_then(|tab| tab.browser()) else {
+        return Err(Error::TabUnavailable);
+    };
+    placeholder::stand_in(&from, moving)?;
+    browser.move_tabs(moving, None, activate)
+}
+
 /// The tabs of `split`, in their order.
 pub fn in_split(split: TabSplit) -> Result<Vec<BrowserTab>, Error> {
     let state = split.state()?;
