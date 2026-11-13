@@ -21,6 +21,7 @@ use crate::tabs;
 
 pub const OPEN: &str = "open";
 pub const RELOAD: &str = "reload";
+pub const DUPLICATE: &str = "duplicate";
 pub const COPY_LINK: &str = "copy-link";
 pub const MUTE: &str = "mute";
 pub const GO_BACK: &str = "go-back";
@@ -69,7 +70,7 @@ pub fn item_menu(subject: &Subject) -> Result<Vec<MenuItem>, String> {
             }
             with.extend(split(subject, *tab, true));
             vec![
-                page(Some(*tab)),
+                duplicates(page(Some(*tab))),
                 with,
                 closes_tab(subject, *tab)?,
                 keeps_tab(&subject.place, false),
@@ -166,6 +167,13 @@ fn page(tab: Option<BrowserTab>) -> Vec<MenuItem> {
             if muted { "Unmute Tab" } else { "Mute Tab" },
         ));
     }
+    items
+}
+
+// A tab of the list's page section, with Duplicate after Reload, which
+// copies a split whole (`tabs::duplicate`).
+fn duplicates(mut items: Vec<MenuItem>) -> Vec<MenuItem> {
+    items.insert(1, MenuItem::item(DUPLICATE, "Duplicate"));
     items
 }
 

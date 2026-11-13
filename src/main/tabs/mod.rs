@@ -68,6 +68,28 @@ pub fn with_split(tab: BrowserTab) -> Vec<BrowserTab> {
         .unwrap_or_else(|| vec![tab])
 }
 
+/// Copies `tab`'s row after it, in the background: the tab, or both tabs of
+/// its split, joined in a split of their own with its layout and ratio.
+pub fn duplicate(tab: BrowserTab) -> Result<(), Error> {
+    let Some(split) = split_of(tab) else {
+        return tab.duplicate(false).map(drop);
+    };
+    let state = split.state()?;
+    let (Some(first), Some(second)) = (state.first, state.second) else {
+        return Err(Error::TabUnavailable);
+    };
+    // Chromium puts the copy of a split's first tab between its two, and
+    // ends the split, but the copy of its second tab after it. So the
+    // second is copied, then the first as the second, with the sides
+    // swapped while it is, which leaves the copies in order after the split.
+    let second_copy = second.duplicate(false)?;
+    split.swap_tabs()?;
+    let first_copy = first.duplicate(false);
+    split.swap_tabs()?;
+    let copy = first_copy?.split_with(second_copy, state.layout)?;
+    copy.set_ratio(state.ratio, false)
+}
+
 /// Whether closing `tab` may show its page's "Leave site?" prompt, where the
 /// user can keep the tab. Otherwise a tab asked to close does close.
 pub fn may_ask_before_close(tab: BrowserTab) -> bool {

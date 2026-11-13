@@ -385,6 +385,7 @@ fn on_listed(
             Some(tab.title()),
             clipboard::is_off_the_record(browser),
         ),
+        command::DUPLICATE => tabs::duplicate(tab),
         command::NEW_GROUP => tabs::new_group(mt, browser, &row).map(drop),
         command::LEAVE_GROUP => BrowserTab::ungroup(mt, &row),
         command::SPLIT => match browser.active_tab() {

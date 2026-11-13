@@ -30,6 +30,7 @@ pub const OPEN_LOCATION: &str = "open-location";
 pub const CLOSE_TAB: &str = "close-tab";
 pub const CLOSE_WINDOW: &str = "close-window";
 pub const COPY_URL: &str = "copy-url";
+pub const DUPLICATE_TAB: &str = "duplicate-tab";
 pub const MOVE_TAB_UP: &str = "move-tab-up";
 pub const MOVE_TAB_DOWN: &str = "move-tab-down";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
@@ -60,11 +61,12 @@ pub struct Front {
 // The app's items a dialog over the window in front greys out, as Chrome
 // blocks its window: what changes its tabs, its spaces or the window. New
 // Window and Quit stay, and Wren greys out Chromium's commands itself.
-const BLOCKED: [&str; 6] = [
+const BLOCKED: [&str; 7] = [
     NEW_TAB,
     OPEN_LOCATION,
     CLOSE_TAB,
     CLOSE_WINDOW,
+    DUPLICATE_TAB,
     MOVE_TAB_UP,
     MOVE_TAB_DOWN,
 ];
@@ -230,7 +232,10 @@ fn main_menu(
             .chain(favorite_items())
             .chain([
                 MenuItem::Separator,
-                MenuItem::chromium(Command::DuplicateTab),
+                // The app's own, as the sidebar's Duplicate is: the copy
+                // stays in the background, and a split is copied whole
+                // (`tabs::duplicate`). ⌥⇧D.
+                keyed(DUPLICATE_TAB, "Duplicate Tab", "D", MenuModifiers::ALT),
                 MenuItem::chromium(Command::MuteSite),
                 MenuItem::chromium(Command::GroupTab),
                 MenuItem::Separator,

@@ -580,6 +580,7 @@ impl App for Wren {
         };
         let _ = match id {
             menus::COPY_URL => tabs::copy_url(&browser),
+            menus::DUPLICATE_TAB => browser.active_tab().map_or(Ok(()), tabs::duplicate),
             menus::MOVE_TAB_UP | menus::MOVE_TAB_DOWN => match browser.active_tab() {
                 Some(tab) => tabs::move_by(
                     mt,
