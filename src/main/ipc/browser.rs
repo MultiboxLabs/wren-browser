@@ -107,6 +107,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
+    // The tab and the other of its split, if it is in one: its row, which
+    // closes whole or not at all.
+    let weak = window.clone();
+    let _ = web_view.handle("tabs.closeRow", move |id: i32| {
+        with_browser(&weak, |_, browser| {
+            let row = tabs::with_split(tab(mt, browser, id)?);
+            tabs::closes::close_together(browser, &row, TabFrom::Sidebar).map_err(failed)
+        })
+    });
+
     // The list's tabs closed but the active one, or the active one alone
     // (`tabs::clear`).
     let weak = window.clone();

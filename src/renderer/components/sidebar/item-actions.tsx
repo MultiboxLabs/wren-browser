@@ -53,6 +53,8 @@ export type ItemActions = {
   onClicked: (item: TabItem, side: number, held: Held) => void;
   /** Closes a normal tab's side, or all of a kept tab's Chromium tabs, which leaves it unopened. */
   onClose: (item: TabItem, side: number) => void;
+  /** Closes a normal tab's row: both tabs of a split. */
+  onCloseRow: (item: TabItem) => void;
   /** Unpins a kept tab, or removes it from the favourites, closing its tabs. */
   onRemove: (item: TabItem) => void;
   /** Takes a kept tab's side back to its kept page. */
@@ -167,6 +169,10 @@ export function useItemActions(
         const tab = item.sides[side]?.tab;
         if (item.pin !== null) void pins.close(item.pin);
         else if (tab != null) void browser.close(tab);
+      },
+      onCloseRow: (item) => {
+        const tab = item.sides[0]?.tab;
+        if (tab != null) void browser.closeRow(tab);
       },
       onRemove: (item) => {
         if (item.pin !== null) void pins.delete(item.pin);

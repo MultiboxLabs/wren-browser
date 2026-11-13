@@ -161,7 +161,8 @@ export function ItemRow({ item, indent, actions, peek = false, strike }: ItemRow
           pressed={side.tab !== undefined && side.tab.id === selected}
           onPress={(event) => actions.onSelect(item, at, heldIn(event))}
           onClick={(event) => actions.onClicked(item, at, heldIn(event))}
-          onMiddlePress={() => dismiss(at)}
+          // A middle click closes the whole split, its close button one half.
+          onMiddlePress={() => (kept ? dismiss(at) : actions.onCloseRow(item))}
           onMenu={(x, y) => actions.onMenu(item, at, x, y)}
           identities={side.tab ? [tabIdentity(side.tab.id)] : []}
         >

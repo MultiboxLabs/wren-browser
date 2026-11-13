@@ -22,6 +22,23 @@ pub fn close(browser: &Browser, tab: BrowserTab, from: TabFrom) -> Result<(), Er
     Ok(())
 }
 
+/// Closes `tabs` together as the user asked from `from`, all or none: if
+/// one's page keeps its tab, they all stay, as a split's two do.
+pub fn close_together(browser: &Browser, tabs: &[BrowserTab], from: TabFrom) -> Result<(), Error> {
+    super::placeholder::stand_in(browser, tabs)?;
+    ASKED.with(|asked| {
+        let mut asked = asked.borrow_mut();
+        for tab in tabs {
+            asked.insert(*tab, from);
+        }
+    });
+    BrowserTab::close_all(tabs, |result| match result {
+        Ok(()) | Err(Error::Cancelled) => {}
+        Err(error) => eprintln!("Wren could not close tabs: {error:?}"),
+    });
+    Ok(())
+}
+
 /// Counts the tabs asked to close that have gone.
 pub fn settle(analytics: &Analytics) {
     for from in take_gone() {
