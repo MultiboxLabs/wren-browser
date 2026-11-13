@@ -17,6 +17,7 @@ use super::splits::Split;
 use super::window::page_space;
 use super::{WindowRef, with_window};
 use crate::db::{PinId, SpaceId};
+use crate::items::carry;
 use crate::pins;
 use crate::shell::{BrowserWindow, Place};
 use crate::tabs::roles::{self, Role};
@@ -58,6 +59,8 @@ pub struct Tab {
     split: Option<String>,
     /// Where the page draws it.
     role: PageRole,
+    /// What a drag of it to another window names it by (items/carry.rs).
+    carry: Option<String>,
 }
 
 /// Where the page draws a tab, from what the tab is (tabs/roles.rs). Every
@@ -200,6 +203,20 @@ impl TabChanges {
             }
             _ => {}
         }
+    }
+
+    /// Hears that the app changed a field of `tab` itself, which Chromium
+    /// does not tell of: its token, renewed (items/carry.rs).
+    pub fn hear_tab(&mut self, tab: BrowserTab) {
+        if !self.changed.contains(&tab) {
+            self.changed.push(tab);
+        }
+    }
+
+    /// Hears that the app changed a field of a group itself, as `hear_tab`.
+    /// A group's fields go to the page only with the whole list.
+    pub fn hear_group(&mut self) {
+        self.whole = true;
     }
 
     /// Tells the page what the changes heard changed of `browser`'s tabs.
@@ -368,6 +385,7 @@ fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> T
             .and_then(|state| state.split)
             .map(|split| split.to_string()),
         role: role_for_page(tab, state),
+        carry: carry::tab_token(tab),
     }
 }
 

@@ -8,7 +8,8 @@
 //
 // An item of the list that is in another of the window's spaces, or in
 // another window, moves to the destination's Browser first
-// (windows/move_tabs.rs), then lands as one of its own would.
+// (windows/move_tabs.rs), then lands as one of its own would. A drop from
+// another window names its tabs and groups by their tokens (carry.rs).
 //
 // Several tabs of the list that are marked move together, or several
 // pinned tabs (together.rs), each as it would alone, one after another.
@@ -16,6 +17,7 @@
 // What an item's menu does is in menu.rs. Keeping a tab from there is a
 // move here.
 
+pub mod carry;
 pub mod menu;
 mod together;
 
@@ -43,10 +45,28 @@ pub enum ItemRef {
 
 // An item of the list, found: a tab, which stands for its split if it is in
 // one, or a group.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Listed {
     Tab(BrowserTab),
     Group(TabGroup),
+}
+
+impl Listed {
+    // The Browser it is in; none once it has gone.
+    fn browser(self) -> Option<Browser> {
+        match self {
+            Listed::Tab(tab) => tab.browser(),
+            Listed::Group(group) => group.browser(),
+        }
+    }
+
+    // As the page names it.
+    fn item(self) -> ItemRef {
+        match self {
+            Listed::Tab(tab) => ItemRef::Tab(tab.id()),
+            Listed::Group(group) => ItemRef::Group(group.to_string()),
+        }
+    }
 }
 
 /// Where an item goes: a place in the sidebar of `space`, or of the window's

@@ -218,7 +218,7 @@ export function useReadTabs() {
   const { read } = source;
   return () => {
     const tabs = read();
-    return { space: tabs?.said.space ?? null, tabs: tabs?.tabs ?? none };
+    return { space: tabs?.said.space ?? null, tabs: tabs?.tabs ?? none, groups: tabs?.said.groups ?? none };
   };
 }
 

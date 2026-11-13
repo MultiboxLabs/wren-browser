@@ -8,6 +8,8 @@ export type TabGroup = {
   title: string;
   color: GroupColor;
   collapsed: boolean;
+  /** What a drag of it to another window names it by; the app renews it as each drag ends. */
+  carry: string | null;
 };
 
 export const groups = {

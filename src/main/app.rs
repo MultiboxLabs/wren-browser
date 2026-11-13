@@ -18,6 +18,7 @@ use crate::db::Db;
 use crate::extensions::{ad_block, components};
 use crate::filling;
 use crate::import;
+use crate::items;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
 use crate::menus;
 use crate::pages::{self, SCHEME, Source, serve_page};
@@ -426,6 +427,7 @@ impl App for Wren {
                 ChangeKind::Tabs | ChangeKind::Tab | ChangeKind::Split => {
                     tabs::closes::settle(&state.analytics);
                     tabs::roles::forget_closed();
+                    items::carry::forget_gone();
                     placeholder::settle(browser);
                     tabs::previews::follow_active(browser);
                     if let Some(tab) = change.tab
@@ -756,6 +758,7 @@ impl App for Wren {
     // popup's window goes with its Browser, always.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         tabs::roles::forget_closed();
+        items::carry::forget_gone();
         tabs::closes::forget_gone();
         tabs::previews::forget(&browser);
         let devtools = self.state.devtools.borrow_mut().remove(&browser);

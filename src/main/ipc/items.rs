@@ -1,6 +1,7 @@
 // The calls a page makes for the items of its sidebar: an item moved to a
-// place, or several marked ones ("items.move"), an address put at one ("items.add"), and an item's
-// menu ("items.menu"). The app decides what each does (items/).
+// place, or several marked ones ("items.move"), an address put at one
+// ("items.add"), an item's menu ("items.menu"), and the end of a drag
+// ("items.dragEnded"). The app decides what each does (items/).
 // src/renderer/ipc/items.ts is the page's side.
 
 use std::rc::Rc;
@@ -14,15 +15,36 @@ use crate::analytics::{self, Event, SplitFrom, TabFrom};
 use crate::app::State;
 use crate::db::PinId;
 use crate::items::menu::Subject;
-use crate::items::{self, Added, Destination, ItemRef, Moved};
+use crate::items::{self, Added, Destination, ItemRef, Moved, carry};
 use crate::menus;
 use crate::pins::PinTarget;
 use crate::shell::WindowId;
 
 #[derive(Deserialize)]
 struct Move {
-    items: Vec<ItemRef>,
+    items: Vec<Moving>,
     to: Destination,
+}
+
+/// An item a move names: as the page knows it, or, dropped from another
+/// window's sidebar, by the token its drag carried (items/carry.rs).
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Moving {
+    Carried { carried: String },
+    Item(ItemRef),
+}
+
+impl Moving {
+    // The item it names; a token, once its drag is long over, names none.
+    fn item(self) -> Result<ItemRef, String> {
+        match self {
+            Moving::Carried { carried } => {
+                carry::item_of(&carried).ok_or_else(|| "The drag has ended.".into())
+            }
+            Moving::Item(item) => Ok(item),
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -68,10 +90,25 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let Some((moving, state, call)) = asked::<Move>(&weak, call) else {
             return;
         };
+        let found: Result<Vec<ItemRef>, String> =
+            moving.items.into_iter().map(Moving::item).collect();
+        let found = match found {
+            Ok(found) => found,
+            Err(error) => return answer(call, Err(error)),
+        };
         let counted = state.clone();
-        items::move_items(&state, mt, weak.id, moving.items, moving.to, move |moved| {
+        items::move_items(&state, mt, weak.id, found, moving.to, move |moved| {
             answer(call, moved.map(|moved| count_moves(&counted, moved)));
         });
+    });
+
+    // A drag of the sidebar's items ended, wherever it was dropped: the
+    // tokens it carried name nothing once it is over (items/carry.rs).
+    let weak = window.clone();
+    let _ = web_view.handle("items.dragEnded", move |tokens: Vec<String>| {
+        let state = weak.state()?;
+        carry::renew(&state, mt, tokens);
+        Ok::<(), String>(())
     });
 
     // An item's context menu, at the point the page names. Answered with

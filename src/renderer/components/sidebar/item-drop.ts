@@ -16,7 +16,7 @@ import { noteDrop } from "./arrival";
 import { addressesOf } from "./dropped-address";
 import { useDropSide } from "./drop-side";
 import { useEdgeScroll } from "./edge-scroll";
-import { type Dragged, draggedIn, droppedItem } from "./item-drag";
+import { type Dragged, draggedIn, droppedItems, useDrawnProfile } from "./item-drag";
 import { type Landing, TAKES, ZONE_MARK } from "./item-landing";
 import { SETTLE_WAIT_MS, type Settling, slideToPlaces, takePlaces } from "./settle";
 
@@ -71,6 +71,7 @@ export function useItemDrop({
   order?: string;
 }) {
   const space = useDrawnSpace();
+  const profile = useDrawnProfile();
   const [landing, setLanding] = useState<Landing | null>(null);
   // The row a tab would split with makes room for it.
   const makeRoom = useDropSide();
@@ -102,7 +103,7 @@ export function useItemDrop({
   // something within that takes drops itself.
   const taken = (event: DragEvent<HTMLElement>) => {
     if (!enabled || (event.target as Element).closest(`[${ZONE_MARK}]`) !== event.currentTarget) return null;
-    const dragged = draggedIn(event.dataTransfer);
+    const dragged = draggedIn(event.dataTransfer, profile);
     return dragged && TAKES[takes](dragged) ? dragged : null;
   };
 
@@ -141,9 +142,9 @@ export function useItemDrop({
         noteDrop(event.clientX, event.clientY);
         const to: Destination = { space: dropSpace(space.id), ...place.to };
         if (dragged.kind === "address") return void addAll(addressesOf(event.dataTransfer), to);
-        const dropped = droppedItem(event.dataTransfer);
-        if (!dropped) return;
-        const moved = items.move(dropped.items, to);
+        const dropped = droppedItems(event.dataTransfer, dragged);
+        if (!dropped.length) return;
+        const moved = items.move(dropped, to);
         const { mine } = dragged;
         // One of the list's own rows, moved in it: the app answers with the
         // new order a moment later, which the rows then slide to from here.

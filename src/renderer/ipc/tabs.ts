@@ -49,6 +49,8 @@ export type BrowserTab = {
    * to be one of the others.
    */
   role: "listed" | "pin" | "hidden";
+  /** What a drag of it to another window names it by; the app renews it as each drag ends. */
+  carry: string | null;
 };
 
 /** The tabs of one of the window's Browsers, in its order, and which is active. */

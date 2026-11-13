@@ -13,6 +13,13 @@
  */
 export type ItemRef = { tab: number } | { group: string } | { pin: number };
 
+/**
+ * An item a move names: as `ItemRef` does, or, dropped from another
+ * window's sidebar, a tab or group of the list by the token its drag
+ * carried (`BrowserTab.carry`).
+ */
+export type MovingRef = ItemRef | { carried: string };
+
 /** A place in a sidebar. */
 export type ItemPlace =
   /** Among the favourites, at `index` (null: last). */
@@ -38,14 +45,16 @@ export const items = {
   /**
    * Moves an item to a place, or several that are marked, all tabs of the
    * list or all pinned tabs, which land together from that place in the
-   * order given. A tab of another of the window's spaces, of
-   * the same profile, moves to the destination's space first. A group
+   * order given. A tab of another of the window's spaces, or of another
+   * window, of the same profile, moves to the destination's space first. A group
    * moved to the pins becomes a folder of pinned tabs. Fails where the item
    * may not go: a group to the favourites, a folder anywhere but the pins,
    * or anything but a tab alone, of the list or kept, onto another tab.
    * Where one of several may not go, none go.
    */
-  move: (items: ItemRef[], to: Destination) => wren.invoke<null>("items.move", { items, to }),
+  move: (items: MovingRef[], to: Destination) => wren.invoke<null>("items.move", { items, to }),
+  /** A drag of the sidebar's items ended, wherever it was dropped: the app renews the tokens it carried. */
+  dragEnded: (tokens: string[]) => wren.invoke<null>("items.dragEnded", tokens),
   /**
    * Puts a web or file address dropped on the sidebar at a place: a tab on
    * it in the list, shown, or an unopened pin among the pins or favourites.
