@@ -5,13 +5,15 @@
 // search has the keyboard while the menu is open, from the tab's page too,
 // and gives it back as it goes; ↑ and ↓ move the highlight, and Enter, or a
 // press, opens the pin as a press on its row does (`onOpen`). While the content slides
-// between spaces, the menu closes, and none opens.
+// between spaces, or while the window is not in use, the menu closes, and
+// none opens.
 
 import { Search } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTabShape } from "@/state/browser";
 import { type FolderItem, type Item, itemTitle, type TabItem, useSides } from "@/state/items";
 import { useSpace } from "@/state/space";
+import { useWindowActive } from "@/state/window";
 import { cn } from "@/utils/cn";
 import { ago, useNow } from "@/utils/now";
 import { HoverCard } from "@/components/ui/hover-card";
@@ -61,7 +63,10 @@ export function FolderMenu({
   const [open, setOpen] = useState(false);
   // The content slides between spaces while the spaces beside are drawn.
   const { beside } = useSpace().slide;
-  const shown = enabled && !beside;
+  // The pointer rests on the row as the window goes out of use, and nothing
+  // closes the menu then.
+  const active = useWindowActive();
+  const shown = enabled && !beside && active;
   useEffect(() => {
     if (!shown) setOpen(false);
   }, [shown]);
