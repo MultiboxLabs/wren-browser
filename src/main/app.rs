@@ -252,10 +252,13 @@ pub struct Wren {
 
 impl Wren {
     // A main menu command in a popup's window. The popup closes, and copies
-    // its address, as any window does. New Window, New Tab and Open Location
-    // go to the window the user browses in, as Chrome's in a popup go to its
-    // last tabbed window, which comes forward for the omnibox. The rest are
-    // for a window's tabs, sidebar and spaces, which a popup has none of.
+    // its address, as any window does. New Tab and Open Location both open
+    // its own omnibox, for its page, if it shows an address: a popup has
+    // one page, so what is chosen opens there. In a popup with no address
+    // they go to the window the user browses in, which comes forward for
+    // the omnibox, as New Window does always, and as Chrome's in a popup go
+    // to its last tabbed window. The rest are for a window's tabs, sidebar
+    // and spaces, which a popup has none of.
     fn popup_command(&self, mt: MainThread, id: &str, popup: &BrowserWindow) {
         let state = &self.state;
         let front = state.windows.front();
@@ -278,6 +281,11 @@ impl Wren {
                     front.page.bring_forward();
                     ipc::send_show_settings(&front);
                 }
+            }
+            menus::NEW_TAB | menus::OPEN_LOCATION
+                if popup.popup().is_some_and(|popup| popup.address) =>
+            {
+                ipc::send_show_omnibox(popup, OmniboxTarget::Current, true);
             }
             menus::NEW_WINDOW => state.new_window(mt, front.as_deref()),
             menus::NEW_INCOGNITO_WINDOW => state.new_incognito_window(mt, front.as_deref()),
@@ -655,7 +663,8 @@ impl App for Wren {
     // Chromium wants the address field, as a New Tab page given the
     // keyboard does: the omnibox opens for it, as ⌘L opens it. Not for the
     // placeholder, which the page does not show, nor over the omnibox for a
-    // new tab, nor in a popup's window, which has no omnibox.
+    // new tab, nor in a popup's window, whose omnibox opens only when the
+    // user asks for it.
     fn focus_location_bar(&self, _: MainThread, browser: Browser) {
         let Some(window) = self
             .state

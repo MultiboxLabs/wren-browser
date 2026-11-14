@@ -49,6 +49,13 @@ pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
         .map(drop)
 }
 
+/// Moves a popup's `tab` to `browser`, a normal one of its profile, at the
+/// top of the list and active, as a new tab opens. The page does not load
+/// again. Answers the tab it becomes there. The popup's Browser closes.
+pub fn move_popup_in(browser: &Browser, tab: BrowserTab) -> Result<BrowserTab, Error> {
+    browser.move_popup_tab(tab, Some(at_list(browser, 0)), true)
+}
+
 /// The tabs the sidebar's list shows, in its order: those whose role is to
 /// be listed (roles.rs), which a pin's tab and the placeholder are not.
 pub fn listed(browser: &Browser) -> Vec<BrowserTab> {

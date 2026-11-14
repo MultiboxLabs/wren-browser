@@ -2,13 +2,13 @@
 export type WindowSpace = { kind: "space"; id: number } | { kind: "newSpace" };
 
 /**
- * What makes a window a popup's (a page's popup, an extension's popup window,
- * an app's window), which is drawn without a sidebar.
+ * What makes a window a popup's, a Mini Wren (a page's popup, an extension's
+ * popup window, an app's window), which is drawn with a toolbar and no sidebar.
  */
 export type WindowPopup = {
-  /** The space it was opened from, whose colours it is drawn in. */
+  /** The space it was opened from, whose colour its accents are, and where its page goes when it is opened as a tab. */
   space: number | null;
-  /** Whether it shows its page's address, read-only, as a page's popup does; else its title. */
+  /** Whether its toolbar shows its page's address, which opens the omnibox, with page info, as a page's popup has a location bar; else its title alone. */
   address: boolean;
 };
 
@@ -23,6 +23,12 @@ export const appWindow = {
   show: () => wren.invoke<null>("window.show"),
   /** What makes the window a popup's; null for a browser window. It never changes. */
   popup: () => wren.invoke<WindowPopup | null>("window.popup"),
+  /**
+   * Moves a popup's page to a new tab of a window the user
+   * browses in, without loading it again. That window comes forward, and the
+   * popup's closes. Fails for a window that is no popup's.
+   */
+  openAsTab: () => wren.invoke<null>("window.openAsTab"),
   /** Takes the keyboard from the tab that has it, for a field the user did not press into. */
   takeKeyboard: () => wren.invoke<null>("window.takeKeyboard"),
   /** Gives the keyboard back to the active tab's page. */

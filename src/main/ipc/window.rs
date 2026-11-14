@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use serde::Serialize;
-use wren::WebView;
+use wren::{MainThread, WebView};
 
 use super::{WindowRef, failed, give_back_keyboard, with_window};
 use crate::analytics::Event;
@@ -57,8 +57,15 @@ fn shown_profile(window: &BrowserWindow) -> Option<ShownProfile> {
     }
 }
 
-pub fn handle(web_view: &WebView, window: &WindowRef) {
+pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     handle_page(web_view, window);
+
+    // A popup's page moves to a tab of a window the user browses in, which
+    // comes forward, and the popup's window closes.
+    let weak = window.clone();
+    let _ = web_view.handle("window.openAsTab", move |()| {
+        weak.state()?.open_popup_as_tab(mt, weak.id)
+    });
 
     // The page takes the keyboard from the tab that has it, for a field of
     // its own the user did not press into (a hover's).
@@ -93,8 +100,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
         with_window(&weak, |window| Ok(shown_profile(window)))
     });
 
-    // What makes the window a popup's, which the page draws without a
-    // sidebar; null for a browser window. It never changes.
+    // What makes the window a popup's, which the page draws with a toolbar
+    // and no sidebar; null for a browser window. It never changes.
     let weak = window.clone();
     let _ = web_view.handle("window.popup", move |()| {
         with_window(&weak, |window| Ok(window.popup()))

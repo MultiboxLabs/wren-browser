@@ -53,25 +53,6 @@ export function address(url: string) {
   }
 }
 
-/**
- * A web page's address in two: its host without "www.", which says where
- * the page is, and the rest after it (its path, query and fragment), "" at
- * the site's root. Any other address is the host as `address` shows it,
- * with no rest.
- */
-export function addressParts(url: string): { host: string; rest: string } {
-  try {
-    const { protocol, host, pathname, search, hash } = new URL(url);
-    if (protocol === "http:" || protocol === "https:") {
-      const path = pathname === "/" ? "" : pathname;
-      return { host: host.replace(/^www\./, ""), rest: path + search + hash };
-    }
-  } catch {
-    // Not an address URL can read: shown whole.
-  }
-  return { host: address(url), rest: "" };
-}
-
 /** A link's address as its status shows it: a web address without "https://" or "www.", any other as the page shows it. */
 export function linkAddress(url: string) {
   url = shownUrl(url);

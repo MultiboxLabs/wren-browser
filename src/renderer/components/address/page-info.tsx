@@ -3,7 +3,7 @@
 // stands. While the page asks for permissions, the popover is the prompt for
 // them instead (permission-prompt.tsx). What it shows is Chromium's, for the
 // active tab; every change goes back to it. The button is in the address
-// field, atop the sidebar or the page, and in a popup's address bar
+// field, atop the sidebar or the page, and in a popup's toolbar
 // (pages/ui/popup.tsx), where the popover has what a popup has.
 
 import { Check, Ellipsis, Link, Lock, Pin, Plus, Puzzle, RotateCw, Shield, TriangleAlert } from "lucide-react";
@@ -45,21 +45,24 @@ const quickPanels: SidePanelId[] = ["ReadingList", "Bookmarks", "ReadAnything"];
 /**
  * The page info button, which the site's bubbles hang off (its mark is
  * "page-info") while it is `marked`, and which opens the popover. `popup`:
- * in a popup's address bar, near the window's side, it is round and faintly filled, as
- * Chromium's there is, and its popover may come nearer the side, for its
- * arrow to point at the button from off the popover's rounded corner.
+ * in a popup's toolbar, its popover has what a popup has. `className` and
+ * `iconSize`: the button's own.
  */
 export function PageInfoButton({
   tab,
   actions = [],
   popup = false,
-  marked = true
+  marked = true,
+  className,
+  iconSize = 18
 }: {
   tab?: Tab;
   actions?: ExtensionAction[];
   popup?: boolean;
   /** It carries the mark: false for a copy of it the bubbles don't hang off. */
   marked?: boolean;
+  className?: string;
+  iconSize?: number;
 }) {
   const site = useSite();
   // A button is pressed while what it opens is open: the popover, or one
@@ -105,15 +108,13 @@ export function PageInfoButton({
         }}
         label={promptShown ? promptShown.title : "Page Info"}
         stayOnOutsidePress={asking}
-        windowMargin={popup ? 2 : undefined}
         trigger={
           <Button
             icon={PageInfoIcon}
-            iconSize={18}
+            iconSize={iconSize}
             label={quiet ? "Show Permission Request" : "Page Info"}
             shape="square"
-            variant={popup ? "faint" : "plain"}
-            className={cn("relative", popup && "rounded-full")}
+            className={cn("relative", className)}
             pressed={anchored}
             onPointerDown={() => (pressedAnchored.current = anchored)}
             onKeyDown={() => (pressedAnchored.current = anchored)}

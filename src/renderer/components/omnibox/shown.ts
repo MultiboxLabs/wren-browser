@@ -2,7 +2,8 @@
 // of the window; for the active tab, over the sidebar's address field while
 // the sidebar is in view, and in the middle while it is away, the Library is
 // open, or the address bar atop a page opens it (address/page-bar.tsx), as if
-// there were no address bar. Each opening starts afresh. What opens it closes
+// there were no address bar. A popup's window has no such field, and its
+// omnibox is always in the middle (pages/ui/popup.tsx). Each opening starts afresh. What opens it closes
 // it again (⌘T, the New Tab row, ⌘L); the other kind takes its place, and ⌘W closes the one
 // for a new tab. In a space the window has no Browser for yet, there is no
 // tab to open in: it is the one for a new tab, and the app first makes the
@@ -23,9 +24,10 @@ export type OmniboxState = ReturnType<typeof useShownOmnibox>;
 
 /**
  * `address`: the address field, whose box the omnibox for the active tab
- * opens over. `hasBrowser`: whether the window's space has a Browser.
+ * opens over, or null for a window with none, where it opens in the middle.
+ * `hasBrowser`: whether the window's space has a Browser.
  */
-export function useShownOmnibox(address: RefObject<HTMLElement | null>, hasBrowser: boolean) {
+export function useShownOmnibox(address: RefObject<HTMLElement | null> | null, hasBrowser: boolean) {
   const [shown, setShown] = useState<ShownOmnibox | null>(null);
   // Read by the main menu's listener as it is now.
   const latest = useRef(shown);
@@ -48,7 +50,7 @@ export function useShownOmnibox(address: RefObject<HTMLElement | null>, hasBrows
     const unready = hasApp && !browser.current;
     const target = unready ? "new-tab" : asked;
     if (latest.current?.target === target) return toggles ? hide() : undefined;
-    const field = address.current;
+    const field = address?.current;
     // The Library keeps the address mounted, but its sidebar is inert.
     const box = field && !centered && !field.closest("[inert]") ? field.getBoundingClientRect() : undefined;
     // Off the window's left edge, the sidebar is away.

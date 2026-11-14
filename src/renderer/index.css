@@ -47,6 +47,12 @@ body,
   --radius-panel: 10px;
   /* The address field. */
   --radius-field: 11px;
+  /* A popup's toolbar (pages/ui/popup.tsx): its field and its button, 6px in
+     from the window's edge, and the buttons in the field, 2px further. Each
+     is the window's corner less how far in it is, so its curve runs beside
+     the window's. */
+  --radius-popup-bar: max(var(--radius-control), calc(var(--window-corner) - 6px));
+  --radius-popup-field: max(var(--radius-favicon), calc(var(--window-corner) - 8px));
 
   --text-ui: 13.5px;
   /* Not --text-menu: text-menu would also take --color-menu, the menu's
