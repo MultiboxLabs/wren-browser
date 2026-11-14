@@ -27,7 +27,7 @@ pub use property_list::read_property_list;
 pub use secrets::{chromium_key, decrypt};
 pub use system::{OS_NAME, Privacy, app_version, open_privacy_settings, os_version};
 pub use updater::{Updater, UpdaterOptions, UpdaterState};
-pub use window::{DevToolsWindow, PageWindow, TitleBarKind, WindowSize, close_other_key_window};
+pub use window::{DevToolsWindow, PageWindow, WindowSize, close_other_key_window};
 
 /// Whether closing the last window quits the app, as the platform's apps
 /// do; or it keeps running with none, until the user quits it.

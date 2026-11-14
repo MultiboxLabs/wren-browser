@@ -14,7 +14,7 @@ use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::perf::PageCounts;
-use crate::platform::{PageWindow, TitleBarKind, WindowSize};
+use crate::platform::{PageWindow, WindowSize};
 use crate::shell::{BrowserWindow, Place, Popup, WindowId};
 use crate::tabs::placeholder;
 
@@ -58,11 +58,6 @@ impl State {
         Some(window.id)
     }
 
-    /// Opens a browser window, `key` on `place`, where AppKit puts it: a
-    /// popup's (popup.rs), drawn under the system's title bar, or else one
-    /// whose page draws its own. Its page is the UI's, in a Profile of its
-    /// own. `framed`: the caller places the window, and its first Browser's
-    /// frame does not move it (`BrowserWindow::add`).
     /// Analytics hears of it if the UI's page in `page` crashes.
     pub(crate) fn count_crashes(self: &Rc<Self>, page: &PageWindow) {
         let state = Rc::downgrade(self);
@@ -73,6 +68,11 @@ impl State {
         });
     }
 
+    /// Opens a browser window, `key` on `place`, where AppKit puts it: a
+    /// popup's (popup.rs), or else one the user browses in. Its page is the
+    /// UI's, in a Profile of its own. `framed`: the caller places the
+    /// window, and its first Browser's frame does not move it
+    /// (`BrowserWindow::add`).
     pub(super) fn open_page_window(
         self: &Rc<Self>,
         mt: MainThread,
@@ -83,9 +83,9 @@ impl State {
     ) -> Option<Rc<BrowserWindow>> {
         let profile = self.ui_profile.borrow().clone()?;
         let id = self.windows.next_id();
-        let (title_bar, min_size) = match popup {
-            Some(_) => (TitleBarKind::System, POPUP_MIN_SIZE),
-            None => (TitleBarKind::Page, WINDOW_MIN_SIZE),
+        let min_size = match popup {
+            Some(_) => POPUP_MIN_SIZE,
+            None => WINDOW_MIN_SIZE,
         };
         let weak = Rc::downgrade(self);
         let should_close = move || {
@@ -102,7 +102,6 @@ impl State {
                 size: WINDOW_SIZE,
                 min: min_size,
             },
-            title_bar,
             should_close,
         );
         ipc::handle_ui(&page.web_view, &WindowRef::new(self, id), mt);

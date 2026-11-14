@@ -9,12 +9,8 @@ use objc2_foundation::NSPoint;
 
 // The window's buttons as the page wants them, and whether the window is
 // full screen, where AppKit shows them in a title bar of its own instead.
-// A window with the system's title bar (`TitleBarKind::System`) leaves
-// them to AppKit always.
 #[derive(Default)]
 pub(super) struct TitleBar {
-    // The system's title bar, not the page's.
-    pub(super) system: bool,
     pub(super) full_screen: Cell<bool>,
     pub(super) buttons_at: Cell<Option<(f64, f64)>>,
     pub(super) buttons_hidden: Cell<bool>,
@@ -27,9 +23,6 @@ impl TitleBar {
     // full screen, leaves them to AppKit, shown, in its title bar, which is
     // as the system is.
     pub(super) fn apply(&self, window: &NSWindow) {
-        if self.system {
-            return;
-        }
         let full_screen = self.full_screen.get();
         let appearance = (!full_screen)
             .then(|| super::appearance(self.dark.get()))
