@@ -62,6 +62,8 @@ It builds `cn`'s class-merging tables (`scripts/cn-tables.ts`), then checks that
 
 The restyle check matters because a renamed Chromium property breaks nothing visibly. That piece of the page just goes back to Chromium's look, and the check is what names it.
 
+CI (`.github/workflows/ci.yml`) runs `bun run check` and Prettier's check on every push to `main` and every pull request.
+
 ## Build channels
 
 `bun run build` and `bun run start` take `--channel stable|beta|dev`. The default is `dev`, and `bun run dev` always builds Dev.

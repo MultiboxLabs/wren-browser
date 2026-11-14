@@ -1,0 +1,69 @@
+# Runs `bun run check` and Prettier's check on every push to main and every
+# pull request, as a contributor runs them before a commit. They are two jobs,
+# so each reports on its own. Prettier's needs no Wren Runtime, so it runs on
+# Linux, which starts sooner and costs less than macOS.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request replaces a run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - run: bun install --frozen-lockfile
+
+      - run: bunx prettier --check .
+
+  # On macOS on Apple silicon, the only platform Wren Runtime ships for, with
+  # the release of it that wren-app.json names, as `bun run build` does.
+  check:
+    name: Check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          components: clippy
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      # The release is over 400 MB, so it is kept between runs, by the
+      # version the manifest names.
+      - name: Read the Wren Runtime version
+        id: runtime
+        run: echo "version=$(jq -r .wren wren-app.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.wren/runtimes/${{ steps.runtime.outputs.version }}
+          key: wren-runtime-${{ steps.runtime.outputs.version }}
+
+      - name: Install Wren Runtime
+        run: |
+          curl -fsSL https://wrenbrowser.com/runtime/cli/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/wren" install --manifest wren-app.json
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run check
