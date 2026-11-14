@@ -229,7 +229,8 @@ fn keep_split(state: &State, browser: &Browser, pin: PinId, whole: &[BrowserTab]
     let mut arranged: Vec<TabSplit> = Vec::new();
     for (tab, _) in roles::claims_of(pin) {
         let elsewhere = tab.browser().is_some_and(|other| other != *browser);
-        let Some(split) = tabs::split_of(tab).filter(|split| elsewhere && !arranged.contains(split))
+        let Some(split) =
+            tabs::split_of(tab).filter(|split| elsewhere && !arranged.contains(split))
         else {
             continue;
         };

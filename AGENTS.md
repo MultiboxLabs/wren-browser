@@ -26,7 +26,7 @@ bun run dev        # runs Wren.app against Vite's dev server; restart it after c
 bun run start      # builds Wren.app and opens it
 bun run build      # builds Wren.app; both take --channel stable|beta|dev and --debug
 bun run check      # every check; run it before every commit
-bun run format     # Prettier
+bun run format     # Prettier and rustfmt
 bun run perf       # the sidebar's performance budget
 bun run drags      # checks the sidebar's drags, in an app behind your windows
 ```

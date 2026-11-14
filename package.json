@@ -13,7 +13,7 @@
     "check": "bun run scripts/cn-tables.ts && bun run scripts/check-chrome-pages.ts && bun run scripts/check-compiler.ts && cargo check && cargo clippy --all-targets && tsc",
     "sync-bangs": "bun run scripts/sync-bangs.ts",
     "sync-ublock": "bun run scripts/sync-ublock.ts",
-    "format": "prettier --write ."
+    "format": "prettier --write . && cargo fmt"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

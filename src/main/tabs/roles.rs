@@ -64,7 +64,12 @@ thread_local! {
 
 /// What `tab` is.
 pub fn of(tab: BrowserTab) -> Role {
-    ROLES.with(|roles| roles.borrow().get(&tab).map_or(Role::Listed, |held| held.role))
+    ROLES.with(|roles| {
+        roles
+            .borrow()
+            .get(&tab)
+            .map_or(Role::Listed, |held| held.role)
+    })
 }
 
 /// Whether `tab` is a tab of the sidebar's list.

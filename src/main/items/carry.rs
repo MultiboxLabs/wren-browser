@@ -115,9 +115,11 @@ fn new_token() -> Option<String> {
         eprintln!("Wren could not make a drag's token: {error}");
         return None;
     }
-    let token = bytes.iter().fold(String::with_capacity(32), |mut text, byte| {
-        let _ = write!(text, "{byte:02x}");
-        text
-    });
+    let token = bytes
+        .iter()
+        .fold(String::with_capacity(32), |mut text, byte| {
+            let _ = write!(text, "{byte:02x}");
+            text
+        });
     Some(token)
 }

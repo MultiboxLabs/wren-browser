@@ -114,7 +114,10 @@ pub fn set(mt: MainThread, filler: Filler, on: bool) {
     for id in loaded {
         mt.open_profile(Some(&id), move |profile| match profile {
             Ok(profile) => follow(filler, &profile),
-            Err(error) => eprintln!("Wren could not set a profile's {}: {error:?}", filler.name()),
+            Err(error) => eprintln!(
+                "Wren could not set a profile's {}: {error:?}",
+                filler.name()
+            ),
         });
     }
 }
@@ -160,6 +163,9 @@ fn follow(filler: Filler, profile: &Profile) {
     });
     match done {
         Ok(()) | Err(Error::NotAllowed) => {}
-        Err(error) => eprintln!("Wren could not set a profile's {}: {error:?}", filler.name()),
+        Err(error) => eprintln!(
+            "Wren could not set a profile's {}: {error:?}",
+            filler.name()
+        ),
     }
 }

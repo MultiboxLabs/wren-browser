@@ -1,6 +1,6 @@
-# Runs `bun run check` and Prettier's check on every push to main and every
+# Runs `bun run check` and checks the formatting on every push to main and every
 # pull request, as a contributor runs them before a commit. They are two jobs,
-# so each reports on its own. Prettier's needs no Wren Runtime, so it runs on
+# so each reports on its own. Formatting needs no Wren Runtime, so it runs on
 # Linux, which starts sooner and costs less than macOS.
 name: CI
 
@@ -29,6 +29,8 @@ jobs:
       - run: bun install --frozen-lockfile
 
       - run: bunx prettier --check .
+
+      - run: cargo fmt --check
 
   # On macOS on Apple silicon, the only platform Wren Runtime ships for, with
   # the release of it that wren-app.json names, as `bun run build` does.

@@ -155,7 +155,11 @@ pub fn opening_near(state: &State, browser: &Browser, pin: PinId) -> Option<(Bro
 
 // How many sides a pin has, as it keeps them: at least one.
 fn sides_of(pin: PinId) -> usize {
-    KEPT.with(|kept| kept.borrow().get(&pin).map_or(1, |kept| kept.pages.len().max(1)))
+    KEPT.with(|kept| {
+        kept.borrow()
+            .get(&pin)
+            .map_or(1, |kept| kept.pages.len().max(1))
+    })
 }
 
 /// Opens `pin` on tabs of `browser`, each for the page beside it, in the
@@ -250,7 +254,9 @@ pub fn set_look(
     title: String,
     favicon: Option<Vec<u8>>,
 ) -> Result<(), String> {
-    state.db.set_pin_look(pin, side, &title, favicon.as_deref())?;
+    state
+        .db
+        .set_pin_look(pin, side, &title, favicon.as_deref())?;
     keep(pin, |kept| {
         if let Some(page) = kept.pages.get_mut(side) {
             page.title = title;
@@ -270,7 +276,9 @@ pub fn set_split(
     ratio: f64,
     swapped: bool,
 ) -> Result<(), String> {
-    state.db.set_pin_split(pin, pin_layout(layout), ratio, swapped)?;
+    state
+        .db
+        .set_pin_split(pin, pin_layout(layout), ratio, swapped)?;
     keep(pin, |kept| {
         kept.split = Some((layout, ratio));
         if swapped {
