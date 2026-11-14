@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { browser } from "@/ipc";
 import type { Tab } from "@/state/space";
+import { cn } from "@/utils/cn";
 import { scaleTo } from "@/utils/motion";
 import { CONTROL_IN, CONTROL_OUT, TILE_IN, TILE_OUT } from "./row-motion";
 
@@ -40,15 +41,15 @@ function markLabel(tab: Tab) {
 /**
  * A tab's slot. It takes room as an alert comes, the title sliding over, and
  * gives it back as the last goes; a row drawn with one already has it. One
- * alert fades into the next in place. It reaches well into the row's gaps
- * either side of it, so it stays close to the favicon and the title and adds
- * little to the row.
+ * alert fades into the next in place. Between the favicon and title, it
+ * reaches into their gaps. After the title (`trailing`), it takes its full
+ * width to keep the button inside the row.
  */
-export function TabAlert({ tab }: { tab?: Tab }) {
+export function TabAlert({ tab, trailing = false }: { tab?: Tab; trailing?: boolean }) {
   const still = useReducedMotion();
   const mark = tab && MARKS.find(({ on }) => on(tab));
   const closed = still ? { opacity: 0 } : { width: 0, marginRight: -ROW_CONTENT_GAP, opacity: 0 };
-  const open = still ? { opacity: 1 } : { width: 8, marginRight: 0, opacity: 1 };
+  const open = still ? { opacity: 1 } : { width: trailing ? 22 : 8, marginRight: 0, opacity: 1 };
   return (
     <AnimatePresence initial={false}>
       {tab && (mark || tab.audible) && (
@@ -57,9 +58,9 @@ export function TabAlert({ tab }: { tab?: Tab }) {
           initial={closed}
           animate={{ ...open, transition: CONTROL_IN }}
           exit={{ ...closed, transition: CONTROL_OUT }}
-          className="flex w-2 shrink-0"
+          className={cn("flex shrink-0", trailing ? "w-5.5 [&+button]:-ml-2.75" : "w-2")}
         >
-          <span className="-mx-1.75 grid size-5.5 shrink-0 *:[grid-area:1/1]">
+          <span className={cn("grid size-5.5 shrink-0 *:[grid-area:1/1]", !trailing && "-mx-1.75")}>
             <AnimatePresence initial={false}>
               <motion.span
                 key={mark?.key ?? "sound"}

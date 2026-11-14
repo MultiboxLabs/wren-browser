@@ -272,7 +272,7 @@ function AwayTitle({
         </Tooltip>
         <span className="hidden truncate text-caption text-fg-3 peer-hover/back:block">Back to Pinned URL</span>
       </span>
-      <TabAlert tab={side.tab} />
+      <TabAlert tab={side.tab} trailing />
     </>
   );
 }
