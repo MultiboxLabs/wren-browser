@@ -19,6 +19,11 @@
 // Once the strip is back in place, and nothing holds it, the spaces beside
 // are no longer drawn.
 //
+// A switch the page did not ask for, as the app brings a space forward for
+// a page's "Leave site?", goes to that space even while a glide is under
+// way: the strip glides to the window's space from wherever it has got,
+// rather than on to the space the glide was going to.
+//
 // A space the strip doesn't hold, one the app brings forward or the New
 // Space form, slides in the short way from the side its order puts it. With
 // Reduced Motion, nothing moves.
@@ -119,6 +124,9 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
   const staying = useRef(false);
   // Fingers hold the strip: nothing else moves it.
   const held = useRef(false);
+  // The spaces the page has asked the window to switch to, by a glide or a
+  // swipe, until it has. A switch to any other is the app's.
+  const asked = useRef(new Set<number>());
   // The slot the strip glides to, and how, until it is back in place.
   const target = useRef<{ slot: number; motion: Motion } | null>(null);
   const [beside, setBeside] = useState(false);
@@ -161,6 +169,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
   const rest = () => {
     if (held.current || x.isAnimating() || Math.abs(x.get()) >= 0.5) return;
     target.current = null;
+    asked.current.clear();
     setBeside(false);
     setStrip([]);
   };
@@ -180,6 +189,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
     // The first space the window says it has comes as it is.
     if (from === null || current === null || from === current) return;
     turn.current++;
+    const mine = asked.current.delete(current);
     if (staying.current) {
       staying.current = false;
       x.jump(0);
@@ -191,6 +201,14 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       // many slots, so nothing that shows moves, and goes on as it was.
       const velocity = x.getVelocity();
       x.jump(x.get() + slot * pitch.get());
+      if (!mine) {
+        // The app's switch: the strip glides from here to the window's
+        // space, which it is now drawn around.
+        setBeside(true);
+        if (held.current) target.current = { slot: 0, motion: spring };
+        else glideToSlot(0, spring, velocity);
+        return;
+      }
       const glided = target.current;
       if (!glided) return;
       if (held.current) target.current = { ...glided, slot: glided.slot - slot };
@@ -258,10 +276,12 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       }
       setBeside(true);
       glideToSlot(slot, spring, 0);
+      asked.current.add(id);
       then();
     },
     settle: () => {
       turn.current++;
+      asked.current.clear();
       staying.current = false;
       held.current = false;
       target.current = { slot: 0, motion: spring };
@@ -297,7 +317,9 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
         x.jump(0);
         rest();
       } else glideToSlot(to, glide, velocity);
-      return to === 0 ? undefined : drawnAt(to);
+      const id = to === 0 ? undefined : drawnAt(to);
+      if (id !== undefined) asked.current.add(id);
+      return id;
     }
   };
 }
