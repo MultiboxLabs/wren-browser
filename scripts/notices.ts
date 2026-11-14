@@ -160,7 +160,8 @@ async function uBlock(): Promise<Notice> {
     licence: "GPL-3.0",
     source: `https://github.com/gorhill/uBlock/tree/${manifest.version}`,
     text: [
-      "Wren ships uBlock Origin unchanged, as its author signed it. Its source is at the address above.",
+      "Wren ships uBlock Origin as its author released it, but for two changes. Its manifest has no update_url,",
+      "and Wren packs it with a key of its own (scripts/sync-ublock.ts). Its source is at the address above.",
       "The parts it includes have their own licences, inside the extension.",
       "",
       licence

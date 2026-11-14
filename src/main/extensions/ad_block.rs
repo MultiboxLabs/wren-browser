@@ -1,6 +1,8 @@
 // The ad blocker: uBlock Origin, which every profile gets, on until the user
-// turns it off. Chromium keeps whether it is on in each profile, and the
-// Library turns it on or off there. Only this file knows the extension.
+// turns it off. Wren ships its own package of it (scripts/sync-ublock.ts),
+// which changes only with the app. Chromium keeps whether it is on in each
+// profile, and the Library turns it on or off there. Only this file knows the
+// extension.
 
 use std::cell::Cell;
 
@@ -11,9 +13,9 @@ use wren::{
 
 use crate::platform;
 
-/// uBlock Origin's ID, which its author's key gives it
+/// The ID of Wren's package of uBlock Origin, which Wren's key gives it
 /// (scripts/sync-ublock.ts).
-const ID: &str = "fkgkibajhfbepljeaefdnfnegdcjomkh";
+const ID: &str = "gdfkhjaoebkjbfemfdeioalngkafncbi";
 
 thread_local! {
     // Its place among `Startup::extensions`, once shipped; a profile's

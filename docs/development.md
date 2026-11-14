@@ -97,7 +97,7 @@ To add a page:
 Two commands update data in the repository for the next build:
 
 - `bun run sync-bangs` refreshes the omnibox's bangs from Kagi's list.
-- `bun run sync-ublock` downloads the latest uBlock Origin into `extensions/uBlock0.crx`. Pass `--version <version>` for another release.
+- `bun run sync-ublock` downloads the latest uBlock Origin, takes the `update_url` out of its manifest and packs it into `extensions/uBlock0.crx` with Wren's key, so that it changes only with the app. It writes the version to `extensions/uBlock0.json`. It needs the key at `.local/ublock.pem`, or at the path in `WREN_UBLOCK_KEY`. The key decides the extension's ID, so a package made with any other key is refused. Pass `--version <version>` for another release.
 
 ## Notices
 
