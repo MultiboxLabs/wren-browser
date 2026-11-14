@@ -105,4 +105,15 @@ impl Windows {
                 .cloned()
         })
     }
+
+    /// The window that takes what is opened for the user, a link or a tab,
+    /// as `takes` says which may: the window the user browses in if it may,
+    /// or else the newest that may; never a popup's.
+    pub fn taking(&self, takes: impl Fn(&BrowserWindow) -> bool) -> Option<Rc<BrowserWindow>> {
+        let takes = |window: &Rc<BrowserWindow>| !window.is_popup() && takes(window);
+        self.front().filter(takes).or_else(|| {
+            let open = self.open.borrow();
+            open.iter().rev().find(|window| takes(window)).cloned()
+        })
+    }
 }

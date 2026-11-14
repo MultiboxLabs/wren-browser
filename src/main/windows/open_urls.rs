@@ -87,18 +87,12 @@ impl State {
     // newest other. Never a popup's, nor off the record, as Chromium opens
     // them in a normal window; nor one on no space while the user makes one.
     fn link_window(&self) -> Option<Rc<BrowserWindow>> {
-        let takes = |window: &Rc<BrowserWindow>| {
-            !window.is_popup()
-                && !window.is_closing()
+        self.windows.taking(|window| {
+            !window.is_closing()
                 && window.left_space().is_none()
                 && !window
                     .place()
                     .is_some_and(|place| place.is_off_the_record())
-        };
-        self.windows.front().filter(takes).or_else(|| {
-            let mut all = self.windows.all();
-            all.reverse();
-            all.into_iter().find(takes)
         })
     }
 }
