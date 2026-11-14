@@ -1,7 +1,8 @@
 // Sparkle, the app's updater (src/main/platform/macos/updater/): its
 // framework, which `wren bundle` puts in the app (each manifest's
 // `frameworks`), its tools for keys and releases (bin/), and its licence,
-// which scripts/notices.ts ships, in Frameworks/.
+// which scripts/notices.ts ships, in Frameworks/. And how a release's files
+// are signed with them (scripts/publish.ts, scripts/deltas.ts).
 // Downloaded once for the version pinned here, and checked against its
 // SHA-256. Nothing links it: the app loads it as it runs.
 import { $ } from "bun";
@@ -49,6 +50,30 @@ export async function sparkle() {
   } finally {
     await rm(unpacked, { recursive: true, force: true });
   }
+}
+
+/** The Keychain account that Sparkle's private key is under. */
+const KEY_ACCOUNT = "wren";
+
+/** What the feed says of a file an update downloads. */
+export type Signed = { edSignature: string; length: number };
+
+/** Signs `path` with Sparkle's private key. `sparkle()` must have run. */
+export async function sign(path: string): Promise<Signed> {
+  // Prints `sparkle:edSignature="…" length="…"`.
+  const said = await $`Frameworks/bin/sign_update --account ${KEY_ACCOUNT} ${path}`.text();
+  const edSignature = /sparkle:edSignature="([^"]+)"/.exec(said)?.[1];
+  const length = /length="(\d+)"/.exec(said)?.[1];
+  if (!edSignature || !length) throw new Error(`sign_update said: ${said}`);
+  return { edSignature, length: Number(length) };
+}
+
+/** Whether `path` is the file that `edSignature` was made for. */
+export async function isSigned(path: string, edSignature: string) {
+  const verify = await $`Frameworks/bin/sign_update --account ${KEY_ACCOUNT} --verify ${path} ${edSignature}`
+    .nothrow()
+    .quiet();
+  return verify.exitCode === 0;
 }
 
 if (import.meta.main) await sparkle();

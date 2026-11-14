@@ -1,6 +1,7 @@
 // Publishes a release: builds Wren.app for its channel, signed with a
-// Developer ID and notarised, zips and signs it for Sparkle, makes its disk
-// image (scripts/dmg.ts), and puts them on GitHub Releases. Nobody is offered
+// Developer ID and notarised, zips and signs it for Sparkle, makes its delta
+// updates from the last few releases (scripts/deltas.ts) and its disk image
+// (scripts/dmg.ts), and puts them on GitHub Releases. Nobody is offered
 // it yet: wrenbrowser.com/appcast.xml, the
 // feed every build checks, lists what is in the site's `releases.ts`, so this
 // ends by printing the entry to add there.
@@ -21,8 +22,9 @@
 import { $ } from "bun";
 import { parseArgs } from "util";
 import { app } from "./channel";
+import { type Delta, deltaName, makeDeltas, type Older } from "./deltas";
 import { checkDmgTools, dmgOf, makeDmg } from "./dmg";
-import { sparkle } from "./sparkle";
+import { isSigned, sign, sparkle } from "./sparkle";
 
 const REPOSITORY = "MultiboxLabs/wren-browser-releases";
 // The manifests a release sets the build of, which Sparkle updates by:
@@ -35,8 +37,10 @@ const MANIFESTS = [...UPDATED, "wren-app.dev.json"];
 // What a release commits: the manifests, and the crate's version, which
 // analytics reports (CARGO_PKG_VERSION), kept the same as theirs.
 const VERSIONED = [...MANIFESTS, "Cargo.toml", "Cargo.lock"];
-const KEY_ACCOUNT = "wren";
 const OUT = "target/publish";
+// How many releases a delta update is made from. Each is a download of that
+// release and a patch to upload, and a copy older than them takes the zip.
+const DELTAS = 3;
 
 type Version = { major: number; minor: number; patch: number; beta: number | null };
 
@@ -98,11 +102,10 @@ if (resuming) {
     fail(`The tag ${tag} is there already, but ${zip}, ${json} and ${dmg}, which it was made with, are not.`);
   await sparkle();
   const { edSignature } = JSON.parse(await Bun.file(json).text());
-  if (
-    (await $`Frameworks/bin/sign_update --account ${KEY_ACCOUNT} --verify ${zip} ${edSignature}`.nothrow().quiet())
-      .exitCode !== 0
-  )
-    fail(`${zip} does not match the signature in ${json}.`);
+  if (!(await isSigned(zip, edSignature))) fail(`${zip} does not match the signature in ${json}.`);
+  for (const delta of await deltaFiles())
+    if (!(await Bun.file(delta).exists()))
+      fail(`The tag ${tag} is there already, but ${delta}, which ${json} lists, is not.`);
   console.log(`The tag ${tag} is there already; resuming with ${zip}.`);
 }
 
@@ -111,10 +114,12 @@ if (resuming) {
 const published = (await $`gh release list -R ${REPOSITORY} --exclude-drafts --limit 1000 --json tagName`.json()) as {
   tagName: string;
 }[];
-const newest = published
+const out = published
   .filter(({ tagName }) => tagName !== tag)
   .map(({ tagName }) => parseVersion(tagName.replace(/^v/, "")))
-  .filter((out): out is Version => out !== null && (channel === "beta" || out.beta === null))
+  .filter((version): version is Version => version !== null);
+const newest = out
+  .filter((version) => channel === "beta" || version.beta === null)
   .map(buildOf)
   .reduce((a, b) => Math.max(a, b), 0);
 if (build <= newest) fail(`${shortVersion} is not newer than what ${channel} has out already.`);
@@ -125,7 +130,9 @@ if (!resuming) {
   await make();
   if (dryRun) {
     await $`git checkout -- ${VERSIONED}`;
-    console.log(`\nDry run: ${zip}, ${json} and ${dmg} are made; nothing is committed, pushed or released.`);
+    console.log(
+      `\nDry run: ${zip}, ${json}, its delta updates and ${dmg} are made; nothing is committed, pushed or released.`
+    );
     console.log(await Bun.file(json).text());
     process.exit(0);
   }
@@ -151,7 +158,7 @@ if (isDraft === null) {
   await $`gh release create ${tag} -R ${REPOSITORY} --draft --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
 }
 if (isDraft !== false) {
-  await $`gh release upload ${tag} -R ${REPOSITORY} --clobber ${zip} ${json} ${dmg}`;
+  await $`gh release upload ${tag} -R ${REPOSITORY} --clobber ${zip} ${json} ${dmg} ${await deltaFiles()}`;
   const latest = channel === "stable" ? "--latest" : "--latest=false";
   await $`gh release edit ${tag} -R ${REPOSITORY} --draft=false ${latest}`;
 }
@@ -167,10 +174,34 @@ console.log(
 );
 console.log(`${JSON.stringify(entry, null, 2)},`);
 
+/** The delta updates `json` lists, as the files beside it. */
+async function deltaFiles() {
+  const { deltas = [] }: { deltas?: Delta[] } = JSON.parse(await Bun.file(json).text());
+  return deltas.map(({ from }) => `${OUT}/${deltaName(shortVersion, from)}`);
+}
+
+/**
+ * The releases a delta update is made from: the `DELTAS` newest that a copy
+ * taking this one may be on. Those are the stable ones, and the newest beta
+ * while no stable release has followed it, which is where Beta's copies are.
+ */
+function olderReleases(): Older[] {
+  const older = out
+    .map((version) => ({ ...version, build: buildOf(version) }))
+    .filter((version) => version.build < build)
+    .sort((a, b) => b.build - a.build);
+  const beta = older[0]?.beta !== null ? older.slice(0, 1) : [];
+  return [...beta, ...older.filter((version) => version.beta === null)].slice(0, DELTAS).map((version) => ({
+    shortVersion: `${version.major}.${version.minor}.${version.patch}${version.beta === null ? "" : `-beta.${version.beta}`}`,
+    build: version.build
+  }));
+}
+
 /**
  * Writes the version into the manifests and Cargo.toml, and builds,
- * notarises, zips and signs the app into `zip`, with `json` and the disk image
- * `dmg` beside it. If it fails, what it wrote is put back.
+ * notarises, zips and signs the app into `zip`, with `json`, its delta
+ * updates and the disk image `dmg` beside it. If it fails, what it wrote is
+ * put back.
  */
 async function make() {
   await sparkle();
@@ -198,11 +229,8 @@ async function make() {
 
     await $`rm -rf ${OUT} && mkdir -p ${OUT}`;
     await $`ditto -c -k --keepParent ${app} ${zip}`;
-    // Prints `sparkle:edSignature="…" length="…"`.
-    const signed = await $`Frameworks/bin/sign_update --account ${KEY_ACCOUNT} ${zip}`.text();
-    const edSignature = /sparkle:edSignature="([^"]+)"/.exec(signed)?.[1];
-    const length = /length="(\d+)"/.exec(signed)?.[1];
-    if (!edSignature || !length) throw new Error(`sign_update said: ${signed}`);
+    const { edSignature, length } = await sign(zip);
+    const deltas = await makeDeltas(zip, shortVersion, olderReleases(), REPOSITORY, OUT);
     const plist = `${app}/Contents/Info.plist`;
     const minimumSystemVersion = (
       await $`/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" ${plist}`.text()
@@ -215,9 +243,10 @@ async function make() {
           version: String(build),
           shortVersion,
           edSignature,
-          length: Number(length),
+          length,
           minimumSystemVersion,
-          hardwareRequirements: "arm64"
+          hardwareRequirements: "arm64",
+          deltas
         },
         null,
         2
