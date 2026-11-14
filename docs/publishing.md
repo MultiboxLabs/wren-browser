@@ -103,7 +103,7 @@ It holds the app and a link to Applications, in a Finder window arranged over a 
 
 The picture is `branding/dmg/background.html`. Open it in a browser to work on it, and add `?version=1.2.0-beta.1` to set the version in its corner. The script draws it again for each image, with the version the app reports, and the volume's icon is the app's, so a beta's image says it's a beta without any change. If the picture changes size or the icons move, change `WIDTH`, `HEIGHT` and `ICONS` in the script to match.
 
-The site's Download button links to the zip, in `src/app/releases/releases.ts`. Point it at the disk image when people should get that instead.
+The site's Download buttons link to the newest stable release's disk image (`download` in the site's `src/app/releases/releases.ts`).
 
 ## Delta updates
 
