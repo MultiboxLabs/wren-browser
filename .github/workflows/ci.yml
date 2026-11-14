@@ -58,7 +58,11 @@ jobs:
           path: ~/.wren/runtimes/${{ steps.runtime.outputs.version }}
           key: wren-runtime-${{ steps.runtime.outputs.version }}
 
+      # `wren install` asks GitHub's API for the release. Without a token,
+      # runners share an hourly limit by address that is often already spent.
       - name: Install Wren Runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           curl -fsSL https://wrenbrowser.com/runtime/cli/install.sh | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
