@@ -1,6 +1,7 @@
 // Back, forward, and reload, which turns into stop while the page loads: in
 // the sidebar's toolbar, or in the address bar atop the page while the
-// Address Bar setting puts it there (page-bar.tsx). Each acts on the active
+// Address Bar setting puts it there (page-bar.tsx). A popup's toolbar has
+// reload alone in its field (pages/ui/popup.tsx). Each acts on the active
 // tab, as the main menu's do.
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -40,7 +41,7 @@ const stopMotion = (still: boolean | null) => ({
 });
 
 /** Reload, which turns into stop while the tab loads. */
-function ReloadButton({ loading }: { loading: boolean }) {
+export function ReloadButton({ loading, className }: { loading: boolean; className?: string }) {
   const still = useReducedMotion();
   return (
     <Button
@@ -58,6 +59,7 @@ function ReloadButton({ loading }: { loading: boolean }) {
         </AnimatePresence>
       }
       label={loading ? "Stop" : "Reload"}
+      className={className}
       onClick={() => (loading ? browser.stop() : browser.reload())}
     />
   );

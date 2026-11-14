@@ -99,7 +99,7 @@ impl WindowRef {
 }
 
 pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
-    window::handle(web_view, window);
+    window::handle(web_view, window, mt);
     analytics::handle(web_view, window);
     sidebar::handle(web_view, window);
     settings::handle(web_view, window);

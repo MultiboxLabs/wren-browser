@@ -15,7 +15,6 @@ export function Popover({
   label,
   arrowFill,
   side = "bottom",
-  windowMargin = 8,
   anchored = false,
   stayOnOutsidePress = false,
   onEscape,
@@ -45,12 +44,6 @@ export function Popover({
   arrowFill?: { color: string; opacity?: number }[];
   /** Which side of the trigger it opens on, if there is room; below by default. */
   side?: "top" | "right" | "bottom" | "left";
-  /**
-   * The least room it keeps from the window's sides. Less, for a trigger
-   * near one, lets its arrow point at it from off the popover's rounded
-   * corner: Radix hides an arrow that cannot.
-   */
-  windowMargin?: number;
   children: ReactNode;
 }) {
   useHoldWhile(open);
@@ -62,7 +55,8 @@ export function Popover({
           aria-label={label}
           side={side}
           sideOffset={2}
-          collisionPadding={windowMargin}
+          // The least room it keeps from the window's sides.
+          collisionPadding={8}
           // Opened by a click, it takes no focus ring to its first control.
           onOpenAutoFocus={(event) => event.preventDefault()}
           onEscapeKeyDown={onEscape}

@@ -1,31 +1,36 @@
-// Popups. A Browser Chromium opens that is not a tabbed window gets a
-// browser window of its own: a page's popup (`window.open` with features,
-// as a sign-in opens), an extension's popup window, or an installed app's
-// window. Its title bar is the system's, under which the page draws a page's
-// popup's address, and no sidebar (pages/ui/popup.tsx). It is on its
-// profile's place, and never kept: its Browser closing takes it
-// (`App::browser_closed`). Document Picture-in-Picture is none of these:
-// Chromium shows it in a window of its own, with no Browser.
+// Popups, which the user knows as Mini Wren. A Browser Chromium opens that
+// is not a tabbed window gets a small browser window of its own: a page's
+// popup (`window.open` with features, as a sign-in opens), an extension's
+// popup window, or an installed app's window. The page draws its toolbar,
+// whose address opens the omnibox for its page, and no sidebar
+// (pages/ui/popup.tsx). It is on its profile's place, and never kept: its
+// Browser closing takes it (`App::browser_closed`). Its page can move to a
+// tab of a window the user browses in (`open_popup_as_tab`). Document
+// Picture-in-Picture is none of these: Chromium shows it in a window of its
+// own, with no Browser.
 
 use std::rc::Rc;
 
-use wren::{Browser, MainThread, WindowFeatures};
+use wren::{Browser, BrowserTab, MainThread, Profile, WindowFeatures};
 
 use super::session::unkept_window_key;
 use crate::app::State;
-use crate::shell::{Place, Popup};
+use crate::db::SpaceId;
+use crate::shell::{BrowserWindow, Place, Popup, WindowId};
+use crate::tabs;
 
-/// The height of a popup's address bar, in points, which the page draws
-/// above its page (pages/ui/popup.tsx). The size a page asks for is its
-/// own, so the window is this much taller.
-const ADDRESS_BAR: f64 = 40.0;
+/// The height of a popup's toolbar, in points, which the page draws above
+/// its page (pages/ui/popup.tsx). The size a page asks for is its own, so
+/// the window is this much taller.
+const TOOLBAR: f64 = 40.0;
 
 /// The size of a popup's page that asked for none.
 const PAGE_SIZE: (f64, f64) = (800.0, 600.0);
 
-/// A popup's window's minimum, its address bar in it, however small its
-/// page asks to be: room for the address bar's text.
-pub(super) const POPUP_MIN_SIZE: (f64, f64) = (240.0, 120.0);
+/// A popup's window's minimum, its toolbar in it, however small its page
+/// asks to be: room for the window's buttons, some of the address and the
+/// button that opens the page as a tab.
+pub(super) const POPUP_MIN_SIZE: (f64, f64) = (340.0, 160.0);
 
 impl State {
     /// Shows `browser`, which `opener` opened if Chromium names it, in a
@@ -61,13 +66,107 @@ impl State {
         };
         let requested = browser.requested_bounds();
         let (width, height) = requested.map_or(PAGE_SIZE, |bounds| (bounds.width, bounds.height));
-        let bar = if popup.address { ADDRESS_BAR } else { 0.0 };
         let near = opener_window.or_else(|| self.windows.front());
         window.page.place_popup(
-            (width, height + bar),
+            (width, height + TOOLBAR),
             requested.and_then(|bounds| bounds.origin),
             near.as_ref().map(|near| &near.page),
         );
         self.host_as_requested(&window, place, &browser);
+    }
+
+    /// Moves the page of popup window `id` to a new tab, at
+    /// the top of the list and in front, without loading it again. The tab
+    /// is in the space the popup was opened from, or else the space of the
+    /// window the user browses in, or else its profile's most recent one,
+    /// and that window comes forward on it. An off-the-record page goes to
+    /// its profile's off-the-record window. A window is opened if none
+    /// shows the place. The popup's window closes with its Browser. Fails
+    /// if `id` is no popup's, or its page has gone.
+    pub fn open_popup_as_tab(self: &Rc<Self>, mt: MainThread, id: WindowId) -> Result<(), String> {
+        let popup = self.windows.get(id).ok_or("The window is closing.")?;
+        let opened_from = popup.popup().ok_or("The window is no popup's.")?.space;
+        let tab = popup.active_tab().ok_or("The popup has no page.")?;
+        let profile = popup
+            .browser()
+            .and_then(|browser| browser.profile())
+            .ok_or("The popup has no page.")?;
+        let place = self.place_for_popup(mt, &profile, opened_from);
+        let window = self
+            .window_for_tab(&place)
+            .or_else(|| self.windows.get(self.open_window(mt, Some(place.clone()))?))
+            .ok_or("Wren opened no window.")?;
+        if let Some(browser) = window.browser_of(&place) {
+            return self.move_popup_to(&window, &place, &browser, tab);
+        }
+        if window.is_opening(&place) {
+            return Err("That space is still opening.".into());
+        }
+        let state = self.clone();
+        let target = window.id;
+        self.open_browser(mt, target, place.clone(), move || {
+            let window = state.windows.get(target);
+            let browser = window.as_ref().and_then(|w| w.browser_of(&place));
+            let moved = window.zip(browser).map_or_else(
+                || Err("The space has no Browser.".to_owned()),
+                |(window, browser)| state.move_popup_to(&window, &place, &browser, tab),
+            );
+            if let Err(error) = moved {
+                eprintln!("Wren could not open the popup's page in a tab: {error}");
+            }
+        });
+        Ok(())
+    }
+
+    // Where a popup's page becomes a tab: of `profile`, the space the popup
+    // was `opened_from`, that of the window in front, or the most recent,
+    // in that order; a profile with no space, or off the record, its own.
+    fn place_for_popup(
+        &self,
+        mt: MainThread,
+        profile: &Profile,
+        opened_from: Option<SpaceId>,
+    ) -> Place {
+        let own = Place::of_profile(profile);
+        if own.is_off_the_record() {
+            return own;
+        }
+        let of_profile = |space: &SpaceId| self.is_space_of(*space, profile);
+        opened_from
+            .filter(of_profile)
+            .or_else(|| self.windows.front()?.space().filter(of_profile))
+            .or_else(|| self.recent_space(mt, profile))
+            .map_or(own, Place::Space)
+    }
+
+    // The window a tab for `place` goes to: a space's, the window the user
+    // browses in if it shows spaces, or else the newest that does; a
+    // profile's, the newest window on it. Never one the user is closing,
+    // nor one on no space while the user makes one.
+    fn window_for_tab(&self, place: &Place) -> Option<Rc<BrowserWindow>> {
+        self.windows.taking(|window| {
+            !window.is_closing()
+                && match place {
+                    Place::Space(_) => window.space().is_some(),
+                    Place::Profile { .. } => window.place().as_ref() == Some(place),
+                }
+        })
+    }
+
+    // Moves a popup's `tab` to `browser`, `window`'s for `place`, which
+    // comes forward on it.
+    fn move_popup_to(
+        &self,
+        window: &BrowserWindow,
+        place: &Place,
+        browser: &Browser,
+        tab: BrowserTab,
+    ) -> Result<(), String> {
+        tabs::move_popup_in(browser, tab).map_err(|error| format!("{error:?}"))?;
+        if let Some(space) = place.space() {
+            self.show_space(window.id, space)?;
+        }
+        window.page.bring_forward();
+        Ok(())
     }
 }

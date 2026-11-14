@@ -7,9 +7,9 @@
 // background. Each Browser carries the window's key and its place in its
 // session tag, so a restore puts it back (tag.rs).
 //
-// A popup window shows one Browser Chromium opened that is not a tabbed
-// window (`Popup`), on its profile's place. It is never kept, and is not the
-// window the user browses in (`Windows::front`).
+// A popup window, a Mini Wren, shows one Browser Chromium opened that is
+// not a tabbed window (`Popup`), on its profile's place. It is never kept,
+// and is not the window the user browses in (`Windows::front`).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -44,17 +44,19 @@ enum Slot {
     Open(Browser),
 }
 
-/// What makes a window a popup's: a page's popup, an extension's popup
-/// window or an installed app's window, drawn without a sidebar
-/// (pages/ui/popup.tsx). The page reads it ("window.popup").
+/// What makes a window a popup's, a Mini Wren: a page's popup, an
+/// extension's popup window or an installed app's window, drawn with a
+/// toolbar and no sidebar (pages/ui/popup.tsx). The page reads it
+/// ("window.popup").
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Popup {
     /// The space it was opened from, whose colour its accents are, and
     /// where what it opens goes.
     pub space: Option<SpaceId>,
-    /// Whether it shows its page's address, read-only: Chrome gives a
-    /// page's popup a location bar, and the rest only a title.
+    /// Whether its toolbar shows its page's address, which opens the
+    /// omnibox for it, with page info: Chrome gives a page's popup a
+    /// location bar, and the rest only a title.
     pub address: bool,
 }
 

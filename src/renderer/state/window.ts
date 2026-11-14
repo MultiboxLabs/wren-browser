@@ -82,20 +82,27 @@ export function useFullScreen() {
  * whose colour is mixed in (state/space-blend.ts).
  */
 export function useWindowTheme(space: Space, toward: Space | null = null) {
-  const { scheme } = space;
+  useThemedWindow(space, space.scheme, toward);
+}
+
+/**
+ * A popup's window's look. It is light or dark as the system is, with the
+ * window's blur showing through its toolbar, and the window's buttons drawn
+ * to match; the space's colour is its accents' alone.
+ */
+export function usePopupTheme(space: Space) {
+  useThemedWindow(space, useSystemScheme(), null);
+}
+
+/**
+ * Draws the page (`useRootTheme`) and the window around it, its blur and
+ * its buttons, in `scheme`, with `space`'s colour.
+ */
+function useThemedWindow(space: Space, scheme: "light" | "dark", toward: Space | null) {
   useRootTheme(space, scheme, toward);
   useEffect(() => {
     if (hasApp) appWindow.setDark(scheme === "dark");
   }, [scheme]);
-}
-
-/**
- * A popup's window's look. Its title bar is the system's, so the page is
- * light or dark as the system is, and the window around it is left as the
- * system draws it; the space's colour is its accents'.
- */
-export function usePopupTheme(space: Space) {
-  useRootTheme(space, useSystemScheme(), null);
 }
 
 /**
