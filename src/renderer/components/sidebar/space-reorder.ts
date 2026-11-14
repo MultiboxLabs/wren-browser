@@ -1,6 +1,7 @@
 // Dragging a space along the space switcher to another place. The space
 // follows the pointer, held within the row, and the others make way as it
-// passes them. Let go, it slides into its place; the row is then drawn in
+// passes them. Only the spaces the row draws take part (space-fit.ts): the
+// ones left out of it stay where they are. Let go, it slides into its place; the row is then drawn in
 // its new order, and the app is asked to move it there.
 //
 // Unlike a tab's (item-drag.ts), it is not the platform's drag: a space only
@@ -19,20 +20,19 @@ import {
   useState
 } from "react";
 import { cssEase, EASE_SLIDE } from "@/utils/motion";
-import { useEdgeScroll } from "./edge-scroll";
 
 /** How far the pointer goes before a press is a drag. */
 const THRESHOLD = 4;
 const SLIDE_MS = 180;
 const SLIDE = `transform ${SLIDE_MS}ms ${cssEase(EASE_SLIDE)}`;
 
-/** A space's place along the row's content, its scroll counted in. */
+/** A space's place along the row. */
 type Slot = { left: number; right: number };
 
 /** A space carried along the row. */
 type Drag = {
   id: number;
-  /** The order, and the spaces' places in it, as the drag started. */
+  /** The spaces drawn, in order, and their places, as the drag started. */
   order: number[];
   slots: Slot[];
   /** Its index as the drag started, and the one it would go to. */
@@ -44,16 +44,17 @@ type Drag = {
   dropped: boolean;
 };
 
-/** The places of the spaces of `order`, from their slots (`data-space-slot`) in `row`. */
-function measure(row: HTMLElement, order: number[]): Slot[] {
-  const slots = new Map(
+/** The spaces of `order` that `row` draws, and their places, from their slots (`data-space-slot`). */
+function measure(row: HTMLElement, order: number[]): { order: number[]; slots: Slot[] } {
+  const found = new Map(
     [...row.querySelectorAll<HTMLElement>("[data-space-slot]")].map((el) => [el.dataset.spaceSlot, el])
   );
-  return order.map((id) => {
-    const rect = slots.get(String(id))?.getBoundingClientRect();
-    const left = (rect?.left ?? 0) + row.scrollLeft;
-    return { left, right: left + (rect?.width ?? 0) };
+  const drawn = order.filter((id) => found.has(String(id)));
+  const slots = drawn.map((id) => {
+    const { left, right } = found.get(String(id))!.getBoundingClientRect();
+    return { left, right };
   });
+  return { order: drawn, slots };
 }
 
 /**
@@ -84,8 +85,9 @@ function offsetAt({ slots, from, to, by, dropped }: Drag, index: number): number
 }
 
 /**
- * `listed`: the spaces' IDs in the app's order. `move` asks the app to put
- * one at an index, and rejects if it can't.
+ * `listed`: the spaces' IDs in the app's order. `drawn`: those the row draws
+ * now, for a drag to end when they change. `move` asks the app to
+ * put one at an index among all of them, and rejects if it can't.
  *
  * Returns the order to draw; for each space, its slot's style and pointer
  * handler (the slot, marked `data-space-slot`, holds its button in `row`);
@@ -94,6 +96,7 @@ function offsetAt({ slots, from, to, by, dropped }: Drag, index: number): number
 export function useSpaceReorder(
   row: RefObject<HTMLElement | null>,
   listed: number[],
+  drawn: number[],
   move: (id: number, index: number) => Promise<void>
 ) {
   const still = useReducedMotion();
@@ -108,20 +111,18 @@ export function useSpaceReorder(
     latest.current = next;
     setDragState(next);
   };
-  // The space pressed, and where along the row's content, until it is let go.
+  // The space pressed, and where along the row, until it is let go.
   const press = useRef<{ id: number; start: number } | null>(null);
   // Ends the listening to the press.
   const listening = useRef<AbortController | null>(null);
   const settling = useRef(0);
   // A press that became a drag is no click.
   const dragged = useRef(false);
-  const edge = useEdgeScroll("x");
 
   const release = () => {
     listening.current?.abort();
     listening.current = null;
     press.current = null;
-    edge.stop();
     delete document.documentElement.dataset.reordering;
   };
   const cancel = () => {
@@ -132,7 +133,8 @@ export function useSpaceReorder(
 
   // The app's order is drawn once it comes. A drag measured the old one, so
   // it ends: the space was moved, or the row is no longer the one measured.
-  const key = listed.join();
+  // The same goes for the spaces drawn changing under it.
+  const key = `${listed.join()}/${drawn.join()}`;
   useEffect(() => {
     setMoved(null);
     cancel();
@@ -140,7 +142,7 @@ export function useSpaceReorder(
   useEffect(() => cancel, []);
 
   // How far the pointer at `clientX` has carried the pressed space.
-  const carried = (clientX: number) => clientX + (row.current?.scrollLeft ?? 0) - (press.current?.start ?? 0);
+  const carried = (clientX: number) => clientX - (press.current?.start ?? 0);
 
   const follow = (clientX: number) => {
     if (latest.current) setDrag(carry(latest.current, carried(clientX)));
@@ -148,8 +150,9 @@ export function useSpaceReorder(
 
   const start = (id: number, clientX: number) => {
     if (!row.current) return;
-    const from = order.indexOf(id);
-    const measured = { id, order, slots: measure(row.current, order), from, to: from, by: 0, dropped: false };
+    const { order: shown, slots } = measure(row.current, order);
+    const from = shown.indexOf(id);
+    const measured = { id, order: shown, slots, from, to: from, by: 0, dropped: false };
     setDrag(carry(measured, carried(clientX)));
     dragged.current = true;
     // Over a drag region, the window would take the pointer (index.css).
@@ -166,13 +169,15 @@ export function useSpaceReorder(
     settling.current = window.setTimeout(() => settle(settled), still ? 0 : SLIDE_MS);
   };
 
-  const settle = ({ id, order: was, from, to }: Drag) => {
+  // It goes where the space it took the place of is among all of them.
+  const settle = ({ id, order: shown, from, to }: Drag) => {
     setDrag(null);
     if (to === from) return;
-    const next = was.filter((other) => other !== id);
-    next.splice(to, 0, id);
+    const index = order.indexOf(shown[to]);
+    const next = order.filter((other) => other !== id);
+    next.splice(index, 0, id);
     setMoved(next);
-    move(id, to).catch(() => setMoved(null));
+    move(id, index).catch(() => setMoved(null));
   };
 
   const onPointerDown = (id: number) => (event: PointerEvent<HTMLElement>) => {
@@ -180,7 +185,7 @@ export function useSpaceReorder(
     if (event.button !== 0 || press.current || latest.current || !row.current) return;
     const slot = event.currentTarget;
     const pointer = event.pointerId;
-    press.current = { id, start: event.clientX + row.current.scrollLeft };
+    press.current = { id, start: event.clientX };
     listening.current = new AbortController();
     const { signal } = listening.current;
 
@@ -196,7 +201,6 @@ export function useSpaceReorder(
           slot.setPointerCapture(pointer);
           start(id, moving.clientX);
         }
-        edge.follow(row.current, moving.clientX, moving.clientY, follow);
       },
       { signal }
     );
