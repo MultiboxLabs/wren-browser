@@ -10,15 +10,6 @@ use wren::{Browser, MainThread, RequestedBounds, TabCrash, WebView, WindowState}
 
 use super::current;
 
-/// Who draws a window's title bar: the page, whose content fills the window
-/// and places the window's buttons (a browser window's sidebar), or the
-/// system, above the page, with the window's title (a popup's).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TitleBarKind {
-    Page,
-    System,
-}
-
 /// How large a window is, and whether the user can change it.
 #[derive(Clone, Copy, Debug)]
 pub enum WindowSize {
@@ -43,16 +34,17 @@ pub struct PageWindow {
 
 impl PageWindow {
     /// A window of `web_view` (`Page::web_view`), not shown yet. Its content
-    /// is as `size` says. `should_close` answers the window's close button.
+    /// is as `size` says, and fills the window: the title bar is the page's
+    /// to draw, and it places the window's buttons (`set_buttons`).
+    /// `should_close` answers the window's close button.
     pub fn open(
         web_view: WebView,
         title: &str,
         size: WindowSize,
-        kind: TitleBarKind,
         should_close: impl Fn() -> bool + 'static,
     ) -> PageWindow {
         let web_view = Rc::new(web_view);
-        let native = current::window::PageWindow::open(&web_view, title, size, kind, should_close);
+        let native = current::window::PageWindow::open(&web_view, title, size, should_close);
 
         // The page shows the window once it has drawn what it shows (`show`),
         // so it never opens blank or half drawn. A failed load or a crash

@@ -31,13 +31,12 @@ use objc2_app_kit::{
     NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
     NSApplication, NSApplicationDidBecomeActiveNotification,
     NSApplicationDidResignActiveNotification, NSAutoresizingMaskOptions, NSBackingStoreType,
-    NSTitlebarSeparatorStyle, NSToolbar, NSView, NSVisualEffectBlendingMode,
-    NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView, NSWindow,
-    NSWindowDidBecomeKeyNotification, NSWindowDidBecomeMainNotification,
-    NSWindowDidEndLiveResizeNotification, NSWindowDidExitFullScreenNotification,
-    NSWindowDidResignKeyNotification, NSWindowDidResignMainNotification,
-    NSWindowDidResizeNotification, NSWindowStyleMask, NSWindowTitleVisibility,
-    NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
+    NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial, NSVisualEffectState,
+    NSVisualEffectView, NSWindow, NSWindowDidBecomeKeyNotification,
+    NSWindowDidBecomeMainNotification, NSWindowDidEndLiveResizeNotification,
+    NSWindowDidExitFullScreenNotification, NSWindowDidResignKeyNotification,
+    NSWindowDidResignMainNotification, NSWindowDidResizeNotification, NSWindowStyleMask,
+    NSWindowTitleVisibility, NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
 };
 use objc2_foundation::{
     NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString, ns_string,
@@ -45,7 +44,7 @@ use objc2_foundation::{
 use objc2_quartz_core::CATransaction;
 use wren::{MainThread, WebView};
 
-use crate::platform::{TitleBarKind, WindowSize};
+use crate::platform::WindowSize;
 use delegate::WindowDelegate;
 use full_screen::is_full_screen;
 use title_bar::TitleBar;
@@ -71,16 +70,16 @@ impl PageWindow {
         web_view: &WebView,
         title: &str,
         size: WindowSize,
-        kind: TitleBarKind,
         should_close: impl Fn() -> bool + 'static,
     ) -> PageWindow {
         let mtm = MainThreadMarker::new().unwrap();
 
-        // A title bar that is the page's draws nothing, over the content,
+        // The title bar is the page's: it draws nothing, over the content,
         // which fills the window.
         let mut style = NSWindowStyleMask::Titled
             | NSWindowStyleMask::Closable
-            | NSWindowStyleMask::Miniaturizable;
+            | NSWindowStyleMask::Miniaturizable
+            | NSWindowStyleMask::FullSizeContentView;
         let (size, min_size) = match size {
             WindowSize::Resizable { size, min } => {
                 style |= NSWindowStyleMask::Resizable;
@@ -88,9 +87,6 @@ impl PageWindow {
             }
             WindowSize::Fixed(size) => (size, size),
         };
-        if kind == TitleBarKind::Page {
-            style |= NSWindowStyleMask::FullSizeContentView;
-        }
         let window = unsafe {
             NSWindow::initWithContentRect_styleMask_backing_defer(
                 NSWindow::alloc(mtm),
@@ -103,25 +99,13 @@ impl PageWindow {
         unsafe { window.setReleasedWhenClosed(false) };
         window.setContentMinSize(NSSize::new(min_size.0, min_size.1));
         window.setTitle(&NSString::from_str(title));
-        let toolbar = match kind {
-            // An empty compact toolbar makes the title bar tall enough for
-            // the buttons wherever the page puts them (set_buttons).
-            TitleBarKind::Page => {
-                window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
-                window.setTitlebarAppearsTransparent(true);
-                let toolbar =
-                    NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), ns_string!("main"));
-                window.setToolbar(Some(&toolbar));
-                window.setToolbarStyle(NSWindowToolbarStyle::UnifiedCompact);
-                Some(toolbar)
-            }
-            // No line under the system's: the page's top goes on from it, as
-            // a toolbar does.
-            TitleBarKind::System => {
-                window.setTitlebarSeparatorStyle(NSTitlebarSeparatorStyle::None);
-                None
-            }
-        };
+        // An empty compact toolbar makes the title bar tall enough for the
+        // buttons wherever the page puts them (set_buttons).
+        window.setTitleVisibility(NSWindowTitleVisibility::Hidden);
+        window.setTitlebarAppearsTransparent(true);
+        let toolbar = NSToolbar::initWithIdentifier(NSToolbar::alloc(mtm), ns_string!("main"));
+        window.setToolbar(Some(&toolbar));
+        window.setToolbarStyle(NSWindowToolbarStyle::UnifiedCompact);
         window.center();
         let delegate = WindowDelegate::new(mtm, Box::new(should_close));
         window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
@@ -131,15 +115,10 @@ impl PageWindow {
             | NSAutoresizingMaskOptions::ViewHeightSizable;
 
         // What shows through the page: the desktop, blurred. Its state is
-        // set from the window's, as the page's is (set_active). Under the
-        // system's title bar, what the page leaves clear is drawn as the
-        // title bar is, so the two are one.
+        // set from the window's, as the page's is (set_active).
         let backdrop =
             NSVisualEffectView::initWithFrame(NSVisualEffectView::alloc(mtm), content.bounds());
-        backdrop.setMaterial(match kind {
-            TitleBarKind::Page => NSVisualEffectMaterial::UnderWindowBackground,
-            TitleBarKind::System => NSVisualEffectMaterial::Titlebar,
-        });
+        backdrop.setMaterial(NSVisualEffectMaterial::UnderWindowBackground);
         backdrop.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
         backdrop.setState(NSVisualEffectState::Active);
         backdrop.setAutoresizingMask(fill);
@@ -155,18 +134,13 @@ impl PageWindow {
         // again, so they go where the page wants them after each time.
         // Full screen, the toolbar would get a bar of its own above the
         // page, so the window has none while it is.
-        let title_bar = Rc::new(TitleBar {
-            system: kind == TitleBarKind::System,
-            ..TitleBar::default()
-        });
+        let title_bar = Rc::new(TitleBar::default());
         let lay_out = {
             let (window, toolbar, title_bar) = (window.clone(), toolbar.clone(), title_bar.clone());
             Rc::new(move |full_screen: Option<bool>| {
                 if let Some(full_screen) = full_screen {
                     title_bar.full_screen.set(full_screen);
-                    if let Some(toolbar) = &toolbar {
-                        window.setToolbar((!full_screen).then_some(&**toolbar));
-                    }
+                    window.setToolbar((!full_screen).then_some(&*toolbar));
                 }
                 title_bar.apply(&window);
             })
