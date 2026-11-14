@@ -26,7 +26,7 @@ import { type Delta, deltaName, makeDeltas, type Older } from "./deltas";
 import { checkDmgTools, dmgOf, makeDmg } from "./dmg";
 import { isSigned, sign, sparkle } from "./sparkle";
 
-const REPOSITORY = "MultiboxLabs/wren-browser-releases";
+const REPOSITORY = "MultiboxLabs/wren-browser";
 // The manifests a release sets the build of, which Sparkle updates by:
 // Stable's and Beta's, which are the same app (Dev's has nothing to update
 // to).
@@ -153,9 +153,7 @@ const releases = (await $`gh release list -R ${REPOSITORY} --limit 1000 --json t
 const isDraft = releases.find(({ tagName }) => tagName === tag)?.isDraft ?? null;
 if (isDraft === null) {
   const prerelease = channel === "beta" ? ["--prerelease"] : [];
-  // TODO: add back --verify-tag once REPOSITORY is wren-browser again; the
-  // tag is pushed there, not to the releases repository.
-  await $`gh release create ${tag} -R ${REPOSITORY} --draft --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
+  await $`gh release create ${tag} -R ${REPOSITORY} --draft --verify-tag --generate-notes --title ${`Wren ${shortVersion}`} ${prerelease}`;
 }
 if (isDraft !== false) {
   await $`gh release upload ${tag} -R ${REPOSITORY} --clobber ${zip} ${json} ${dmg} ${await deltaFiles()}`;
