@@ -108,8 +108,11 @@ const side = (tab: number): Side => ({ tab, page: null, away: false, elsewhere: 
 
 /**
  * The list's tabs as items, in its order: a split's two as one, where it
- * first comes, and a group's together under it. Chromium keeps a group's
- * tabs together, and a split's two.
+ * first comes, and a group's together under it, where the group first
+ * comes. Chromium keeps a group's tabs together, and a split's two, but the
+ * page can hear of a tab's group before its move there, as a tab is dropped
+ * into one. A group is one item all the same, as its row's key is its ID.
+ * Two rows of one key leave React with a row it never takes away.
  */
 function listItems(listed: TabShape[], groups: TabGroup[], splits: TabSplit[]): Item[] {
   const ids = new Set(listed.map((tab) => tab.id));
@@ -130,9 +133,9 @@ function listItems(listed: TabShape[], groups: TabGroup[], splits: TabSplit[]): 
       list: { start, lead: tab.id }
     };
     const group = tab.group === null ? undefined : groups.find((group) => group.id === tab.group);
-    const last = items[items.length - 1];
+    const drawn = group && items.find((item): item is GroupItem => item.kind === "group" && item.group.id === group.id);
     if (!group) items.push(item);
-    else if (last?.kind === "group" && last.group.id === group.id) last.items.push(item);
+    else if (drawn) drawn.items.push(item);
     else items.push({ kind: "group", group, start, items: [item] });
   });
   return items;
