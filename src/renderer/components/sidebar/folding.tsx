@@ -50,6 +50,9 @@ const UNDER_PEEK: CSSProperties = {
  */
 export const foldRow = (key: string) => ({ "data-fold-row": key });
 
+/** The attribute that marks what draws a peek, by its row's key, for the drag checks to find it (perf/dragging.ts). */
+export const PEEK_MARK = "data-peek";
+
 /**
  * What a container shows folded: its row's key, and whether the container
  * is opening, its rows unfolding under the peek still.
@@ -162,6 +165,7 @@ export function FoldingRows({
         {peek && (
           <PeekLayer
             key={peek.key}
+            peekKey={peek.key}
             ref={peekLayer}
             overRow={() => !!rows.current?.querySelector(`[data-fold-row="${peek.key}"]`)}
           >
@@ -191,10 +195,12 @@ export function FoldingRows({
  */
 function PeekLayer({
   ref,
+  peekKey,
   overRow,
   children
 }: {
   ref: Ref<HTMLDivElement>;
+  peekKey: string;
   overRow: () => boolean;
   children: ReactNode;
 }) {
@@ -212,6 +218,7 @@ function PeekLayer({
             : { height: still ? "auto" : 0, opacity: 0, transition: ROW_OUT }
       }}
       exit="gone"
+      {...{ [PEEK_MARK]: peekKey }}
       className="relative z-1 flex translate-y-(--peek-y) flex-col self-start pl-(--peek-x)"
     >
       <ArrivalScope>{children}</ArrivalScope>

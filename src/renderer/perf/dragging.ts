@@ -23,6 +23,7 @@ import {
   type TabGroup,
   type TabSplit
 } from "@/ipc";
+import { PEEK_MARK } from "@/components/sidebar/folding";
 import { ITEM_MARK, rowBox } from "@/components/sidebar/item-drag";
 import { ZONE_MARK } from "@/components/sidebar/item-landing";
 import { MARKED_MARK, NESTED_INDENT } from "@/components/sidebar/rows";
@@ -213,14 +214,17 @@ export const drawnOpenEverywhere = (pin: number) => spaces.every((space) => hear
 /**
  * An item of the sidebar, as a check names it: a tab of a list by its
  * page's number, or the split it is in; the group that tab is in; a pinned
- * tab or a favourite by its page's number, or one of a split's two; or the
- * first folder.
+ * tab or a favourite by its page's number, or one of a split's two; the
+ * row a folded folder or section shows of that pinned tab (its peek,
+ * folding.tsx); or the first folder.
  */
-export type What = { tab: number } | { group: number } | { pin: number } | "folder";
+export type What = { tab: number } | { group: number } | { pin: number } | { peek: number } | "folder";
 
 export const tab = (number: number): What => ({ tab: number });
 export const group = (number: number): What => ({ group: number });
 export const pin = (number: number): What => ({ pin: number });
+export const peek = (number: number): What => ({ peek: number });
+const isPeek = (what: What): what is { peek: number } => what !== "folder" && "peek" in what;
 export const folder: What = "folder";
 
 const allPins = (pins: Pin[]): Pin[] =>
@@ -263,6 +267,7 @@ export async function groupOf(number: number) {
  * a kept tab that has the page.
  */
 export async function menuRef(what: What): Promise<{ item: ItemRef; side: number }> {
+  if (isPeek(what)) return menuRef(pin(what.peek));
   if (what !== "folder" && "tab" in what) return { item: { tab: await tabId(what.tab) }, side: 0 };
   if (what !== "folder" && "group" in what) {
     const id = await groupId(what.group);
@@ -283,7 +288,8 @@ export async function menuRef(what: What): Promise<{ item: ItemRef; side: number
 }
 
 /** The key an item's element is marked with (`itemKey` in state/items.ts). */
-function keyOf(said: Said, what: What) {
+function keyOf(said: Said, what: What): string {
+  if (isPeek(what)) return keyOf(said, pin(what.peek));
   if (what === "folder" || "pin" in what) {
     const kept = allPins(said.kept.flatMap(({ favorites, pinned }) => [...favorites, ...pinned]));
     const found =
@@ -311,14 +317,34 @@ function keyOf(said: Said, what: What) {
   throw new Error(`No tab of a list is on page ${number}.`);
 }
 
-function elementOf(key: string) {
-  const found = document.querySelector<HTMLElement>(`[${ITEM_MARK}="${key}"]`);
-  if (!found) throw new Error(`Nothing is drawn of ${key}.`);
+/** The element that draws an item, and is dragged: its own, or for a peek the one that draws it out of its folder. */
+function drawnOf(said: Said, what: What) {
+  const key = keyOf(said, what);
+  const selector = isPeek(what) ? `[${PEEK_MARK}="${key}"] [draggable="true"]` : `[${ITEM_MARK}="${key}"]`;
+  return document.querySelector<HTMLElement>(selector);
+}
+
+const notDrawn = (said: Said, what: What) =>
+  `Nothing is drawn of ${keyOf(said, what)}${isPeek(what) ? " as a peek" : ""}.`;
+
+function elementOf(said: Said, what: What) {
+  const found = drawnOf(said, what);
+  if (!found) throw new Error(notDrawn(said, what));
   return found;
 }
 
+/** Waits for an item to be drawn, as a peek is once its folder has folded. */
+export async function isDrawn(what: What) {
+  const said = await read();
+  await until(
+    () => drawnOf(said, what),
+    () => notDrawn(said, what)
+  );
+}
+
 /** The box of the row an item's element draws: a group's is its heading. */
-const boxOf = (key: string) => rowBox(elementOf(key), key.startsWith("group:") ? "group" : "tab");
+const boxOf = (said: Said, what: What) =>
+  rowBox(elementOf(said, what), what !== "folder" && "group" in what ? "group" : "tab");
 
 /** The left edge of what the rows of the part of the sidebar around `element` are drawn in (`contentOf` in item-landing.ts). */
 function contentLeft(element: Element) {
@@ -347,8 +373,7 @@ const beside =
   (edge: (box: DOMRect) => number) =>
   (what: What, depth = 0): Where =>
   (said, grab) => {
-    const key = keyOf(said, what);
-    return { x: contentLeft(elementOf(key)) + depth * NESTED_INDENT + grab, y: edge(boxOf(key)) };
+    return { x: contentLeft(elementOf(said, what)) + depth * NESTED_INDENT + grab, y: edge(boxOf(said, what)) };
   };
 
 /** After an item's row in a list, as deep as `depth`: for a folder's or a group's heading, first in it. */
@@ -361,13 +386,13 @@ export const before = beside((box) => box.top + EDGE);
 export const onto =
   (what: What): Where =>
   (said) =>
-    middle(boxOf(keyOf(said, what)));
+    middle(boxOf(said, what));
 
 /** The middle of one half of a tab's row, to make a split with it on that side. */
 export const half =
   (what: What, side: "left" | "right"): Where =>
   (said) => {
-    const box = boxOf(keyOf(said, what));
+    const box = boxOf(said, what);
     return { x: box.left + box.width * (side === "left" ? 0.25 : 0.75), y: box.top + box.height / 2 };
   };
 
@@ -375,7 +400,7 @@ export const half =
 export const tileEdge =
   (what: What, side: "left" | "right"): Where =>
   (said) => {
-    const box = elementOf(keyOf(said, what)).getBoundingClientRect();
+    const box = elementOf(said, what).getBoundingClientRect();
     return { x: side === "left" ? box.left + EDGE : box.right - EDGE, y: box.top + box.height / 2 };
   };
 
@@ -474,13 +499,14 @@ export type Carrying = { data: DataTransfer; grab: number; source: Element | nul
  * waits for the app's answer to the press.
  */
 export async function pickUp(what: What): Promise<Carrying> {
-  const key = keyOf(await read(), what);
+  const said = await read();
+  const key = keyOf(said, what);
   // Measured until the press would reach the row: it is drawn anew as it
   // changes what holds it.
   const { source, grab, at } = await until(
     () => {
-      const source = elementOf(key);
-      const box = boxOf(key);
+      const source = elementOf(said, what);
+      const box = boxOf(said, what);
       const grab = Math.min(GRAB, box.width / 2);
       const at = { x: box.left + grab, y: box.top + box.height / 2 };
       return source.contains(document.elementFromPoint(at.x, at.y)) ? { source, grab, at } : null;
@@ -538,7 +564,7 @@ export const drag = async (what: What, where: Where) => drop(await pickUp(what),
  * held or neither, and waits for the app's answer to the press.
  */
 export async function press(what: What, held: { command?: boolean; shift?: boolean } = {}) {
-  const box = boxOf(keyOf(await read(), what));
+  const box = boxOf(await read(), what);
   const at = { x: box.left + Math.min(GRAB, box.width / 2), y: box.top + box.height / 2 };
   const pressed = under(at);
   const keys = { metaKey: held.command ?? false, shiftKey: held.shift ?? false };

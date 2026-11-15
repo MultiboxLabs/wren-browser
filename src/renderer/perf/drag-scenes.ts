@@ -11,6 +11,7 @@ import {
   dragged,
   draggedThroughButton,
   folded,
+  folderFoldedWithPeek,
   grouped,
   isDrawnOpen,
   isOpenIn,
@@ -38,6 +39,7 @@ import {
   shows,
   spaceOfAnotherProfile,
   splitWith,
+  stays,
   switchesTo
 } from "./drag-steps";
 import {
@@ -52,6 +54,7 @@ import {
   half,
   heading,
   onto,
+  peek,
   pin,
   press,
   pressEscape,
@@ -239,6 +242,35 @@ export const scenes = (url: string): Scene[] => [
         does: dragged(group(3), after(pin(1))),
         shows: "pins [2 0] 1 [3 4] | tabs 5"
       })
+    ]
+  },
+  {
+    name: "A folder's peek",
+    tabs: 3,
+    steps: [
+      { name: "a tab onto the space's heading", does: dragged(tab(0), heading), shows: "pins 0 | tabs 1 2" },
+      {
+        name: "a folder made",
+        does: () => pins.newFolder(spaces[0], null, null),
+        shows: "pins 0 [] | tabs 1 2"
+      },
+      { name: "the pinned tab onto the folder", does: dragged(pin(0), onto(folder)), shows: "pins [0] | tabs 1 2" },
+      { name: "the pinned tab opened", does: opened(pin(0)), shows: "pins [0] | tabs 1 2" },
+      {
+        name: "the folder folded, which shows the pinned tab as its peek",
+        does: folderFoldedWithPeek(0),
+        shows: "pins [0] | tabs 1 2"
+      },
+      {
+        name: "the peek let go on itself, which leaves it in its folder",
+        does: stays(peek(0), onto(peek(0))),
+        shows: "pins [0] | tabs 1 2"
+      },
+      {
+        name: "the peek onto the space's heading, which takes it out of its folder",
+        does: dragged(peek(0), heading),
+        shows: "pins 0 [] | tabs 1 2"
+      }
     ]
   },
   {

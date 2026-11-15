@@ -43,7 +43,7 @@ export type Carried = {
   type: ItemType;
   /** The tokens of the tabs and groups of the list it carries, which its drag's data says. */
   tokens: string[];
-  /** The key (`itemKey`) of the item held, by which its element is marked. */
+  /** The key (`itemKey`) of the item held, by which its element is marked, unless it is a peek. */
   key: string;
   /** The keys of all it carries: the item held alone, or each marked row. */
   keys: string[];
@@ -53,6 +53,8 @@ export type Carried = {
   grab: number;
   /** Its element, as it was picked up. */
   element: HTMLElement;
+  /** Its element is a peek, a row drawn out of its folded section or folder (folding.tsx), not where it is. */
+  peek: boolean;
 };
 
 /**
@@ -275,7 +277,8 @@ export function useItemDrag() {
           keys: moving.map(itemKey),
           space,
           grab: event.clientX - box.left,
-          element
+          element,
+          peek
         };
         const data = event.dataTransfer;
         data.effectAllowed = "move";

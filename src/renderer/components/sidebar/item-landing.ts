@@ -202,9 +202,15 @@ export function listLandingAt(
   const content = contentOf(zone).getBoundingClientRect();
   const { mine } = dragged;
   const rows = placedIn(marked(zone, ITEM_MARK), marked(zone, BODY_MARK), items, mine?.key);
-  if (!rows.length) return section === "pinned" ? pinnedFirst() : firstInList(zone, content);
   // The row held, if it is one of this list's.
   const own = mine ? rows.find((row) => row.el === mine.element) : undefined;
+  // A peek held is none of the rows, as its item is in its folded section
+  // or folder: over itself, it stays where it is.
+  if (mine?.peek) {
+    const box = rowBox(mine.element, mine.kind);
+    if (y >= box.top && y < box.bottom) return null;
+  }
+  if (!rows.length) return section === "pinned" ? pinnedFirst() : firstInList(zone, content);
   // The rows of this list that go: the one held, and those marked with it.
   // Each leaves before it lands, so a place's index is among the rest.
   const carried = mine ? rows.filter((row) => mine.keys.includes(row.key)) : [];

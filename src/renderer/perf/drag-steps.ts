@@ -20,15 +20,18 @@ import {
   drag,
   drawnOpenEverywhere,
   drop,
+  folder,
   groupId,
   groupOf,
   hasButton,
+  isDrawn,
   itemKeyOf,
   link,
   markedKeys,
   menuRef,
   openingsOf,
   over,
+  peek,
   pickUp,
   picture,
   press,
@@ -271,6 +274,15 @@ export const refused = (what: What, where: Where) => async () => {
 };
 
 /**
+ * A drag that what is under it takes but lands nowhere, as an item let go
+ * where it is: the sidebar must then hold what it did.
+ */
+export const stays = (what: What, where: Where) => async () => {
+  if (!(await drag(what, where))) throw new Error("Nothing took it.");
+  await sleep(REFUSED_WAIT_MS);
+};
+
+/**
  * Asks the app for a move the page offers no drop for, which the app must
  * refuse: it fails if the app makes it.
  */
@@ -308,6 +320,14 @@ export const folded = (number: number) => async () => {
   const id = await groupId(number);
   if (id === null) throw new Error(`The tab on page ${number} is in no group.`);
   await groups.toggle(id);
+};
+
+/** Folds the first folder, which then shows the pinned tab on a page in it, open and selected, as its peek. */
+export const folderFoldedWithPeek = (number: number) => async () => {
+  const { item } = await menuRef(folder);
+  if (!("pin" in item)) throw new Error("The folder is no pin.");
+  await pins.setOpen(item.pin, false);
+  await isDrawn(peek(number));
 };
 
 const foldersIn = (kept: Pin[]): Extract<Pin, { kind: "folder" }>[] =>
