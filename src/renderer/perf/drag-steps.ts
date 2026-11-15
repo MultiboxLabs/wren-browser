@@ -13,6 +13,7 @@ import {
   perf,
   type Pin,
   pins,
+  profileMove,
   profiles,
   spaces as spacesOfApp
 } from "@/ipc";
@@ -147,7 +148,7 @@ export const askedFirst = (button: "Move" | "Cancel", step: Step): Step => ({
   ...step,
   does: async () => {
     let asked = false;
-    const stop = items.onAskMove(() => (asked = true));
+    const stop = profileMove.onAsk(() => (asked = true));
     try {
       await step.does();
       await until(

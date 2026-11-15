@@ -21,6 +21,7 @@ mod onboarding;
 mod perf;
 mod permission;
 mod pins;
+mod profile_move;
 mod profiles;
 mod quit;
 mod settings;
@@ -54,7 +55,6 @@ pub use downloads::{
 };
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
-pub use items::forget_move_question;
 pub use menu::{send_show_settings, send_toggle_sidebar};
 pub use migrate::handle_migrate;
 pub use omnibox::{
@@ -63,6 +63,7 @@ pub use omnibox::{
 pub use onboarding::handle_onboarding;
 pub use permission::{send_permission, show_permission_prompt};
 pub use pins::broadcast_pins;
+pub use profile_move::{ask_before_profile_move, forget_move_question};
 pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
 pub use settings::{broadcast_settings, toggle_address_bar};
 pub use side_panel::send_side_panel;
@@ -124,6 +125,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     spaces::handle(web_view, window, mt);
     pins::handle(web_view, window, mt);
     items::handle(web_view, window, mt);
+    profile_move::handle(web_view, window);
     tab_switcher::handle(web_view, window);
     downloads::handle(web_view, window, mt);
 }

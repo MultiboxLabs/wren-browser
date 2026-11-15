@@ -8,7 +8,8 @@
 // left.
 
 use wren::{
-    Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroupColor, TabSplit, TabState,
+    Browser, BrowserTab, BrowserType, Error, MainThread, SplitLayout, TabGroupColor, TabSplit,
+    TabState,
 };
 
 use super::{at_list, in_group, is_new_tab, placeholder};
@@ -33,7 +34,10 @@ pub fn recreate_in(
         let from = moving.first().and_then(|tab| tab.browser());
         let from = from.ok_or(Error::TabUnavailable)?;
         let shape = Shape::read(&from, moving)?;
-        placeholder::stand_in_behind(&from, moving)?;
+        // A popup closes with its tab, as it should.
+        if from.browser_type() == BrowserType::Normal {
+            placeholder::stand_in_behind(&from, moving)?;
+        }
         Ok(shape)
     })();
     let shape = match read {

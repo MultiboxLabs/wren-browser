@@ -19,7 +19,9 @@ pub mod roles;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, TabGroup, TabSplit, TabState};
+use wren::{
+    Browser, BrowserTab, BrowserType, Error, MainThread, SplitLayout, TabGroup, TabSplit, TabState,
+};
 
 use crate::clipboard;
 use crate::ipc::{self, OwnToast};
@@ -47,13 +49,6 @@ pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
     browser
         .add_tab(url, Some(at_list(browser, 0)), true)
         .map(drop)
-}
-
-/// Moves a popup's `tab` to `browser`, a normal one of its profile, at the
-/// top of the list and active, as a new tab opens. The page does not load
-/// again. Answers the tab it becomes there. The popup's Browser closes.
-pub fn move_popup_in(browser: &Browser, tab: BrowserTab) -> Result<BrowserTab, Error> {
-    browser.move_popup_tab(tab, Some(at_list(browser, 0)), true)
 }
 
 /// The tabs the sidebar's list shows, in its order: those whose role is to
@@ -283,7 +278,9 @@ pub fn move_tab(
 /// Brings `moving`, tabs of one other Browser, to `to` among `browser`'s
 /// listed tabs, the first of them shown there, then calls `done` with them
 /// as they are in `browser`, in the order of `moving`. They move at once if
-/// `browser` is of their profile (`move_in`). If it is of another, they
+/// `browser` is of their profile: a normal Browser's keep their IDs
+/// (`move_in`), and a popup's tab becomes a new one, its page not loaded
+/// again, as its popup closes. If `browser` is of another profile, they
 /// close and are made again there once they have gone
 /// (`recreate::recreate_in`), and a page that keeps its tab keeps them all
 /// where they are, with `Error::Cancelled`.
@@ -300,7 +297,14 @@ pub fn bring_in(
     if crosses_profile(&from, browser) {
         return recreate::recreate_in(mt, browser, moving, to, done);
     }
-    done(move_in(browser, moving, to).map(|()| moving.to_vec()));
+    done(match from.browser_type() {
+        BrowserType::Normal => move_in(browser, moving, to).map(|()| moving.to_vec()),
+        BrowserType::Popup | BrowserType::AppPopup => moving
+            .iter()
+            .map(|tab| browser.move_popup_tab(*tab, Some(at_list(browser, to)), true))
+            .collect(),
+        _ => Err(Error::NotAllowed),
+    });
 }
 
 /// Whether tabs brought from `from` to `to` go to another profile, or to

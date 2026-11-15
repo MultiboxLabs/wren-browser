@@ -41,28 +41,14 @@ export type Destination = { space: number | null } & ItemPlace;
  */
 export type MenuChoice = { chosen: string | null; folder: number | null };
 
-/**
- * Tabs of the list a move makes again in another profile, which the page
- * asks about before they go (components/profile-move-dialog.tsx).
- */
-export type MoveQuestion = {
-  /** The space they go to; null for a window on a profile, which is the window's own. */
-  space: number | null;
-  /** The profile they go to. */
-  profile: string;
-  /** A tab alone, a group with its tabs, or several tabs: a split's two, or several marked. */
-  what: "tab" | "group" | "tabs";
-  /** How many tabs go, a split's two counted. */
-  tabs: number;
-};
-
 export const items = {
   /**
    * Moves an item to a place, or several that are marked, all tabs of the
    * list or all pinned tabs, which land together from that place in the
    * order given. A tab of another of the window's spaces, or of another
    * window, moves to the destination's space first, or is made again there
-   * if the space is of another profile, and the window goes to that space.
+   * if the space is of another profile, once the user says it may
+   * (profile-move.ts), and the window goes to that space.
    * A private tab stays in its own profile. A group moved to the pins
    * becomes a folder of pinned tabs. Fails where the item may not go: a
    * group to the favourites, a folder anywhere but the pins, or anything
@@ -70,10 +56,6 @@ export const items = {
    * several may not go, none go.
    */
   move: (items: MovingRef[], to: Destination) => wren.invoke<null>("items.move", { items, to }),
-  /** A move would make tabs again in another profile: it waits for `answerMove`. */
-  onAskMove: (listener: (question: MoveQuestion) => void) => wren.on<MoveQuestion>("items.askMove", listener),
-  /** Answers what the page asks before a move: true moves them, false leaves them. */
-  answerMove: (go: boolean) => wren.invoke<null>("items.answerMove", go),
   /** A drag of the sidebar's items ended, wherever it was dropped: the app renews the tokens it carried. */
   dragEnded: (tokens: string[]) => wren.invoke<null>("items.dragEnded", tokens),
   /**

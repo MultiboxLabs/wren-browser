@@ -1,18 +1,18 @@
-// Whether a move takes tabs of the list to another profile, where they are
-// made again without their history (windows/move_tabs.rs), and what of
-// them: the page asks before they go, unless the user said not to
-// (ipc/items.rs, components/profile-move-dialog.tsx).
+// Whether a move takes tabs to another profile, where they are made again
+// without their history (windows/move_tabs.rs), and what of them: tabs of
+// the list a drop moves, or a popup's page. The page asks before they go,
+// unless the user said not to (ipc/profile_move.rs).
 
 use serde::Serialize;
-use wren::MainThread;
+use wren::{Browser, MainThread};
 
 use super::{Destination, ItemRef, Listed, listed, moving, place_of};
 use crate::app::State;
 use crate::db::SpaceId;
-use crate::shell::WindowId;
+use crate::shell::{Place, WindowId};
 
-/// Tabs of the list a move makes again in another profile, as the page asks
-/// about them.
+/// What a move makes again in another profile, tabs of the list or a
+/// popup's page, as the page asks about it.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Crossing {
@@ -69,11 +69,34 @@ pub fn crossing(
         (_, _, 1) => Crossed::Tab,
         _ => Crossed::Tabs,
     };
-    let shown = state.profile_shown(&place)?;
-    Ok(Some(Crossing {
+    crossing_to(state, &place, what, tabs).map(Some)
+}
+
+/// What a popup's page, a tab of `source`, makes again in another profile
+/// as it goes to `place`, if it does.
+pub fn page_crossing(
+    state: &State,
+    source: &Browser,
+    place: &Place,
+) -> Result<Option<Crossing>, String> {
+    if !state.remakes_for(source, place)? {
+        return Ok(None);
+    }
+    crossing_to(state, place, Crossed::Tab, 1).map(Some)
+}
+
+// `what`, of `tabs` tabs, that goes to `place`.
+fn crossing_to(
+    state: &State,
+    place: &Place,
+    what: Crossed,
+    tabs: usize,
+) -> Result<Crossing, String> {
+    let shown = state.profile_shown(place)?;
+    Ok(Crossing {
         space: place.space(),
         profile: shown.profile().unwrap_or_default().to_owned(),
         what,
         tabs,
-    }))
+    })
 }
