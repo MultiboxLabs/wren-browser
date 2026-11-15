@@ -27,6 +27,7 @@ pub const NEW_WINDOW: &str = "new-window";
 pub const NEW_INCOGNITO_WINDOW: &str = "new-incognito-window";
 pub const NEW_TAB: &str = "new-tab";
 pub const OPEN_LOCATION: &str = "open-location";
+pub const OPEN_AS_TAB: &str = "open-as-tab";
 pub const CLOSE_TAB: &str = "close-tab";
 pub const CLOSE_WINDOW: &str = "close-window";
 pub const COPY_URL: &str = "copy-url";
@@ -56,6 +57,8 @@ pub struct Front {
     pub switching: bool,
     /// One of Chromium's dialogs blocks it (`BrowserWindow::is_blocked`).
     pub blocked: bool,
+    /// The window in use is a popup's, whose page Open as Tab moves.
+    pub popup: bool,
 }
 
 // The app's items a dialog over the window in front greys out, as Chrome
@@ -151,6 +154,9 @@ fn main_menu(
                 // New Tab page is never shown.
                 keyed(NEW_TAB, "New Tab", "t", MenuModifiers::PRIMARY),
                 keyed(OPEN_LOCATION, "Open Location…", "l", MenuModifiers::PRIMARY),
+                // A popup's page to a tab, as its toolbar's Open button
+                // does; greyed out in a browser window (`allowed`).
+                keyed(OPEN_AS_TAB, "Open as Tab", "o", MenuModifiers::PRIMARY),
                 MenuItem::chromium(Command::NewSplitTab),
                 MenuItem::Separator,
                 // The app's own: the last tab closes the space's Browser, and
@@ -388,12 +394,15 @@ fn take_front_items(items: Vec<MenuItem>, taken: &mut Vec<MenuItem>) {
 
 // Whether item `id` acts on the window in front, which allows it or not.
 fn acts_on_front(id: &str) -> bool {
-    id.starts_with(SPACE) || BLOCKED.contains(&id)
+    id.starts_with(SPACE) || BLOCKED.contains(&id) || id == OPEN_AS_TAB
 }
 
 // Whether `front` allows item `id`, one that acts on it. A window on a
-// profile never switches spaces.
+// profile never switches spaces, and only a popup's page opens as a tab.
 fn allowed(id: &str, front: Front) -> bool {
+    if id == OPEN_AS_TAB {
+        return front.popup;
+    }
     !front.blocked && (front.switching || !id.starts_with(SPACE))
 }
 

@@ -78,21 +78,28 @@ impl State {
         })
     }
 
+    /// Whether tabs of `source` may go to `place`: it shows their profile,
+    /// or they are made again in another (`remakes_for`). Not to or from an
+    /// off-the-record side of another profile.
+    pub fn may_bring(&self, source: &Browser, place: &Place) -> Result<(), String> {
+        let profile = source.profile().ok_or("There is no such tab.")?;
+        if Place::of_profile(&profile) != self.profile_shown(place)?
+            && !self.remakes_for(source, place)?
+        {
+            return Err("A private tab stays in its own profile.".into());
+        }
+        Ok(())
+    }
+
     // The Browser `moving` move from, if they can go to `place`: one of any
-    // window's, of the profile `place` shows, or made again in another
-    // (`remakes_for`).
+    // window's (`may_bring`).
     fn moving_from(&self, moving: &[BrowserTab], place: &Place) -> Result<Browser, String> {
         let source = moving
             .first()
             .and_then(|tab| tab.browser())
             .filter(|browser| self.windows.of(browser).is_some())
             .ok_or("There is no such tab.")?;
-        let profile = source.profile().ok_or("There is no such tab.")?;
-        if Place::of_profile(&profile) != self.profile_shown(place)?
-            && !self.remakes_for(&source, place)?
-        {
-            return Err("A private tab stays in its own profile.".into());
-        }
+        self.may_bring(&source, place)?;
         Ok(source)
     }
 

@@ -61,10 +61,11 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     handle_page(web_view, window);
 
     // A popup's page moves to a tab of a window the user browses in, which
-    // comes forward, and the popup's window closes.
+    // comes forward, and the popup's window closes: in the space the user
+    // chose, or with none, the one the app picks.
     let weak = window.clone();
-    let _ = web_view.handle("window.openAsTab", move |()| {
-        weak.state()?.open_popup_as_tab(mt, weak.id)
+    let _ = web_view.handle("window.openAsTab", move |space: Option<SpaceId>| {
+        weak.state()?.open_popup_as_tab(mt, weak.id, space)
     });
 
     // The page takes the keyboard from the tab that has it, for a field of

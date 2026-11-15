@@ -160,6 +160,10 @@ impl State {
                 .as_ref()
                 .is_some_and(|window| window.is_profile_window()),
             blocked: window.is_some_and(|window| window.is_blocked()),
+            popup: self
+                .windows
+                .in_use()
+                .is_some_and(|window| window.is_popup()),
         }
     }
 
