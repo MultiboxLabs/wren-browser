@@ -24,9 +24,11 @@
 // way: the strip glides to the window's space from wherever it has got,
 // rather than on to the space the glide was going to.
 //
-// A space the strip doesn't hold, one the app brings forward or the New
-// Space form, slides in the short way from the side its order puts it. With
-// Reduced Motion, nothing moves.
+// Another space the app brings forward, which the strip doesn't hold, comes
+// as a press on its button would: the space left is drawn beside it, on the
+// side their order puts it, and the strip glides from there. The New Space
+// form, which has nothing beside it, slides in the short way. With Reduced
+// Motion, nothing moves.
 
 import { animate, type MotionValue, useMotionValue } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -221,10 +223,21 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       x.jump(0);
       return rest();
     }
+    if (held.current) {
+      setStrip([]);
+      return x.jump(0);
+    }
+    const way = Math.sign(now - was);
+    if (ids.includes(from) && ids.includes(current)) {
+      // Glides from the space left, drawn beside, as a press glides.
+      setStrip([{ slot: -way, id: from }]);
+      setBeside(true);
+      x.jump(way * pitch.get());
+      return glideToSlot(0, spring, 0);
+    }
     setStrip([]);
-    if (held.current) return x.jump(0);
-    // Not drawn: it slides in the short way.
-    x.jump(Math.sign(now - was) * SLIDE);
+    // The New Space form, or a space it leaves: it slides in the short way.
+    x.jump(way * SLIDE);
     void animate(x, 0, { ...spring, velocity: 0 }).then(rest);
   }, [current]);
 
