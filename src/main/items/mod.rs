@@ -8,8 +8,9 @@
 //
 // An item of the list that is in another of the window's spaces, or in
 // another window, moves to the destination's Browser first
-// (windows/move_tabs.rs), then lands as one of its own would. A drop from
-// another window names its tabs and groups by their tokens (carry.rs).
+// (windows/move_tabs.rs), then lands as one of its own would. In a space of
+// another profile it is made again, and what lands is the new one. A drop
+// from another window names its tabs and groups by their tokens (carry.rs).
 //
 // Several tabs of the list that are marked move together, or several
 // pinned tabs (together.rs), each as it would alone, one after another.
@@ -192,7 +193,7 @@ pub fn add_address(
     match to.target {
         Target::Favorites { index } => done(pin(PinTarget::Favorites, index)),
         Target::Pinned { folder, index } => done(pin(PinTarget::Space { parent: folder }, index)),
-        Target::Tabs { group, index } => with_browser(state, mt, window, place, move |browser| {
+        Target::Tabs { group, index } => state.with_browser_of(mt, window, place, move |browser| {
             done(browser.and_then(|browser| {
                 let group = group_of(mt, &browser, group.as_deref())?;
                 tabs::open_at(mt, &browser, &url, index, group).map_err(failed)?;
@@ -223,7 +224,7 @@ fn move_pin(
         Target::Pinned { folder, index } => done(among(PinTarget::Space { parent: folder }, index)),
         Target::Tabs { group, index } => {
             let (inner, to) = (state.clone(), place.clone());
-            with_browser(state, mt, window, place, move |browser| {
+            state.with_browser_of(mt, window, place, move |browser| {
                 done(browser.and_then(|browser| {
                     let group = group_of(mt, &browser, group.as_deref())?;
                     pins::to_list(&inner, mt, &browser, &to, id, index, group)?;
@@ -300,9 +301,41 @@ fn move_listed(
         _ => 0,
     };
     let inner = state.clone();
+    let carried = moving.clone();
     state.move_to_place(mt, window, moving, place.clone(), index, move |moved| {
-        done(moved.and_then(|browser| land(&inner, mt, &browser, &place, listed, target)));
+        done(moved.and_then(|(browser, brought)| {
+            let listed = brought_as(listed, &carried, &brought)?;
+            land(&inner, mt, &browser, &place, listed, target)
+        }));
     });
+}
+
+// `item` as it is once its tabs, `moving`, have come to another Browser as
+// `brought`, in the same order: the same tab and group when they moved
+// within their profile, or those made for them in another.
+fn brought_as(
+    item: Listed,
+    moving: &[BrowserTab],
+    brought: &[BrowserTab],
+) -> Result<Listed, String> {
+    let gone = || "The item has gone.".to_owned();
+    match item {
+        Listed::Tab(tab) => {
+            let index = moving
+                .iter()
+                .position(|each| *each == tab)
+                .ok_or_else(gone)?;
+            brought
+                .get(index)
+                .map(|tab| Listed::Tab(*tab))
+                .ok_or_else(gone)
+        }
+        Listed::Group(_) => {
+            let first = brought.first().ok_or_else(gone)?;
+            let group = first.state().map_err(failed)?.group.ok_or_else(gone)?;
+            Ok(Listed::Group(group))
+        }
+    }
 }
 
 // The item of a list the page names, and the Browser it is in.
@@ -444,31 +477,6 @@ fn place_of(state: &State, window: WindowId, space: Option<SpaceId>) -> Result<P
             .place()
             .ok_or_else(|| "The window is on no space.".into()),
     }
-}
-
-// Calls `then` with the Browser window `window` has for `place`, making it
-// one first if it has none, or with why it has none.
-fn with_browser(
-    state: &Rc<State>,
-    mt: MainThread,
-    window: WindowId,
-    place: Place,
-    then: impl FnOnce(Result<Browser, String>) + 'static,
-) {
-    let Some(found) = state.windows.get(window) else {
-        return then(Err("The window is closing.".into()));
-    };
-    if let Some(browser) = found.browser_of(&place) {
-        return then(Ok(browser));
-    }
-    if found.is_opening(&place) {
-        return then(Err("That space is still opening.".into()));
-    }
-    let inner = state.clone();
-    state.open_browser(mt, window, place.clone(), move || {
-        let browser = inner.windows.get(window).and_then(|w| w.browser_of(&place));
-        then(browser.ok_or_else(|| "The space has no Browser.".to_owned()));
-    });
 }
 
 // The tab an ID from the page names, if it is `browser`'s.

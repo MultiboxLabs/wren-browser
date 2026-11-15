@@ -130,7 +130,7 @@ const pinPicture = (pin: Pin): string =>
  * tabs, by the numbers of their pages: "favs 0 | pins 1 [2 3] | tabs 4 {5
  * (6|7)}", where brackets are a folder, braces a group and parentheses a
  * split. A part with nothing in it is left out, a space with nothing is
- * "nothing", and a second space follows the first after " / ".
+ * "nothing", and each space after the first follows it after " / ".
  */
 export async function picture() {
   const said = await read();
@@ -145,6 +145,9 @@ export async function picture() {
     })
     .join(" / ");
 }
+
+// How a message names each of the run's spaces, by its index in `spaces`.
+const SPACE_NAMES = ["window's", "second", "third"];
 
 /**
  * A tab of the run's spaces that is open and that no sidebar has a row for,
@@ -165,7 +168,7 @@ export async function tabWithoutRow() {
       const link = browser?.links.find((link) => link.tabs.includes(tab.id));
       return !link || !kept.has(link.pin);
     });
-    if (rowless) return `the tab on page ${numberOf(rowless.url)} of the ${at === 0 ? "window's" : "second"} space`;
+    if (rowless) return `the tab on page ${numberOf(rowless.url)} of the ${SPACE_NAMES[at] ?? `${at + 1}th`} space`;
   }
   const [leaving] = await perf.leaving();
   return leaving === undefined
@@ -241,6 +244,17 @@ export async function groupId(number: number) {
   const found = listed.find((tab) => numberOf(tab.url) === String(number));
   if (!found) throw new Error(`No tab of a list is on page ${number}.`);
   return found.group;
+}
+
+/** The group the tab on the run's page of a number is in, in a list, as the page has it; null in none. */
+export async function groupOf(number: number) {
+  const id = await groupId(number);
+  if (id === null) return null;
+  for (const browser of heard.values()) {
+    const found = browser.groups.find((group) => group.id === id);
+    if (found) return found;
+  }
+  return null;
 }
 
 /**

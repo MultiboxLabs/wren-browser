@@ -35,12 +35,25 @@ pub fn has_tabs(browser: &Browser) -> bool {
 /// opens to stand in for them, so the Browser stays. A tab that is closing
 /// already (`is_going`) is not one the Browser has.
 pub fn stand_in(browser: &Browser, closing: &[BrowserTab]) -> Result<(), Error> {
+    open_for(browser, closing, true)
+}
+
+/// As `stand_in`, but behind the tab shown, which stays shown: for tabs
+/// whose pages may ask before they close, which Chromium shows as each
+/// asks, and then the placeholder once they have gone.
+pub fn stand_in_behind(browser: &Browser, closing: &[BrowserTab]) -> Result<(), Error> {
+    open_for(browser, closing, false)
+}
+
+// Opens a placeholder for `closing` if they are all the Browser has, shown
+// if `activate`.
+fn open_for(browser: &Browser, closing: &[BrowserTab], activate: bool) -> Result<(), Error> {
     if browser
         .tabs()
         .iter()
         .all(|tab| closing.contains(tab) || is_going(*tab))
     {
-        hold(browser.add_tab("", None, true)?, closing);
+        hold(browser.add_tab("", None, activate)?, closing);
     }
     Ok(())
 }

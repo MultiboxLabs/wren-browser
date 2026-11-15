@@ -6,11 +6,15 @@
 // listed. So every index the list, its moves and its menu use is among
 // those (`listed`), and is turned into the Browser's own only where a tab
 // is put in place (`at_list`).
+//
+// Tabs brought from another Browser move there if it is of their profile,
+// and close and are made again if it is of another (recreate.rs).
 
 pub mod archive;
 pub mod closes;
 pub mod placeholder;
 pub mod previews;
+mod recreate;
 pub mod roles;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -267,6 +271,39 @@ pub fn move_tab(
         }
     }
     move_alone(browser, tab, to)
+}
+
+/// Brings `moving`, tabs of one other Browser, to `to` among `browser`'s
+/// listed tabs, the first of them shown there, then calls `done` with them
+/// as they are in `browser`, in the order of `moving`. They move at once if
+/// `browser` is of their profile (`move_in`). If it is of another, they
+/// close and are made again there once they have gone
+/// (`recreate::recreate_in`), and a page that keeps its tab keeps them all
+/// where they are, with `Error::Cancelled`.
+pub fn bring_in(
+    mt: MainThread,
+    browser: &Browser,
+    moving: &[BrowserTab],
+    to: usize,
+    done: impl FnOnce(Result<Vec<BrowserTab>, Error>) + 'static,
+) {
+    let Some(from) = moving.first().and_then(|tab| tab.browser()) else {
+        return done(Err(Error::TabUnavailable));
+    };
+    if crosses_profile(&from, browser) {
+        return recreate::recreate_in(mt, browser, moving, to, done);
+    }
+    done(move_in(browser, moving, to).map(|()| moving.to_vec()));
+}
+
+/// Whether tabs brought from `from` to `to` go to another profile, or to
+/// the other side of their own, and so are made again (`bring_in`).
+pub fn crosses_profile(from: &Browser, to: &Browser) -> bool {
+    let profile_of = |browser: &Browser| {
+        let profile = browser.profile()?;
+        Some((profile.id(), profile.kind()))
+    };
+    profile_of(from) != profile_of(to)
 }
 
 /// Moves `moving`, tabs of another Browser of the same profile, to `to`

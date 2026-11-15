@@ -238,6 +238,32 @@ impl State {
         }
     }
 
+    /// Calls `then` with window `id`'s Browser for `place`, making one first
+    /// (`open_browser`) if it has none, or with why it has none: the window
+    /// is closing, or the place's Browser is still on its way.
+    pub fn with_browser_of(
+        self: &Rc<Self>,
+        mt: MainThread,
+        id: WindowId,
+        place: Place,
+        then: impl FnOnce(Result<Browser, String>) + 'static,
+    ) {
+        let Some(window) = self.windows.get(id) else {
+            return then(Err("The window is closing.".into()));
+        };
+        if let Some(browser) = window.browser_of(&place) {
+            return then(Ok(browser));
+        }
+        if window.is_opening(&place) {
+            return then(Err("That space is still opening.".into()));
+        }
+        let state = self.clone();
+        self.open_browser(mt, id, place.clone(), move || {
+            let browser = state.windows.get(id).and_then(|w| w.browser_of(&place));
+            then(browser.ok_or_else(|| "The space has no Browser.".to_owned()));
+        });
+    }
+
     /// Makes window `id` a Browser for `place`, with no tab yet but its
     /// placeholder (tabs/placeholder.rs), unless it has one or one is on the
     /// way; `then` runs once it is shown. A place whose Browser could not be

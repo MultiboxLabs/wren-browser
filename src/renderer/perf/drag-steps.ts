@@ -4,12 +4,24 @@
 // What fires the events and reads the sidebar is dragging.ts, and what runs
 // the scenes is drags.tsx.
 
-import { appWindow, browser, groups, type ItemPlace, items, perf, type Pin, pins, spaces as spacesOfApp } from "@/ipc";
+import {
+  appWindow,
+  browser,
+  groups,
+  type ItemPlace,
+  items,
+  perf,
+  type Pin,
+  pins,
+  profiles,
+  spaces as spacesOfApp
+} from "@/ipc";
 import {
   drag,
   drawnOpenEverywhere,
   drop,
   groupId,
+  groupOf,
   hasButton,
   itemKeyOf,
   link,
@@ -99,6 +111,42 @@ export const sameGroup = (number: number, step: Step): Step => ({
     await step.does();
     await shows(step.shows);
     if ((await groupId(number)) !== was) throw new Error("The group has a new ID.");
+  }
+});
+
+/**
+ * A step that the group of the tab on a page must come through looking as
+ * it did, with its title, colour and whether it is collapsed, under any ID:
+ * a group made again in another profile is a new one.
+ */
+export const sameLook = (number: number, step: Step): Step => ({
+  ...step,
+  does: async () => {
+    const look = async () => {
+      const found = await groupOf(number);
+      return found && `"${found.title}", ${found.color}${found.collapsed ? ", collapsed" : ""}`;
+    };
+    const was = await look();
+    if (was === null) throw new Error(`The tab on page ${number} is in no group.`);
+    await step.does();
+    await shows(step.shows);
+    const now = await look();
+    if (now !== was) throw new Error(`The group is ${now ?? "gone"}, not ${was}.`);
+  }
+});
+
+/** A step after which the window must show the run's space at `at`, as tabs made again in another profile take it to theirs. */
+export const switchesTo = (at: number, step: Step): Step => ({
+  ...step,
+  does: async () => {
+    await step.does();
+    await until(
+      async () => {
+        const space = await appWindow.space();
+        return space?.kind === "space" && space.id === spaces[at];
+      },
+      () => "The window did not switch to the space the tabs went to."
+    );
   }
 });
 
@@ -342,21 +390,36 @@ export async function secondSpace() {
   );
 }
 
+/** Makes a profile, and a space of it after the run's, and waits for the space's button. */
+export async function spaceOfAnotherProfile() {
+  const all = await spacesOfApp.list();
+  const own = all.find((space) => space.id === spaces[0]);
+  if (!own) throw new Error("The window's space is not among the spaces.");
+  const profile = await profiles.create("Other");
+  const made = await spacesOfApp.create(profile.id, { name: "Other", icon: own.icon, theme: own.theme });
+  addSpace(made.id);
+  const at = spaces.length - 1;
+  await until(
+    () => hasButton(at),
+    () => "The new space has no button."
+  );
+}
+
 /**
- * Drags a tab to the second space's button and holds it there until the
- * window shows that space, then drops it at a place in its list.
+ * Drags a tab to the button of the run's space at `at` and holds it there
+ * until the window shows that space, then drops it at a place in its list.
  */
-export async function draggedThroughButton(what: What, where: Where) {
+export async function draggedThroughButton(what: What, at: number, where: Where) {
   const carrying = await pickUp(what);
   let shown = false;
   const end = performance.now() + 5000;
   while (!shown) {
     if (performance.now() > end)
       throw new Error("The window did not switch to the space whose button the drag was held over.");
-    await over(carrying, spaceButton(1));
+    await over(carrying, spaceButton(at));
     await sleep(HOLD_EVERY_MS);
     const space = await appWindow.space();
-    shown = space?.kind === "space" && space.id === spaces[1];
+    shown = space?.kind === "space" && space.id === spaces[at];
   }
   await settled();
   await drop(carrying, where);

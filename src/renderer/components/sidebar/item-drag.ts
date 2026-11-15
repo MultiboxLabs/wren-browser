@@ -14,7 +14,8 @@
 // website starts may say anything. So a drop on the window's own sidebar
 // moves what this page picked up (`Carried`), and one on another window's
 // moves only what the drag's tokens name (`BrowserTab.carry`), which no
-// website can know: tabs and groups of the list, of the same profile. Pins
+// website can know: tabs and groups of the list. Those of another profile
+// are made again there, but never to or from an off-the-record side. Pins
 // and favourites stay in their window. The app renews the tokens once the
 // drag ends, wherever it was dropped.
 
@@ -73,6 +74,11 @@ const kindType = (kind: ItemKind) => `${ITEM_TYPE}-kind-${kind}`;
 const typeType = (type: ItemType) => `${ITEM_TYPE}-type-${type}`;
 const profileType = (profile: string) => `${ITEM_TYPE}-profile-${hex(profile)}`;
 
+// How a drag's profile (`useDrawnProfile`) starts: a profile kept on disk,
+// or the off-the-record side of one.
+const KEPT = "p:";
+const OFF_THE_RECORD = "o:";
+
 const hex = (text: string) =>
   Array.from(new TextEncoder().encode(text), (byte) => byte.toString(16).padStart(2, "0")).join("");
 
@@ -126,7 +132,8 @@ const typeOf = (item: Item): ItemType =>
 /**
  * What is dragged, if it is something the sidebar of `profile` (`useDrawnProfile`)
  * may take; null for any other drag. Another window's may bring only tabs
- * and groups of the list, of the same profile.
+ * and groups of the list, of the same profile or, when neither is an
+ * off-the-record side, of another.
  */
 export function draggedIn(data: DataTransfer, profile: string | null): Dragged | null {
   if (!data.types.includes(ITEM_TYPE)) return carriesAddress(data) ? { kind: "address", type: null, mine: null } : null;
@@ -135,8 +142,11 @@ export function draggedIn(data: DataTransfer, profile: string | null): Dragged |
   if (!kind || !type) return null;
   const mine = carriedIn(data);
   if (mine) return { kind, type, mine };
-  const comes = type === "normal" && profile !== null && data.types.includes(profileType(profile));
-  return comes ? { kind, type, mine: null } : null;
+  if (type !== "normal" || profile === null) return null;
+  // Kept profiles take one another's, to be made again; an off-the-record side only its own.
+  const ownProfile = data.types.includes(profileType(profile));
+  const bothKept = profile.startsWith(KEPT) && data.types.some((each) => each.startsWith(profileType(KEPT)));
+  return ownProfile || bothKept ? { kind, type, mine: null } : null;
 }
 
 /** The item this page is dragging, if `data` is its drag's; not one from another window. */
@@ -171,9 +181,9 @@ export function droppedItems(data: DataTransfer, dragged: Dragged): MovingRef[] 
 export function useDrawnProfile(): string | null {
   const space = useDrawnSpace();
   const { spaces, profile } = useSpace();
-  if (profile) return `${profile.offTheRecord ? "o" : "p"}:${profile.id}`;
+  if (profile) return `${profile.offTheRecord ? OFF_THE_RECORD : KEPT}${profile.id}`;
   const entry = spaces.find(({ id }) => id === space.id);
-  return entry ? `p:${entry.profile}` : null;
+  return entry ? `${KEPT}${entry.profile}` : null;
 }
 
 /** The attribute that marks an element as an item's, by the item's key. */

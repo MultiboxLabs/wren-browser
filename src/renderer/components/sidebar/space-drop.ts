@@ -1,9 +1,11 @@
 // Dragging a tab of the list, its split, its group or several marked tabs
-// (item-drag.ts), onto the space switcher. A space of the same profile
-// takes it: let go on its button, it moves to the top of that space's
-// list, and the window stays where it is. Held over the button a moment, as the platform springs a
-// folder open, the window switches to that space, and the drag goes on
-// there: to a place in its list, or to another space's button.
+// (item-drag.ts), onto the space switcher. Any other space takes it. Let go
+// on the button of one of the same profile, it moves to the top of that
+// space's list, and the window stays where it is. One of another profile
+// gets it made again at the top of its list, and the window goes there
+// (windows/move_tabs.rs). Held over the button a moment, as the platform
+// springs a folder open, the window switches to that space, and the drag
+// goes on there: to a place in its list, or to another space's button.
 
 import { type DragEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { items } from "@/ipc";
@@ -37,20 +39,18 @@ export function useSpaceDrop() {
   };
   useEffect(() => () => window.clearTimeout(spring.current), []);
 
-  const profileOf = (id: number) => spaces.find((entry) => entry.id === id)?.profile;
-  // What the page is dragging, if space `id` is one it can go to or show:
-  // one of the same profile as its own.
-  const carriedTo = (event: DragEvent, id: number) => {
+  // What the page is dragging, if a space's button takes it: a tab of the
+  // list, its split, its group or marked tabs, from a space that is made.
+  const carriedOver = (event: DragEvent) => {
     const carried = carriedIn(event.dataTransfer);
     // A pin stays with its space, or its profile.
     const unit = carried?.type === "normal" ? carried : null;
-    const from = unit && profileOf(unit.space);
-    return from !== undefined && from === profileOf(id) ? unit : null;
+    return unit && spaces.some((entry) => entry.id === unit.space) ? unit : null;
   };
 
   const handlersOf = (id: number) => ({
     onDragOver: (event: DragEvent<HTMLElement>) => {
-      const unit = carriedTo(event, id);
+      const unit = carriedOver(event);
       if (!unit) return;
       // Its own space does not take it, and the one shown does not switch.
       const takes = unit.space !== id;
@@ -71,7 +71,7 @@ export function useSpaceDrop() {
       if (latest.current === id) leave();
     },
     onDrop: (event: DragEvent<HTMLElement>) => {
-      const unit = carriedTo(event, id);
+      const unit = carriedOver(event);
       leave();
       if (!unit || unit.space === id) return;
       event.preventDefault();

@@ -169,21 +169,52 @@ function noPinOpenTwice() {
   if (found !== null) throw new Error(`A pin is open in two spaces: ${found}.`);
 }
 
-const numbered = (count: number) => `tabs ${[...Array(count).keys()].join(" ")}`;
+// A sidebar of `count` new tabs, as `fresh` leaves it, after which each space
+// a scene made has nothing.
+const numbered = (count: number) =>
+  [`tabs ${[...Array(count).keys()].join(" ")}`, ...spaces.slice(1).map(() => "nothing")].join(" / ");
 
 /**
- * Leaves the window's space with no pins, and `count` new tabs in its list,
- * numbered from the top. The spaces a scene made stay: only the last scene
- * makes one.
+ * Leaves the window on its first space, with no pins, and `count` new tabs
+ * in its list, numbered from the top. The spaces a scene made stay, with
+ * nothing in them.
  */
 async function fresh(url: string, count: number) {
-  const [space] = spaces;
+  const [first, ...made] = spaces;
+  for (const space of made) {
+    await shownOn(space);
+    await emptied(space);
+  }
+  await shownOn(first);
+  await emptied(first, async () => {
+    // A new tab opens at the top.
+    for (let number = count - 1; number >= 0; number--) await browser.open(`${url}/tab/${number}`);
+  });
+  closeOmnibox();
+}
+
+/** Has the window show a space of the run, and waits until it does. */
+async function shownOn(space: number) {
+  await appWindow.showSpace(space);
+  await until(
+    async () => {
+      const shown = await appWindow.space();
+      return shown?.kind === "space" && shown.id === space;
+    },
+    () => "The window did not show the space."
+  );
+}
+
+/**
+ * Deletes the pins of the space the window shows, and closes its tabs once
+ * `opening` has opened its new ones, so its Browser stays.
+ */
+async function emptied(space: number, opening = async () => {}) {
   const kept = await pins.list(space);
-  for (const pin of [...kept.favorites, ...kept.pinned]) await pins.delete(pin.id);
+  // A favourite is every space's of its profile, so another space may have deleted it.
+  for (const pin of [...kept.favorites, ...kept.pinned]) await pins.delete(pin.id).catch(() => {});
   const old = tabsOf(space);
-  // A new tab opens at the top.
-  for (let number = count - 1; number >= 0; number--) await browser.open(`${url}/tab/${number}`);
+  await opening();
   // A pin's tab closed with its pin.
   for (const tab of old) await browser.close(tab.id).catch(() => {});
-  closeOmnibox();
 }
