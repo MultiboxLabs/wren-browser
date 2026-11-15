@@ -38,7 +38,8 @@ export function ShieldIcon({ size = 44 }: { size?: number }) {
 2. **Draw the glyph in the tile's 100 units.** Keep it within about 20 to 80 on both axes, the margin the system leaves. Centre it by eye, by its weight rather than its bounding box. Fill shapes rather than stroke them, with round joins, and round every corner a little, by 2 to 5 units.
 3. **Make it solid white.** The glyph is `#fff`. Cut a detail inside it, such as a tick or a clock's hands, out of it with a mask, so the tile shows through. The mask is a white rect, then the detail as a black stroke (`CUT`), 6 to 7 units wide. Name each mask from the `id` the child function gets, never a fixed string, because two of one icon on a page would share a fixed one.
 4. **Use colour inside sparingly.** A glyph that pictures something, such as a page with ads, may hold a few flat colours on its white, as an app's icon does. The rest stays pure white.
-5. **Lay a mark of its own over the tile.** Wren's bird isn't drawn in the tile. Put `<TileIcon tone="wren" size={size} />` in an absolutely placed box, and centre the mark on it in `text-white`, at about 58% of the size.
+5. **Lay a mark of its own over the tile.** Wren's bird isn't drawn in the tile. Put `<TileIcon tone="wren" size={size} />` in an absolutely placed box, and centre the mark on it in `text-white`, at about 58% of the size. A space's own icon goes the same way, on `toneOf(space.color)`, which makes a tone from the space's colour.
+6. **Badge a corner with `TileBadge`.** It's an 18-point disc of a tone, ringed in white, with a white glyph drawn as strokes in its 18 units. Lay it over the tile at `-right-1.5 -bottom-1.5`. Never draw a badge of your own, or the badges stop matching.
 
 ### Shapes that work
 

@@ -5,9 +5,8 @@
 // folds away and a tick comes onto the tile.
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useId } from "react";
 import type { DefaultBrowser } from "@/ipc";
-import { TONES, WrenTile } from "@/components/tile-icon";
+import { TileBadge, WrenTile } from "@/components/tile-icon";
 import { Button } from "@/components/ui/button";
 
 // Its lines, by whether Wren is the default and may be made so.
@@ -75,28 +74,11 @@ export function DefaultBrowserCard({ state, onSet }: { state: DefaultBrowser; on
   );
 }
 
-// A green disc with a white tick, ringed in white so it sits clear of the
-// tile, as the system badges an icon.
+// A green badge with a white tick.
 function Tick() {
-  const id = useId();
-  const [top, bottom] = TONES.green;
   return (
-    <svg width={18} height={18} viewBox="0 0 18 18" aria-hidden className="drop-shadow-[0_1px_1px_rgb(0_0_0/0.25)]">
-      <defs>
-        <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={top} />
-          <stop offset="1" stopColor={bottom} />
-        </linearGradient>
-      </defs>
-      <circle cx="9" cy="9" r="8.25" fill={`url(#${id}-fill)`} stroke="#fff" strokeWidth="1.5" />
-      <path
-        d="M5.6 9.2 7.8 11.3 12.4 6.7"
-        fill="none"
-        stroke="#fff"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <TileBadge tone="green">
+      <path d="M5.6 9.2 7.8 11.3 12.4 6.7" />
+    </TileBadge>
   );
 }
