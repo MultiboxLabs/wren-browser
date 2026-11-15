@@ -96,9 +96,9 @@ impl State {
         Ok(source)
     }
 
-    // Shows `place` in window `id`, which tabs made again in another
-    // profile have gone to, if it is a space the window is not on.
-    fn show_brought(&self, id: WindowId, place: &Place) {
+    // Shows `place` in window `id`, which tabs have been brought to, if it
+    // is a space the window is not on.
+    pub(super) fn show_brought(&self, id: WindowId, place: &Place) {
         if let Some(space) = place.space()
             && let Err(error) = self.show_space(id, space)
         {

@@ -21,6 +21,7 @@ export * from "./onboarding";
 export * from "./perf";
 export * from "./permission";
 export * from "./pins";
+export * from "./profile-move";
 export * from "./profiles";
 export * from "./quit";
 export * from "./settings";

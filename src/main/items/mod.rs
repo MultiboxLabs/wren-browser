@@ -23,7 +23,7 @@ mod crossing;
 pub mod menu;
 mod together;
 
-pub use crossing::{Crossing, crossing};
+pub use crossing::{Crossing, crossing, page_crossing};
 
 use std::rc::Rc;
 

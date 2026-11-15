@@ -1,5 +1,6 @@
 // Asks before a move makes tabs again in another profile, where they open
-// without their history (ipc/items.rs): the move waits for the answer. The
+// without their history (ipc/profile_move.rs): a drop of tabs of the list,
+// or a popup's page opened as a tab. The move waits for the answer. The
 // space they go to, on a tile of its colour badged with an arrow, says
 // where. Move, the default, moves them; Cancel, on Escape, leaves them.
 // "Don't ask again" turns the question off once Move is pressed, as
@@ -10,7 +11,7 @@ import { SpaceIcon } from "./space-icon";
 import { TileBadge, TileIcon, toneOf } from "./tile-icon";
 import { Checkbox } from "./ui/checkbox";
 import { Dialog } from "./ui/dialog";
-import { hasApp, items, type MoveQuestion, settings } from "@/ipc";
+import { hasApp, type MoveQuestion, profileMove, settings } from "@/ipc";
 import { type Space, spaceOf, useSpace } from "@/state/space";
 
 export function ProfileMoveDialog() {
@@ -24,7 +25,7 @@ export function ProfileMoveDialog() {
   const answered = useRef(false);
   useEffect(() => {
     if (!hasApp) return;
-    return items.onAskMove((asked) => {
+    return profileMove.onAsk((asked) => {
       setQuestion(asked);
       setDontAsk(false);
       setOpen(true);
@@ -32,19 +33,20 @@ export function ProfileMoveDialog() {
   }, []);
 
   const entry = spaces.find(({ id }) => id === question?.space);
-  // With no space, they go to the window's own profile, which it shows.
+  // With no space, they go to the window's own profile, which it shows: a
+  // popup's page goes to no space only in its own profile, which never asks.
   const to = entry ? spaceOf(entry) : shown;
   const move = () => {
     answered.current = true;
     if (dontAsk) settings.update({ askBeforeProfileMove: false }).catch(() => {});
-    items.answerMove(true).catch(() => {});
+    profileMove.answer(true).catch(() => {});
   };
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         if (next) return;
-        if (!answered.current) items.answerMove(false).catch(() => {});
+        if (!answered.current) profileMove.answer(false).catch(() => {});
         answered.current = false;
         setOpen(false);
       }}

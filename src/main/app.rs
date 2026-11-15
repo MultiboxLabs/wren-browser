@@ -782,6 +782,7 @@ impl App for Wren {
         let place = window.remove(&browser);
         if window.is_popup() {
             ipc::quit_window_closing(&self.state, window.id);
+            ipc::forget_move_question(window.id);
             self.state.windows.remove(window.id);
             return;
         }

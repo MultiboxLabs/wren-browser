@@ -5,7 +5,9 @@
 // go, a field with the page's address, and a button that moves the page to a
 // tab of a window the user browses in. Then the page, edge to edge. A click
 // on the address, Open Location or New Tab opens the omnibox for the page,
-// in the middle of the window. The window is light or dark as the system is.
+// in the middle of the window. A page the button moves to another profile
+// asks first (components/profile-move-dialog.tsx). The window is light or
+// dark as the system is.
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect } from "react";
@@ -14,6 +16,7 @@ import { ReloadButton } from "@/components/address/navigation";
 import { PageInfoButton } from "@/components/address/page-info";
 import { Omnibox } from "@/components/omnibox/omnibox";
 import { useShownOmnibox } from "@/components/omnibox/shown";
+import { ProfileMoveDialog } from "@/components/profile-move-dialog";
 import { QuitDialog } from "@/components/quit-dialog";
 import { WINDOW_BUTTONS } from "@/components/sidebar/motion";
 import { TabView } from "@/components/tab-view";
@@ -62,6 +65,7 @@ export function PopupWindow({ popup }: { popup: WindowPopup }) {
       </main>
       <BrowserToast />
       <QuitDialog />
+      <ProfileMoveDialog />
       {omnibox.shown && (
         <Omnibox
           key={omnibox.shown.key}

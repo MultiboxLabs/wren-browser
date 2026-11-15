@@ -4,36 +4,25 @@
 // ("items.dragEnded"). The app decides what each does (items/).
 // src/renderer/ipc/items.ts is the page's side.
 //
-// A move that makes tabs again in another profile waits for the page to
-// ask the user first ("items.askMove", components/profile-move-dialog.tsx),
-// unless they said not to. Its items are found before it asks, as a drag's
-// tokens name nothing once it is over.
+// A move that makes tabs again in another profile asks the user first
+// (profile_move.rs). Its items are found before it asks, as a drag's tokens
+// name nothing once it is over.
 
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use wren::{MainThread, MenuItem, PageCall, WebView};
 
-use super::{WindowRef, give_back_keyboard, with_window};
+use super::{WindowRef, profile_move};
 use crate::analytics::{self, Event, SplitFrom, TabFrom};
 use crate::app::State;
 use crate::db::PinId;
 use crate::items::menu::Subject;
-use crate::items::{self, Added, Crossing, Destination, ItemRef, Moved, carry};
+use crate::items::{self, Added, Destination, ItemRef, Moved, carry};
 use crate::menus;
 use crate::pins::PinTarget;
 use crate::shell::WindowId;
-
-/// A move waiting for the page's answer: it goes if the answer is yes.
-type Waiting = Box<dyn FnOnce(bool)>;
-
-thread_local! {
-    // The move each window's page asks about (`ask_move`).
-    static ASKING: RefCell<HashMap<WindowId, Waiting>> = RefCell::default();
-}
 
 #[derive(Deserialize)]
 struct Move {
@@ -112,8 +101,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             Err(error) => return answer(call, Err(error)),
         };
         let to = moving.to;
-        let question = match question(&state, mt, weak.id, &found, &to) {
-            Ok(question) => question,
+        let crossing = match items::crossing(&state, mt, weak.id, &found, &to) {
+            Ok(crossing) => crossing,
             Err(error) => return answer(call, Err(error)),
         };
         let (window, mover) = (weak.id, state.clone());
@@ -126,24 +115,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 answer(call, moved.map(|moved| count_moves(&counted, moved)));
             });
         };
-        match question {
-            Some(crossing) => ask_move(&state, window, &crossing, proceed),
-            None => proceed(true),
-        }
-    });
-
-    // The page's answer to what it asks before a move.
-    let weak = window.clone();
-    let _ = web_view.handle("items.answerMove", move |go: bool| {
-        with_window(&weak, |found| {
-            if !answer_move(found.id, go) {
-                return Err("The window asks nothing.".into());
-            }
-            if let Some(browser) = found.browser() {
-                give_back_keyboard(&browser);
-            }
-            Ok(())
-        })
+        profile_move::ask_before_profile_move(&state, window, crossing, proceed);
     });
 
     // A drag of the sidebar's items ended, wherever it was dropped: the
@@ -244,56 +216,6 @@ pub(super) fn choose(
             folder,
         });
     });
-}
-
-/// Forgets the move window `id`'s page asks about, as the window closes: no
-/// answer can come, and the move does not go.
-pub fn forget_move_question(id: WindowId) {
-    answer_move(id, false);
-}
-
-// What the page asks before `items` move to `to` in window `window`, if
-// anything: whether tabs of them go to another profile, while the user
-// wants to be asked.
-fn question(
-    state: &State,
-    mt: MainThread,
-    window: WindowId,
-    items: &[ItemRef],
-    to: &Destination,
-) -> Result<Option<Crossing>, String> {
-    if !state.db.settings()?.ask_before_profile_move {
-        return Ok(None);
-    }
-    items::crossing(state, mt, window, items, to)
-}
-
-// Has window `id`'s page ask whether `crossing` goes, and calls `answered`
-// with the answer. A page asks one at a time: a move while it asks does not
-// go.
-fn ask_move(
-    state: &State,
-    id: WindowId,
-    crossing: &Crossing,
-    answered: impl FnOnce(bool) + 'static,
-) {
-    let Some(window) = state.windows.get(id) else {
-        return answered(false);
-    };
-    if ASKING.with(|asking| asking.borrow().contains_key(&id)) {
-        return answered(false);
-    }
-    ASKING.with(|asking| asking.borrow_mut().insert(id, Box::new(answered)));
-    // The dialog takes the keyboard, for Return and Escape.
-    let _ = window.page.web_view.focus();
-    let _ = window.page.web_view.send("items.askMove", crossing);
-}
-
-// Gives window `id`'s move the page's answer, and answers whether one was
-// asked.
-fn answer_move(id: WindowId, go: bool) -> bool {
-    let answered = ASKING.with(|asking| asking.borrow_mut().remove(&id));
-    answered.map(|answered| answered(go)).is_some()
 }
 
 // What a call asks, the app's state, and the call to answer. A call that
