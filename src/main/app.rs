@@ -98,6 +98,7 @@ impl State {
             menu_front: Cell::new(menus::Front {
                 switching: true,
                 blocked: false,
+                popup: false,
             }),
             tab_switcher_keys: RefCell::default(),
             updates,
@@ -267,6 +268,11 @@ impl Wren {
             menus::COPY_URL => {
                 if let Some(browser) = popup.browser() {
                     let _ = tabs::copy_url(&browser);
+                }
+            }
+            menus::OPEN_AS_TAB => {
+                if let Err(error) = state.open_popup_as_tab(mt, popup.id, None) {
+                    eprintln!("Wren could not open the popup's page as a tab: {error}");
                 }
             }
             // In the browser window: a popup's has no Library.

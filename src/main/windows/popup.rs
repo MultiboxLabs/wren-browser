@@ -28,9 +28,9 @@ const TOOLBAR: f64 = 40.0;
 const PAGE_SIZE: (f64, f64) = (800.0, 600.0);
 
 /// A popup's window's minimum, its toolbar in it, however small its page
-/// asks to be: room for the window's buttons, some of the address and the
-/// button that opens the page as a tab.
-pub(super) const POPUP_MIN_SIZE: (f64, f64) = (340.0, 160.0);
+/// asks to be: room for the window's buttons, some of the address, and the
+/// button that opens the page as a tab with its key and its menu of spaces.
+pub(super) const POPUP_MIN_SIZE: (f64, f64) = (400.0, 160.0);
 
 impl State {
     /// Shows `browser`, which `opener` opened if Chromium names it, in a
@@ -76,22 +76,32 @@ impl State {
     }
 
     /// Moves the page of popup window `id` to a new tab, at the top of the
-    /// list and in front (`tabs::bring_in`). The tab is in the space the
-    /// popup was opened from, or else the space of the window the user
-    /// browses in, or else its profile's most recent one, and that window
-    /// comes forward on it. An off-the-record page goes to its profile's
-    /// off-the-record window. A window is opened if none shows the place.
-    /// A page that goes to another profile is made again there, once the
-    /// popup's page has asked the user (`ipc::ask_before_profile_move`).
-    /// The popup's window closes with its Browser. Fails if `id` is no
-    /// popup's, or its page has gone.
-    pub fn open_popup_as_tab(self: &Rc<Self>, mt: MainThread, id: WindowId) -> Result<(), String> {
+    /// list and in front (`tabs::bring_in`). The tab is in `space`, as the
+    /// user chose it, or else in the space the popup was opened from, or the
+    /// space of the window the user browses in, or its profile's most recent
+    /// one, and that window comes forward on it. An off-the-record page goes
+    /// only to its profile's off-the-record window. A window is opened if
+    /// none shows the place. A page that goes to another profile is made
+    /// again there, once the popup's page has asked the user
+    /// (`ipc::ask_before_profile_move`). The popup's window closes with its
+    /// Browser. Fails if `id` is no popup's, its page has gone, or a private
+    /// page is sent to another profile.
+    pub fn open_popup_as_tab(
+        self: &Rc<Self>,
+        mt: MainThread,
+        id: WindowId,
+        space: Option<SpaceId>,
+    ) -> Result<(), String> {
         let popup = self.windows.get(id).ok_or("The window is closing.")?;
         let opened_from = popup.popup().ok_or("The window is no popup's.")?.space;
         let tab = popup.active_tab().ok_or("The popup has no page.")?;
         let source = popup.browser().ok_or("The popup has no page.")?;
         let profile = source.profile().ok_or("The popup has no page.")?;
-        let place = self.place_for_popup(mt, &profile, opened_from);
+        let place = match space {
+            Some(space) => Place::Space(space),
+            None => self.place_for_popup(mt, &profile, opened_from),
+        };
+        self.may_bring(&source, &place)?;
         let crossing = items::page_crossing(self, &source, &place)?;
         let state = self.clone();
         ipc::ask_before_profile_move(self, id, crossing, move |go| {

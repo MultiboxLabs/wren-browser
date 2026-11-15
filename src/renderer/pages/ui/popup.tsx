@@ -3,13 +3,14 @@
 // a small window for one page, with no sidebar. Its toolbar is its title
 // bar: the window's buttons, back and forward once the page has somewhere to
 // go, a field with the page's address, and a button that moves the page to a
-// tab of a window the user browses in. Then the page, edge to edge. A click
-// on the address, Open Location or New Tab opens the omnibox for the page,
-// in the middle of the window. A page the button moves to another profile
-// asks first (components/profile-move-dialog.tsx). The window is light or
-// dark as the system is.
+// tab of a window the user browses in (⌘O, File's Open as Tab), with a menu
+// beside it of every space to move it to instead. Then the page, edge to
+// edge. A click on the address, Open Location or New Tab opens the omnibox
+// for the page, in the middle of the window. A page the button moves to
+// another profile asks first (components/profile-move-dialog.tsx). The
+// window is light or dark as the system is.
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect } from "react";
 import { appWindow, browser, type BrowserTab, hasApp, type WindowPopup } from "@/ipc";
 import { ReloadButton } from "@/components/address/navigation";
@@ -19,12 +20,16 @@ import { useShownOmnibox } from "@/components/omnibox/shown";
 import { ProfileMoveDialog } from "@/components/profile-move-dialog";
 import { QuitDialog } from "@/components/quit-dialog";
 import { WINDOW_BUTTONS } from "@/components/sidebar/motion";
+import { SpaceIcon } from "@/components/space-icon";
 import { TabView } from "@/components/tab-view";
 import { BrowserToast } from "@/components/toast";
 import { Button } from "@/components/ui/button";
+import { Keycap } from "@/components/ui/keycap";
+import { Menu, type MenuItem } from "@/components/ui/menu";
 import { useBrowser, useTabShape } from "@/state/browser";
 import { useSpace } from "@/state/space";
 import { usePopupTheme, useShowWindow, useWindowBlocked } from "@/state/window";
+import { cn } from "@/utils/cn";
 import { address, isNewTab } from "@/utils/url";
 
 export function PopupWindow({ popup }: { popup: WindowPopup }) {
@@ -107,15 +112,53 @@ function Toolbar({
     <header className="drag flex h-10 shrink-0 items-center gap-1.5 border-b border-separator pr-1.5 pl-[calc(var(--window-buttons)+12px)]">
       {(tab?.canGoBack || tab?.canGoForward) && <History tab={tab} />}
       <AddressField tab={tab} onOpenLocation={onOpenLocation} />
+      <OpenButton disabled={!tab} target={target} />
+    </header>
+  );
+}
+
+// Open, which moves the page to a tab, with ⌘O after the space it names,
+// and beside it, joined to it, a menu of every space to move it to instead,
+// of any profile, in the user's order. A private page stays in its profile,
+// so it has no menu.
+function OpenButton({ disabled, target }: { disabled: boolean; target: string }) {
+  const { spaces, profile } = useSpace();
+  const items: MenuItem<string>[] = spaces.map((space) => ({
+    id: String(space.id),
+    label: space.name,
+    mark: <SpaceIcon icon={space.icon} size={14} strokeWidth={1.75} />
+  }));
+  const open = (space: number | null) => void appWindow.openAsTab(space).catch(() => {});
+  const choosing = !profile?.offTheRecord && items.length > 0;
+  return (
+    <div className="no-drag flex shrink-0 gap-px">
       <Button
         variant="filled"
-        disabled={!tab}
-        onClick={() => void appWindow.openAsTab().catch(() => {})}
-        className="gap-1 rounded-popup-bar text-fg-2"
+        disabled={disabled}
+        onClick={() => open(null)}
+        className={cn("gap-1 rounded-popup-bar px-2 text-fg-2", choosing && "rounded-r-none")}
       >
         Open in <span className="font-semibold text-fg">{target}</span>
+        <Keycap>⌘O</Keycap>
       </Button>
-    </header>
+      {choosing && (
+        <Menu
+          trigger={
+            <Button
+              variant="filled"
+              icon={ChevronDown}
+              iconSize={14}
+              label="Open in Another Space"
+              disabled={disabled}
+              className="w-5.5 rounded-l-none rounded-r-popup-bar"
+            />
+          }
+          items={items}
+          onSelect={(id) => open(Number(id))}
+          align="end"
+        />
+      )}
+    </div>
   );
 }
 

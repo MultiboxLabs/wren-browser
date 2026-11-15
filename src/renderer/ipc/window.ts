@@ -24,11 +24,14 @@ export const appWindow = {
   /** What makes the window a popup's; null for a browser window. It never changes. */
   popup: () => wren.invoke<WindowPopup | null>("window.popup"),
   /**
-   * Moves a popup's page to a new tab of a window the user
-   * browses in, without loading it again. That window comes forward, and the
-   * popup's closes. Fails for a window that is no popup's.
+   * Moves a popup's page to a new tab of a window the user browses in, in
+   * `space`, or with none, the space the app picks. A page of its own
+   * profile does not load again; one of another is made again there, once
+   * the user says it may (profile-move.ts). That window comes forward, and
+   * the popup's closes. Fails for a window that is no popup's, or a private
+   * page sent to another profile.
    */
-  openAsTab: () => wren.invoke<null>("window.openAsTab"),
+  openAsTab: (space: number | null = null) => wren.invoke<null>("window.openAsTab", space),
   /** Takes the keyboard from the tab that has it, for a field the user did not press into. */
   takeKeyboard: () => wren.invoke<null>("window.takeKeyboard"),
   /** Gives the keyboard back to the active tab's page. */

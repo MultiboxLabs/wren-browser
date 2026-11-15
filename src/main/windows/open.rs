@@ -124,6 +124,10 @@ impl State {
                     state.touch_space(space);
                 }
             }
+            // A popup in use allows Open as Tab.
+            if active && window.is_popup() {
+                state.update_front_menu(mt);
+            }
             ipc::show_active(&window.page, active);
         });
         // Whether the pointer is over the sidebar, as it moves, and as the

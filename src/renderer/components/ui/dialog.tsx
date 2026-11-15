@@ -19,6 +19,7 @@ import { answerOf } from "./answer-keys";
 import { Button } from "./button";
 import { useDialogTurn } from "./dialog-turn";
 import { useHoldWhile } from "./hold";
+import { Keycap } from "./keycap";
 import { useWindowBlocked } from "@/state/window";
 import { cn } from "@/utils/cn";
 import { EASE_LEAVE, EASE_OUT } from "@/utils/motion";
@@ -273,19 +274,11 @@ function Card({
   );
 }
 
-// The key that presses the button it is on, after its label, faint, so the
-// label still reads first: Escape a soft chip with its name, Return its
-// arrow alone.
+// The key that presses the button it is on, after its label, in its colour:
+// Escape a chip with its name (`Keycap`), Return its arrow alone.
 function Key({ name }: { name: "escape" | "return" }) {
-  if (name === "return") return <CornerDownLeft size={14} strokeWidth={2.25} aria-hidden className="opacity-60" />;
-  return (
-    <kbd
-      aria-hidden
-      className="grid h-4 place-items-center rounded-[4px] bg-current/12 px-1 font-sans text-[9px] leading-none font-bold tracking-wide uppercase opacity-60"
-    >
-      esc
-    </kbd>
-  );
+  if (name === "return") return <CornerDownLeft size={14} strokeWidth={2.25} aria-hidden />;
+  return <Keycap>esc</Keycap>;
 }
 
 // The default button's label, or a spinner in its place while what it does

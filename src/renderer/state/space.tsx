@@ -120,7 +120,7 @@ const ofDraft = (draft: SpaceDraft): Space =>
 type SpaceState = {
   /** The space shown in the window. */
   space: Space;
-  /** Every space, of any profile, in the user's order; none in a window on a profile. */
+  /** Every space, of any profile, in the user's order; none in a window on a profile, but a popup's, whose page can go to any. */
   spaces: SpaceEntry[];
   /** The profile the window shows, rather than spaces; null for a window of spaces. */
   profile: WindowProfile | null;
@@ -154,7 +154,7 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const making = onSpace?.kind === "newSpace";
   const [profile, setProfile] = useState<WindowProfile | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.profile, appWindow.onProfile, setProfile) : undefined), []);
-  const spaces = useMemo(() => (profile ? [] : (entries ?? [])), [entries, profile]);
+  const spaces = useMemo(() => (profile && !popup ? [] : (entries ?? [])), [entries, profile, popup]);
   // Where the window is among the spaces: the one being made is after the last.
   const at = making ? NEW_SPACE : current;
   const order = (id: number) => (id === NEW_SPACE ? spaces.length : spaces.findIndex((space) => space.id === id));
