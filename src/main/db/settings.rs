@@ -47,6 +47,9 @@ pub struct Settings {
     /// Where the page's address shows: atop the sidebar, or atop the page,
     /// in its card (components/tab-view.tsx).
     pub address_bar: AddressBar,
+    /// Wren asks before tabs go to another profile's space, where they are
+    /// made again without their history (items/crossing.rs).
+    pub ask_before_profile_move: bool,
 }
 
 impl Default for Settings {
@@ -63,6 +66,7 @@ impl Default for Settings {
             autofill: true,
             window_margins: true,
             address_bar: AddressBar::default(),
+            ask_before_profile_move: true,
         }
     }
 }
@@ -81,6 +85,7 @@ pub struct SettingsChange {
     pub autofill: Option<bool>,
     pub window_margins: Option<bool>,
     pub address_bar: Option<AddressBar>,
+    pub ask_before_profile_move: Option<bool>,
 }
 
 /// Where the page's address shows, and Chromium's bubbles hang off: atop the
@@ -150,6 +155,9 @@ impl Db {
                 .setting("windowMargins")?
                 .unwrap_or(defaults.window_margins),
             address_bar: self.setting("addressBar")?.unwrap_or(defaults.address_bar),
+            ask_before_profile_move: self
+                .setting("askBeforeProfileMove")?
+                .unwrap_or(defaults.ask_before_profile_move),
         })
     }
 
@@ -185,6 +193,9 @@ impl Db {
         }
         if let Some(place) = change.address_bar {
             set(&transaction, "addressBar", &place)?;
+        }
+        if let Some(asks) = change.ask_before_profile_move {
+            set(&transaction, "askBeforeProfileMove", &asks)?;
         }
         transaction.commit().map_err(sql)?;
         self.settings()

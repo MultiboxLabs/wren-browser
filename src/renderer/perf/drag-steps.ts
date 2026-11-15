@@ -135,6 +135,40 @@ export const sameLook = (number: number, step: Step): Step => ({
   }
 });
 
+/**
+ * A step whose move asks first, as one that makes tabs again in another
+ * profile does: its dialog must show, and is answered by pressing its
+ * `button`.
+ */
+export const askedFirst = (button: "Move" | "Cancel", step: Step): Step => ({
+  ...step,
+  does: async () => {
+    let asked = false;
+    const stop = items.onAskMove(() => (asked = true));
+    try {
+      await step.does();
+      await until(
+        () => asked,
+        () => "The move did not ask first."
+      );
+    } finally {
+      stop();
+    }
+    const pressed = await until(
+      () => dialogButton(button),
+      () => `The dialog has no ${button} button.`
+    );
+    pressed.click();
+  }
+});
+
+// The button of the dialog up whose label starts with `label`: its key
+// follows it.
+const dialogButton = (label: string) =>
+  [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find((button) =>
+    button.textContent?.trim().startsWith(label)
+  );
+
 /** A step after which the window must show the run's space at `at`, as tabs made again in another profile take it to theirs. */
 export const switchesTo = (at: number, step: Step): Step => ({
   ...step,

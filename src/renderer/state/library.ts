@@ -190,7 +190,8 @@ export function useSettings(open: boolean) {
     passwordManager: true,
     autofill: true,
     windowMargins: true,
-    addressBar: "sidebar"
+    addressBar: "sidebar",
+    askBeforeProfileMove: true
   });
   const [read, setRead] = useState(false);
   const refresh = () =>

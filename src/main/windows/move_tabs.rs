@@ -58,9 +58,29 @@ impl State {
         });
     }
 
+    /// Whether tabs of `source` that go to `place` are made again there: it
+    /// shows another profile, and neither is an off-the-record side, whose
+    /// tabs never leave it and which takes none in.
+    pub fn remakes_for(&self, source: &Browser, place: &Place) -> Result<bool, String> {
+        let from = Place::of_profile(&source.profile().ok_or("There is no such tab.")?);
+        let to = self.profile_shown(place)?;
+        Ok(from != to && !from.is_off_the_record() && !to.is_off_the_record())
+    }
+
+    /// The profile `place` shows, as a place: a space's, or a window's own.
+    pub fn profile_shown(&self, place: &Place) -> Result<Place, String> {
+        Ok(match place {
+            Place::Space(space) => Place::Profile {
+                id: self.db.space(*space)?.ok_or("That space is gone.")?.profile,
+                off_the_record: false,
+            },
+            Place::Profile { .. } => place.clone(),
+        })
+    }
+
     // The Browser `moving` move from, if they can go to `place`: one of any
-    // window's, of the profile `place` shows, or of another profile when
-    // neither is an off-the-record side.
+    // window's, of the profile `place` shows, or made again in another
+    // (`remakes_for`).
     fn moving_from(&self, moving: &[BrowserTab], place: &Place) -> Result<Browser, String> {
         let source = moving
             .first()
@@ -68,15 +88,9 @@ impl State {
             .filter(|browser| self.windows.of(browser).is_some())
             .ok_or("There is no such tab.")?;
         let profile = source.profile().ok_or("There is no such tab.")?;
-        let shown = match place {
-            Place::Space(space) => Place::Profile {
-                id: self.db.space(*space)?.ok_or("That space is gone.")?.profile,
-                off_the_record: false,
-            },
-            Place::Profile { .. } => place.clone(),
-        };
-        let from = Place::of_profile(&profile);
-        if from != shown && (from.is_off_the_record() || shown.is_off_the_record()) {
+        if Place::of_profile(&profile) != self.profile_shown(place)?
+            && !self.remakes_for(&source, place)?
+        {
             return Err("A private tab stays in its own profile.".into());
         }
         Ok(source)

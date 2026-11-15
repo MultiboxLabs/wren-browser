@@ -54,6 +54,7 @@ pub use downloads::{
 };
 pub use extensions::send_extensions;
 pub use find::{send_find, send_show_find};
+pub use items::forget_move_question;
 pub use menu::{send_show_settings, send_toggle_sidebar};
 pub use migrate::handle_migrate;
 pub use omnibox::{

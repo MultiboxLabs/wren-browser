@@ -24,6 +24,7 @@ import { useSavedSidebar } from "@/components/sidebar/state";
 import { TabView } from "@/components/tab-view";
 import { Perf } from "@/perf/mount";
 import { BrowserToast } from "@/components/toast";
+import { ProfileMoveDialog } from "@/components/profile-move-dialog";
 import { QuitDialog } from "@/components/quit-dialog";
 import { TabSwitcher } from "@/components/tab-switcher/tab-switcher";
 import { Updated } from "@/components/updated";
@@ -209,6 +210,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
         )}
         <BrowserToast belowBar={pageBar} />
         <QuitDialog />
+        <ProfileMoveDialog />
         <TabSwitcher />
         {omnibox.shown && (
           <Omnibox

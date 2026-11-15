@@ -30,6 +30,8 @@ export type Settings = {
   windowMargins: boolean;
   /** Where the page's address shows, and Chromium's bubbles hang off: atop the sidebar, or atop the page (each side's, in a split). */
   addressBar: AddressBar;
+  /** Wren asks before tabs go to another profile's space, where they are made again without their history. */
+  askBeforeProfileMove: boolean;
 };
 
 export const settings = {

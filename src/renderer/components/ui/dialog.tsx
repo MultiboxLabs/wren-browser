@@ -56,6 +56,8 @@ export type DialogProps = {
    * "Always Quit". It closes the dialog once it is pressed, as Cancel does.
    */
   secondary?: { label: string; onPress: () => void };
+  /** Apart at the left of its buttons, in place of `secondary`: a "Don’t ask again" checkbox. */
+  aside?: ReactNode;
   /** Its buttons show their keys: Escape on Cancel, Return on the default one. */
   keys?: boolean;
   /** Its width, which is 384 points by default. */
@@ -105,6 +107,7 @@ function Card({
   action,
   cancel = "Cancel",
   secondary,
+  aside,
   keys: showKeys = false,
   className,
   children,
@@ -228,7 +231,8 @@ function Card({
               )}
             </div>
             {children}
-            <div className="flex justify-end gap-2.5">
+            <div className="flex items-center justify-end gap-2.5">
+              {aside && <div className="mr-auto">{aside}</div>}
               {secondary && (
                 <Button
                   variant="raised"

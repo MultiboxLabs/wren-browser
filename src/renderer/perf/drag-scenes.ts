@@ -4,6 +4,7 @@
 
 import { browser, groups, items, perf, pins } from "@/ipc";
 import {
+  askedFirst,
   chosen,
   chosenOfMarked,
   deleted,
@@ -858,8 +859,8 @@ export const scenes = (url: string): Scene[] => [
   },
   {
     // Tabs of the list go to a space of another profile as new tabs on their
-    // pages, in a split and a group like those they left, and the window
-    // goes to that space.
+    // pages, in a split and a group like those they left, once the user says
+    // they may, and the window goes to that space.
     name: "Another profile",
     tabs: 6,
     steps: [
@@ -868,43 +869,60 @@ export const scenes = (url: string): Scene[] => [
         does: spaceOfAnotherProfile,
         shows: "tabs 0 1 2 3 4 5 / nothing / nothing"
       },
-      switchesTo(2, {
-        name: "a tab onto the other profile's space's button, which makes it again there and shows that space",
+      askedFirst("Cancel", {
+        name: "a tab onto the other profile's space's button, then Cancel, which leaves it",
         does: dragged(tab(0), spaceButton(2)),
-        shows: "tabs 1 2 3 4 5 / nothing / tabs 0"
+        shows: "tabs 0 1 2 3 4 5 / nothing / nothing"
       }),
+      switchesTo(
+        2,
+        askedFirst("Move", {
+          name: "a tab onto the other profile's space's button, then Move, which makes it again there and shows that space",
+          does: dragged(tab(0), spaceButton(2)),
+          shows: "tabs 1 2 3 4 5 / nothing / tabs 0"
+        })
+      ),
       { name: "the first space shown again", does: shownSpace(0), shows: "tabs 1 2 3 4 5 / nothing / tabs 0" },
       {
         name: "a tab onto a tab",
         does: dragged(tab(1), half(tab(2), "right")),
         shows: "tabs (2|1) 3 4 5 / nothing / tabs 0"
       },
-      switchesTo(2, {
-        name: "a split onto the other profile's space's button, which makes it again as a split",
-        does: dragged(tab(2), spaceButton(2)),
-        shows: "tabs 3 4 5 / nothing / tabs (2|1) 0"
-      }),
+      switchesTo(
+        2,
+        askedFirst("Move", {
+          name: "a split onto the other profile's space's button, which makes it again as a split",
+          does: dragged(tab(2), spaceButton(2)),
+          shows: "tabs 3 4 5 / nothing / tabs (2|1) 0"
+        })
+      ),
       { name: "the first space shown again", does: shownSpace(0), shows: "tabs 3 4 5 / nothing / tabs (2|1) 0" },
       { name: "two tabs put in a group", does: grouped(3, 4), shows: "tabs {3 4} 5 / nothing / tabs (2|1) 0" },
       sameLook(
         3,
-        switchesTo(2, {
-          name: "a group onto the other profile's space's button, which makes it again with its name and colour",
-          does: dragged(group(3), spaceButton(2)),
-          shows: "tabs 5 / nothing / tabs {3 4} (2|1) 0"
-        })
+        switchesTo(
+          2,
+          askedFirst("Move", {
+            name: "a group onto the other profile's space's button, which makes it again with its name and colour",
+            does: dragged(group(3), spaceButton(2)),
+            shows: "tabs 5 / nothing / tabs {3 4} (2|1) 0"
+          })
+        )
       ),
       { name: "the first space shown again", does: shownSpace(0), shows: "tabs 5 / nothing / tabs {3 4} (2|1) 0" },
-      {
+      askedFirst("Move", {
         name: "a tab held over the other profile's space's button, then to a place in that space's list",
         does: () => draggedThroughButton(tab(5), 2, after(tab(0))),
         shows: "nothing / nothing / tabs {3 4} (2|1) 0 5"
-      },
-      switchesTo(0, {
-        name: "a tab onto the first space's button, which makes it again in the first profile and shows that space",
-        does: dragged(tab(5), spaceButton(0)),
-        shows: "tabs 5 / nothing / tabs {3 4} (2|1) 0"
-      })
+      }),
+      switchesTo(
+        0,
+        askedFirst("Move", {
+          name: "a tab onto the first space's button, which makes it again in the first profile and shows that space",
+          does: dragged(tab(5), spaceButton(0)),
+          shows: "tabs 5 / nothing / tabs {3 4} (2|1) 0"
+        })
+      )
     ]
   }
 ];

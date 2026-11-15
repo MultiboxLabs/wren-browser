@@ -64,6 +64,13 @@ export function Settings({ query, settings }: { query: string; settings: Library
               onChoose={(archiveAfter) => update({ archiveAfter })}
             />
           )
+        },
+        {
+          name: "Ask Before Moving to Another Profile",
+          about: "Ask before you move tabs to a space in another profile, where they open again without their history.",
+          control: toggle("Ask Before Moving to Another Profile", values.askBeforeProfileMove, (askBeforeProfileMove) =>
+            update({ askBeforeProfileMove })
+          )
         }
       ]
     },

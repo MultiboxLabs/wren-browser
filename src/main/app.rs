@@ -167,6 +167,8 @@ impl State {
             return;
         };
         ipc::quit_window_closing(self, id);
+        // A move its page asks about waits for an answer that can't come now.
+        ipc::forget_move_question(id);
         if window.has_browsers() {
             let state = Rc::downgrade(self);
             let closed = window.clone();

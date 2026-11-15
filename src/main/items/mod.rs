@@ -19,8 +19,11 @@
 // move here.
 
 pub mod carry;
+mod crossing;
 pub mod menu;
 mod together;
+
+pub use crossing::{Crossing, crossing};
 
 use std::rc::Rc;
 
