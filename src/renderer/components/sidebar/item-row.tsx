@@ -5,9 +5,10 @@
 // A side with a Chromium tab open on it is drawn as that tab, and a press
 // selects it; a kept tab's side without one shows its kept page, and a
 // press opens it. Once a kept tab's Chromium tab leaves the kept page, its
-// side is away: a slash between the kept page's icon and the tab's title,
-// and the icon takes the tab back. A right click shows the item's menu, and
-// a kept tab's name is edited in its row, as a double click on it does.
+// side is away: a slash between the tab's icon and its title, and the
+// icon, hovered, is the kept page's and takes the tab back. A right click
+// shows the item's menu, and a kept tab's name is edited in its row, as a
+// double click on it does.
 //
 // The row of a normal tab or a pinned one is marked by a press with Command
 // or Shift held, to act with other rows (item-actions.tsx), and is then
@@ -44,15 +45,19 @@ export const identitiesOf = (item: TabItem) => [
 ];
 
 /**
- * The icon a side shows: its Chromium tab's, while it has no kept page or
- * the tab is on it, or else the one kept with the page (made from its
- * address if it has none).
+ * The icon a side shows: its Chromium tab's, wherever the tab has gone, or
+ * else its kept page's. A tab on its kept page has no icon of its own until
+ * Chromium fetches it, so the kept one shows until then.
  */
 export function SideIcon({ side }: { side: DrawnSide }) {
   const { page, tab, away } = side;
-  if (page && (!tab || away)) return <Favicon url={page.url} icon={page.favicon} />;
-  return tab ? <Favicon url={tab.url} icon={tab.favicon ?? page?.favicon} /> : null;
+  if (!tab) return page && <KeptIcon page={page} />;
+  const standIn = away ? null : page?.favicon;
+  return <Favicon url={tab.url} icon={tab.favicon ?? standIn} />;
 }
+
+/** The icon kept with a pin's page, or one made from its address if it has none. */
+const KeptIcon = ({ page }: { page: PinPage }) => <Favicon url={page.url} icon={page.favicon} />;
 
 export type ItemRowProps = {
   item: TabItem;
@@ -218,14 +223,14 @@ function SideLabel({ side, title, onRename }: { side: DrawnSide; title: string; 
 const BACK_INSET = { row: "-ml-2.5 -mr-1 px-2.5", half: "-ml-1.5 px-1.5" };
 
 /**
- * An away side's icon and title, in a row or a split's half: the kept
- * page's icon, a slash, then the tab's title. Hovered, the icon is a button
- * of its own, filled to the left edge of the row (or the half) as its
- * corners are, and the title says what it does under it; pressing it takes
- * the tab back to the kept page (`onBack`), without selecting the row
- * first. A double click on the title renames the item (`onRename`). The
- * tab's alert comes after the title, as the icon and the slash stay
- * together.
+ * An away side's icon and title, in a row or a split's half: the tab's
+ * icon, a slash, then the tab's title. Hovered, the icon is a button of its
+ * own, filled to the left edge of the row (or the half) as its corners are;
+ * it shows the kept page's icon, and the title says what it does under it.
+ * Pressing it takes the tab back to the kept page (`onBack`), without
+ * selecting the row first. A double click on the title renames the item
+ * (`onRename`). The tab's alert comes after the title, as the icon and the
+ * slash stay together.
  */
 function AwayTitle({
   page,
@@ -252,11 +257,16 @@ function AwayTitle({
         onPointerDown={(event) => event.stopPropagation()}
         onClick={onBack}
         className={cn(
-          "peer/back flex shrink-0 items-center self-stretch rounded-l-[inherit] hover:bg-hover",
+          "peer/back group/back flex shrink-0 items-center self-stretch rounded-l-[inherit] hover:bg-hover",
           BACK_INSET[inset]
         )}
       >
-        <Favicon url={page.url} icon={page.favicon} />
+        <span className="contents group-hover/back:hidden">
+          <SideIcon side={side} />
+        </span>
+        <span className="hidden group-hover/back:contents">
+          <KeptIcon page={page} />
+        </span>
       </button>
       <span
         aria-hidden
