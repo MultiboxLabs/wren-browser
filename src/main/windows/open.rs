@@ -307,7 +307,7 @@ impl State {
                 };
                 state.host(&window, place, &browser);
                 then();
-                // Links held for want of a Browser open now (open_urls.rs).
+                // Pages held for want of a Browser open now (show_page.rs).
                 state.open_held(mt);
             });
         });

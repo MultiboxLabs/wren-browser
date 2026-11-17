@@ -242,8 +242,8 @@ impl State {
         self.restoring.set(self.restoring.get() + 1);
     }
 
-    // Links held while restoring open once the last restore is done
-    // (open_urls.rs).
+    // Links and pages held while restoring open once the last restore is
+    // done (`open_held`).
     pub(crate) fn restore_finished(self: &Rc<Self>, mt: MainThread) {
         self.restoring.set(self.restoring.get() - 1);
         self.open_held(mt);

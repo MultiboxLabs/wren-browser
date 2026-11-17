@@ -318,7 +318,7 @@ fn app_menu(
                 windows,
             ),
             default_browser_item(default),
-            // wren://migrate, in a tab of the window links open in.
+            // wren://migrate, in a tab of the window the user browses in.
             enabled(
                 MenuItem::item(IMPORT, "Import from Another Browser…"),
                 windows,
