@@ -4,7 +4,7 @@
 
 use std::rc::Rc;
 
-use wren::{Browser, MainThread, ProfileKind, RequestedBounds};
+use wren::{Browser, MainThread, Profile, ProfileKind, RequestedBounds};
 
 use super::popup::POPUP_MIN_SIZE;
 use super::session::unkept_window_key;
@@ -284,26 +284,8 @@ impl State {
         if !window.set_opening(&place) {
             return;
         }
-        let (profile, off_the_record) = match &place {
-            Place::Space(space) => match self.db.space(*space) {
-                Ok(Some(row)) => (row.profile, false),
-                Ok(None) => {
-                    window.forget(&place);
-                    return eprintln!("Wren opened no Browser: the space is gone.");
-                }
-                Err(error) => {
-                    window.forget(&place);
-                    return eprintln!("Wren opened no Browser: {error}");
-                }
-            },
-            Place::Profile { id, off_the_record } => (id.clone(), *off_the_record),
-        };
         let state = self.clone();
-        mt.open_profile(Some(&profile), move |result| {
-            let result = match off_the_record {
-                true => result.and_then(|profile| profile.off_the_record()),
-                false => result,
-            };
+        self.open_profile_of(mt, place.clone(), move |result| {
             let profile = match result {
                 Ok(profile) => profile,
                 Err(error) => return state.failed_browser(id, &place, &error),
@@ -311,7 +293,7 @@ impl State {
             placeholder::create_browser(&profile, move |result| {
                 let browser = match result {
                     Ok(browser) => browser,
-                    Err(error) => return state.failed_browser(id, &place, &error),
+                    Err(error) => return state.failed_browser(id, &place, &format!("{error:?}")),
                 };
                 // A window closed in the meantime takes no Browser, nor a
                 // space's that was deleted.
@@ -324,13 +306,39 @@ impl State {
                 state.host(&window, place, &browser);
                 then();
                 // Links held for want of a Browser open now (open_urls.rs).
-                state.open_held_urls(mt);
+                state.open_held(mt);
             });
         });
     }
 
-    fn failed_browser(&self, id: WindowId, place: &Place, error: &wren::Error) {
-        eprintln!("Wren opened no Browser: {error:?}");
+    /// Calls `then` with the profile `place` is on, opened: a space's, by
+    /// its row, or the profile's own, or its off-the-record side; or with
+    /// why there is none.
+    pub(super) fn open_profile_of(
+        &self,
+        mt: MainThread,
+        place: Place,
+        then: impl FnOnce(Result<Profile, String>) + 'static,
+    ) {
+        let (profile, off_the_record) = match place {
+            Place::Space(space) => match self.db.space(space) {
+                Ok(Some(row)) => (row.profile, false),
+                Ok(None) => return then(Err("The space is gone.".into())),
+                Err(error) => return then(Err(error)),
+            },
+            Place::Profile { id, off_the_record } => (id, off_the_record),
+        };
+        mt.open_profile(Some(&profile), move |result| {
+            let result = match off_the_record {
+                true => result.and_then(|profile| profile.off_the_record()),
+                false => result,
+            };
+            then(result.map_err(|error| format!("{error:?}")));
+        });
+    }
+
+    fn failed_browser(&self, id: WindowId, place: &Place, error: &str) {
+        eprintln!("Wren opened no Browser: {error}");
         if let Some(window) = self.windows.get(id) {
             window.forget(place);
         }

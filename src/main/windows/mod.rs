@@ -5,7 +5,7 @@
 // Browser, and no space. The parts:
 //
 // - open.rs: opening windows, and where each Browser goes;
-// - open_urls.rs: the links macOS asks the app to open, in new tabs;
+// - open_urls.rs: the links macOS asks the app to open, in Mini Wren;
 // - popup.rs: the windows of popups;
 // - switch.rs: switching a window between its spaces;
 // - move_tabs.rs: moving tabs from one of its spaces to another;

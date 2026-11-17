@@ -1,11 +1,12 @@
 // Popups, which the user knows as Mini Wren. A Browser Chromium opens that
 // is not a tabbed window gets a small browser window of its own: a page's
 // popup (`window.open` with features, as a sign-in opens), an extension's
-// popup window, or an installed app's window. The page draws its toolbar,
-// whose address opens the omnibox for its page, and no sidebar
-// (pages/ui/popup.tsx). It is on its profile's place, and never kept: its
-// Browser closing takes it (`App::browser_closed`). Its page can move to a
-// tab of a window the user browses in (`open_popup_as_tab`). Document
+// popup window, or an installed app's window. A link from another app opens
+// in one too (open_urls.rs). The page draws its toolbar, whose address
+// opens the omnibox for its page, and no sidebar (pages/ui/popup.tsx). It is
+// on its profile's place, and never kept: its Browser closing takes it
+// (`App::browser_closed`). Its page can move to a tab of a window the user
+// browses in (`open_popup_as_tab`). Document
 // Picture-in-Picture is none of these: Chromium shows it in a window of its
 // own, with no Browser.
 
@@ -25,7 +26,7 @@ use crate::{ipc, items, tabs};
 const TOOLBAR: f64 = 40.0;
 
 /// The size of a popup's page that asked for none.
-const PAGE_SIZE: (f64, f64) = (800.0, 600.0);
+pub(super) const PAGE_SIZE: (f64, f64) = (800.0, 600.0);
 
 /// A popup's window's minimum, its toolbar in it, however small its page
 /// asks to be: room for the window's buttons, some of the address, and the
@@ -34,20 +35,34 @@ pub(super) const POPUP_MIN_SIZE: (f64, f64) = (400.0, 160.0);
 
 impl State {
     /// Shows `browser`, which `opener` opened if Chromium names it, in a
-    /// popup's window: as large as its page asked, where it asked if a
-    /// screen shows it there, or else cascaded from its opener's window, or
-    /// the window in front. One that gets no window closes.
+    /// popup's window (`show_popup`), from the space its opener's window
+    /// opened it from, and cascaded from that window.
     pub fn open_popup(self: &Rc<Self>, mt: MainThread, browser: Browser, opener: Option<Browser>) {
+        let opener_window = opener.as_ref().and_then(|opener| self.windows.of(opener));
+        let space = opener_window
+            .as_ref()
+            .zip(opener.as_ref())
+            .and_then(|(window, opener)| window.space_opened_from(opener));
+        self.show_popup(mt, browser, space, opener_window);
+    }
+
+    /// Shows `browser` in a popup's window, from `space`: as large as its
+    /// page asked, where it asked if a screen shows it there, or else
+    /// cascaded from `near`, or the window in front. One that gets no window
+    /// closes.
+    pub(super) fn show_popup(
+        self: &Rc<Self>,
+        mt: MainThread,
+        browser: Browser,
+        space: Option<SpaceId>,
+        near: Option<Rc<BrowserWindow>>,
+    ) {
         let Some(profile) = browser.profile() else {
             browser.close(|_| {});
             return;
         };
-        let opener_window = opener.as_ref().and_then(|opener| self.windows.of(opener));
         let popup = Popup {
-            space: opener_window
-                .as_ref()
-                .zip(opener.as_ref())
-                .and_then(|(window, opener)| window.space_opened_from(opener)),
+            space,
             address: browser
                 .window_features()
                 .contains(WindowFeatures::LOCATION_BAR),
@@ -66,7 +81,7 @@ impl State {
         };
         let requested = browser.requested_bounds();
         let (width, height) = requested.map_or(PAGE_SIZE, |bounds| (bounds.width, bounds.height));
-        let near = opener_window.or_else(|| self.windows.front());
+        let near = near.or_else(|| self.windows.front());
         window.page.place_popup(
             (width, height + TOOLBAR),
             requested.and_then(|bounds| bounds.origin),

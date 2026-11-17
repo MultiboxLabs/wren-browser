@@ -246,7 +246,7 @@ impl State {
     // (open_urls.rs).
     pub(crate) fn restore_finished(self: &Rc<Self>, mt: MainThread) {
         self.restoring.set(self.restoring.get() - 1);
-        self.open_held_urls(mt);
+        self.open_held(mt);
     }
 }
 
