@@ -66,8 +66,8 @@ pub struct State {
     /// Links macOS asked the app to open before it could, each with the app
     /// that sent it (windows/open_urls.rs).
     pub(crate) held_links: RefCell<Vec<(String, Option<LinkSender>)>>,
-    /// The app's own pages to show in tabs, held until the window links
-    /// open in has its Browser (windows/open_urls.rs).
+    /// The app's own pages to show in tabs, held until the window the user
+    /// browses in has its Browser (windows/show_page.rs).
     pub(crate) held_pages: RefCell<Vec<String>>,
     /// The app each Mini Wren a link opened goes back to as it closes: the
     /// one that sent the link, until the user goes to another window
@@ -528,7 +528,8 @@ impl App for Wren {
             }
             return;
         }
-        // In the window links open in, whatever window is key, a popup's too.
+        // In the window the user browses in, whatever window is key, a
+        // popup's too (windows/show_page.rs).
         if id == menus::IMPORT {
             return self.state.show_page(mt, &pages::MIGRATE);
         }

@@ -6,17 +6,12 @@
 // app comes before its profile has opened, and one may come while a
 // profile's last session is being restored, which brings forward what it
 // had active: either is held, and opens once startup and the restore are
-// done.
+// done (`open_held`).
 //
 // A Mini Wren a link opened keeps the app that sent it. If it closes while
 // it is the window in use, and the user has gone to no other window of the
 // app since it opened, that app comes back to the front, as if the Mini
 // Wren had been a part of it.
-//
-// The app's own pages a menu item shows open in a new tab of the window the
-// user browses in, or bring forward the tab that has one already. One is
-// held, as a link is, and until that window has its Browser
-// (`open_browser`).
 
 use std::rc::Rc;
 
@@ -24,9 +19,8 @@ use wren::{MainThread, RequestedBounds};
 
 use super::popup::PAGE_SIZE;
 use crate::app::State;
-use crate::pages::Page;
+use crate::platform;
 use crate::shell::{BrowserWindow, Place, WindowId};
-use crate::{platform, tabs};
 
 /// The app that sent a link, as macOS names it.
 #[derive(Clone, Debug)]
@@ -46,52 +40,14 @@ impl State {
         self.open_held(mt);
     }
 
-    /// Shows the app's own `page` where links open: the tab there on it, if
-    /// one is, or else a new one.
-    pub fn show_page(self: &Rc<Self>, mt: MainThread, page: &Page) {
-        let url = page.url();
-        let window = self.link_window();
-        let tab = window
-            .as_ref()
-            .and_then(|window| window.browser())
-            .and_then(|browser| {
-                browser
-                    .tabs()
-                    .into_iter()
-                    .find(|tab| tab.url().starts_with(&url))
-            });
-        match (window, tab) {
-            (Some(window), Some(tab)) => {
-                if let Err(error) = tab.activate() {
-                    eprintln!("Wren could not show {url}: {error:?}");
-                }
-                window.page.bring_forward();
-            }
-            _ => {
-                self.held_pages.borrow_mut().push(url);
-                self.open_held(mt);
-            }
-        }
-    }
-
-    /// Opens the links and pages held, if the app can now.
-    pub(super) fn open_held(self: &Rc<Self>, mt: MainThread) {
-        // Not before startup opens the windows, nor while restoring.
-        if self.ui_profile.borrow().is_none() || self.is_restoring() {
-            return;
-        }
-        self.open_held_links(mt);
-        self.open_held_pages(mt);
-    }
-
-    // Opens each link held in a Mini Wren, from the space of the window
-    // links open in, or the space used last, or that window's profile if it
-    // shows one with no space.
-    fn open_held_links(self: &Rc<Self>, mt: MainThread) {
+    /// Opens each link held in a Mini Wren, from the space of the window the
+    /// user browses in, or the space used last, or that window's profile if
+    /// it shows one with no space.
+    pub(super) fn open_held_links(self: &Rc<Self>, mt: MainThread) {
         if self.held_links.borrow().is_empty() {
             return;
         }
-        let place = self.link_window().and_then(|window| window.place());
+        let place = self.browsing_window().and_then(|window| window.place());
         let place = match place {
             Some(place) => place,
             None => match self.db.most_recent_space() {
@@ -141,35 +97,6 @@ impl State {
         });
     }
 
-    // Opens the pages held in the window links open in, if it has its
-    // Browser; else the Browser is made, and they open as it is shown. With
-    // no window to open them in, one opens on the space used last, as the
-    // Dock icon's does.
-    fn open_held_pages(self: &Rc<Self>, mt: MainThread) {
-        if self.held_pages.borrow().is_empty() {
-            return;
-        }
-        let Some(window) = self.link_window() else {
-            return self.open_recent_window(mt);
-        };
-        let Some(browser) = window.browser() else {
-            // A place without one gets one, unless it is on the way; a
-            // window that waits for its first has it on the way.
-            if let Some(place) = window.place() {
-                self.open_browser(mt, window.id, place, || {});
-            }
-            return;
-        };
-        let urls = self.held_pages.take();
-        // The first ends up first in the list, and in front.
-        for url in urls.iter().rev() {
-            if let Err(error) = tabs::open(&browser, url) {
-                eprintln!("Wren could not open {url}: {error:?}");
-            }
-        }
-        window.page.bring_forward();
-    }
-
     /// Window `id` came into use: no Mini Wren but it goes back to its
     /// link's sender as it closes.
     pub(super) fn window_used(&self, id: WindowId) {
@@ -193,18 +120,5 @@ impl State {
         {
             eprintln!("Wren could not go back to {}.", sender.app_name);
         }
-    }
-
-    // The window links open in: the one the user browses in, or else the
-    // newest other. Never a popup's, nor off the record, as Chromium opens
-    // them in a normal window; nor one on no space while the user makes one.
-    fn link_window(&self) -> Option<Rc<BrowserWindow>> {
-        self.windows.taking(|window| {
-            !window.is_closing()
-                && window.left_space().is_none()
-                && !window
-                    .place()
-                    .is_some_and(|place| place.is_off_the_record())
-        })
     }
 }
