@@ -64,7 +64,10 @@ pub struct State {
     /// The app's own updates (updates.rs).
     pub updates: Updates,
     /// Links macOS asked the app to open before it could (windows/open_urls.rs).
-    pub(crate) held_urls: RefCell<Vec<String>>,
+    pub(crate) held_links: RefCell<Vec<String>>,
+    /// The app's own pages to show in tabs, held until the window links
+    /// open in has its Browser (windows/open_urls.rs).
+    pub(crate) held_pages: RefCell<Vec<String>>,
     /// Whether Wren is the default browser, as macOS said last; none before
     /// it says (windows/mod.rs).
     pub(crate) default_browser: Cell<Option<DefaultBrowserState>>,
@@ -102,7 +105,8 @@ impl State {
             }),
             tab_switcher_keys: RefCell::default(),
             updates,
-            held_urls: RefCell::default(),
+            held_links: RefCell::default(),
+            held_pages: RefCell::default(),
             default_browser: Cell::default(),
         }
     }
@@ -761,7 +765,7 @@ impl App for Wren {
     }
 
     // A link clicked in another app while Wren is the default browser, or a
-    // page opened with it: a new tab each (windows/open_urls.rs).
+    // page opened with it: a Mini Wren each (windows/open_urls.rs).
     fn open_urls(&self, mt: MainThread, urls: &[String]) {
         self.state.open_urls(mt, urls);
     }
