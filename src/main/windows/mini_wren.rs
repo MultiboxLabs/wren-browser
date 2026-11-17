@@ -1,9 +1,9 @@
 // The Mini Wren the app opens itself, with no page to open it: one for each
 // link from another app (open_urls.rs), and an empty one from New Mini Wren,
-// whose key works in any app. Each is a popup's window (popup.rs), in front.
-// It opens from the space of the window the user browses in, or else the
-// space used last, so it never adds to a space's tabs unless the user opens
-// it as a tab.
+// whose key works in any app. Each is a popup's window (popup.rs), in front
+// and centred on the pointer, where the user is looking. It opens from the
+// space of the window the user browses in, or else the space used last, so
+// it never adds to a space's tabs unless the user opens it as a tab.
 //
 // One asked for before its profile has opened, as a link that launches the
 // app is, or while a profile's last session is being restored, which brings
@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 use wren::{MainThread, RequestedBounds};
 
-use super::popup::PAGE_SIZE;
+use super::popup::{PAGE_SIZE, PopupPosition};
 use crate::app::State;
 use crate::menus;
 use crate::platform::{self, GlobalShortcut, RunningApp};
@@ -109,8 +109,7 @@ impl State {
     }
 
     // Opens `held` in a Mini Wren of its own on `place`'s profile, with no
-    // opener, from `place` if it is a space, cascaded from the window in
-    // front.
+    // opener, from `place` if it is a space, centred on the pointer.
     fn open_mini_wren(self: &Rc<Self>, mt: MainThread, held: HeldMiniWren, place: Place) {
         let HeldMiniWren { url, return_to } = held;
         let state = self.clone();
@@ -128,7 +127,7 @@ impl State {
             };
             profile.create_popup_browser(&url, Some(size), move |browser| match browser {
                 Ok(browser) => {
-                    let window = state.show_popup(mt, browser, space, None);
+                    let window = state.show_popup(mt, browser, space, PopupPosition::AtPointer);
                     if let Some((window, app)) = window.zip(return_to) {
                         state.returns_to.borrow_mut().insert(window, app);
                     }

@@ -121,6 +121,14 @@ impl PageWindow {
             .place_popup(size, origin, near.map(|near| &near.native));
     }
 
+    /// Gives a popup's window a content area of `size`, centred on the
+    /// pointer, on the screen it is on, and kept `margin` points inside that
+    /// screen's usable area on each side. A page that asked for less gets
+    /// the window's minimum.
+    pub fn place_popup_at_pointer(&self, size: (f64, f64), margin: f64) {
+        self.native.place_popup_at_pointer(size, margin);
+    }
+
     /// Puts the window where a restored Browser's window was, or where the
     /// window was when it was kept, back on a screen if that one has gone;
     /// without a position, only the size is its own. A size kept from

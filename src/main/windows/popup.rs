@@ -28,6 +28,21 @@ const TOOLBAR: f64 = 40.0;
 /// The size of a popup's page that asked for none.
 pub(super) const PAGE_SIZE: (f64, f64) = (800.0, 600.0);
 
+/// How far a popup's window placed at the pointer stays inside the
+/// screen's usable area, on each side, in points.
+const SCREEN_MARGIN: f64 = 20.0;
+
+/// Where a popup's window goes.
+pub(super) enum PopupPosition {
+    /// Where its page asked, if a screen shows it there, or else cascaded
+    /// from `near`, or the window in front: a popup a page or Chromium
+    /// opened.
+    AsAsked { near: Option<Rc<BrowserWindow>> },
+    /// Centred on the pointer, on its screen: a Mini Wren the user opened
+    /// (mini_wren.rs).
+    AtPointer,
+}
+
 /// A popup's window's minimum, its toolbar in it, however small its page
 /// asks to be: room for the window's buttons, some of the address, and the
 /// button that opens the page as a tab with its key and its menu of spaces.
@@ -43,19 +58,21 @@ impl State {
             .as_ref()
             .zip(opener.as_ref())
             .and_then(|(window, opener)| window.space_opened_from(opener));
-        self.show_popup(mt, browser, space, opener_window);
+        let position = PopupPosition::AsAsked {
+            near: opener_window,
+        };
+        self.show_popup(mt, browser, space, position);
     }
 
-    /// Shows `browser` in a popup's window, from `space`: as large as its
-    /// page asked, where it asked if a screen shows it there, or else
-    /// cascaded from `near`, or the window in front. One that gets no window
-    /// closes. Answers the window's ID.
+    /// Shows `browser` in a popup's window, from `space`, as large as its
+    /// page asked, at `position`. One that gets no window closes. Answers
+    /// the window's ID.
     pub(super) fn show_popup(
         self: &Rc<Self>,
         mt: MainThread,
         browser: Browser,
         space: Option<SpaceId>,
-        near: Option<Rc<BrowserWindow>>,
+        position: PopupPosition,
     ) -> Option<WindowId> {
         let Some(profile) = browser.profile() else {
             browser.close(|_| {});
@@ -81,12 +98,18 @@ impl State {
         };
         let requested = browser.requested_bounds();
         let (width, height) = requested.map_or(PAGE_SIZE, |bounds| (bounds.width, bounds.height));
-        let near = near.or_else(|| self.windows.front());
-        window.page.place_popup(
-            (width, height + TOOLBAR),
-            requested.and_then(|bounds| bounds.origin),
-            near.as_ref().map(|near| &near.page),
-        );
+        let size = (width, height + TOOLBAR);
+        match position {
+            PopupPosition::AsAsked { near } => {
+                let near = near.or_else(|| self.windows.front());
+                window.page.place_popup(
+                    size,
+                    requested.and_then(|bounds| bounds.origin),
+                    near.as_ref().map(|near| &near.page),
+                );
+            }
+            PopupPosition::AtPointer => window.page.place_popup_at_pointer(size, SCREEN_MARGIN),
+        }
         self.host_as_requested(&window, place, &browser);
         Some(window.id)
     }

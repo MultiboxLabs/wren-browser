@@ -2,8 +2,8 @@
 // whose origin is the bottom left of the main screen.
 
 use objc2::MainThreadMarker;
-use objc2_app_kit::NSScreen;
-use objc2_foundation::{NSIntersectsRect, NSPoint, NSRect, NSSize};
+use objc2_app_kit::{NSEvent, NSScreen};
+use objc2_foundation::{NSIntersectsRect, NSPoint, NSPointInRect, NSRect, NSSize};
 use wren::RequestedBounds;
 
 use super::PageWindow;
@@ -23,9 +23,7 @@ impl PageWindow {
         near: Option<&PageWindow>,
     ) {
         let window = &self.window;
-        let size = NSSize::new(size.0, size.1);
-        window.setContentSize(at_least(size, window.contentMinSize()));
-        let size = window.frame().size;
+        let size = self.set_popup_size(size);
         let asked = origin
             .map(|(x, y)| NSRect::new(NSPoint::new(x, y), size))
             .filter(|&frame| is_on_screen(frame));
@@ -33,6 +31,45 @@ impl PageWindow {
             Some(frame) => window.setFrame_display(frame, false),
             None => window.center(),
         }
+    }
+
+    pub fn place_popup_at_pointer(&self, size: (f64, f64), margin: f64) {
+        let size = self.set_popup_size(size);
+        let pointer = NSEvent::mouseLocation();
+        let mtm = MainThreadMarker::new().unwrap();
+        let screens = NSScreen::screens(mtm);
+        let screen = screens
+            .iter()
+            .find(|screen| NSPointInRect(pointer, screen.frame()))
+            .or_else(|| NSScreen::mainScreen(mtm));
+        let Some(screen) = screen else {
+            return self.window.center();
+        };
+        let area = screen.visibleFrame();
+        let left = area.origin.x + margin;
+        let right = area.origin.x + area.size.width - margin;
+        let bottom = area.origin.y + margin;
+        let top = area.origin.y + area.size.height - margin;
+        // Each limit applies in turn, the left and the top last, so a
+        // window larger than the room keeps its left edge and its top on
+        // the screen.
+        let x = (pointer.x - size.width / 2.0)
+            .min(right - size.width)
+            .max(left);
+        let y = (pointer.y - size.height / 2.0)
+            .max(bottom)
+            .min(top - size.height);
+        let frame = NSRect::new(NSPoint::new(x, y), size);
+        self.window.setFrame_display(frame, false);
+    }
+
+    // Gives a popup's window a content area of `size`, or its minimum, and
+    // answers its frame's size.
+    fn set_popup_size(&self, size: (f64, f64)) -> NSSize {
+        let size = NSSize::new(size.0, size.1);
+        self.window
+            .setContentSize(at_least(size, self.window.contentMinSize()));
+        self.window.frame().size
     }
 
     // The frame of a window of `size` cascaded from this one, as AppKit
