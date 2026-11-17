@@ -8,6 +8,13 @@ pub fn is_app_installed(id: &str) -> bool {
     current::apps::is_app_installed(id)
 }
 
+/// Brings the app the platform knows as `id` (on macOS, its bundle
+/// identifier) to the front, if it is running, as switching to it does.
+/// Whether it was running.
+pub fn activate_app(id: &str) -> bool {
+    current::apps::activate_app(id)
+}
+
 /// The icon of the app the platform knows as `id` (on macOS, its bundle
 /// identifier), `size` points square at twice that in pixels, as a PNG;
 /// None if no such app is installed.

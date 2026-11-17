@@ -116,17 +116,19 @@ impl State {
             if !active {
                 // Where it is now, should the app not quit as it should.
                 state.save_frame(&window);
-            } else if !window.is_popup() {
-                state.windows.set_active(id);
-                state.update_front_menu(mt);
-                // The space the user is in is the one used last.
-                if let Some(space) = window.space() {
-                    state.touch_space(space);
+            } else {
+                state.window_used(id);
+                if window.is_popup() {
+                    // A popup in use allows Open as Tab.
+                    state.update_front_menu(mt);
+                } else {
+                    state.windows.set_active(id);
+                    state.update_front_menu(mt);
+                    // The space the user is in is the one used last.
+                    if let Some(space) = window.space() {
+                        state.touch_space(space);
+                    }
                 }
-            }
-            // A popup in use allows Open as Tab.
-            if active && window.is_popup() {
-                state.update_front_menu(mt);
             }
             ipc::show_active(&window.page, active);
         });
