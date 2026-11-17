@@ -25,6 +25,7 @@ pub use site::{show_permission_menu, show_site_menu};
 
 pub const NEW_WINDOW: &str = "new-window";
 pub const NEW_INCOGNITO_WINDOW: &str = "new-incognito-window";
+pub const NEW_MINI_WREN: &str = "new-mini-wren";
 pub const NEW_TAB: &str = "new-tab";
 pub const OPEN_LOCATION: &str = "open-location";
 pub const OPEN_AS_TAB: &str = "open-as-tab";
@@ -49,6 +50,12 @@ pub const RESET_ONBOARDING: &str = "reset-onboarding";
 pub const SPACE: &str = "space:";
 /// The items for ⌘1 to ⌘9 are this and the favourite's number, from 1.
 pub const FAVORITE: &str = "favorite:";
+
+/// New Mini Wren's key, ⌥⌘N, which works in any app too
+/// (`State::take_mini_wren_key`).
+pub fn mini_wren_key() -> MenuKey {
+    MenuKey::new("n", MenuModifiers::PRIMARY | MenuModifiers::ALT)
+}
 
 /// What the window in front allows of the items that act on it.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -148,6 +155,8 @@ fn main_menu(
                     "N",
                     MenuModifiers::PRIMARY,
                 ),
+                // An empty Mini Wren (windows/mini_wren.rs).
+                keyed_by(NEW_MINI_WREN, "New Mini Wren", mini_wren_key()),
                 // The app's own, not Chromium's: both open the page's
                 // omnibox, which opens what is chosen in a new tab at the
                 // top of the sidebar's list, or in the active tab. Chromium's
@@ -511,13 +520,18 @@ fn system(role: MenuRole, label: Option<&str>, items: Vec<MenuItem>) -> MenuItem
 }
 
 fn keyed(id: &str, label: &str, key: &str, modifiers: MenuModifiers) -> MenuItem {
+    keyed_by(id, label, MenuKey::new(key, modifiers))
+}
+
+// An item with a key something else shares, as a global shortcut does.
+fn keyed_by(id: &str, label: &str, key: MenuKey) -> MenuItem {
     MenuItem::Item {
         id: id.into(),
         label: label.into(),
         enabled: true,
         checked: false,
         hidden: false,
-        key: Some(MenuKey::new(key, modifiers)),
+        key: Some(key),
     }
 }
 

@@ -15,16 +15,20 @@ mod keyboard;
 mod paths;
 mod property_list;
 mod secrets;
+mod shortcut;
 mod system;
 mod updater;
 mod window;
 
-pub use apps::{activate_app, installed_app_icon, is_app_installed};
+pub use apps::{
+    RunningApp, activate_app, frontmost_other_app, installed_app_icon, is_app_installed,
+};
 pub use files::{file_kind, file_thumbnail, file_type_icon};
 pub use keyboard::{Key, KeyWatch};
 pub use paths::{data_dir, home_dir, resources_dir};
 pub use property_list::read_property_list;
 pub use secrets::{chromium_key, decrypt};
+pub use shortcut::GlobalShortcut;
 pub use system::{OS_NAME, Privacy, app_version, open_privacy_settings, os_version};
 pub use updater::{Updater, UpdaterOptions, UpdaterState};
 pub use window::{DevToolsWindow, PageWindow, WindowSize, close_other_key_window};

@@ -15,6 +15,20 @@ pub fn activate_app(id: &str) -> bool {
     current::apps::activate_app(id)
 }
 
+/// An app that is running, as the platform knows it.
+#[derive(Clone, Debug)]
+pub struct RunningApp {
+    /// On macOS, its bundle identifier.
+    pub id: String,
+    /// Its name, as people see it.
+    pub name: String,
+}
+
+/// The app in front, if it is not Wren.
+pub fn frontmost_other_app() -> Option<RunningApp> {
+    current::apps::frontmost_other_app()
+}
+
 /// The icon of the app the platform knows as `id` (on macOS, its bundle
 /// identifier), `size` points square at twice that in pixels, as a PNG;
 /// None if no such app is installed.

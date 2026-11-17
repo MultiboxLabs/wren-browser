@@ -6,6 +6,7 @@
 //
 // - open.rs: opening windows, and where each Browser goes;
 // - open_urls.rs: the links macOS asks the app to open, in Mini Wren;
+// - mini_wren.rs: the Mini Wren the app opens itself, for a link or empty;
 // - show_page.rs: the app's own pages a menu item shows, in tabs;
 // - popup.rs: the windows of popups;
 // - switch.rs: switching a window between its spaces;
@@ -16,6 +17,7 @@
 // What a window is, and holds, is shell/'s: `BrowserWindow`
 // (shell/browser.rs), and the platform's window round its page.
 
+mod mini_wren;
 mod move_tabs;
 mod open;
 mod open_urls;
@@ -25,7 +27,7 @@ mod session;
 mod show_page;
 mod switch;
 
-pub use open_urls::LinkSender;
+pub(crate) use mini_wren::HeldMiniWren;
 pub use session::keep_session_data;
 
 use std::rc::Rc;
@@ -170,13 +172,13 @@ impl State {
         }
     }
 
-    /// Opens the links and the app's own pages held, if the app can now:
+    /// Opens the Mini Wren and the app's own pages held, if the app can now:
     /// not before startup opens the windows, nor while restoring.
     pub(super) fn open_held(self: &Rc<Self>, mt: MainThread) {
         if self.ui_profile.borrow().is_none() || self.is_restoring() {
             return;
         }
-        self.open_held_links(mt);
+        self.open_held_mini_wren(mt);
         self.open_held_pages(mt);
     }
 

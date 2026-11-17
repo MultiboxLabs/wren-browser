@@ -6,6 +6,7 @@ pub mod keyboard;
 pub mod paths;
 pub mod property_list;
 pub mod secrets;
+pub mod shortcut;
 pub mod system;
 pub mod updater;
 pub mod window;

@@ -1,12 +1,12 @@
 // Popups, which the user knows as Mini Wren. A Browser Chromium opens that
 // is not a tabbed window gets a small browser window of its own: a page's
 // popup (`window.open` with features, as a sign-in opens), an extension's
-// popup window, or an installed app's window. A link from another app opens
-// in one too (open_urls.rs). The page draws its toolbar, whose address
-// opens the omnibox for its page, and no sidebar (pages/ui/popup.tsx). It is
-// on its profile's place, and never kept: its Browser closing takes it
-// (`App::browser_closed`). Its page can move to a tab of a window the user
-// browses in (`open_popup_as_tab`). Document
+// popup window, or an installed app's window. The app opens one itself too,
+// for a link from another app or empty (mini_wren.rs). The page draws its
+// toolbar, whose address opens the omnibox for its page, and no sidebar
+// (pages/ui/popup.tsx). It is on its profile's place, and never kept: its
+// Browser closing takes it (`App::browser_closed`). Its page can move to a
+// tab of a window the user browses in (`open_popup_as_tab`). Document
 // Picture-in-Picture is none of these: Chromium shows it in a window of its
 // own, with no Browser.
 

@@ -25,13 +25,14 @@ use crate::pages::{self, SCHEME, Source, serve_page};
 use crate::perf::Perf;
 use crate::pins;
 use crate::platform::{
-    DevToolsWindow, KeyWatch, PageWindow, QUITS_WITH_LAST_WINDOW, close_other_key_window,
+    DevToolsWindow, GlobalShortcut, KeyWatch, PageWindow, QUITS_WITH_LAST_WINDOW, RunningApp,
+    close_other_key_window,
 };
 use crate::shell::{BrowserWindow, WindowId, Windows};
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
 use crate::updates::{self, Updates};
-use crate::windows::{self, LinkSender};
+use crate::windows::{self, HeldMiniWren};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -61,18 +62,20 @@ pub struct State {
     pub(crate) menu_front: Cell<menus::Front>,
     // Hears the tab switcher's keys while it is kept.
     tab_switcher_keys: RefCell<Option<KeyWatch>>,
+    /// New Mini Wren's key, taken from every app (windows/mini_wren.rs).
+    pub(crate) mini_wren_shortcut: RefCell<Option<GlobalShortcut>>,
     /// The app's own updates (updates.rs).
     pub updates: Updates,
-    /// Links macOS asked the app to open before it could, each with the app
-    /// that sent it (windows/open_urls.rs).
-    pub(crate) held_links: RefCell<Vec<(String, Option<LinkSender>)>>,
+    /// The Mini Wren asked for before the app could open them
+    /// (windows/mini_wren.rs).
+    pub(crate) held_mini_wren: RefCell<Vec<HeldMiniWren>>,
     /// The app's own pages to show in tabs, held until the window the user
     /// browses in has its Browser (windows/show_page.rs).
     pub(crate) held_pages: RefCell<Vec<String>>,
-    /// The app each Mini Wren a link opened goes back to as it closes: the
-    /// one that sent the link, until the user goes to another window
-    /// (windows/open_urls.rs).
-    pub(crate) returns_to: RefCell<HashMap<WindowId, LinkSender>>,
+    /// The app each Mini Wren goes back to as it closes: the one that sent
+    /// its link, or that was in front as it opened empty, until the user
+    /// goes to another window (windows/mini_wren.rs).
+    pub(crate) returns_to: RefCell<HashMap<WindowId, RunningApp>>,
     /// Whether Wren is the default browser, as macOS said last; none before
     /// it says (windows/mod.rs).
     pub(crate) default_browser: Cell<Option<DefaultBrowserState>>,
@@ -109,8 +112,9 @@ impl State {
                 popup: false,
             }),
             tab_switcher_keys: RefCell::default(),
+            mini_wren_shortcut: RefCell::default(),
             updates,
-            held_links: RefCell::default(),
+            held_mini_wren: RefCell::default(),
             held_pages: RefCell::default(),
             returns_to: RefCell::default(),
             default_browser: Cell::default(),
@@ -143,8 +147,10 @@ impl State {
         }
         self.updates.start(self, mt);
         tabs::archive::start(mt, self);
+        self.take_mini_wren_key(mt);
         // Restoring from now, while the profile opens: the windows wait for
-        // their Browsers, which a link must not make first (open_urls.rs).
+        // their Browsers, which a Mini Wren must not make first
+        // (windows/mini_wren.rs).
         self.restore_started();
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
@@ -305,6 +311,7 @@ impl Wren {
             }
             menus::NEW_WINDOW => state.new_window(mt, front.as_deref()),
             menus::NEW_INCOGNITO_WINDOW => state.new_incognito_window(mt, front.as_deref()),
+            menus::NEW_MINI_WREN => state.new_mini_wren(mt),
             menus::NEW_TAB | menus::OPEN_LOCATION => {
                 let Some(front) = front else { return };
                 front.page.bring_forward();
@@ -570,6 +577,9 @@ impl App for Wren {
         if id == menus::NEW_INCOGNITO_WINDOW {
             return self.state.new_incognito_window(mt, window.as_deref());
         }
+        if id == menus::NEW_MINI_WREN {
+            return self.state.new_mini_wren(mt);
+        }
         let Some(window) = window else {
             return;
         };
@@ -777,9 +787,9 @@ impl App for Wren {
         // TODO: take the sender from Wren Runtime's next version, which
         // gives its app_id, app_name and app_path with the URLs. Until then
         // every link is Discord's.
-        let sender = LinkSender {
-            app_id: "com.hnc.Discord".into(),
-            app_name: "Discord".into(),
+        let sender = RunningApp {
+            id: "com.hnc.Discord".into(),
+            name: "Discord".into(),
         };
         self.state.open_urls(mt, urls, Some(sender));
     }
@@ -805,7 +815,7 @@ impl App for Wren {
         };
         let place = window.remove(&browser);
         if window.is_popup() {
-            self.state.link_popup_closed(&window);
+            self.state.mini_wren_closed(&window);
             ipc::quit_window_closing(&self.state, window.id);
             ipc::forget_move_question(window.id);
             self.state.windows.remove(window.id);
