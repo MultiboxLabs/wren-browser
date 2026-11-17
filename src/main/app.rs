@@ -31,7 +31,7 @@ use crate::shell::{BrowserWindow, WindowId, Windows};
 use crate::sidebar::SidebarStore;
 use crate::tabs::{self, placeholder};
 use crate::updates::{self, Updates};
-use crate::windows;
+use crate::windows::{self, LinkSender};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -63,11 +63,16 @@ pub struct State {
     tab_switcher_keys: RefCell<Option<KeyWatch>>,
     /// The app's own updates (updates.rs).
     pub updates: Updates,
-    /// Links macOS asked the app to open before it could (windows/open_urls.rs).
-    pub(crate) held_links: RefCell<Vec<String>>,
+    /// Links macOS asked the app to open before it could, each with the app
+    /// that sent it (windows/open_urls.rs).
+    pub(crate) held_links: RefCell<Vec<(String, Option<LinkSender>)>>,
     /// The app's own pages to show in tabs, held until the window links
     /// open in has its Browser (windows/open_urls.rs).
     pub(crate) held_pages: RefCell<Vec<String>>,
+    /// The app each Mini Wren a link opened goes back to as it closes: the
+    /// one that sent the link, until the user goes to another window
+    /// (windows/open_urls.rs).
+    pub(crate) returns_to: RefCell<HashMap<WindowId, LinkSender>>,
     /// Whether Wren is the default browser, as macOS said last; none before
     /// it says (windows/mod.rs).
     pub(crate) default_browser: Cell<Option<DefaultBrowserState>>,
@@ -107,6 +112,7 @@ impl State {
             updates,
             held_links: RefCell::default(),
             held_pages: RefCell::default(),
+            returns_to: RefCell::default(),
             default_browser: Cell::default(),
         }
     }
@@ -767,7 +773,14 @@ impl App for Wren {
     // A link clicked in another app while Wren is the default browser, or a
     // page opened with it: a Mini Wren each (windows/open_urls.rs).
     fn open_urls(&self, mt: MainThread, urls: &[String]) {
-        self.state.open_urls(mt, urls);
+        // TODO: take the sender from Wren Runtime's next version, which
+        // gives its app_id, app_name and app_path with the URLs. Until then
+        // every link is Discord's.
+        let sender = LinkSender {
+            app_id: "com.hnc.Discord".into(),
+            app_name: "Discord".into(),
+        };
+        self.state.open_urls(mt, urls, Some(sender));
     }
 
     // Chromium closes a Browser whose last tab closes. Its window stays, with
@@ -791,6 +804,7 @@ impl App for Wren {
         };
         let place = window.remove(&browser);
         if window.is_popup() {
+            self.state.link_popup_closed(&window);
             ipc::quit_window_closing(&self.state, window.id);
             ipc::forget_move_question(window.id);
             self.state.windows.remove(window.id);

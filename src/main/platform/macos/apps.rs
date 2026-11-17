@@ -1,7 +1,8 @@
 // macOS's side of platform/apps.rs: NSWorkspace finds an installed app,
-// and its icon, by its bundle identifier.
+// and its icon, by its bundle identifier, and NSRunningApplication a
+// running one.
 
-use objc2_app_kit::NSWorkspace;
+use objc2_app_kit::{NSApplicationActivationOptions, NSRunningApplication, NSWorkspace};
 use objc2_foundation::NSString;
 
 use super::files::image_png;
@@ -10,6 +11,14 @@ pub fn is_app_installed(id: &str) -> bool {
     NSWorkspace::sharedWorkspace()
         .URLForApplicationWithBundleIdentifier(&NSString::from_str(id))
         .is_some()
+}
+
+pub fn activate_app(id: &str) -> bool {
+    let running =
+        NSRunningApplication::runningApplicationsWithBundleIdentifier(&NSString::from_str(id));
+    running
+        .firstObject()
+        .is_some_and(|app| app.activateWithOptions(NSApplicationActivationOptions::empty()))
 }
 
 pub fn installed_app_icon(id: &str, size: f64) -> Option<Vec<u8>> {

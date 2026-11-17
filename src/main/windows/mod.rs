@@ -23,6 +23,7 @@ mod request;
 mod session;
 mod switch;
 
+pub use open_urls::LinkSender;
 pub use session::keep_session_data;
 
 use std::rc::Rc;

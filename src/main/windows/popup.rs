@@ -49,17 +49,17 @@ impl State {
     /// Shows `browser` in a popup's window, from `space`: as large as its
     /// page asked, where it asked if a screen shows it there, or else
     /// cascaded from `near`, or the window in front. One that gets no window
-    /// closes.
+    /// closes. Answers the window's ID.
     pub(super) fn show_popup(
         self: &Rc<Self>,
         mt: MainThread,
         browser: Browser,
         space: Option<SpaceId>,
         near: Option<Rc<BrowserWindow>>,
-    ) {
+    ) -> Option<WindowId> {
         let Some(profile) = browser.profile() else {
             browser.close(|_| {});
-            return;
+            return None;
         };
         let popup = Popup {
             space,
@@ -77,7 +77,7 @@ impl State {
         );
         let Some(window) = window else {
             browser.close(|_| {});
-            return;
+            return None;
         };
         let requested = browser.requested_bounds();
         let (width, height) = requested.map_or(PAGE_SIZE, |bounds| (bounds.width, bounds.height));
@@ -88,6 +88,7 @@ impl State {
             near.as_ref().map(|near| &near.page),
         );
         self.host_as_requested(&window, place, &browser);
+        Some(window.id)
     }
 
     /// Moves the page of popup window `id` to a new tab, at the top of the
@@ -121,6 +122,7 @@ impl State {
         let state = self.clone();
         ipc::ask_before_profile_move(self, id, crossing, move |go| {
             if go {
+                state.popup_moved_to_tab(id);
                 state.bring_popup_page(mt, tab, place);
             }
         });
