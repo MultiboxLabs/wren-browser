@@ -165,9 +165,9 @@ impl State {
     }
 
     // Keeps the size the user gives Mini Wren `id`'s page as they finish
-    // resizing it, for the next one to open at. On the New Tab page its
-    // window has no edges to resize it by, and full screen its size is the
-    // screen's, not the user's.
+    // resizing it, for the next one to open at. On the New Tab page the
+    // window is the omnibox's, which has no page, and full screen its size
+    // is the screen's, not the user's.
     fn keep_page_size(self: &Rc<Self>, id: WindowId) {
         let Some(window) = self.windows.get(id) else {
             return;
@@ -178,7 +178,7 @@ impl State {
             let Some(window) = state.windows.get(id) else {
                 return;
             };
-            if window.page.is_full_screen() {
+            if window.is_on_new_tab_page() || window.page.is_full_screen() {
                 return;
             }
             let (width, height) = window.page.content_size();

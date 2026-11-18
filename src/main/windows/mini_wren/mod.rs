@@ -6,7 +6,7 @@
 // (from_apps.rs). Its page draws a toolbar, whose address opens the
 // omnibox for its page, above the page (pages/ui/mini-wren.tsx). On the
 // New Tab page, as an empty one opens, it is the omnibox alone instead,
-// and the window draws nothing of its own round it (`follow_new_tab_page`).
+// filling the window (`follow_new_tab_page`).
 // It is on its profile's place, and never kept: its Browser closing takes
 // it (`App::browser_closed`). Its page can move to a tab of a window the
 // user browses in (as_tab.rs). Document Picture-in-Picture is none of
@@ -25,6 +25,7 @@ use super::session::unkept_window_key;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
+use crate::platform::Backdrop;
 use crate::shell::{BrowserWindow, MiniWren, Place, WindowId};
 use crate::tabs;
 
@@ -36,15 +37,10 @@ const TOOLBAR: f64 = 40.0;
 /// The size of a Mini Wren's page that asked for none.
 const PAGE_SIZE: (f64, f64) = (800.0, 600.0);
 
-/// The room round the omnibox of a Mini Wren on the New Tab page, for the
-/// shadow it draws, as the window draws none, in points on each side.
-const SHADOW_ROOM: f64 = 40.0;
-
 /// A Mini Wren's window on the New Tab page: the omnibox's size in the
-/// middle of a window, with room round it for its shadow (`sizes.center`
-/// and `SHADOW_ROOM`, components/omnibox/omnibox.tsx). Change them
-/// together.
-const NEW_TAB_PAGE_SIZE: (f64, f64) = (763.0 + 2.0 * SHADOW_ROOM, 326.0 + 2.0 * SHADOW_ROOM);
+/// middle of a window (`sizes.center`, components/omnibox/omnibox.tsx).
+/// Change the two together.
+const NEW_TAB_PAGE_SIZE: (f64, f64) = (763.0, 326.0);
 
 /// How far a Mini Wren's window placed at the pointer, or resized, stays
 /// inside the screen's usable area, on each side, in points.
@@ -118,9 +114,7 @@ impl State {
         // shows.
         let on_new_tab_page = is_on_new_tab_page(mini_wren, &browser) == Some(true);
         window.set_on_new_tab_page(on_new_tab_page);
-        if on_new_tab_page {
-            window.page.set_see_through(true);
-        }
+        window.page.set_backdrop(backdrop(on_new_tab_page));
         let size = window_size(on_new_tab_page, &browser);
         let requested = browser.requested_bounds();
         match position {
@@ -140,10 +134,11 @@ impl State {
 
     /// Draws Mini Wren `window` as the omnibox alone once its page has gone
     /// to the New Tab page, or with its toolbar and page again once it has
-    /// left it, as what the omnibox opens loads there. The window is
-    /// see-through round the omnibox, and grows or shrinks from its top to
-    /// the size of what it shows. The page draws it so ("window.newTabPage"),
-    /// and the main menu follows. Nothing for a browser window.
+    /// left it, as what the omnibox opens loads there. The window grows or
+    /// shrinks from its top to the size of what it shows, and its backdrop
+    /// is a panel's while it is the omnibox. The page draws it so
+    /// ("window.newTabPage"), and the main menu follows. Nothing for a
+    /// browser window.
     pub fn follow_new_tab_page(&self, mt: MainThread, window: &BrowserWindow) {
         let Some((mini_wren, browser)) = window.mini_wren().zip(window.browser()) else {
             return;
@@ -154,7 +149,7 @@ impl State {
         if !window.set_on_new_tab_page(on_new_tab_page) {
             return;
         }
-        window.page.set_see_through(on_new_tab_page);
+        window.page.set_backdrop(backdrop(on_new_tab_page));
         let size = window_size(on_new_tab_page, &browser);
         window.page.resize_from_top(size, SCREEN_MARGIN);
         ipc::send_new_tab_page(window);
@@ -178,6 +173,16 @@ impl State {
 fn is_on_new_tab_page(mini_wren: MiniWren, browser: &Browser) -> Option<bool> {
     let url = browser.active_tab()?.url();
     (!url.is_empty()).then(|| mini_wren.address && tabs::is_new_tab(&url))
+}
+
+// What shows through a Mini Wren's page: a panel's clearer blur while it is
+// the omnibox alone, which is one panel; or else a window's.
+fn backdrop(on_new_tab_page: bool) -> Backdrop {
+    if on_new_tab_page {
+        Backdrop::Panel
+    } else {
+        Backdrop::Window
+    }
 }
 
 // The size of a Mini Wren's window on `browser`: the omnibox's on the New

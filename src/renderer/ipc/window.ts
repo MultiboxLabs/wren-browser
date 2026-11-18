@@ -35,7 +35,7 @@ export const appWindow = {
   openAsTab: (space: number | null = null) => wren.invoke<null>("window.openAsTab", space),
   /**
    * Whether the window is a Mini Wren on the New Tab page, drawn as the
-   * omnibox alone. The window is see-through round it, has no buttons, and
+   * omnibox alone, filling the window. The window has no buttons, and
    * closes as it goes out of use. False for a browser window.
    */
   newTabPage: () => wren.invoke<boolean>("window.newTabPage"),

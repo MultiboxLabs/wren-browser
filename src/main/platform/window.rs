@@ -21,6 +21,17 @@ pub enum WindowSize {
     Fixed((f64, f64)),
 }
 
+/// What shows through the page where it draws nothing: the desktop and the
+/// windows behind, blurred.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Backdrop {
+    /// A window's own, frosted so that little shows through.
+    Window,
+    /// A floating panel's, clearer, so more of what is behind shows: for a
+    /// window that is one panel, as a Mini Wren on the New Tab page is.
+    Panel,
+}
+
 type CrashWatch = Rc<RefCell<Option<Box<dyn Fn()>>>>;
 
 /// A window showing one page. Its web view drops first, which takes the page
@@ -265,12 +276,10 @@ impl PageWindow {
         self.native.set_dark(dark);
     }
 
-    /// Draws nothing of the window itself, only what its page draws, or
-    /// draws it again: no blur behind the page, no background and no
-    /// shadow, and no edges to resize it by. A page drawn on a see-through
-    /// window draws its own shadow, inside the window.
-    pub fn set_see_through(&self, see_through: bool) {
-        self.native.set_see_through(see_through);
+    /// Draws `backdrop` behind the page; a window opens with
+    /// `Backdrop::Window`.
+    pub fn set_backdrop(&self, backdrop: Backdrop) {
+        self.native.set_backdrop(backdrop);
     }
 
     /// Puts the close, minimise and zoom buttons with the close button's top

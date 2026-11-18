@@ -31,13 +31,12 @@ use objc2_app_kit::{
     NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
     NSApplication, NSApplicationActivationOptions, NSApplicationDidBecomeActiveNotification,
     NSApplicationDidResignActiveNotification, NSAutoresizingMaskOptions, NSBackingStoreType,
-    NSColor, NSRunningApplication, NSToolbar, NSView, NSVisualEffectBlendingMode,
-    NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView, NSWindow,
-    NSWindowDidBecomeKeyNotification, NSWindowDidBecomeMainNotification,
-    NSWindowDidEndLiveResizeNotification, NSWindowDidExitFullScreenNotification,
-    NSWindowDidResignKeyNotification, NSWindowDidResignMainNotification,
-    NSWindowDidResizeNotification, NSWindowStyleMask, NSWindowTitleVisibility,
-    NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
+    NSRunningApplication, NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial,
+    NSVisualEffectState, NSVisualEffectView, NSWindow, NSWindowDidBecomeKeyNotification,
+    NSWindowDidBecomeMainNotification, NSWindowDidEndLiveResizeNotification,
+    NSWindowDidExitFullScreenNotification, NSWindowDidResignKeyNotification,
+    NSWindowDidResignMainNotification, NSWindowDidResizeNotification, NSWindowStyleMask,
+    NSWindowTitleVisibility, NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
 };
 use objc2_foundation::{
     NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString, ns_string,
@@ -45,7 +44,7 @@ use objc2_foundation::{
 use objc2_quartz_core::CATransaction;
 use wren::{MainThread, WebView};
 
-use crate::platform::WindowSize;
+use crate::platform::{Backdrop, WindowSize};
 use delegate::WindowDelegate;
 use full_screen::is_full_screen;
 use title_bar::TitleBar;
@@ -57,8 +56,6 @@ pub struct PageWindow {
     window: Retained<NSWindow>,
     // Behind the page, which is see-through where it draws nothing.
     backdrop: Retained<NSVisualEffectView>,
-    // Whether the user can resize the window, while it is not see-through.
-    resizable: bool,
     // A window holds its delegate weakly.
     delegate: Retained<WindowDelegate>,
     observers: RefCell<Vec<Retained<ProtocolObject<dyn NSObjectProtocol>>>>,
@@ -83,12 +80,12 @@ impl PageWindow {
             | NSWindowStyleMask::Closable
             | NSWindowStyleMask::Miniaturizable
             | NSWindowStyleMask::FullSizeContentView;
-        let (size, min_size, resizable) = match size {
+        let (size, min_size) = match size {
             WindowSize::Resizable { size, min } => {
                 style |= NSWindowStyleMask::Resizable;
-                (size, min, true)
+                (size, min)
             }
-            WindowSize::Fixed(size) => (size, size, false),
+            WindowSize::Fixed(size) => (size, size),
         };
         let window = unsafe {
             NSWindow::initWithContentRect_styleMask_backing_defer(
@@ -121,7 +118,7 @@ impl PageWindow {
         // set from the window's, as the page's is (set_active).
         let backdrop =
             NSVisualEffectView::initWithFrame(NSVisualEffectView::alloc(mtm), content.bounds());
-        backdrop.setMaterial(NSVisualEffectMaterial::UnderWindowBackground);
+        backdrop.setMaterial(material(Backdrop::Window));
         backdrop.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
         backdrop.setState(NSVisualEffectState::Active);
         backdrop.setAutoresizingMask(fill);
@@ -171,7 +168,6 @@ impl PageWindow {
         PageWindow {
             window,
             backdrop,
-            resizable,
             delegate,
             observers: RefCell::new(observers),
             pointer_monitor: Rc::default(),
@@ -263,25 +259,8 @@ impl PageWindow {
         self.title_bar.apply(&self.window);
     }
 
-    // The window's own background and shadow go, as the blur does, and so
-    // do its edges' resizing, which no one could see to use.
-    pub fn set_see_through(&self, see_through: bool) {
-        let window = &self.window;
-        self.backdrop.setHidden(see_through);
-        window.setOpaque(!see_through);
-        let background = if see_through {
-            NSColor::clearColor()
-        } else {
-            NSColor::windowBackgroundColor()
-        };
-        window.setBackgroundColor(Some(&background));
-        window.setHasShadow(!see_through);
-        let mut style = window.styleMask();
-        style.set(NSWindowStyleMask::Resizable, self.resizable && !see_through);
-        window.setStyleMask(style);
-        // A new style lays the title bar out again, which puts the buttons
-        // back.
-        self.title_bar.apply(window);
+    pub fn set_backdrop(&self, backdrop: Backdrop) {
+        self.backdrop.setMaterial(material(backdrop));
     }
 
     pub fn set_buttons(&self, at: Option<(f64, f64)>) {
@@ -312,6 +291,15 @@ fn observe(
             None,
             &block,
         )
+    }
+}
+
+// The blur macOS draws for `backdrop`: under a window's content, or a
+// heads-up display's, which shows more of what is behind it.
+fn material(backdrop: Backdrop) -> NSVisualEffectMaterial {
+    match backdrop {
+        Backdrop::Window => NSVisualEffectMaterial::UnderWindowBackground,
+        Backdrop::Panel => NSVisualEffectMaterial::HUDWindow,
     }
 }
 
