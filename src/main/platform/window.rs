@@ -41,7 +41,7 @@ pub enum WindowKind {
     /// A panel: it takes the keyboard and comes in front of other apps'
     /// windows with the app left in the background, and the app's other
     /// windows where they are, as a window a key opens from any app does.
-    /// It is a window from when it is made one (`become_window`).
+    /// Clicking it does not bring the app forward either.
     Panel,
 }
 
@@ -117,13 +117,6 @@ impl PageWindow {
     /// frame.
     pub fn hide(&self) {
         self.native.hide();
-    }
-
-    /// Makes a `WindowKind::Panel` a window from now on: clicking it,
-    /// showing it or bringing it forward brings the app forward too. It
-    /// does not bring the app forward itself. Nothing for a window.
-    pub fn become_window(&self) {
-        self.native.become_window();
     }
 
     /// Names the window, as the platform's window lists show it; the title

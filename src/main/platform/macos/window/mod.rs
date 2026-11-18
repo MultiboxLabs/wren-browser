@@ -39,6 +39,7 @@ use objc2_app_kit::{
     NSWindowDidExitFullScreenNotification, NSWindowDidResignKeyNotification,
     NSWindowDidResignMainNotification, NSWindowDidResizeNotification, NSWindowStyleMask,
     NSWindowTitleVisibility, NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
+    NSWorkspace,
 };
 use objc2_foundation::{
     NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString, ns_string,
@@ -197,17 +198,6 @@ impl PageWindow {
         self.window.orderOut(None);
     }
 
-    // Clicking it, showing it or bringing it forward now activates the app,
-    // as with any window.
-    pub fn become_window(&self) {
-        let mut style = self.window.styleMask();
-        style.remove(NSWindowStyleMask::NonactivatingPanel);
-        self.window.setStyleMask(style);
-        // A new style lays the title bar out again, which puts the buttons
-        // back.
-        self.title_bar.apply(&self.window);
-    }
-
     // The Window menu, the Dock and Mission Control show the title. A new one
     // has AppKit lay the title bar out, which puts the buttons back at once.
     pub fn set_title(&self, title: &str) {
@@ -359,8 +349,20 @@ fn bring_in_front(window: &NSWindow) {
         .activateWithOptions(NSApplicationActivationOptions::empty());
 }
 
-// Whether `window` is a panel that takes the keyboard without bringing the
-// app forward (panel.rs), until it is made a window.
+// Whether the app is the one in front, as the menu bar shows it. While a
+// panel has the keyboard, NSApplication's `isActive` is true even when it
+// is not.
+fn is_in_front() -> bool {
+    NSWorkspace::sharedWorkspace()
+        .frontmostApplication()
+        .is_some_and(|app| {
+            app.processIdentifier()
+                == NSRunningApplication::currentApplication().processIdentifier()
+        })
+}
+
+// Whether `window` is a panel, which takes the keyboard without bringing the
+// app forward (panel.rs).
 fn takes_keyboard_alone(window: &NSWindow) -> bool {
     window
         .styleMask()
@@ -368,15 +370,15 @@ fn takes_keyboard_alone(window: &NSWindow) -> bool {
 }
 
 // Main while the app is active, or under the key window. While a panel has
-// the keyboard alone, AppKit counts the app as active, though it is in the
-// background: then only the panel, and what is over it, is in use, not the
-// main window.
+// the keyboard, only it and what is over it are in use: AppKit counts the
+// app as active then, even with it in the background, and the main window
+// is not the one in use.
 fn is_active(window: &Retained<NSWindow>) -> bool {
     let app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
-    let panel_alone = app
+    let panel_has_keyboard = app
         .keyWindow()
         .is_some_and(|key| takes_keyboard_alone(&key));
-    if app.isActive() && !panel_alone && window.isMainWindow() {
+    if app.isActive() && !panel_has_keyboard && window.isMainWindow() {
         return true;
     }
     let mut current = app.keyWindow();
@@ -400,10 +402,10 @@ impl Drop for PageWindow {
         }
         self.window.setDelegate(None);
         // While a panel has the keyboard, AppKit counts the app as active,
-        // though the app the user was in is still in front, so closing it
-        // would give the keyboard to the app's main window, which would come
-        // in front for a moment. It goes back to that app first.
-        if self.window.isKeyWindow() && takes_keyboard_alone(&self.window) {
+        // even with another app in front, so closing it would give the
+        // keyboard to the app's main window, which would come in front for
+        // a moment. It goes back to the app in front first.
+        if self.window.isKeyWindow() && takes_keyboard_alone(&self.window) && !is_in_front() {
             NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).deactivate();
         }
         self.window.close();
