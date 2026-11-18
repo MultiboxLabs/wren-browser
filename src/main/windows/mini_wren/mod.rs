@@ -5,12 +5,15 @@
 // for a link from another app, or empty from New Mini Wren
 // (from_apps.rs). Its page draws a toolbar, whose address opens the
 // omnibox for its page, above the page (pages/ui/mini-wren.tsx). On the
-// New Tab page, as an empty one opens, it is the omnibox alone instead,
-// filling the window (`follow_new_tab_page`).
-// It is on its profile's place, and never kept: its Browser closing takes
-// it (`App::browser_closed`). Its page can move to a tab of a window the
-// user browses in (as_tab.rs). Document Picture-in-Picture is none of
-// these: Chromium shows it in a window of its own, with no Browser.
+// New Tab page, as an empty one opens, it is the omnibox alone instead, in
+// a panel that takes the keyboard with Wren left in the background and its
+// other windows where they are, as Spotlight does. It becomes a window, and
+// Wren comes forward with it, once a page opens in it
+// (`follow_new_tab_page`). It is on its profile's place, and never kept:
+// its Browser closing takes it (`App::browser_closed`). Its page can move
+// to a tab of a window the user browses in (as_tab.rs). Document
+// Picture-in-Picture is none of these: Chromium shows it in a window of its
+// own, with no Browser.
 
 mod as_tab;
 mod from_apps;
@@ -25,7 +28,7 @@ use super::session::unkept_window_key;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
-use crate::platform::Backdrop;
+use crate::platform::{Backdrop, WindowKind};
 use crate::shell::{BrowserWindow, MiniWren, Place, WindowId};
 use crate::tabs;
 
@@ -99,12 +102,14 @@ impl State {
                 .contains(WindowFeatures::LOCATION_BAR),
         };
         let place = Place::of_profile(&profile);
+        let on_new_tab_page = is_on_new_tab_page(mini_wren, &browser) == Some(true);
         let window = self.open_page_window(
             mt,
             unkept_window_key(),
             Some(place.clone()),
             true,
             Some(mini_wren),
+            window_kind(on_new_tab_page),
         );
         let Some(window) = window else {
             browser.close(|_| {});
@@ -112,7 +117,6 @@ impl State {
         };
         // Drawn as it is to be before it is placed, and long before it
         // shows.
-        let on_new_tab_page = is_on_new_tab_page(mini_wren, &browser) == Some(true);
         window.set_on_new_tab_page(on_new_tab_page);
         window.page.set_backdrop(backdrop(on_new_tab_page));
         let size = window_size(on_new_tab_page, &browser);
@@ -136,9 +140,10 @@ impl State {
     /// to the New Tab page, or with its toolbar and page again once it has
     /// left it, as what the omnibox opens loads there. The window grows or
     /// shrinks from its top to the size of what it shows, and its backdrop
-    /// is a panel's while it is the omnibox. The page draws it so
-    /// ("window.newTabPage"), and the main menu follows. Nothing for a
-    /// browser window.
+    /// is a panel's while it is the omnibox. A panel becomes a window as a
+    /// page opens in it, and Wren comes forward with it if the user is in
+    /// it. The page draws it so ("window.newTabPage"), and the main menu
+    /// follows. Nothing for a browser window.
     pub fn follow_new_tab_page(&self, mt: MainThread, window: &BrowserWindow) {
         let Some((mini_wren, browser)) = window.mini_wren().zip(window.browser()) else {
             return;
@@ -150,6 +155,12 @@ impl State {
             return;
         }
         window.page.set_backdrop(backdrop(on_new_tab_page));
+        if !on_new_tab_page {
+            window.page.become_window();
+            if window.page.is_active() {
+                window.page.bring_forward();
+            }
+        }
         let size = window_size(on_new_tab_page, &browser);
         window.page.resize_from_top(size, SCREEN_MARGIN);
         ipc::send_new_tab_page(window);
@@ -173,6 +184,17 @@ impl State {
 fn is_on_new_tab_page(mini_wren: MiniWren, browser: &Browser) -> Option<bool> {
     let url = browser.active_tab()?.url();
     (!url.is_empty()).then(|| mini_wren.address && tabs::is_new_tab(&url))
+}
+
+// The kind of window a Mini Wren opens in: a panel on the New Tab page, as
+// the omnibox alone takes the keyboard with Wren left in the background; or
+// else a window.
+fn window_kind(on_new_tab_page: bool) -> WindowKind {
+    if on_new_tab_page {
+        WindowKind::Panel
+    } else {
+        WindowKind::Window
+    }
 }
 
 // What shows through a Mini Wren's page: a panel's clearer blur while it is

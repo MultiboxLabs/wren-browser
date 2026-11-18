@@ -15,7 +15,7 @@ use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::perf::PageCounts;
-use crate::platform::{PageWindow, WindowSize};
+use crate::platform::{PageWindow, WindowKind, WindowSize};
 use crate::shell::{BrowserWindow, MiniWren, Place, WindowId};
 use crate::tabs::placeholder;
 
@@ -50,7 +50,8 @@ impl State {
         frame: Option<RequestedBounds>,
     ) -> Option<WindowId> {
         let front = self.windows.front();
-        let window = self.open_page_window(mt, key, place, frame.is_some(), None)?;
+        let window =
+            self.open_page_window(mt, key, place, frame.is_some(), None, WindowKind::Window)?;
         match (frame, front) {
             (Some(frame), _) => window.page.restore_frame(frame),
             (None, Some(front)) => window.page.cascade_from(&front.page),
@@ -73,7 +74,8 @@ impl State {
     /// Mini Wren (mini_wren/), or else one the user browses in. Its page is the
     /// UI's, in a Profile of its own. `framed`: the caller places the
     /// window, and its first Browser's frame does not move it
-    /// (`BrowserWindow::add`).
+    /// (`BrowserWindow::add`). `kind`: whether it brings the app forward as
+    /// it takes the keyboard.
     pub(super) fn open_page_window(
         self: &Rc<Self>,
         mt: MainThread,
@@ -81,6 +83,7 @@ impl State {
         place: Option<Place>,
         framed: bool,
         mini_wren: Option<MiniWren>,
+        kind: WindowKind,
     ) -> Option<Rc<BrowserWindow>> {
         let profile = self.ui_profile.borrow().clone()?;
         let id = self.windows.next_id();
@@ -103,6 +106,7 @@ impl State {
                 size: WINDOW_SIZE,
                 min: min_size,
             },
+            kind,
             should_close,
         );
         ipc::handle_ui(&page.web_view, &WindowRef::new(self, id), mt);
