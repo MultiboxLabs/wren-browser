@@ -129,6 +129,15 @@ impl PageWindow {
         self.native.place_popup_at_pointer(size, margin);
     }
 
+    /// Gives a popup's window a content area of `size`, its top edge and
+    /// its middle staying where they are, but kept `margin` points inside
+    /// its screen's usable area on each side, as a Mini Wren grows from its
+    /// launcher into a page. A page that asked for less gets the window's
+    /// minimum.
+    pub fn resize_popup_from_top(&self, size: (f64, f64), margin: f64) {
+        self.native.resize_popup_from_top(size, margin);
+    }
+
     /// Puts the window where a restored Browser's window was, or where the
     /// window was when it was kept, back on a screen if that one has gone;
     /// without a position, only the size is its own. A size kept from
@@ -243,6 +252,14 @@ impl PageWindow {
     /// bubbles) is light or dark as the system is.
     pub fn set_dark(&self, dark: bool) {
         self.native.set_dark(dark);
+    }
+
+    /// Draws nothing of the window itself, only what its page draws, or
+    /// draws it again: no blur behind the page, no background and no
+    /// shadow, and no edges to resize it by. A page drawn on a see-through
+    /// window draws its own shadow, inside the window.
+    pub fn set_see_through(&self, see_through: bool) {
+        self.native.set_see_through(see_through);
     }
 
     /// Puts the close, minimise and zoom buttons with the close button's top

@@ -74,7 +74,7 @@ pub use tab_switcher::watch_tab_switcher_keys;
 pub use tabs::{TabChanges, send_no_tabs_for, send_tabs};
 pub use toast::{OwnToast, send_toast, show_toast};
 pub use update::{broadcast_update, send_open_update};
-pub use window::{send_blocked, send_choose_space, send_full_screen, show_active};
+pub use window::{send_blocked, send_choose_space, send_full_screen, send_launcher, show_active};
 use window::{send_profile, send_space};
 
 /// The window a page is in, as its handlers find it again: not the window

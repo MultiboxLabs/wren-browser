@@ -111,6 +111,8 @@ pub struct BrowserWindow {
     downloads_sent: RefCell<Option<Vec<downloads::Item>>>,
     history_sent: RefCell<Option<Vec<downloads::Item>>>,
     popup: Option<Popup>,
+    // A popup's window drawn as its launcher (windows/launcher.rs).
+    launcher: Cell<bool>,
     /// What its page is sent, counted during a performance run (perf.rs).
     pub perf_counts: Option<PageCounts>,
 }
@@ -149,6 +151,7 @@ impl BrowserWindow {
             downloads_sent: RefCell::default(),
             history_sent: RefCell::default(),
             popup,
+            launcher: Cell::default(),
             perf_counts,
         }
     }
@@ -160,6 +163,18 @@ impl BrowserWindow {
 
     pub fn is_popup(&self) -> bool {
         self.popup.is_some()
+    }
+
+    /// Whether it is a popup's window drawn as a launcher, the omnibox
+    /// alone (windows/launcher.rs).
+    pub fn is_launcher(&self) -> bool {
+        self.launcher.get()
+    }
+
+    /// Draws a popup's window as a launcher, or as a popup again; answers
+    /// whether that changed it.
+    pub fn set_launcher(&self, launcher: bool) -> bool {
+        self.launcher.replace(launcher) != launcher
     }
 
     /// The place in front, if the window is on one.

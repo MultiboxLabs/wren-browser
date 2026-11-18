@@ -32,6 +32,15 @@ export const appWindow = {
    * page sent to another profile.
    */
   openAsTab: (space: number | null = null) => wren.invoke<null>("window.openAsTab", space),
+  /**
+   * Whether a popup's window is drawn as a launcher, the omnibox alone: a
+   * Mini Wren on the New Tab page. The window is see-through and has no
+   * buttons, and closes as it goes out of use. False for a browser window.
+   */
+  launcher: () => wren.invoke<boolean>("window.launcher"),
+  onLauncher: (listener: (launcher: boolean) => void) => wren.on<boolean>("window.launcher", listener),
+  /** Closes the window, as its close button does. */
+  close: () => wren.invoke<null>("window.close"),
   /** Takes the keyboard from the tab that has it, for a field the user did not press into. */
   takeKeyboard: () => wren.invoke<null>("window.takeKeyboard"),
   /** Gives the keyboard back to the active tab's page. */

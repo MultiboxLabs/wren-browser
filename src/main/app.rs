@@ -304,6 +304,8 @@ impl Wren {
                     ipc::send_show_settings(&front);
                 }
             }
+            // A launcher is its omnibox, open already.
+            menus::NEW_TAB | menus::OPEN_LOCATION if popup.is_launcher() => {}
             menus::NEW_TAB | menus::OPEN_LOCATION
                 if popup.popup().is_some_and(|popup| popup.address) =>
             {
@@ -486,6 +488,8 @@ impl App for Wren {
             if changes::apply(&window, changes) {
                 state.update_title(&window);
             }
+            // A popup's page may have gone to the New Tab page, or left it.
+            state.follow_launcher(mt, &window);
         }
         // A dialog opened or closed, or another Browser came in front, as
         // a switch makes one active and another not.

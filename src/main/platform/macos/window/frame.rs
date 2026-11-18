@@ -45,22 +45,24 @@ impl PageWindow {
         let Some(screen) = screen else {
             return self.window.center();
         };
-        let area = screen.visibleFrame();
-        let left = area.origin.x + margin;
-        let right = area.origin.x + area.size.width - margin;
-        let bottom = area.origin.y + margin;
-        let top = area.origin.y + area.size.height - margin;
-        // Each limit applies in turn, the left and the top last, so a
-        // window larger than the room keeps its left edge and its top on
-        // the screen.
-        let x = (pointer.x - size.width / 2.0)
-            .min(right - size.width)
-            .max(left);
-        let y = (pointer.y - size.height / 2.0)
-            .max(bottom)
-            .min(top - size.height);
-        let frame = NSRect::new(NSPoint::new(x, y), size);
+        let origin = NSPoint::new(pointer.x - size.width / 2.0, pointer.y - size.height / 2.0);
+        let frame = kept_inside(NSRect::new(origin, size), &screen, margin);
         self.window.setFrame_display(frame, false);
+    }
+
+    pub fn resize_popup_from_top(&self, size: (f64, f64), margin: f64) {
+        let old = self.window.frame();
+        let size = self.popup_frame_size(size);
+        let origin = NSPoint::new(
+            old.origin.x + (old.size.width - size.width) / 2.0,
+            old.origin.y + old.size.height - size.height,
+        );
+        let mut frame = NSRect::new(origin, size);
+        let mtm = MainThreadMarker::new().unwrap();
+        if let Some(screen) = self.window.screen().or_else(|| NSScreen::mainScreen(mtm)) {
+            frame = kept_inside(frame, &screen, margin);
+        }
+        self.window.setFrame_display(frame, true);
     }
 
     // Gives a popup's window a content area of `size`, or its minimum, and
@@ -70,6 +72,14 @@ impl PageWindow {
         self.window
             .setContentSize(at_least(size, self.window.contentMinSize()));
         self.window.frame().size
+    }
+
+    // The size of a popup's frame round a content area of `size`, or its
+    // minimum.
+    fn popup_frame_size(&self, size: (f64, f64)) -> NSSize {
+        let content = at_least(NSSize::new(size.0, size.1), self.window.contentMinSize());
+        let rect = NSRect::new(NSPoint::new(0.0, 0.0), content);
+        self.window.frameRectForContentRect(rect).size
     }
 
     // The frame of a window of `size` cascaded from this one, as AppKit
@@ -118,6 +128,22 @@ impl PageWindow {
 // the app.
 fn at_least(size: NSSize, min: NSSize) -> NSSize {
     NSSize::new(size.width.max(min.width), size.height.max(min.height))
+}
+
+// `frame`, moved as little as keeps it `margin` points inside `screen`'s
+// usable area on each side. Each limit applies in turn, the left and the
+// top last, so a frame larger than the room keeps its left edge and its top
+// on the screen.
+fn kept_inside(frame: NSRect, screen: &NSScreen, margin: f64) -> NSRect {
+    let area = screen.visibleFrame();
+    let size = frame.size;
+    let left = area.origin.x + margin;
+    let right = area.origin.x + area.size.width - margin;
+    let bottom = area.origin.y + margin;
+    let top = area.origin.y + area.size.height - margin;
+    let x = frame.origin.x.min(right - size.width).max(left);
+    let y = frame.origin.y.max(bottom).min(top - size.height);
+    NSRect::new(NSPoint::new(x, y), size)
 }
 
 // Whether a screen shows some of `frame`.

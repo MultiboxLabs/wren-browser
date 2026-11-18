@@ -4,7 +4,8 @@
 // popup window, or an installed app's window. The app opens one itself too,
 // for a link from another app or empty (mini_wren.rs). The page draws its
 // toolbar, whose address opens the omnibox for its page, and no sidebar
-// (pages/ui/popup.tsx). It is on its profile's place, and never kept: its
+// (pages/ui/popup.tsx); on the New Tab page, the omnibox alone
+// (launcher.rs). It is on its profile's place, and never kept: its
 // Browser closing takes it (`App::browser_closed`). Its page can move to a
 // tab of a window the user browses in (`open_popup_as_tab`). Document
 // Picture-in-Picture is none of these: Chromium shows it in a window of its
@@ -14,6 +15,7 @@ use std::rc::Rc;
 
 use wren::{Browser, BrowserTab, MainThread, Profile, WindowFeatures};
 
+use super::launcher;
 use super::session::unkept_window_key;
 use crate::app::State;
 use crate::db::SpaceId;
@@ -30,7 +32,7 @@ pub(super) const PAGE_SIZE: (f64, f64) = (800.0, 600.0);
 
 /// How far a popup's window placed at the pointer stays inside the
 /// screen's usable area, on each side, in points.
-const SCREEN_MARGIN: f64 = 20.0;
+pub(super) const SCREEN_MARGIN: f64 = 20.0;
 
 /// Where a popup's window goes.
 pub(super) enum PopupPosition {
@@ -41,6 +43,14 @@ pub(super) enum PopupPosition {
     /// Centred on the pointer, on its screen: a Mini Wren the user opened
     /// (mini_wren.rs).
     AtPointer,
+}
+
+/// The size of a popup's window on `browser`: as large as its page asked,
+/// or a popup's own size, and its toolbar.
+pub(super) fn popup_window_size(browser: &Browser) -> (f64, f64) {
+    let requested = browser.requested_bounds();
+    let (width, height) = requested.map_or(PAGE_SIZE, |bounds| (bounds.width, bounds.height));
+    (width, height + TOOLBAR)
 }
 
 /// A popup's window's minimum, its toolbar in it, however small its page
@@ -65,8 +75,8 @@ impl State {
     }
 
     /// Shows `browser` in a popup's window, from `space`, as large as its
-    /// page asked, at `position`. One that gets no window closes. Answers
-    /// the window's ID.
+    /// page asked, or a launcher's size on the New Tab page, at `position`.
+    /// One that gets no window closes. Answers the window's ID.
     pub(super) fn show_popup(
         self: &Rc<Self>,
         mt: MainThread,
@@ -96,9 +106,8 @@ impl State {
             browser.close(|_| {});
             return None;
         };
+        let size = launcher::draw_new(&window, &browser);
         let requested = browser.requested_bounds();
-        let (width, height) = requested.map_or(PAGE_SIZE, |bounds| (bounds.width, bounds.height));
-        let size = (width, height + TOOLBAR);
         match position {
             PopupPosition::AsAsked { near } => {
                 let near = near.or_else(|| self.windows.front());
@@ -123,8 +132,9 @@ impl State {
     /// none shows the place. A page that goes to another profile is made
     /// again there, once the popup's page has asked the user
     /// (`ipc::ask_before_profile_move`). The popup's window closes with its
-    /// Browser. Fails if `id` is no popup's, its page has gone, or a private
-    /// page is sent to another profile.
+    /// Browser. Fails if `id` is no popup's, it is a launcher, whose New Tab
+    /// page is no page to move, its page has gone, or a private page is sent
+    /// to another profile.
     pub fn open_popup_as_tab(
         self: &Rc<Self>,
         mt: MainThread,
@@ -133,6 +143,9 @@ impl State {
     ) -> Result<(), String> {
         let popup = self.windows.get(id).ok_or("The window is closing.")?;
         let opened_from = popup.popup().ok_or("The window is no popup's.")?.space;
+        if popup.is_launcher() {
+            return Err("The launcher has no page to open as a tab.".into());
+        }
         let tab = popup.active_tab().ok_or("The popup has no page.")?;
         let source = popup.browser().ok_or("The popup has no page.")?;
         let profile = source.profile().ok_or("The popup has no page.")?;

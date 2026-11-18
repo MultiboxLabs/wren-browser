@@ -71,14 +71,14 @@ type QueryOptions = {
 
 /**
  * The field's state and handlers. `onDone` is called once what was chosen
- * is open, or the omnibox closed without it, its tab given the keyboard
- * back by then.
+ * is open (`opened`), or the omnibox closed without it, its tab given the
+ * keyboard back by then.
  */
 export function useOmniboxField(
   target: OmniboxTarget,
   input: RefObject<HTMLInputElement | null>,
   tabs: OmniboxTabs,
-  onDone: () => void
+  onDone: (opened: boolean) => void
 ) {
   const [field, setField] = useState<Field>(empty);
   // Read by the handlers as they are now, not as they were at their render.
@@ -182,7 +182,8 @@ export function useOmniboxField(
   const close = () => {
     if (done.current) return;
     done.current = true;
-    omnibox.close().then(onDone, onDone);
+    const closed = () => onDone(false);
+    omnibox.close().then(closed, closed);
   };
   const open = async (index: number | null, how: OpenHow = "default") => {
     if (done.current) return;
@@ -203,7 +204,8 @@ export function useOmniboxField(
       return;
     }
     done.current = true;
-    openItem(item, field.suggestions?.result, target, how).then(onDone, onDone);
+    const opened = () => onDone(true);
+    openItem(item, field.suggestions?.result, target, how).then(opened, opened);
   };
 
   const onChange = (event: ChangeEvent<HTMLInputElement>) => {

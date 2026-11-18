@@ -9,6 +9,7 @@
 // - mini_wren.rs: the Mini Wren the app opens itself, for a link or empty;
 // - show_page.rs: the app's own pages a menu item shows, in tabs;
 // - popup.rs: the windows of popups;
+// - launcher.rs: a Mini Wren on the New Tab page, drawn as the omnibox alone;
 // - switch.rs: switching a window between its spaces;
 // - move_tabs.rs: moving tabs from one of its spaces to another;
 // - session.rs: keeping the windows, so each comes back as it was;
@@ -17,6 +18,7 @@
 // What a window is, and holds, is shell/'s: `BrowserWindow`
 // (shell/browser.rs), and the platform's window round its page.
 
+mod launcher;
 mod mini_wren;
 mod move_tabs;
 mod open;
@@ -168,7 +170,7 @@ impl State {
             popup: self
                 .windows
                 .in_use()
-                .is_some_and(|window| window.is_popup()),
+                .is_some_and(|window| window.is_popup() && !window.is_launcher()),
         }
     }
 

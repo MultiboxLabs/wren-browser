@@ -64,7 +64,8 @@ pub struct Front {
     pub switching: bool,
     /// One of Chromium's dialogs blocks it (`BrowserWindow::is_blocked`).
     pub blocked: bool,
-    /// The window in use is a popup's, whose page Open as Tab moves.
+    /// The window in use is a popup's, whose page Open as Tab moves; not a
+    /// launcher's, whose New Tab page is no page to move.
     pub popup: bool,
 }
 
