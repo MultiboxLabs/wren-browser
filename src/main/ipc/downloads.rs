@@ -131,8 +131,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
 /// since, the window the user is in hears of too, after the shelf's list
 /// that has it: it was started there, by what the pointer did, most likely.
 pub fn send_downloads(window: &BrowserWindow, browser: &Browser) {
-    // A popup's window has no Library.
-    if !window.is_popup() {
+    // A Mini Wren has no Library.
+    if !window.is_mini_wren() {
         let history = downloads::history(browser);
         if window.note_history(&history) {
             let _ = window.page.web_view.send("downloads.history", &history);
@@ -144,8 +144,8 @@ pub fn send_downloads(window: &BrowserWindow, browser: &Browser) {
     };
     let web_view = &window.page.web_view;
     let _ = web_view.send("downloads.list", &list);
-    // A popup's window has no Library button for it to go to.
-    if window.is_popup() || !window.page.is_active() {
+    // A Mini Wren has no Library button for it to go to.
+    if window.is_mini_wren() || !window.page.is_active() {
         return;
     }
     let at = window.page.pointer();
@@ -189,7 +189,7 @@ pub fn send_reveal(window: &BrowserWindow, download: Option<String>) {
 /// Chromium's download bubble, for `App::popover`. Its short list, shown as
 /// all downloads are done, is the shelf of the window in front, for the few
 /// seconds Chrome shows it; the full list, or one download's warning, opens
-/// the Library at the downloads, and Chromium shows nothing. A popup's window
+/// the Library at the downloads, and Chromium shows nothing. A Mini Wren
 /// has neither: the indicator is in the browser window.
 pub fn show_downloads_bubble(
     state: &Rc<State>,
@@ -200,7 +200,7 @@ pub fn show_downloads_bubble(
         return PopoverAnswer::None;
     };
     let automatic = request.trigger == PopoverTrigger::Automatic && request.download.is_none();
-    if window.is_popup() || (automatic && !window.is_front(&request.browser)) {
+    if window.is_mini_wren() || (automatic && !window.is_front(&request.browser)) {
         return PopoverAnswer::None;
     }
     let id = window.id;

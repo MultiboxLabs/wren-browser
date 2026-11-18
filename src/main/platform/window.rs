@@ -1,5 +1,5 @@
 // The app's own windows: a window showing one page in a web view (a browser
-// window, or a popup's), and the window of Chromium's undocked DevTools.
+// window, or a Mini Wren), and the window of Chromium's undocked DevTools.
 // What a browser window holds is shell/'s, and what the app does with its
 // windows is windows/'s.
 
@@ -107,35 +107,34 @@ impl PageWindow {
         self.native.cascade_from(&other.native);
     }
 
-    /// Gives a popup's window a content area of `size`, with its frame at
+    /// Gives the window a content area of `size`, with its frame at
     /// `origin` (the platform's screen coordinates, as a page asks for it)
     /// if a screen shows it there; or else cascaded from `near`, or else
-    /// centred. A page that asked for less gets the window's minimum.
-    pub fn place_popup(
+    /// centred. A size less than the window's minimum gets the minimum.
+    pub fn place_as_asked(
         &self,
         size: (f64, f64),
         origin: Option<(f64, f64)>,
         near: Option<&PageWindow>,
     ) {
         self.native
-            .place_popup(size, origin, near.map(|near| &near.native));
+            .place_as_asked(size, origin, near.map(|near| &near.native));
     }
 
-    /// Gives a popup's window a content area of `size`, centred on the
-    /// pointer, on the screen it is on, and kept `margin` points inside that
-    /// screen's usable area on each side. A page that asked for less gets
-    /// the window's minimum.
-    pub fn place_popup_at_pointer(&self, size: (f64, f64), margin: f64) {
-        self.native.place_popup_at_pointer(size, margin);
+    /// Gives the window a content area of `size`, centred on the pointer,
+    /// on the screen it is on, and kept `margin` points inside that
+    /// screen's usable area on each side. A size less than the window's
+    /// minimum gets the minimum.
+    pub fn place_at_pointer(&self, size: (f64, f64), margin: f64) {
+        self.native.place_at_pointer(size, margin);
     }
 
-    /// Gives a popup's window a content area of `size`, its top edge and
-    /// its middle staying where they are, but kept `margin` points inside
-    /// its screen's usable area on each side, as a Mini Wren grows from its
-    /// launcher into a page. A page that asked for less gets the window's
-    /// minimum.
-    pub fn resize_popup_from_top(&self, size: (f64, f64), margin: f64) {
-        self.native.resize_popup_from_top(size, margin);
+    /// Gives the window a content area of `size`, its top edge and its
+    /// middle staying where they are, but kept `margin` points inside its
+    /// screen's usable area on each side. A size less than the window's
+    /// minimum gets the minimum.
+    pub fn resize_from_top(&self, size: (f64, f64), margin: f64) {
+        self.native.resize_from_top(size, margin);
     }
 
     /// Puts the window where a restored Browser's window was, or where the

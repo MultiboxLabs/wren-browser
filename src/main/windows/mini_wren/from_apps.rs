@@ -1,11 +1,10 @@
-// The Mini Wren the app opens itself, with no page to open it: one for each
-// link from another app (open_urls.rs), and an empty one from New Mini Wren,
-// whose key works in any app, on the New Tab page, which makes it a
-// launcher, the omnibox alone (launcher.rs). Each is a popup's window
-// (popup.rs), in front and centred on the pointer, where the user is
-// looking. It opens from the space of the window the user browses in, or
-// else the space used last, so it never adds to a space's tabs unless the
-// user opens it as a tab.
+// The Mini Wren that Wren opens itself, with no page to open it: one for
+// each link from another app (open_urls.rs), and an empty one from New
+// Mini Wren, whose key works in any app, on the New Tab page, where it is
+// the omnibox alone (mod.rs). Each is in front and centred on the pointer,
+// where the user is looking. It opens from the space of the window the user
+// browses in, or else the space used last, so it never adds to a space's
+// tabs unless the user opens it as a tab.
 //
 // One asked for before its profile has opened, as a link that launches the
 // app is, or while a profile's last session is being restored, which brings
@@ -22,7 +21,7 @@ use std::rc::Rc;
 
 use wren::{MainThread, RequestedBounds};
 
-use super::popup::{PAGE_SIZE, PopupPosition};
+use super::{MiniWrenPosition, PAGE_SIZE};
 use crate::app::State;
 use crate::menus;
 use crate::platform::{self, GlobalShortcut, RunningApp};
@@ -70,7 +69,7 @@ impl State {
     }
 
     /// Opens a Mini Wren for each of `held`, now or once the app can.
-    pub(super) fn hold_mini_wren(
+    pub(in crate::windows) fn hold_mini_wren(
         self: &Rc<Self>,
         mt: MainThread,
         held: impl IntoIterator<Item = HeldMiniWren>,
@@ -80,7 +79,7 @@ impl State {
     }
 
     /// Opens each Mini Wren held.
-    pub(super) fn open_held_mini_wren(self: &Rc<Self>, mt: MainThread) {
+    pub(in crate::windows) fn open_held_mini_wren(self: &Rc<Self>, mt: MainThread) {
         if self.held_mini_wren.borrow().is_empty() {
             return;
         }
@@ -124,8 +123,7 @@ impl State {
                 Ok(profile) => profile,
                 Err(error) => return eprintln!("Wren could not open a Mini Wren: {error}"),
             };
-            // No page asks for a size, so it gets a popup's own, once it
-            // is not a launcher.
+            // No page asks for a size, so it gets a Mini Wren's own.
             let size = RequestedBounds {
                 origin: None,
                 width: PAGE_SIZE.0,
@@ -133,7 +131,8 @@ impl State {
             };
             profile.create_popup_browser(&url, Some(size), move |browser| match browser {
                 Ok(browser) => {
-                    let window = state.show_popup(mt, browser, space, PopupPosition::AtPointer);
+                    let window =
+                        state.show_mini_wren(mt, browser, space, MiniWrenPosition::AtPointer);
                     if let Some((window, app)) = window.zip(return_to) {
                         state.returns_to.borrow_mut().insert(window, app);
                     }
@@ -145,20 +144,20 @@ impl State {
 
     /// Window `id` came into use: no Mini Wren but it goes back to its app
     /// as it closes.
-    pub(super) fn window_used(&self, id: WindowId) {
+    pub(in crate::windows) fn window_used(&self, id: WindowId) {
         self.returns_to
             .borrow_mut()
             .retain(|window, _| *window == id);
     }
 
-    /// Popup window `id`'s page moved to a tab, where it goes on: its window
+    /// Mini Wren `id`'s page moved to a tab, where it goes on: its window
     /// closes without going back to its app.
-    pub(super) fn popup_moved_to_tab(&self, id: WindowId) {
+    pub(super) fn mini_wren_moved_to_tab(&self, id: WindowId) {
         self.returns_to.borrow_mut().remove(&id);
     }
 
-    /// Popup `window` is closing: if it is a Mini Wren that keeps an app,
-    /// and it is still the window in use, that app comes back to the front.
+    /// Mini Wren `window` is closing: if it keeps an app, and it is still
+    /// the window in use, that app comes back to the front.
     pub fn mini_wren_closed(&self, window: &BrowserWindow) {
         let app = self.returns_to.borrow_mut().remove(&window.id);
         if let Some(app) = app.filter(|_| window.page.is_active())

@@ -1,10 +1,10 @@
 // Asking before tabs go to another profile, where they are made again
 // without their history (items/crossing.rs): a drop of tabs of the list
-// (items.rs), or a popup's page opened as a tab (windows/popup.rs). The page
-// of the window it happens in asks ("profileMove.ask",
-// components/profile-move-dialog.tsx), and the move waits for its answer
-// ("profileMove.answer"), unless the user said not to ask, which Settings'
-// Ask Before Moving to Another Profile turns back on.
+// (items.rs), or a Mini Wren's page opened as a tab
+// (windows/mini_wren/as_tab.rs). The page of the window it happens in asks
+// ("profileMove.ask", components/profile-move-dialog.tsx), and the move
+// waits for its answer ("profileMove.answer"), unless the user said not to
+// ask, which Settings' Ask Before Moving to Another Profile turns back on.
 // src/renderer/ipc/profile-move.ts is the page's side.
 
 use std::cell::RefCell;

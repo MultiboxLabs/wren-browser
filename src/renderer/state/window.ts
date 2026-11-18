@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { appWindow, follow, hasApp, type WindowPopup } from "@/ipc";
+import { appWindow, follow, hasApp, type WindowMiniWren } from "@/ipc";
 import { cssColor } from "@/utils/color";
 import { type Space, themeKey } from "./space";
 
@@ -30,16 +30,16 @@ export function useWindowActive() {
 }
 
 /**
- * What makes the window a popup's, which it is from the start: null for a
+ * What makes the window a Mini Wren, which it is from the start: null for a
  * browser window, and undefined until the app has said. Outside the app, a
  * browser window's.
  */
-export function useWindowPopup() {
-  const [popup, setPopup] = useState<WindowPopup | null | undefined>(hasApp ? undefined : null);
+export function useWindowMiniWren() {
+  const [miniWren, setMiniWren] = useState<WindowMiniWren | null | undefined>(hasApp ? undefined : null);
   useEffect(() => {
-    if (hasApp) appWindow.popup().then(setPopup, () => setPopup(null));
+    if (hasApp) appWindow.miniWren().then(setMiniWren, () => setMiniWren(null));
   }, []);
-  return popup;
+  return miniWren;
 }
 
 /**
@@ -54,13 +54,13 @@ export function useWindowBlocked() {
 }
 
 /**
- * Whether a popup's window is drawn as a launcher (`appWindow.launcher`);
- * undefined until the app has said.
+ * Whether the window is a Mini Wren on the New Tab page, drawn as the
+ * omnibox alone (`appWindow.newTabPage`); undefined until the app has said.
  */
-export function useWindowLauncher() {
-  const [launcher, setLauncher] = useState<boolean | undefined>(hasApp ? undefined : false);
-  useEffect(() => (hasApp ? follow(appWindow.launcher, appWindow.onLauncher, setLauncher) : undefined), []);
-  return launcher;
+export function useWindowOnNewTabPage() {
+  const [onNewTabPage, setOnNewTabPage] = useState<boolean | undefined>(hasApp ? undefined : false);
+  useEffect(() => (hasApp ? follow(appWindow.newTabPage, appWindow.onNewTabPage, setOnNewTabPage) : undefined), []);
+  return onNewTabPage;
 }
 
 /**
@@ -97,11 +97,11 @@ export function useWindowTheme(space: Space, toward: Space | null = null) {
 }
 
 /**
- * A popup's window's look. It is light or dark as the system is, with the
+ * A Mini Wren's look. It is light or dark as the system is, with the
  * window's blur showing through its toolbar, and the window's buttons drawn
  * to match; the space's colour is its accents' alone.
  */
-export function usePopupTheme(space: Space) {
+export function useMiniWrenTheme(space: Space) {
   useThemedWindow(space, useSystemScheme(), null);
 }
 

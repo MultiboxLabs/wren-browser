@@ -109,7 +109,7 @@ impl State {
             menu_front: Cell::new(menus::Front {
                 switching: true,
                 blocked: false,
-                popup: false,
+                mini_wren: false,
             }),
             tab_switcher_keys: RefCell::default(),
             mini_wren_shortcut: RefCell::default(),
@@ -268,30 +268,31 @@ pub struct Wren {
 }
 
 impl Wren {
-    // A main menu command in a popup's window. The popup closes, and copies
-    // its address, as any window does. New Tab and Open Location both open
-    // its own omnibox, for its page, if it shows an address: a popup has
-    // one page, so what is chosen opens there. In a popup with no address
-    // they go to the window the user browses in, which comes forward for
-    // the omnibox, as New Window does always, and as Chrome's in a popup go
-    // to its last tabbed window. The rest are for a window's tabs, sidebar
-    // and spaces, which a popup has none of.
-    fn popup_command(&self, mt: MainThread, id: &str, popup: &BrowserWindow) {
+    // A main menu command in a Mini Wren. It closes, and copies its
+    // address, as any window does. New Tab and Open Location both open its
+    // own omnibox, for its page, if it shows an address: a Mini Wren has one
+    // page, so what is chosen opens there. On the New Tab page, its omnibox
+    // is open already. In a Mini Wren with no address they go to the window
+    // the user browses in, which comes forward for the omnibox, as New
+    // Window does always, and as Chrome's in a popup go to its last tabbed
+    // window. The rest are for a window's tabs, sidebar and spaces, which a
+    // Mini Wren has none of.
+    fn mini_wren_command(&self, mt: MainThread, id: &str, window: &BrowserWindow) {
         let state = &self.state;
         let front = state.windows.front();
         match id {
-            menus::CLOSE_TAB | menus::CLOSE_WINDOW => state.close_window(mt, popup.id),
+            menus::CLOSE_TAB | menus::CLOSE_WINDOW => state.close_window(mt, window.id),
             menus::COPY_URL => {
-                if let Some(browser) = popup.browser() {
+                if let Some(browser) = window.browser() {
                     let _ = tabs::copy_url(&browser);
                 }
             }
             menus::OPEN_AS_TAB => {
-                if let Err(error) = state.open_popup_as_tab(mt, popup.id, None) {
-                    eprintln!("Wren could not open the popup's page as a tab: {error}");
+                if let Err(error) = state.open_mini_wren_as_tab(mt, window.id, None) {
+                    eprintln!("Wren could not open the Mini Wren's page as a tab: {error}");
                 }
             }
-            // In the browser window: a popup's has no Library.
+            // In the browser window: a Mini Wren has no Library.
             menus::SHOW_DOWNLOADS => {
                 if let Some(front) = front {
                     front.page.bring_forward();
@@ -304,12 +305,13 @@ impl Wren {
                     ipc::send_show_settings(&front);
                 }
             }
-            // A launcher is its omnibox, open already.
-            menus::NEW_TAB | menus::OPEN_LOCATION if popup.is_launcher() => {}
+            menus::NEW_TAB | menus::OPEN_LOCATION if window.is_on_new_tab_page() => {}
             menus::NEW_TAB | menus::OPEN_LOCATION
-                if popup.popup().is_some_and(|popup| popup.address) =>
+                if window
+                    .mini_wren()
+                    .is_some_and(|mini_wren| mini_wren.address) =>
             {
-                ipc::send_show_omnibox(popup, OmniboxTarget::Current, true);
+                ipc::send_show_omnibox(window, OmniboxTarget::Current, true);
             }
             menus::NEW_WINDOW => state.new_window(mt, front.as_deref()),
             menus::NEW_INCOGNITO_WINDOW => state.new_incognito_window(mt, front.as_deref()),
@@ -370,7 +372,7 @@ impl App for Wren {
     // window of its own, on the space it came from, or an incognito one on
     // its profile's off-the-record side (`place_opened`). DevTools gets a
     // plain window of its own, and the rest (a popup, an app's window) a
-    // popup's window (`open_popup`).
+    // Mini Wren (`open_popup`).
     fn browser_opened(
         &self,
         mt: MainThread,
@@ -488,8 +490,9 @@ impl App for Wren {
             if changes::apply(&window, changes) {
                 state.update_title(&window);
             }
-            // A popup's page may have gone to the New Tab page, or left it.
-            state.follow_launcher(mt, &window);
+            // A Mini Wren's page may have gone to the New Tab page, or left
+            // it.
+            state.follow_new_tab_page(mt, &window);
         }
         // A dialog opened or closed, or another Browser came in front, as
         // a switch makes one active and another not.
@@ -502,8 +505,8 @@ impl App for Wren {
     }
 
     // The window is the one of the Browser in the key window, or the key
-    // window, or else the one the user was in last. A popup's has commands
-    // of its own (`popup_command`).
+    // window, or else the one the user was in last. A Mini Wren has
+    // commands of its own (`mini_wren_command`).
     fn menu_command(&self, mt: MainThread, id: &str, browser: Option<Browser>) {
         let windows = &self.state.windows;
         // Needs no window; the menu follows the change.
@@ -531,7 +534,7 @@ impl App for Wren {
             return;
         }
         // The window the user browses in answers, with its update card or a
-        // toast: a popup's has neither.
+        // toast: a Mini Wren has neither.
         if id == menus::CHECK_FOR_UPDATES {
             if let Some(front) = windows.front() {
                 front.page.bring_forward();
@@ -540,7 +543,7 @@ impl App for Wren {
             return;
         }
         // In the window the user browses in, whatever window is key, a
-        // popup's too (windows/show_page.rs).
+        // Mini Wren too (windows/show_page.rs).
         if id == menus::IMPORT {
             return self.state.show_page(mt, &pages::MIGRATE);
         }
@@ -554,7 +557,7 @@ impl App for Wren {
         let key = browser
             .and_then(|browser| windows.of(&browser))
             .or_else(|| windows.in_use());
-        // The page of the key window, a popup's too.
+        // The page of the key window, a Mini Wren's too.
         if id == menus::TOGGLE_UI_DEVTOOLS || id == menus::RELOAD_UI {
             if let Some(window) = key.or_else(|| windows.front()) {
                 if id == menus::RELOAD_UI {
@@ -565,13 +568,13 @@ impl App for Wren {
             }
             return;
         }
-        // Every window's, a popup's in front too.
+        // Every window's, a Mini Wren in front too.
         if id == menus::TOGGLE_ADDRESS_BAR {
             let _ = ipc::toggle_address_bar(&self.state);
             return;
         }
-        if let Some(popup) = key.as_ref().filter(|window| window.is_popup()) {
-            return self.popup_command(mt, id, popup);
+        if let Some(window) = key.as_ref().filter(|window| window.is_mini_wren()) {
+            return self.mini_wren_command(mt, id, window);
         }
         let window = key.or_else(|| windows.front());
         // From the window in front, if one is.
@@ -694,14 +697,14 @@ impl App for Wren {
     // Chromium wants the address field, as a New Tab page given the
     // keyboard does: the omnibox opens for it, as ⌘L opens it. Not for the
     // placeholder, which the page does not show, nor over the omnibox for a
-    // new tab, nor in a popup's window, whose omnibox opens only when the
+    // new tab, nor in a Mini Wren, whose omnibox opens only when the
     // user asks for it.
     fn focus_location_bar(&self, _: MainThread, browser: Browser) {
         let Some(window) = self
             .state
             .windows
             .of(&browser)
-            .filter(|window| window.is_front(&browser) && !window.is_popup())
+            .filter(|window| window.is_front(&browser) && !window.is_mini_wren())
         else {
             return;
         };
@@ -804,7 +807,7 @@ impl App for Wren {
     // A window on a profile stays too: at quit, each Browser closes before
     // the app hears of the quit, and the window must be kept. One whose
     // profile was deleted goes with it (`State::leave_gone_profiles`). A
-    // popup's window goes with its Browser, always.
+    // Mini Wren goes with its Browser, always.
     fn browser_closed(&self, mt: MainThread, browser: Browser) {
         tabs::roles::forget_closed();
         items::carry::forget_gone();
@@ -818,7 +821,7 @@ impl App for Wren {
             return;
         };
         let place = window.remove(&browser);
-        if window.is_popup() {
+        if window.is_mini_wren() {
             self.state.mini_wren_closed(&window);
             ipc::quit_window_closing(&self.state, window.id);
             ipc::forget_move_question(window.id);

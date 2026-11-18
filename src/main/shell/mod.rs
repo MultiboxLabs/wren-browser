@@ -12,7 +12,7 @@ mod place;
 mod sidebar_hover;
 mod tag;
 
-pub use browser::{BrowserWindow, Popup, WindowId, marks};
+pub use browser::{BrowserWindow, MiniWren, WindowId, marks};
 pub use list::Windows;
 pub use place::Place;
 pub use sidebar_hover::SidebarRegions;

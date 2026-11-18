@@ -4,8 +4,8 @@
 // knows its own, and outside the app, is made up here. A window on a profile
 // shows a space made up for the profile, and has none to switch to.
 // A window on no space, while the user makes one, shows that one as it is so
-// far (new-space.ts). A popup's window is on its profile, and takes the
-// colour of the space it was opened from, if it was from one.
+// far (new-space.ts). A Mini Wren is on its profile, and takes the colour
+// of the space it was opened from, if it was from one.
 
 import { createContext, type ReactNode, useContext, useEffect, useEffectEvent, useMemo, useState } from "react";
 import {
@@ -16,7 +16,7 @@ import {
   type ProfileEntry,
   type SpaceEntry,
   type SpaceTheme,
-  type WindowPopup,
+  type WindowMiniWren,
   type WindowProfile,
   type WindowSpace
 } from "@/ipc";
@@ -120,7 +120,7 @@ const ofDraft = (draft: SpaceDraft): Space =>
 type SpaceState = {
   /** The space shown in the window. */
   space: Space;
-  /** Every space, of any profile, in the user's order; none in a window on a profile, but a popup's, whose page can go to any. */
+  /** Every space, of any profile, in the user's order; none in a window on a profile, but a Mini Wren, whose page can go to any. */
   spaces: SpaceEntry[];
   /** The profile the window shows, rather than spaces; null for a window of spaces. */
   profile: WindowProfile | null;
@@ -145,7 +145,13 @@ export type DrawnBeside = { slot: number; space: Space };
 
 const SpaceContext = createContext<SpaceState | null>(null);
 
-export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup | null; children: ReactNode }) {
+export function SpaceProvider({
+  miniWren = null,
+  children
+}: {
+  miniWren?: WindowMiniWren | null;
+  children: ReactNode;
+}) {
   const { spaces: entries, move: moveSpace } = useSpaces(true);
   const { profiles: listed } = useProfiles(true);
   const [onSpace, setOnSpace] = useState<WindowSpace | null>(null);
@@ -154,7 +160,7 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const making = onSpace?.kind === "newSpace";
   const [profile, setProfile] = useState<WindowProfile | null>(null);
   useEffect(() => (hasApp ? follow(appWindow.profile, appWindow.onProfile, setProfile) : undefined), []);
-  const spaces = useMemo(() => (profile && !popup ? [] : (entries ?? [])), [entries, profile, popup]);
+  const spaces = useMemo(() => (profile && !miniWren ? [] : (entries ?? [])), [entries, profile, miniWren]);
   // Where the window is among the spaces: the one being made is after the last.
   const at = making ? NEW_SPACE : current;
   const order = (id: number) => (id === NEW_SPACE ? spaces.length : spaces.findIndex((space) => space.id === id));
@@ -164,7 +170,7 @@ export function SpaceProvider({ popup = null, children }: { popup?: WindowPopup 
   const draft = newSpace.state?.draft;
   const entry = spaces.find(({ id }) => id === current);
   const profileEntry = profile ? listed?.find(({ id }) => id === profile.id) : undefined;
-  const openedFrom = popup?.space != null ? entries?.find(({ id }) => id === popup.space) : undefined;
+  const openedFrom = miniWren?.space != null ? entries?.find(({ id }) => id === miniWren.space) : undefined;
   // Until the spaces are read, the made-up one stands in, as the window's.
   const space = useMemo(
     () =>

@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use wren::{Browser, MainThread, Profile, ProfileKind, RequestedBounds};
 
-use super::popup::POPUP_MIN_SIZE;
+use super::mini_wren::MINI_WREN_MIN_SIZE;
 use super::session::unkept_window_key;
 use crate::analytics::Event;
 use crate::app::State;
@@ -16,7 +16,7 @@ use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::perf::PageCounts;
 use crate::platform::{PageWindow, WindowSize};
-use crate::shell::{BrowserWindow, Place, Popup, WindowId};
+use crate::shell::{BrowserWindow, MiniWren, Place, WindowId};
 use crate::tabs::placeholder;
 
 /// A browser window's size when nothing gives it one.
@@ -70,7 +70,7 @@ impl State {
     }
 
     /// Opens a browser window, `key` on `place`, where AppKit puts it: a
-    /// popup's (popup.rs), or else one the user browses in. Its page is the
+    /// Mini Wren (mini_wren/), or else one the user browses in. Its page is the
     /// UI's, in a Profile of its own. `framed`: the caller places the
     /// window, and its first Browser's frame does not move it
     /// (`BrowserWindow::add`).
@@ -80,12 +80,12 @@ impl State {
         key: String,
         place: Option<Place>,
         framed: bool,
-        popup: Option<Popup>,
+        mini_wren: Option<MiniWren>,
     ) -> Option<Rc<BrowserWindow>> {
         let profile = self.ui_profile.borrow().clone()?;
         let id = self.windows.next_id();
-        let min_size = match popup {
-            Some(_) => POPUP_MIN_SIZE,
+        let min_size = match mini_wren {
+            Some(_) => MINI_WREN_MIN_SIZE,
             None => WINDOW_MIN_SIZE,
         };
         let weak = Rc::downgrade(self);
@@ -107,9 +107,9 @@ impl State {
         );
         ipc::handle_ui(&page.web_view, &WindowRef::new(self, id), mt);
         // The page and the backdrop are drawn as in use while the window is.
-        // A popup's is never the window the user browses in. A launcher
-        // closes as it goes out of use, once it has been in use: as it first
-        // shows, the app may not have come forward yet.
+        // A Mini Wren is never the window the user browses in. Going out of
+        // use counts once the window has been in use: as it first shows, the
+        // app may not have come forward yet.
         let state = Rc::downgrade(self);
         let in_use = Cell::new(false);
         page.watch_active(mt, move |active| {
@@ -121,13 +121,13 @@ impl State {
                 // Where it is now, should the app not quit as it should.
                 state.save_frame(&window);
                 if in_use.replace(false) {
-                    state.launcher_left(mt, &window);
+                    state.window_left(mt, &window);
                 }
             } else {
                 in_use.set(true);
                 state.window_used(id);
-                if window.is_popup() {
-                    // A popup in use allows Open as Tab.
+                if window.is_mini_wren() {
+                    // A Mini Wren in use allows Open as Tab.
                     state.update_front_menu(mt);
                 } else {
                     state.windows.set_active(id);
@@ -171,7 +171,7 @@ impl State {
             page,
             place,
             framed,
-            popup,
+            mini_wren,
             perf_counts,
         ));
         let window = self.windows.get(id)?;

@@ -1,7 +1,7 @@
 // The page of the active tab, or of both tabs of its split, side by side or
 // one above the other, with a divider between them. A page in full screen
-// has the window to itself, without its card. A popup's page has no card
-// either (`bare`): it is edge to edge, under the window's toolbar.
+// has the window to itself, without its card. A Mini Wren's page has no
+// card either (`bare`): it is edge to edge, under the window's toolbar.
 
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import { PageAddressBar } from "./address/page-bar";
@@ -40,7 +40,7 @@ export function TabView({
   first?: BrowserTab;
   second?: BrowserTab;
   fullScreen?: boolean;
-  /** Edge to edge, with no card round it, and the line along its top to show its loading: a popup's. */
+  /** Edge to edge, with no card round it, and the line along its top to show its loading: a Mini Wren's. */
   bare?: boolean;
   /** The side panel is at the page's right, which its cards meet. */
   besidePanel?: boolean;
@@ -178,7 +178,7 @@ function TabPane({
     <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
       {/* With no margins, there is no gap above the card for it, and a
           line along the top of the page shows the loading instead, as it
-          does on a popup's page. */}
+          does on a Mini Wren's page. */}
       {!fullScreen && !bare && margins && <LoadingBar loading={tab.loading} />}
       <div
         // Square where it meets another card only without margins (card.css).

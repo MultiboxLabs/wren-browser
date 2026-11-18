@@ -28,7 +28,7 @@ fn look_over(mt: MainThread, state: Weak<State>) {
 }
 
 /// Closes each tab of the windows' Browsers that has gone unused for longer
-/// than the setting says. A popup's window has no tabs of the user's to
+/// than the setting says. A Mini Wren has no tabs of the user's to
 /// archive.
 pub fn archive_due(state: &State) {
     let after = match state.db.settings() {
@@ -38,7 +38,7 @@ pub fn archive_due(state: &State) {
     let now = SystemTime::now();
     let mut count = 0;
     for window in state.windows.all() {
-        if window.is_popup() {
+        if window.is_mini_wren() {
             continue;
         }
         for browser in window.browsers() {

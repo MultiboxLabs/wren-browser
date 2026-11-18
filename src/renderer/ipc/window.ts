@@ -2,10 +2,11 @@
 export type WindowSpace = { kind: "space"; id: number } | { kind: "newSpace" };
 
 /**
- * What makes a window a popup's, a Mini Wren (a page's popup, an extension's
- * popup window, an app's window), which is drawn with a toolbar and no sidebar.
+ * What makes a window a Mini Wren (for a page's popup, an extension's popup
+ * window, an app's window, a link from another app or New Mini Wren), which
+ * is drawn with a toolbar and no sidebar.
  */
-export type WindowPopup = {
+export type WindowMiniWren = {
   /** The space it was opened from, whose colour its accents are, and where its page goes when it is opened as a tab. */
   space: number | null;
   /** Whether its toolbar shows its page's address, which opens the omnibox, with page info, as a page's popup has a location bar; else its title alone. */
@@ -21,24 +22,24 @@ export const appWindow = {
    * hidden; later calls do nothing.
    */
   show: () => wren.invoke<null>("window.show"),
-  /** What makes the window a popup's; null for a browser window. It never changes. */
-  popup: () => wren.invoke<WindowPopup | null>("window.popup"),
+  /** What makes the window a Mini Wren; null for a browser window. It never changes. */
+  miniWren: () => wren.invoke<WindowMiniWren | null>("window.miniWren"),
   /**
-   * Moves a popup's page to a new tab of a window the user browses in, in
+   * Moves a Mini Wren's page to a new tab of a window the user browses in, in
    * `space`, or with none, the space the app picks. A page of its own
    * profile does not load again; one of another is made again there, once
    * the user says it may (profile-move.ts). That window comes forward, and
-   * the popup's closes. Fails for a window that is no popup's, or a private
-   * page sent to another profile.
+   * the Mini Wren closes. Fails for a window that is no Mini Wren, one on
+   * the New Tab page, or a private page sent to another profile.
    */
   openAsTab: (space: number | null = null) => wren.invoke<null>("window.openAsTab", space),
   /**
-   * Whether a popup's window is drawn as a launcher, the omnibox alone: a
-   * Mini Wren on the New Tab page. The window is see-through and has no
-   * buttons, and closes as it goes out of use. False for a browser window.
+   * Whether the window is a Mini Wren on the New Tab page, drawn as the
+   * omnibox alone. The window is see-through round it, has no buttons, and
+   * closes as it goes out of use. False for a browser window.
    */
-  launcher: () => wren.invoke<boolean>("window.launcher"),
-  onLauncher: (listener: (launcher: boolean) => void) => wren.on<boolean>("window.launcher", listener),
+  newTabPage: () => wren.invoke<boolean>("window.newTabPage"),
+  onNewTabPage: (listener: (onNewTabPage: boolean) => void) => wren.on<boolean>("window.newTabPage", listener),
   /** Closes the window, as its close button does. */
   close: () => wren.invoke<null>("window.close"),
   /** Takes the keyboard from the tab that has it, for a field the user did not press into. */

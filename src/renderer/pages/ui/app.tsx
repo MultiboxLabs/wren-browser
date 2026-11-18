@@ -8,7 +8,7 @@ import { BrowserProvider, useSidePanel, useTab, useTabShape } from "@/state/brow
 import { DownloadsProvider } from "@/state/downloads";
 import { PinsProvider } from "@/state/pins";
 import { SpaceProvider, useSpace } from "@/state/space";
-import { useShowWindow, useWindowBlocked, useWindowPopup, useWindowTheme } from "@/state/window";
+import { useShowWindow, useWindowBlocked, useWindowMiniWren, useWindowTheme } from "@/state/window";
 import { useSpaceBlend } from "@/state/space-blend";
 import { useWindowMargins, useWindowMarginsSetting, WindowMarginsContext } from "@/state/margins";
 import { AddressBarContext, useAddressBar, useAddressBarSetting } from "@/state/address-bar";
@@ -29,14 +29,14 @@ import { QuitDialog } from "@/components/quit-dialog";
 import { TabSwitcher } from "@/components/tab-switcher/tab-switcher";
 import { Updated } from "@/components/updated";
 import { cn } from "@/utils/cn";
-import { PopupWindow } from "./popup";
+import { MiniWrenWindow } from "./mini-wren";
 
 // Waits for the sidebar's saved state, so it opens as it was left, for
-// whether the window is a popup's, which has none (popup.tsx), and for
+// whether the window is a Mini Wren, which has none (mini-wren.tsx), and for
 // Window Margins and Address Bar, so the page opens where it stays.
 export function App() {
   const saved = useSavedSidebar();
-  const popup = useWindowPopup();
+  const miniWren = useWindowMiniWren();
   const margins = useWindowMarginsSetting();
   const addressBar = useAddressBarSetting();
   return (
@@ -46,12 +46,12 @@ export function App() {
     <MotionConfig reducedMotion="user">
       <BrowserProvider>
         <Perf />
-        <SpaceProvider popup={popup}>
+        <SpaceProvider miniWren={miniWren}>
           <TooltipProvider>
-            {popup ? (
-              <PopupWindow popup={popup} />
+            {miniWren ? (
+              <MiniWrenWindow miniWren={miniWren} />
             ) : (
-              popup === null && (
+              miniWren === null && (
                 // Its spaces' pins are read while the sidebar's state is.
                 <PinsProvider>
                   {saved !== undefined && margins !== undefined && addressBar !== undefined && (

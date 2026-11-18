@@ -1,15 +1,14 @@
 // The app's windows: opening them, the Browsers in them, and the spaces they
 // show. A window shows one space at a time, and has at most one Browser for
 // each space it has been on, which stays in the background while another
-// space is in front; a space may have none. A popup's window shows one
-// Browser, and no space. The parts:
+// space is in front; a space may have none. A Mini Wren shows one Browser,
+// and no space. The parts:
 //
 // - open.rs: opening windows, and where each Browser goes;
 // - open_urls.rs: the links macOS asks the app to open, in Mini Wren;
-// - mini_wren.rs: the Mini Wren the app opens itself, for a link or empty;
+// - mini_wren/: Mini Wren, the window of a popup, a link from another app,
+//   or New Mini Wren, and moving its page to a tab;
 // - show_page.rs: the app's own pages a menu item shows, in tabs;
-// - popup.rs: the windows of popups;
-// - launcher.rs: a Mini Wren on the New Tab page, drawn as the omnibox alone;
 // - switch.rs: switching a window between its spaces;
 // - move_tabs.rs: moving tabs from one of its spaces to another;
 // - session.rs: keeping the windows, so each comes back as it was;
@@ -18,12 +17,10 @@
 // What a window is, and holds, is shell/'s: `BrowserWindow`
 // (shell/browser.rs), and the platform's window round its page.
 
-mod launcher;
 mod mini_wren;
 mod move_tabs;
 mod open;
 mod open_urls;
-mod popup;
 mod request;
 mod session;
 mod show_page;
@@ -167,10 +164,10 @@ impl State {
                 .as_ref()
                 .is_some_and(|window| window.is_profile_window()),
             blocked: window.is_some_and(|window| window.is_blocked()),
-            popup: self
+            mini_wren: self
                 .windows
                 .in_use()
-                .is_some_and(|window| window.is_popup() && !window.is_launcher()),
+                .is_some_and(|window| window.is_mini_wren() && !window.is_on_new_tab_page()),
         }
     }
 
@@ -185,7 +182,7 @@ impl State {
     }
 
     /// The window the user browses in, or else the newest other, that
-    /// what the app opens for the user goes to. Never a popup's, nor off the
+    /// what the app opens for the user goes to. Never a Mini Wren, nor off the
     /// record, as Chromium opens links in a normal window; nor one on no
     /// space while the user makes one.
     pub(super) fn browsing_window(&self) -> Option<Rc<BrowserWindow>> {
