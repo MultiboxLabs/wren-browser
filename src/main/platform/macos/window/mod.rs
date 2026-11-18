@@ -4,6 +4,7 @@
 // - frame.rs: where the window is and how large;
 // - full_screen.rs: going full screen and coming back;
 // - state.rs: minimised, zoomed or neither;
+// - panel.rs: the window of `WindowKind::Panel`, an NSPanel;
 // - delegate.rs: the window's delegate, which hears its close button;
 // - title_bar.rs: the close, minimise and zoom buttons, which the page places;
 // - pointer.rs: where the pointer is, and its moves, beyond the window too;
@@ -15,6 +16,7 @@ mod devtools;
 mod frame;
 mod full_screen;
 mod key_window;
+mod panel;
 mod pointer;
 mod state;
 mod title_bar;
@@ -44,7 +46,7 @@ use objc2_foundation::{
 use objc2_quartz_core::CATransaction;
 use wren::{MainThread, WebView};
 
-use crate::platform::{Backdrop, WindowSize};
+use crate::platform::{Backdrop, WindowKind, WindowSize};
 use delegate::WindowDelegate;
 use full_screen::is_full_screen;
 use title_bar::TitleBar;
@@ -70,6 +72,7 @@ impl PageWindow {
         web_view: &WebView,
         title: &str,
         size: WindowSize,
+        kind: WindowKind,
         should_close: impl Fn() -> bool + 'static,
     ) -> PageWindow {
         let mtm = MainThreadMarker::new().unwrap();
@@ -87,14 +90,18 @@ impl PageWindow {
             }
             WindowSize::Fixed(size) => (size, size),
         };
-        let window = unsafe {
-            NSWindow::initWithContentRect_styleMask_backing_defer(
-                NSWindow::alloc(mtm),
-                NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(size.0, size.1)),
-                style,
-                NSBackingStoreType::Buffered,
-                false,
-            )
+        let frame = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(size.0, size.1));
+        let window = match kind {
+            WindowKind::Window => unsafe {
+                NSWindow::initWithContentRect_styleMask_backing_defer(
+                    NSWindow::alloc(mtm),
+                    frame,
+                    style,
+                    NSBackingStoreType::Buffered,
+                    false,
+                )
+            },
+            WindowKind::Panel => panel::open(mtm, frame, style),
         };
         unsafe { window.setReleasedWhenClosed(false) };
         window.setContentMinSize(NSSize::new(min_size.0, min_size.1));
@@ -188,6 +195,17 @@ impl PageWindow {
 
     pub fn hide(&self) {
         self.window.orderOut(None);
+    }
+
+    // Clicking it, showing it or bringing it forward now activates the app,
+    // as with any window.
+    pub fn become_window(&self) {
+        let mut style = self.window.styleMask();
+        style.remove(NSWindowStyleMask::NonactivatingPanel);
+        self.window.setStyleMask(style);
+        // A new style lays the title bar out again, which puts the buttons
+        // back.
+        self.title_bar.apply(&self.window);
     }
 
     // The Window menu, the Dock and Mission Control show the title. A new one
@@ -327,19 +345,38 @@ fn show(window: &NSWindow) {
 // app's other windows stay where they were. NSApplication's `activate`
 // would bring every one of them forward, as a click on the Dock's icon
 // does; the running app's activation with no options brings only the key
-// and main windows, which `window` now is.
+// and main windows, which `window` now is. A panel that does not bring the
+// app forward comes in front of the other apps' windows, and takes the
+// keyboard, with the app left as it is.
 fn bring_in_front(window: &NSWindow) {
+    if takes_keyboard_alone(window) {
+        window.orderFrontRegardless();
+        window.makeKeyWindow();
+        return;
+    }
     window.makeKeyAndOrderFront(None);
     NSRunningApplication::currentApplication()
         .activateWithOptions(NSApplicationActivationOptions::empty());
 }
 
+// Whether `window` is a panel that takes the keyboard without bringing the
+// app forward (panel.rs), until it is made a window.
+fn takes_keyboard_alone(window: &NSWindow) -> bool {
+    window
+        .styleMask()
+        .contains(NSWindowStyleMask::NonactivatingPanel)
+}
+
+// Main while the app is active, or under the key window. While a panel has
+// the keyboard alone, AppKit counts the app as active, though it is in the
+// background: then only the panel, and what is over it, is in use, not the
+// main window.
 fn is_active(window: &Retained<NSWindow>) -> bool {
     let app = NSApplication::sharedApplication(MainThreadMarker::new().unwrap());
-    if !app.isActive() {
-        return false;
-    }
-    if window.isMainWindow() {
+    let panel_alone = app
+        .keyWindow()
+        .is_some_and(|key| takes_keyboard_alone(&key));
+    if app.isActive() && !panel_alone && window.isMainWindow() {
         return true;
     }
     let mut current = app.keyWindow();
@@ -362,6 +399,13 @@ impl Drop for PageWindow {
             pointer::remove_monitor(&monitor);
         }
         self.window.setDelegate(None);
+        // While a panel has the keyboard, AppKit counts the app as active,
+        // though the app the user was in is still in front, so closing it
+        // would give the keyboard to the app's main window, which would come
+        // in front for a moment. It goes back to that app first.
+        if self.window.isKeyWindow() && takes_keyboard_alone(&self.window) {
+            NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).deactivate();
+        }
         self.window.close();
     }
 }

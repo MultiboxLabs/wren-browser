@@ -20,7 +20,7 @@ use crate::import::Landing;
 use crate::import::run::{self, Plan, RunState};
 use crate::ipc;
 use crate::pages::ONBOARDING;
-use crate::platform::{PageWindow, WindowSize};
+use crate::platform::{PageWindow, WindowKind, WindowSize};
 
 /// The window's content, which the user cannot resize, as a setup
 /// assistant's.
@@ -61,6 +61,7 @@ impl State {
             web_view,
             "Welcome to Wren",
             WindowSize::Fixed(SIZE),
+            WindowKind::Window,
             move || {
                 mt.quit();
                 false

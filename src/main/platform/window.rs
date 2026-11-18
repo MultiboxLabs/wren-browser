@@ -32,6 +32,19 @@ pub enum Backdrop {
     Panel,
 }
 
+/// Whether a window brings the app forward as it takes the keyboard.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WindowKind {
+    /// A window: showing it, bringing it forward or clicking it brings the
+    /// app forward too.
+    Window,
+    /// A panel: it takes the keyboard and comes in front of other apps'
+    /// windows with the app left in the background, and the app's other
+    /// windows where they are, as a window a key opens from any app does.
+    /// It is a window from when it is made one (`become_window`).
+    Panel,
+}
+
 type CrashWatch = Rc<RefCell<Option<Box<dyn Fn()>>>>;
 
 /// A window showing one page. Its web view drops first, which takes the page
@@ -44,18 +57,19 @@ pub struct PageWindow {
 }
 
 impl PageWindow {
-    /// A window of `web_view` (`Page::web_view`), not shown yet. Its content
-    /// is as `size` says, and fills the window: the title bar is the page's
-    /// to draw, and it places the window's buttons (`set_buttons`).
-    /// `should_close` answers the window's close button.
+    /// A window of `web_view` (`Page::web_view`), of `kind`, not shown yet.
+    /// Its content is as `size` says, and fills the window: the title bar is
+    /// the page's to draw, and it places the window's buttons
+    /// (`set_buttons`). `should_close` answers the window's close button.
     pub fn open(
         web_view: WebView,
         title: &str,
         size: WindowSize,
+        kind: WindowKind,
         should_close: impl Fn() -> bool + 'static,
     ) -> PageWindow {
         let web_view = Rc::new(web_view);
-        let native = current::window::PageWindow::open(&web_view, title, size, should_close);
+        let native = current::window::PageWindow::open(&web_view, title, size, kind, should_close);
 
         // The page shows the window once it has drawn what it shows (`show`),
         // so it never opens blank or half drawn. A failed load or a crash
@@ -103,6 +117,13 @@ impl PageWindow {
     /// frame.
     pub fn hide(&self) {
         self.native.hide();
+    }
+
+    /// Makes a `WindowKind::Panel` a window from now on: clicking it,
+    /// showing it or bringing it forward brings the app forward too. It
+    /// does not bring the app forward itself. Nothing for a window.
+    pub fn become_window(&self) {
+        self.native.become_window();
     }
 
     /// Names the window, as the platform's window lists show it; the title
@@ -174,10 +195,11 @@ impl PageWindow {
         self.native.frame()
     }
 
-    /// Whether the window is the one in use: a browser window, or under the
-    /// key window (a sheet, or a bubble of Chromium's over it), while the app
-    /// is active. A window drawn by its key state alone would look left
-    /// whenever a bubble opens.
+    /// Whether the window is the one in use: the main window while the app
+    /// is active, or under the key window (a sheet, or a bubble of
+    /// Chromium's over it), as a panel is that has the keyboard with the app
+    /// in the background. A window drawn by its key state alone would look
+    /// left whenever a bubble opens.
     // Once the window has a Browser, Browser::is_active says this.
     pub fn is_active(&self) -> bool {
         self.native.is_active()
