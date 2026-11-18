@@ -16,12 +16,17 @@
 // pressed in. If it closes while it is the window in use, and the user has
 // gone to no other window of the app since it opened, that app comes back
 // to the front, as if the Mini Wren had been a part of it.
+//
+// Each opens with its page at the size the user last gave one, kept as they
+// finish resizing it (db/mini_wren.rs), or else at a Mini Wren's own size.
+// One a page or Chromium opens is as large as its page asks, and keeps
+// nothing.
 
 use std::rc::Rc;
 
 use wren::{MainThread, RequestedBounds};
 
-use super::{MiniWrenPosition, PAGE_SIZE};
+use super::{MiniWrenPosition, PAGE_SIZE, TOOLBAR};
 use crate::app::State;
 use crate::menus;
 use crate::platform::{self, GlobalShortcut, RunningApp};
@@ -123,22 +128,63 @@ impl State {
                 Ok(profile) => profile,
                 Err(error) => return eprintln!("Wren could not open a Mini Wren: {error}"),
             };
-            // No page asks for a size, so it gets a Mini Wren's own.
+            // No page asks for a size, so it gets the one the user last
+            // gave.
+            let (width, height) = state.kept_page_size();
             let size = RequestedBounds {
                 origin: None,
-                width: PAGE_SIZE.0,
-                height: PAGE_SIZE.1,
+                width,
+                height,
             };
             profile.create_popup_browser(&url, Some(size), move |browser| match browser {
                 Ok(browser) => {
-                    let window =
-                        state.show_mini_wren(mt, browser, space, MiniWrenPosition::AtPointer);
-                    if let Some((window, app)) = window.zip(return_to) {
+                    let position = MiniWrenPosition::AtPointer;
+                    let Some(window) = state.show_mini_wren(mt, browser, space, position) else {
+                        return;
+                    };
+                    state.keep_page_size(window);
+                    if let Some(app) = return_to {
                         state.returns_to.borrow_mut().insert(window, app);
                     }
                 }
                 Err(error) => eprintln!("Wren could not open a Mini Wren: {error:?}"),
             });
+        });
+    }
+
+    // The size of the page the user last gave a Mini Wren that Wren opened,
+    // or else a Mini Wren's own.
+    fn kept_page_size(&self) -> (f64, f64) {
+        match self.db.mini_wren_page_size() {
+            Ok(size) => size.unwrap_or(PAGE_SIZE),
+            Err(error) => {
+                eprintln!("Wren could not read Mini Wren's size: {error}");
+                PAGE_SIZE
+            }
+        }
+    }
+
+    // Keeps the size the user gives Mini Wren `id`'s page as they finish
+    // resizing it, for the next one to open at. On the New Tab page its
+    // window has no edges to resize it by, and full screen its size is the
+    // screen's, not the user's.
+    fn keep_page_size(self: &Rc<Self>, id: WindowId) {
+        let Some(window) = self.windows.get(id) else {
+            return;
+        };
+        let state = Rc::downgrade(self);
+        window.page.watch_resized(move || {
+            let Some(state) = state.upgrade() else { return };
+            let Some(window) = state.windows.get(id) else {
+                return;
+            };
+            if window.page.is_full_screen() {
+                return;
+            }
+            let (width, height) = window.page.content_size();
+            if let Err(error) = state.db.set_mini_wren_page_size((width, height - TOOLBAR)) {
+                eprintln!("Wren could not keep Mini Wren's size: {error}");
+            }
         });
     }
 

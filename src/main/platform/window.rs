@@ -123,16 +123,16 @@ impl PageWindow {
 
     /// Gives the window a content area of `size`, centred on the pointer,
     /// on the screen it is on, and kept `margin` points inside that
-    /// screen's usable area on each side. A size less than the window's
-    /// minimum gets the minimum.
+    /// screen's usable area on each side, made smaller to fit there if it
+    /// must be. A size less than the window's minimum gets the minimum.
     pub fn place_at_pointer(&self, size: (f64, f64), margin: f64) {
         self.native.place_at_pointer(size, margin);
     }
 
     /// Gives the window a content area of `size`, its top edge and its
     /// middle staying where they are, but kept `margin` points inside its
-    /// screen's usable area on each side. A size less than the window's
-    /// minimum gets the minimum.
+    /// screen's usable area on each side, made smaller to fit there if it
+    /// must be. A size less than the window's minimum gets the minimum.
     pub fn resize_from_top(&self, size: (f64, f64), margin: f64) {
         self.native.resize_from_top(size, margin);
     }
@@ -143,6 +143,18 @@ impl PageWindow {
     /// before the window had a minimum grows to it.
     pub fn restore_frame(&self, bounds: RequestedBounds) {
         self.native.restore_frame(bounds);
+    }
+
+    /// How large the window's content area is, in points, as the calls that
+    /// size the window take it.
+    pub fn content_size(&self) -> (f64, f64) {
+        self.native.content_size()
+    }
+
+    /// Calls `resized` each time the user finishes resizing the window by
+    /// its edges; not as the app sizes it, nor as its zoom button does.
+    pub fn watch_resized(&self, resized: impl Fn() + 'static) {
+        self.native.watch_resized(resized);
     }
 
     /// Where the window is and how large, as `restore_frame` takes it; none

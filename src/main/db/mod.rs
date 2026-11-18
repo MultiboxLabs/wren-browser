@@ -1,13 +1,14 @@
 // The app's database: what the browser keeps of its own, as opposed to what
 // Chromium keeps for a profile. For now that is spaces, their pins and the
 // profiles' favourites, the windows open at quit, the user's settings, what
-// analytics keeps between runs, and whether the user has been through
-// onboarding.
+// analytics keeps between runs, whether the user has been through
+// onboarding, and the size the user last gave a Mini Wren.
 // It is used on the main thread only, and its methods take `&self`.
 
 mod analytics;
 mod imports;
 mod migrations;
+mod mini_wren;
 mod onboarding;
 mod pins;
 mod profiles;

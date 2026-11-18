@@ -2,11 +2,11 @@
 // whose origin is the bottom left of the main screen.
 
 use objc2::MainThreadMarker;
-use objc2_app_kit::{NSEvent, NSScreen};
+use objc2_app_kit::{NSEvent, NSScreen, NSWindowDidEndLiveResizeNotification};
 use objc2_foundation::{NSIntersectsRect, NSPoint, NSPointInRect, NSRect, NSSize};
 use wren::RequestedBounds;
 
-use super::PageWindow;
+use super::{PageWindow, observe};
 
 impl PageWindow {
     // AppKit keeps the window on a screen.
@@ -34,7 +34,7 @@ impl PageWindow {
     }
 
     pub fn place_at_pointer(&self, size: (f64, f64), margin: f64) {
-        let size = self.set_content_size(size);
+        let size = self.frame_size(size);
         let pointer = NSEvent::mouseLocation();
         let mtm = MainThreadMarker::new().unwrap();
         let screens = NSScreen::screens(mtm);
@@ -43,8 +43,11 @@ impl PageWindow {
             .find(|screen| NSPointInRect(pointer, screen.frame()))
             .or_else(|| NSScreen::mainScreen(mtm));
         let Some(screen) = screen else {
+            let frame = NSRect::new(self.window.frame().origin, size);
+            self.window.setFrame_display(frame, false);
             return self.window.center();
         };
+        let size = self.fitted(size, &screen, margin);
         let origin = NSPoint::new(pointer.x - size.width / 2.0, pointer.y - size.height / 2.0);
         let frame = kept_inside(NSRect::new(origin, size), &screen, margin);
         self.window.setFrame_display(frame, false);
@@ -52,17 +55,33 @@ impl PageWindow {
 
     pub fn resize_from_top(&self, size: (f64, f64), margin: f64) {
         let old = self.window.frame();
+        let mtm = MainThreadMarker::new().unwrap();
+        let screen = self.window.screen().or_else(|| NSScreen::mainScreen(mtm));
         let size = self.frame_size(size);
+        let size = screen
+            .as_ref()
+            .map_or(size, |screen| self.fitted(size, screen, margin));
         let origin = NSPoint::new(
             old.origin.x + (old.size.width - size.width) / 2.0,
             old.origin.y + old.size.height - size.height,
         );
-        let mut frame = NSRect::new(origin, size);
-        let mtm = MainThreadMarker::new().unwrap();
-        if let Some(screen) = self.window.screen().or_else(|| NSScreen::mainScreen(mtm)) {
-            frame = kept_inside(frame, &screen, margin);
-        }
+        let frame = NSRect::new(origin, size);
+        let frame = screen
+            .as_ref()
+            .map_or(frame, |screen| kept_inside(frame, screen, margin));
         self.window.setFrame_display(frame, true);
+    }
+
+    // A frame of `size`, made no larger than `screen`'s usable area less
+    // `margin` points on each side, as a size kept from a larger screen
+    // may be, but no smaller than the window's minimum.
+    fn fitted(&self, size: NSSize, screen: &NSScreen, margin: f64) -> NSSize {
+        let area = screen.visibleFrame().size;
+        let min = self.frame_size((0.0, 0.0));
+        NSSize::new(
+            size.width.min(area.width - 2.0 * margin).max(min.width),
+            size.height.min(area.height - 2.0 * margin).max(min.height),
+        )
     }
 
     // Gives the window a content area of `size`, or its minimum, and
@@ -94,6 +113,21 @@ impl PageWindow {
         let top = frame.origin.y + frame.size.height - STEP;
         let origin = NSPoint::new(frame.origin.x + STEP, top - size.height);
         Some(NSRect::new(origin, size))
+    }
+
+    pub fn content_size(&self) -> (f64, f64) {
+        let size = self
+            .window
+            .contentRectForFrameRect(self.window.frame())
+            .size;
+        (size.width, size.height)
+    }
+
+    // A live resize is AppKit's for the user dragging the window's edges.
+    pub fn watch_resized(&self, resized: impl Fn() + 'static) {
+        let name = unsafe { NSWindowDidEndLiveResizeNotification };
+        let observer = observe(name, &self.window, resized);
+        self.observers.borrow_mut().push(observer);
     }
 
     // AppKit moves the window back onto a screen if that one has gone.
