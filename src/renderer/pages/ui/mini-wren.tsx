@@ -11,14 +11,14 @@
 // window is light or dark as the system is.
 //
 // On the New Tab page, as an empty one opens, it is the omnibox alone
-// instead, filling the window, which the app draws see-through round it and
-// with no buttons (windows/mini_wren/mod.rs). What is chosen opens in its
-// page, which leaves the New Tab page, and the toolbar and the page come
-// back; until then the omnibox stays as it was. Closing the omnibox closes
-// the window: Escape, its close button, or a press beside it. ⌘W closes the
-// window too, and so does going to another window or app. A dialog over the
-// window takes the omnibox away, and it opens afresh once the dialog has
-// closed.
+// instead, filling the window, which the app draws with no buttons
+// (windows/mini_wren/mod.rs). A press that moves on the omnibox's background
+// moves the window. What is chosen opens in its page, which leaves the New
+// Tab page, and the toolbar and the page come back; until then the omnibox
+// stays as it was. Closing the omnibox closes the window: Escape, or its
+// close button. ⌘W closes the window too, and so does going to another
+// window or app. A dialog over the window takes the omnibox away, and it
+// opens afresh once the dialog has closed.
 
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect } from "react";

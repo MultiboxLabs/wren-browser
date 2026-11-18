@@ -4,9 +4,9 @@
 // tab that has it. For the active tab (⌘L, a click on the address) it opens
 // over the sidebar's address field, on the tab's address, and what is
 // chosen opens there. In a Mini Wren on the New Tab page it is the window,
-// with a button that closes it (pages/ui/mini-wren.tsx). The field's
-// behaviour is field.ts's, the list's items.ts's, and when it is open
-// shown.ts's.
+// with a button that closes it, and its background moves the window
+// (pages/ui/mini-wren.tsx). The field's behaviour is field.ts's, the list's
+// items.ts's, and when it is open shown.ts's.
 
 import { Search, X } from "lucide-react";
 import { useReducedMotion } from "motion/react";
@@ -24,24 +24,20 @@ import { cn } from "@/utils/cn";
 /**
  * Where the omnibox is: at the address field's top left; without it in
  * view, in the middle of the window; or filling the window (`"window"`), in
- * a Mini Wren on the New Tab page, with room round it for its shadow.
+ * a Mini Wren on the New Tab page.
  */
 export type OmniboxPlace = { left: number; top: number } | "center" | "window";
 
 // Sizes: as wide always, and as tall as its list, up to five rows,
 // the rest a scroll away. Over the address, it is narrower and its field
 // shorter. In the middle of the window, its top stays where the tallest
-// one's would be, so it grows down as suggestions come. A Mini Wren on the
-// New Tab page is the middle's size and SHADOW_ROOM round it
-// (NEW_TAB_PAGE_SIZE, windows/mini_wren/mod.rs), so change the two together.
+// one's would be, so it grows down as suggestions come. A Mini Wren's window
+// on the New Tab page is the middle's size (NEW_TAB_PAGE_SIZE,
+// windows/mini_wren/mod.rs), so change the two together.
 const sizes = {
   center: { width: 763, maxHeight: 326, field: 62 },
   anchored: { width: 346, maxHeight: 307, field: 49 }
 };
-
-// The room round the omnibox filling a window, for its shadow, in points on
-// each side, as the window draws none (.omnibox[data-place="window"]).
-const SHADOW_ROOM = 40;
 
 // How far the panel dips as it pulses into keyword mode: 1%.
 const PULSE_SCALE = 0.99;
@@ -85,13 +81,15 @@ export function Omnibox({
   // the space's colour (.omnibox-pulse), and a slight dip in scale and
   // back. Both run on the compositor, so the page's work as the mode starts
   // cannot make them stutter: the glow by its layers' opacity, the dip by
-  // the `scale` property.
+  // the `scale` property. Filling a window, it does neither: the glow would
+  // spread past the window's edges, and the dip would shrink the window's
+  // content inside its frame.
   const panel = useRef<HTMLDivElement>(null);
   const dip = useRef<Animation>(null);
   const still = useReducedMotion();
   const [pulses, setPulses] = useState(0);
   useEffect(() => {
-    if (!field.keyword) return;
+    if (!field.keyword || fills) return;
     setPulses((count) => count + 1);
     if (still) return;
     dip.current?.cancel();
@@ -118,7 +116,7 @@ export function Omnibox({
         data-place={fills ? "window" : undefined}
         style={
           fills
-            ? { inset: SHADOW_ROOM }
+            ? undefined
             : {
                 width: `min(${size.width}px, 100vw - 40px)`,
                 maxHeight: `min(${size.maxHeight}px, 100vh - 40px)`,
@@ -127,8 +125,14 @@ export function Omnibox({
                   : { top: `max(20px, 50% - ${size.maxHeight / 2}px)` })
               }
         }
-        // Not clipped: the pulse's glow spreads out past its edges.
-        className={cn("omnibox absolute isolate flex flex-col", place === "center" && "left-1/2 -translate-x-1/2")}
+        // Not clipped: the pulse's glow spreads out past its edges. Filling
+        // a window, a press that moves on its background moves the window,
+        // as its title bar's would; its field, rows and buttons say no-drag.
+        className={cn(
+          "omnibox absolute isolate flex flex-col",
+          place === "center" && "left-1/2 -translate-x-1/2",
+          fills && "drag inset-0"
+        )}
       >
         {pulses > 0 && (
           <span key={pulses} aria-hidden className="omnibox-pulse">
@@ -173,7 +177,7 @@ export function Omnibox({
             autoCapitalize="off"
             autoCorrect="off"
             className={cn(
-              "min-w-0 flex-1 bg-transparent text-omnibox-typed outline-none select-text selection:bg-omnibox-text-selection placeholder:text-omnibox-placeholder",
+              "no-drag min-w-0 flex-1 bg-transparent text-omnibox-typed outline-none select-text selection:bg-omnibox-text-selection placeholder:text-omnibox-placeholder",
               anchored ? "text-omnibox-row" : "text-omnibox-large font-medium"
             )}
           />
@@ -195,7 +199,7 @@ export function Omnibox({
               id="omnibox-list"
               role="listbox"
               className={cn(
-                "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2.5 scrollbar-none",
+                "no-drag flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2.5 scrollbar-none",
                 anchored ? "scroll-pt-0.5 scroll-pb-2.5 pt-0.5" : "scroll-pt-1.5 scroll-pb-2.5 pt-1.5"
               )}
             >
