@@ -29,14 +29,15 @@ use objc2::runtime::{AnyObject, NSObjectProtocol, ProtocolObject};
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
     NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
-    NSApplication, NSApplicationDidBecomeActiveNotification,
+    NSApplication, NSApplicationActivationOptions, NSApplicationDidBecomeActiveNotification,
     NSApplicationDidResignActiveNotification, NSAutoresizingMaskOptions, NSBackingStoreType,
-    NSColor, NSToolbar, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial,
-    NSVisualEffectState, NSVisualEffectView, NSWindow, NSWindowDidBecomeKeyNotification,
-    NSWindowDidBecomeMainNotification, NSWindowDidEndLiveResizeNotification,
-    NSWindowDidExitFullScreenNotification, NSWindowDidResignKeyNotification,
-    NSWindowDidResignMainNotification, NSWindowDidResizeNotification, NSWindowStyleMask,
-    NSWindowTitleVisibility, NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
+    NSColor, NSRunningApplication, NSToolbar, NSView, NSVisualEffectBlendingMode,
+    NSVisualEffectMaterial, NSVisualEffectState, NSVisualEffectView, NSWindow,
+    NSWindowDidBecomeKeyNotification, NSWindowDidBecomeMainNotification,
+    NSWindowDidEndLiveResizeNotification, NSWindowDidExitFullScreenNotification,
+    NSWindowDidResignKeyNotification, NSWindowDidResignMainNotification,
+    NSWindowDidResizeNotification, NSWindowStyleMask, NSWindowTitleVisibility,
+    NSWindowToolbarStyle, NSWindowWillEnterFullScreenNotification,
 };
 use objc2_foundation::{
     NSNotification, NSNotificationCenter, NSPoint, NSRect, NSSize, NSString, ns_string,
@@ -245,8 +246,7 @@ impl PageWindow {
     }
 
     pub fn bring_forward(&self) {
-        self.window.makeKeyAndOrderFront(None);
-        NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).activate();
+        bring_in_front(&self.window);
     }
 
     pub fn set_active(&self, active: bool) {
@@ -332,8 +332,18 @@ fn show(window: &NSWindow) {
     if window.isVisible() {
         return;
     }
+    bring_in_front(window);
+}
+
+// Makes `window` key and brings it in front, and the app with it alone: the
+// app's other windows stay where they were. NSApplication's `activate`
+// would bring every one of them forward, as a click on the Dock's icon
+// does; the running app's activation with no options brings only the key
+// and main windows, which `window` now is.
+fn bring_in_front(window: &NSWindow) {
     window.makeKeyAndOrderFront(None);
-    NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).activate();
+    NSRunningApplication::currentApplication()
+        .activateWithOptions(NSApplicationActivationOptions::empty());
 }
 
 fn is_active(window: &Retained<NSWindow>) -> bool {
