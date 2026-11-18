@@ -1,7 +1,7 @@
 // Back, forward, and reload, which turns into stop while the page loads: in
 // the sidebar's toolbar, or in the address bar atop the page while the
-// Address Bar setting puts it there (page-bar.tsx). A popup's toolbar has
-// reload alone in its field (pages/ui/popup.tsx). Each acts on the active
+// Address Bar setting puts it there (page-bar.tsx). A Mini Wren's toolbar
+// has reload alone in its field (pages/ui/mini-wren.tsx). Each acts on the active
 // tab, as the main menu's do.
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";

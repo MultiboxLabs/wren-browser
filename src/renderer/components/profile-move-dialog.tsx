@@ -1,6 +1,6 @@
 // Asks before a move makes tabs again in another profile, where they open
 // without their history (ipc/profile_move.rs): a drop of tabs of the list,
-// or a popup's page opened as a tab. The move waits for the answer. The
+// or a Mini Wren's page opened as a tab. The move waits for the answer. The
 // space they go to, on a tile of its colour badged with an arrow, says
 // where. Move, the default, moves them; Cancel, on Escape, leaves them.
 // "Don't ask again" turns the question off once Move is pressed, as
@@ -34,7 +34,8 @@ export function ProfileMoveDialog() {
 
   const entry = spaces.find(({ id }) => id === question?.space);
   // With no space, they go to the window's own profile, which it shows: a
-  // popup's page goes to no space only in its own profile, which never asks.
+  // Mini Wren's page goes to no space only in its own profile, which never
+  // asks.
   const to = entry ? spaceOf(entry) : shown;
   const move = () => {
     answered.current = true;

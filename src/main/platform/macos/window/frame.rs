@@ -16,14 +16,14 @@ impl PageWindow {
         }
     }
 
-    pub fn place_popup(
+    pub fn place_as_asked(
         &self,
         size: (f64, f64),
         origin: Option<(f64, f64)>,
         near: Option<&PageWindow>,
     ) {
         let window = &self.window;
-        let size = self.set_popup_size(size);
+        let size = self.set_content_size(size);
         let asked = origin
             .map(|(x, y)| NSRect::new(NSPoint::new(x, y), size))
             .filter(|&frame| is_on_screen(frame));
@@ -33,8 +33,8 @@ impl PageWindow {
         }
     }
 
-    pub fn place_popup_at_pointer(&self, size: (f64, f64), margin: f64) {
-        let size = self.set_popup_size(size);
+    pub fn place_at_pointer(&self, size: (f64, f64), margin: f64) {
+        let size = self.set_content_size(size);
         let pointer = NSEvent::mouseLocation();
         let mtm = MainThreadMarker::new().unwrap();
         let screens = NSScreen::screens(mtm);
@@ -50,9 +50,9 @@ impl PageWindow {
         self.window.setFrame_display(frame, false);
     }
 
-    pub fn resize_popup_from_top(&self, size: (f64, f64), margin: f64) {
+    pub fn resize_from_top(&self, size: (f64, f64), margin: f64) {
         let old = self.window.frame();
-        let size = self.popup_frame_size(size);
+        let size = self.frame_size(size);
         let origin = NSPoint::new(
             old.origin.x + (old.size.width - size.width) / 2.0,
             old.origin.y + old.size.height - size.height,
@@ -65,18 +65,18 @@ impl PageWindow {
         self.window.setFrame_display(frame, true);
     }
 
-    // Gives a popup's window a content area of `size`, or its minimum, and
+    // Gives the window a content area of `size`, or its minimum, and
     // answers its frame's size.
-    fn set_popup_size(&self, size: (f64, f64)) -> NSSize {
+    fn set_content_size(&self, size: (f64, f64)) -> NSSize {
         let size = NSSize::new(size.0, size.1);
         self.window
             .setContentSize(at_least(size, self.window.contentMinSize()));
         self.window.frame().size
     }
 
-    // The size of a popup's frame round a content area of `size`, or its
-    // minimum.
-    fn popup_frame_size(&self, size: (f64, f64)) -> NSSize {
+    // The size of the window's frame round a content area of `size`, or
+    // its minimum.
+    fn frame_size(&self, size: (f64, f64)) -> NSSize {
         let content = at_least(NSSize::new(size.0, size.1), self.window.contentMinSize());
         let rect = NSRect::new(NSPoint::new(0.0, 0.0), content);
         self.window.frameRectForContentRect(rect).size

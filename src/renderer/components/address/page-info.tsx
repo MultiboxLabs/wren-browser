@@ -3,8 +3,8 @@
 // stands. While the page asks for permissions, the popover is the prompt for
 // them instead (permission-prompt.tsx). What it shows is Chromium's, for the
 // active tab; every change goes back to it. The button is in the address
-// field, atop the sidebar or the page, and in a popup's toolbar
-// (pages/ui/popup.tsx), where the popover has what a popup has.
+// field, atop the sidebar or the page, and in a Mini Wren's toolbar
+// (pages/ui/mini-wren.tsx), where the popover has what a Mini Wren has.
 
 import { Check, Ellipsis, Link, Lock, Pin, Plus, Puzzle, RotateCw, Shield, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -44,21 +44,22 @@ const quickPanels: SidePanelId[] = ["ReadingList", "Bookmarks", "ReadAnything"];
 
 /**
  * The page info button, which the site's bubbles hang off (its mark is
- * "page-info") while it is `marked`, and which opens the popover. `popup`:
- * in a popup's toolbar, its popover has what a popup has. `className` and
+ * "page-info") while it is `marked`, and which opens the popover.
+ * `miniWren`: in a Mini Wren's toolbar, its popover has what a Mini Wren
+ * has. `className` and
  * `iconSize`: the button's own.
  */
 export function PageInfoButton({
   tab,
   actions = [],
-  popup = false,
+  miniWren = false,
   marked = true,
   className,
   iconSize = 18
 }: {
   tab?: Tab;
   actions?: ExtensionAction[];
-  popup?: boolean;
+  miniWren?: boolean;
   /** It carries the mark: false for a copy of it the bubbles don't hang off. */
   marked?: boolean;
   className?: string;
@@ -126,7 +127,7 @@ export function PageInfoButton({
         {promptShown ? (
           <PermissionPromptContent prompt={promptShown} />
         ) : (
-          <PageInfo tab={tab} site={site} actions={actions} popup={popup} onClose={() => setOpen(false)} />
+          <PageInfo tab={tab} site={site} actions={actions} miniWren={miniWren} onClose={() => setOpen(false)} />
         )}
       </Popover>
     </Anchor>
@@ -157,18 +158,18 @@ function PageInfo({
   tab,
   site: info,
   actions,
-  popup,
+  miniWren,
   onClose
 }: {
   tab?: Tab;
   site: Site | null;
   actions: ExtensionAction[];
   /**
-   * In a popup's window, which has no side panel, and whose Browser has no
+   * In a Mini Wren, which has no side panel, and whose Browser has no
    * extensions' actions (Chromium gives them only to a tabbed window's): it
    * has neither the side panels' tiles nor the Extensions section.
    */
-  popup: boolean;
+  miniWren: boolean;
   onClose: () => void;
 }) {
   const openPanel = useSidePanel()?.id;
@@ -176,7 +177,7 @@ function PageInfo({
     <div className="flex w-66 flex-col p-2.5">
       <div className="grid grid-cols-4 grid-rows-[40px] gap-2">
         <CopyLinkTile disabled={!tab || isNewTab(tab.url)} onCopied={onClose} />
-        {!popup &&
+        {!miniWren &&
           quickPanels.map((id) => {
             const panel = sidePanels.find((each) => each.id === id)!;
             const open = openPanel === id;
@@ -200,7 +201,7 @@ function PageInfo({
           })}
       </div>
 
-      {!popup && (
+      {!miniWren && (
         <Section
           title="Extensions"
           action={{

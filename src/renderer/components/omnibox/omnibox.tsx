@@ -3,9 +3,10 @@
 // window, empty, and what is chosen opens in a new tab, or switches to the
 // tab that has it. For the active tab (⌘L, a click on the address) it opens
 // over the sidebar's address field, on the tab's address, and what is
-// chosen opens there. In a Mini Wren's launcher it is the window, with a
-// button that closes it (pages/ui/launcher.tsx). The field's behaviour is
-// field.ts's, the list's items.ts's, and when it is open shown.ts's.
+// chosen opens there. In a Mini Wren on the New Tab page it is the window,
+// with a button that closes it (pages/ui/mini-wren.tsx). The field's
+// behaviour is field.ts's, the list's items.ts's, and when it is open
+// shown.ts's.
 
 import { Search, X } from "lucide-react";
 import { useReducedMotion } from "motion/react";
@@ -22,24 +23,24 @@ import { cn } from "@/utils/cn";
 
 /**
  * Where the omnibox is: at the address field's top left; without it in
- * view, in the middle of the window; or filling the window, as a launcher's
- * (`"window"`), with room round it for its shadow.
+ * view, in the middle of the window; or filling the window (`"window"`), in
+ * a Mini Wren on the New Tab page, with room round it for its shadow.
  */
 export type OmniboxPlace = { left: number; top: number } | "center" | "window";
 
 // Sizes: as wide always, and as tall as its list, up to five rows,
 // the rest a scroll away. Over the address, it is narrower and its field
 // shorter. In the middle of the window, its top stays where the tallest
-// one's would be, so it grows down as suggestions come. A launcher's window
-// is the middle's size and SHADOW_ROOM round it (LAUNCHER_SIZE,
-// windows/launcher.rs), so change the two together.
+// one's would be, so it grows down as suggestions come. A Mini Wren on the
+// New Tab page is the middle's size and SHADOW_ROOM round it
+// (NEW_TAB_PAGE_SIZE, windows/mini_wren/mod.rs), so change the two together.
 const sizes = {
   center: { width: 763, maxHeight: 326, field: 62 },
   anchored: { width: 346, maxHeight: 307, field: 49 }
 };
 
-// The room round a launcher's omnibox for its shadow, in points on each
-// side, as the window draws none (.omnibox[data-place="window"]).
+// The room round the omnibox filling a window, for its shadow, in points on
+// each side, as the window draws none (.omnibox[data-place="window"]).
 const SHADOW_ROOM = 40;
 
 // How far the panel dips as it pulses into keyword mode: 1%.
@@ -56,8 +57,8 @@ export function Omnibox({
   onDone: (opened: boolean) => void;
 }) {
   // The window's tabs, listed while nothing is typed; the active one's
-  // favicon shows while the field holds its address. A launcher's one tab
-  // is the New Tab page it stands for, so it lists none.
+  // favicon shows while the field holds its address. Filling a Mini Wren,
+  // its one tab is the New Tab page it stands for, so it lists none.
   const { tabs: windowTabs, current } = useBrowser();
   const fills = place === "window";
   const tabs: OmniboxTabs = { list: fills ? [] : windowTabs, active: current?.id };

@@ -64,9 +64,9 @@ pub struct Front {
     pub switching: bool,
     /// One of Chromium's dialogs blocks it (`BrowserWindow::is_blocked`).
     pub blocked: bool,
-    /// The window in use is a popup's, whose page Open as Tab moves; not a
-    /// launcher's, whose New Tab page is no page to move.
-    pub popup: bool,
+    /// The window in use is a Mini Wren, whose page Open as Tab moves; not
+    /// one on the New Tab page, which is no page to move.
+    pub mini_wren: bool,
 }
 
 // The app's items a dialog over the window in front greys out, as Chrome
@@ -164,7 +164,7 @@ fn main_menu(
                 // New Tab page is never shown.
                 keyed(NEW_TAB, "New Tab", "t", MenuModifiers::PRIMARY),
                 keyed(OPEN_LOCATION, "Open Location…", "l", MenuModifiers::PRIMARY),
-                // A popup's page to a tab, as its toolbar's Open button
+                // A Mini Wren's page to a tab, as its toolbar's Open button
                 // does; greyed out in a browser window (`allowed`).
                 keyed(OPEN_AS_TAB, "Open as Tab", "o", MenuModifiers::PRIMARY),
                 MenuItem::chromium(Command::NewSplitTab),
@@ -408,10 +408,11 @@ fn acts_on_front(id: &str) -> bool {
 }
 
 // Whether `front` allows item `id`, one that acts on it. A window on a
-// profile never switches spaces, and only a popup's page opens as a tab.
+// profile never switches spaces, and only a Mini Wren's page opens as a
+// tab.
 fn allowed(id: &str, front: Front) -> bool {
     if id == OPEN_AS_TAB {
-        return front.popup;
+        return front.mini_wren;
     }
     !front.blocked && (front.switching || !id.starts_with(SPACE))
 }

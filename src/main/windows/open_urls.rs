@@ -1,6 +1,6 @@
 // What macOS asks the app to open: a link clicked in another app while Wren
 // is the default browser, or a page opened with it. Each opens in a Mini
-// Wren of its own (mini_wren.rs), which goes back to the app that sent it as
+// Wren of its own (mini_wren/from_apps.rs), which goes back to the app that sent it as
 // it closes.
 
 use std::rc::Rc;

@@ -1,19 +1,28 @@
-// A popup's window, which the user knows as Mini Wren: a page's popup (a
-// sign-in, a payment), an extension's popup window or an app's window. It is
-// a small window for one page, with no sidebar. Its toolbar is its title
-// bar: the window's buttons, back and forward once the page has somewhere to
-// go, a field with the page's address, and a button that moves the page to a
+// Mini Wren, a small window for one page, with no sidebar: a page's popup
+// (a sign-in, a payment), an extension's popup window, an app's window, a
+// link from another app, or New Mini Wren. Its toolbar is its title bar:
+// the window's buttons, back and forward once the page has somewhere to go,
+// a field with the page's address, and a button that moves the page to a
 // tab of a window the user browses in (⌘O, File's Open as Tab), with a menu
 // beside it of every space to move it to instead. Then the page, edge to
 // edge. A click on the address, Open Location or New Tab opens the omnibox
 // for the page, in the middle of the window. A page the button moves to
-// another profile asks first (components/profile-move-dialog.tsx). On the
-// New Tab page, the window is a launcher instead, the omnibox alone
-// (launcher.tsx). The window is light or dark as the system is.
+// another profile asks first (components/profile-move-dialog.tsx). The
+// window is light or dark as the system is.
+//
+// On the New Tab page, as an empty one opens, it is the omnibox alone
+// instead, filling the window, which the app draws see-through round it and
+// with no buttons (windows/mini_wren/mod.rs). What is chosen opens in its
+// page, which leaves the New Tab page, and the toolbar and the page come
+// back; until then the omnibox stays as it was. Closing the omnibox closes
+// the window: Escape, its close button, or a press beside it. ⌘W closes the
+// window too, and so does going to another window or app. A dialog over the
+// window takes the omnibox away, and it opens afresh once the dialog has
+// closed.
 
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect } from "react";
-import { appWindow, browser, type BrowserTab, hasApp, type WindowPopup } from "@/ipc";
+import { appWindow, browser, type BrowserTab, hasApp, type WindowMiniWren } from "@/ipc";
 import { ReloadButton } from "@/components/address/navigation";
 import { PageInfoButton } from "@/components/address/page-info";
 import { Omnibox } from "@/components/omnibox/omnibox";
@@ -29,25 +38,39 @@ import { Keycap } from "@/components/ui/keycap";
 import { Menu, type MenuItem } from "@/components/ui/menu";
 import { useBrowser, useTabShape } from "@/state/browser";
 import { useSpace } from "@/state/space";
-import { usePopupTheme, useShowWindow, useWindowBlocked, useWindowLauncher } from "@/state/window";
+import { useMiniWrenTheme, useShowWindow, useWindowBlocked, useWindowOnNewTabPage } from "@/state/window";
 import { cn } from "@/utils/cn";
 import { address, isNewTab } from "@/utils/url";
-import { Launcher } from "./launcher";
 
-export function PopupWindow({ popup }: { popup: WindowPopup }) {
+export function MiniWrenWindow({ miniWren }: { miniWren: WindowMiniWren }) {
   const { space } = useSpace();
-  usePopupTheme(space);
+  useMiniWrenTheme(space);
   // Drawn only once the app has said which it is, so it never shows as the
   // other first.
-  const launcher = useWindowLauncher();
-  useShowWindow(launcher !== undefined);
-  useWindowButtons(launcher);
-  if (launcher === undefined) return null;
-  return launcher ? <Launcher /> : <PopupPage popup={popup} />;
+  const onNewTabPage = useWindowOnNewTabPage();
+  useShowWindow(onNewTabPage !== undefined);
+  useWindowButtons(onNewTabPage);
+  if (onNewTabPage === undefined) return null;
+  return onNewTabPage ? <NewTabOmnibox /> : <PageWithToolbar miniWren={miniWren} />;
+}
+
+// On the New Tab page: the omnibox, filling the window. What it opens loads
+// in the page, and the app then draws the toolbar and the page instead.
+function NewTabOmnibox() {
+  const blocked = useWindowBlocked();
+  const done = (opened: boolean) => {
+    if (!opened) appWindow.close().catch(() => {});
+  };
+  return (
+    <div data-scheme="system" inert={blocked} className="relative h-full">
+      {!blocked && <Omnibox target="current" place="window" onDone={done} />}
+      <QuitDialog />
+    </div>
+  );
 }
 
 // The toolbar, and the page under it.
-function PopupPage({ popup }: { popup: WindowPopup }) {
+function PageWithToolbar({ miniWren }: { miniWren: WindowMiniWren }) {
   const { space } = useSpace();
   const { current, fullScreen } = useBrowser();
   const { id } = useTabShape();
@@ -60,9 +83,9 @@ function PopupPage({ popup }: { popup: WindowPopup }) {
     if (blocked) omnibox.done();
   }, [blocked]);
   // The space its page goes to, while that is the one the window takes its
-  // colour from. The app finds another if it has gone (windows/popup.rs),
-  // which the button does not name.
-  const target = popup.space !== null && space.id === popup.space ? space.name : "Wren";
+  // colour from. The app finds another if it has gone
+  // (windows/mini_wren/as_tab.rs), which the button does not name.
+  const target = miniWren.space !== null && space.id === miniWren.space ? space.name : "Wren";
 
   return (
     <div data-scheme="system" inert={blocked} className="relative flex h-full flex-col">
@@ -70,7 +93,7 @@ function PopupPage({ popup }: { popup: WindowPopup }) {
         <Toolbar
           tab={current}
           target={target}
-          onOpenLocation={popup.address ? () => omnibox.toggle("current") : undefined}
+          onOpenLocation={miniWren.address ? () => omnibox.toggle("current") : undefined}
         />
       )}
       <main className="flex min-h-0 flex-1">
@@ -97,20 +120,20 @@ function PopupPage({ popup }: { popup: WindowPopup }) {
 
 // Puts the window's buttons at the toolbar's left, as far in from the
 // window's top and left as the sidebar has them, which is the middle of the
-// toolbar's height. A launcher has none: its omnibox has a button that
-// closes it.
-function useWindowButtons(launcher: boolean | undefined) {
+// toolbar's height. On the New Tab page it has none: its omnibox has a
+// button that closes it.
+function useWindowButtons(onNewTabPage: boolean | undefined) {
   useEffect(() => {
-    if (!hasApp || launcher === undefined) return;
-    appWindow.setButtons(launcher ? null : [WINDOW_BUTTONS.inset, WINDOW_BUTTONS.inset]);
-  }, [launcher]);
+    if (!hasApp || onNewTabPage === undefined) return;
+    appWindow.setButtons(onNewTabPage ? null : [WINDOW_BUTTONS.inset, WINDOW_BUTTONS.inset]);
+  }, [onNewTabPage]);
 }
 
 // The window's title bar, with the window's blur showing through it. A
 // press that misses its controls moves the window. It leaves the window's
 // buttons their room at its left, and as much again after them as there is
 // before. The app makes the window as much taller than the page asked as
-// this is (TOOLBAR, windows/popup.rs), so change the two together.
+// this is (TOOLBAR, windows/mini_wren/mod.rs), so change the two together.
 function Toolbar({
   tab,
   target,
@@ -119,7 +142,7 @@ function Toolbar({
   tab?: BrowserTab;
   /** Where the page goes, as the button names it: a space, or Wren. */
   target: string;
-  /** A click on the address, in a popup that shows one: the omnibox for the page. */
+  /** A click on the address, in a Mini Wren that shows one: the omnibox for the page. */
   onOpenLocation?: () => void;
 }) {
   return (
@@ -150,7 +173,7 @@ function OpenButton({ disabled, target }: { disabled: boolean; target: string })
         variant="filled"
         disabled={disabled}
         onClick={() => open(null)}
-        className={cn("gap-1 rounded-popup-bar px-2 text-fg-2", choosing && "rounded-r-none")}
+        className={cn("gap-1 rounded-mini-wren-bar px-2 text-fg-2", choosing && "rounded-r-none")}
       >
         Open in <span className="font-semibold text-fg">{target}</span>
         <Keycap>⌘O</Keycap>
@@ -164,7 +187,7 @@ function OpenButton({ disabled, target }: { disabled: boolean; target: string })
               iconSize={14}
               label="Open in Another Space"
               disabled={disabled}
-              className="w-5.5 rounded-l-none rounded-r-popup-bar"
+              className="w-5.5 rounded-l-none rounded-r-mini-wren-bar"
             />
           }
           items={items}
@@ -196,14 +219,16 @@ function History({ tab }: { tab: BrowserTab }) {
 // Where the page is: page info, which the site's bubbles hang off, the
 // page's host in the field's middle, and reload. Its two sides are as wide,
 // so the text is in the middle. It is lit while the address is hovered, as
-// the sidebar's field is. A popup that shows no address (`onOpenLocation`
+// the sidebar's field is. A Mini Wren that shows no address (`onOpenLocation`
 // is undefined) has its page's title there, and no page info.
 function AddressField({ tab, onOpenLocation }: { tab?: BrowserTab; onOpenLocation?: () => void }) {
   const url = tab && !isNewTab(tab.url) ? tab.url : "";
   return (
-    <div className="no-drag flex h-7 min-w-0 flex-1 items-center rounded-popup-bar bg-fill px-0.5 text-fg-2 has-[>[role=button]:hover]:bg-hover">
+    <div className="no-drag flex h-7 min-w-0 flex-1 items-center rounded-mini-wren-bar bg-fill px-0.5 text-fg-2 has-[>[role=button]:hover]:bg-hover">
       <div className="flex size-6 shrink-0">
-        {onOpenLocation && <PageInfoButton tab={tab} popup iconSize={16} className="size-6 rounded-popup-field" />}
+        {onOpenLocation && (
+          <PageInfoButton tab={tab} miniWren iconSize={16} className="size-6 rounded-mini-wren-field" />
+        )}
       </div>
       {onOpenLocation ? (
         <div
@@ -219,7 +244,7 @@ function AddressField({ tab, onOpenLocation }: { tab?: BrowserTab; onOpenLocatio
       ) : (
         <span className="min-w-0 flex-1 truncate px-1 text-center">{tab?.title}</span>
       )}
-      <ReloadButton loading={tab?.loading ?? false} className="size-6 rounded-popup-field" />
+      <ReloadButton loading={tab?.loading ?? false} className="size-6 rounded-mini-wren-field" />
     </div>
   );
 }

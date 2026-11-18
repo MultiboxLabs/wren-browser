@@ -1,6 +1,6 @@
 // What Chromium asks of a Browser's window: to move or resize, minimise,
 // zoom or come back to normal, for an extension (`chrome.windows`), DevTools
-// or a popup's page (`resizeTo`, `moveTo`); and the state a Browser it opens
+// or a Mini Wren's page (`resizeTo`, `moveTo`); and the state a Browser it opens
 // wants its window in. The app does as it asks; Chromium decides what may
 // ask, and reads the window as it is after.
 

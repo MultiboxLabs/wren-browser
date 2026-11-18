@@ -7,8 +7,8 @@
 // background. Each Browser carries the window's key and its place in its
 // session tag, so a restore puts it back (tag.rs).
 //
-// A popup window, a Mini Wren, shows one Browser Chromium opened that is
-// not a tabbed window (`Popup`), on its profile's place. It is never kept,
+// A Mini Wren shows one Browser that is not a tabbed window (`MiniWren`),
+// on its profile's place. It is never kept,
 // and is not the window the user browses in (`Windows::front`).
 
 use std::cell::{Cell, RefCell};
@@ -44,13 +44,13 @@ enum Slot {
     Open(Browser),
 }
 
-/// What makes a window a popup's, a Mini Wren: a page's popup, an
-/// extension's popup window or an installed app's window, drawn with a
-/// toolbar and no sidebar (pages/ui/popup.tsx). The page reads it
-/// ("window.popup").
+/// What makes a window a Mini Wren, for a page's popup, an extension's
+/// popup window, an installed app's window, a link from another app or New
+/// Mini Wren, drawn with a toolbar and no sidebar (pages/ui/mini-wren.tsx).
+/// The page reads it ("window.miniWren").
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Popup {
+pub struct MiniWren {
     /// The space it was opened from, whose colour its accents are, and
     /// where what it opens goes.
     pub space: Option<SpaceId>,
@@ -110,9 +110,10 @@ pub struct BrowserWindow {
     // until it has been told any.
     downloads_sent: RefCell<Option<Vec<downloads::Item>>>,
     history_sent: RefCell<Option<Vec<downloads::Item>>>,
-    popup: Option<Popup>,
-    // A popup's window drawn as its launcher (windows/launcher.rs).
-    launcher: Cell<bool>,
+    mini_wren: Option<MiniWren>,
+    // A Mini Wren on the New Tab page, drawn as the omnibox alone
+    // (`State::follow_new_tab_page`).
+    on_new_tab_page: Cell<bool>,
     /// What its page is sent, counted during a performance run (perf.rs).
     pub perf_counts: Option<PageCounts>,
 }
@@ -120,7 +121,7 @@ pub struct BrowserWindow {
 impl BrowserWindow {
     /// `place`: none for the window that waits for its first Browser.
     /// `framed`: the window has its frame already, from the database, and a
-    /// Browser's does not move it. `popup`: it is a popup's window.
+    /// Browser's does not move it. `mini_wren`: it is a Mini Wren.
     /// `perf_counts`: this is a performance run, which counts what the page
     /// is sent.
     pub fn new(
@@ -129,7 +130,7 @@ impl BrowserWindow {
         page: PageWindow,
         place: Option<Place>,
         framed: bool,
-        popup: Option<Popup>,
+        mini_wren: Option<MiniWren>,
         perf_counts: Option<PageCounts>,
     ) -> BrowserWindow {
         BrowserWindow {
@@ -150,31 +151,31 @@ impl BrowserWindow {
             shown: Cell::default(),
             downloads_sent: RefCell::default(),
             history_sent: RefCell::default(),
-            popup,
-            launcher: Cell::default(),
+            mini_wren,
+            on_new_tab_page: Cell::default(),
             perf_counts,
         }
     }
 
-    /// What makes it a popup's window, if it is one.
-    pub fn popup(&self) -> Option<Popup> {
-        self.popup
+    /// What makes it a Mini Wren, if it is one.
+    pub fn mini_wren(&self) -> Option<MiniWren> {
+        self.mini_wren
     }
 
-    pub fn is_popup(&self) -> bool {
-        self.popup.is_some()
+    pub fn is_mini_wren(&self) -> bool {
+        self.mini_wren.is_some()
     }
 
-    /// Whether it is a popup's window drawn as a launcher, the omnibox
-    /// alone (windows/launcher.rs).
-    pub fn is_launcher(&self) -> bool {
-        self.launcher.get()
+    /// Whether it is a Mini Wren on the New Tab page, drawn as the omnibox
+    /// alone (`State::follow_new_tab_page`).
+    pub fn is_on_new_tab_page(&self) -> bool {
+        self.on_new_tab_page.get()
     }
 
-    /// Draws a popup's window as a launcher, or as a popup again; answers
-    /// whether that changed it.
-    pub fn set_launcher(&self, launcher: bool) -> bool {
-        self.launcher.replace(launcher) != launcher
+    /// Notes whether a Mini Wren is on the New Tab page; answers whether
+    /// that changed.
+    pub fn set_on_new_tab_page(&self, on_new_tab_page: bool) -> bool {
+        self.on_new_tab_page.replace(on_new_tab_page) != on_new_tab_page
     }
 
     /// The place in front, if the window is on one.
@@ -254,10 +255,10 @@ impl BrowserWindow {
     }
 
     /// The space what the window's `browser` opens goes to: the space it
-    /// is the Browser for, or a popup's, the one the popup was opened from.
+    /// is the Browser for, or a Mini Wren's, the one it was opened from.
     pub fn space_opened_from(&self, browser: &Browser) -> Option<SpaceId> {
-        match self.popup {
-            Some(popup) => popup.space,
+        match self.mini_wren {
+            Some(mini_wren) => mini_wren.space,
             None => self.space_of(browser),
         }
     }
@@ -436,8 +437,8 @@ impl BrowserWindow {
     /// current place, or the window waits for one, otherwise in the
     /// background.
     pub fn add(&self, place: Place, browser: Browser) {
-        // A popup's is never restored into a window.
-        if !self.is_popup() {
+        // A Mini Wren's is never restored into a window.
+        if !self.is_mini_wren() {
             Tag::update(&browser, |tag| {
                 tag.window = Some((self.key.clone(), place.clone()));
             });

@@ -60,12 +60,12 @@ fn shown_profile(window: &BrowserWindow) -> Option<ShownProfile> {
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     handle_page(web_view, window);
 
-    // A popup's page moves to a tab of a window the user browses in, which
-    // comes forward, and the popup's window closes: in the space the user
+    // A Mini Wren's page moves to a tab of a window the user browses in,
+    // which comes forward, and the Mini Wren closes: in the space the user
     // chose, or with none, the one the app picks.
     let weak = window.clone();
     let _ = web_view.handle("window.openAsTab", move |space: Option<SpaceId>| {
-        weak.state()?.open_popup_as_tab(mt, weak.id, space)
+        weak.state()?.open_mini_wren_as_tab(mt, weak.id, space)
     });
 
     // The page takes the keyboard from the tab that has it, for a field of
@@ -101,18 +101,18 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_window(&weak, |window| Ok(shown_profile(window)))
     });
 
-    // What makes the window a popup's, which the page draws with a toolbar
+    // What makes the window a Mini Wren, which the page draws with a toolbar
     // and no sidebar; null for a browser window. It never changes.
     let weak = window.clone();
-    let _ = web_view.handle("window.popup", move |()| {
-        with_window(&weak, |window| Ok(window.popup()))
+    let _ = web_view.handle("window.miniWren", move |()| {
+        with_window(&weak, |window| Ok(window.mini_wren()))
     });
 
-    // Whether the window is a popup's drawn as a launcher, the omnibox
-    // alone; "window.launcher" says when it changes.
+    // Whether the window is a Mini Wren on the New Tab page, drawn as the
+    // omnibox alone; "window.newTabPage" says when it changes.
     let weak = window.clone();
-    let _ = web_view.handle("window.launcher", move |()| {
-        with_window(&weak, |window| Ok(window.is_launcher()))
+    let _ = web_view.handle("window.newTabPage", move |()| {
+        with_window(&weak, |window| Ok(window.is_on_new_tab_page()))
     });
 
     // Closes the window, as its close button does.
@@ -259,12 +259,13 @@ pub fn send_blocked(window: &BrowserWindow) {
         .send("window.blocked", &window.is_blocked());
 }
 
-/// Tells the page whether its popup's window is drawn as a launcher.
-pub fn send_launcher(window: &BrowserWindow) {
+/// Tells the page whether its Mini Wren is on the New Tab page, drawn as
+/// the omnibox alone.
+pub fn send_new_tab_page(window: &BrowserWindow) {
     let _ = window
         .page
         .web_view
-        .send("window.launcher", &window.is_launcher());
+        .send("window.newTabPage", &window.is_on_new_tab_page());
 }
 
 /// Tells the page which space the window shows.

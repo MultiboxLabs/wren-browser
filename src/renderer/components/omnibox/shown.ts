@@ -2,8 +2,8 @@
 // of the window; for the active tab, over the sidebar's address field while
 // the sidebar is in view, and in the middle while it is away, the Library is
 // open, or the address bar atop a page opens it (address/page-bar.tsx), as if
-// there were no address bar. A popup's window has no such field, and its
-// omnibox is always in the middle (pages/ui/popup.tsx). Each opening starts afresh. What opens it closes
+// there were no address bar. A Mini Wren has no such field, and its
+// omnibox is always in the middle (pages/ui/mini-wren.tsx). Each opening starts afresh. What opens it closes
 // it again (⌘T, the New Tab row, ⌘L); the other kind takes its place, and ⌘W closes the one
 // for a new tab. In a space the window has no Browser for yet, there is no
 // tab to open in: it is the one for a new tab, and the app first makes the

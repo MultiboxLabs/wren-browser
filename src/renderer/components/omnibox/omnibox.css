@@ -45,7 +45,7 @@
     0 20px 56px rgb(0 0 0 / 0.4);
 }
 
-/* Filling a launcher's window, its shadow is tighter, to stay inside the
+/* Filling a Mini Wren's window, its shadow is tighter, to stay inside the
    room the window leaves round it (SHADOW_ROOM, omnibox.tsx): the window
    draws none of its own. */
 :root[data-scheme] .omnibox[data-place="window"] {
