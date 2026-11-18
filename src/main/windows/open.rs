@@ -50,8 +50,7 @@ impl State {
         frame: Option<RequestedBounds>,
     ) -> Option<WindowId> {
         let front = self.windows.front();
-        let window =
-            self.open_page_window(mt, key, place, frame.is_some(), None, WindowKind::Window)?;
+        let window = self.open_page_window(mt, key, place, frame.is_some(), None)?;
         match (frame, front) {
             (Some(frame), _) => window.page.restore_frame(frame),
             (None, Some(front)) => window.page.cascade_from(&front.page),
@@ -71,11 +70,10 @@ impl State {
     }
 
     /// Opens a browser window, `key` on `place`, where AppKit puts it: a
-    /// Mini Wren (mini_wren/), or else one the user browses in. Its page is the
-    /// UI's, in a Profile of its own. `framed`: the caller places the
-    /// window, and its first Browser's frame does not move it
-    /// (`BrowserWindow::add`). `kind`: whether it brings the app forward as
-    /// it takes the keyboard.
+    /// Mini Wren (mini_wren/), a panel that never brings the app forward,
+    /// or else one the user browses in. Its page is the UI's, in a Profile
+    /// of its own. `framed`: the caller places the window, and its first
+    /// Browser's frame does not move it (`BrowserWindow::add`).
     pub(super) fn open_page_window(
         self: &Rc<Self>,
         mt: MainThread,
@@ -83,13 +81,12 @@ impl State {
         place: Option<Place>,
         framed: bool,
         mini_wren: Option<MiniWren>,
-        kind: WindowKind,
     ) -> Option<Rc<BrowserWindow>> {
         let profile = self.ui_profile.borrow().clone()?;
         let id = self.windows.next_id();
-        let min_size = match mini_wren {
-            Some(_) => MINI_WREN_MIN_SIZE,
-            None => WINDOW_MIN_SIZE,
+        let (min_size, kind) = match mini_wren {
+            Some(_) => (MINI_WREN_MIN_SIZE, WindowKind::Panel),
+            None => (WINDOW_MIN_SIZE, WindowKind::Window),
         };
         let weak = Rc::downgrade(self);
         let should_close = move || {

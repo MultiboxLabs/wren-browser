@@ -1,9 +1,9 @@
 // The window of `WindowKind::Panel`: an NSPanel with the non-activating
 // style, the one kind of window AppKit lets take the keyboard while its app
-// stays in the background. Its other panel ways are undone, so it is a
-// window like any other once the style goes (`PageWindow::become_window`):
-// it can be the main window, it stays on screen while the app is in the
-// background, it is in the Window menu, and Escape is its page's alone.
+// stays in the background. Its other panel ways are undone, so in all else
+// it is a window like any other: it can be the main window, it stays on
+// screen while the app is in the background, it is in the Window menu, and
+// Escape is its page's alone.
 
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject};
@@ -32,7 +32,7 @@ define_class!(
 );
 
 /// A panel with `frame` as its content and `style`, which takes the
-/// keyboard without bringing the app forward until it is made a window.
+/// keyboard without bringing the app forward.
 pub(super) fn open(
     mtm: MainThreadMarker,
     frame: NSRect,
