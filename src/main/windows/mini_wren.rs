@@ -1,9 +1,11 @@
 // The Mini Wren the app opens itself, with no page to open it: one for each
 // link from another app (open_urls.rs), and an empty one from New Mini Wren,
-// whose key works in any app. Each is a popup's window (popup.rs), in front
-// and centred on the pointer, where the user is looking. It opens from the
-// space of the window the user browses in, or else the space used last, so
-// it never adds to a space's tabs unless the user opens it as a tab.
+// whose key works in any app, on the New Tab page, which makes it a
+// launcher, the omnibox alone (launcher.rs). Each is a popup's window
+// (popup.rs), in front and centred on the pointer, where the user is
+// looking. It opens from the space of the window the user browses in, or
+// else the space used last, so it never adds to a space's tabs unless the
+// user opens it as a tab.
 //
 // One asked for before its profile has opened, as a link that launches the
 // app is, or while a profile's last session is being restored, which brings
@@ -25,6 +27,9 @@ use crate::app::State;
 use crate::menus;
 use crate::platform::{self, GlobalShortcut, RunningApp};
 use crate::shell::{BrowserWindow, Place, WindowId};
+
+/// Chromium's New Tab page, where an empty Mini Wren opens.
+const NEW_TAB_PAGE: &str = "chrome://newtab/";
 
 /// A Mini Wren asked for, until the app can open it.
 pub(crate) struct HeldMiniWren {
@@ -53,12 +58,12 @@ impl State {
         *self.mini_wren_shortcut.borrow_mut() = shortcut;
     }
 
-    /// Opens an empty Mini Wren, now or once the app can, which goes back
-    /// to the app in front as it closes, if that is not Wren.
+    /// Opens an empty Mini Wren, on the New Tab page, now or once the app
+    /// can, which goes back to the app in front as it closes, if that is
+    /// not Wren.
     pub fn new_mini_wren(self: &Rc<Self>, mt: MainThread) {
         let held = HeldMiniWren {
-            // Wren Runtime takes no empty address for a popup.
-            url: "about:blank".to_owned(),
+            url: NEW_TAB_PAGE.to_owned(),
             return_to: platform::frontmost_other_app(),
         };
         self.hold_mini_wren(mt, [held]);
@@ -119,7 +124,8 @@ impl State {
                 Ok(profile) => profile,
                 Err(error) => return eprintln!("Wren could not open a Mini Wren: {error}"),
             };
-            // No page asks for a size, so it gets a popup's own.
+            // No page asks for a size, so it gets a popup's own, once it
+            // is not a launcher.
             let size = RequestedBounds {
                 origin: None,
                 width: PAGE_SIZE.0,

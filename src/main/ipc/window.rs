@@ -108,6 +108,20 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_window(&weak, |window| Ok(window.popup()))
     });
 
+    // Whether the window is a popup's drawn as a launcher, the omnibox
+    // alone; "window.launcher" says when it changes.
+    let weak = window.clone();
+    let _ = web_view.handle("window.launcher", move |()| {
+        with_window(&weak, |window| Ok(window.is_launcher()))
+    });
+
+    // Closes the window, as its close button does.
+    let weak = window.clone();
+    let _ = web_view.handle("window.close", move |()| {
+        weak.state()?.close_window(mt, weak.id);
+        Ok::<_, String>(())
+    });
+
     // Whether one of Chromium's dialogs over the window blocks its page, as
     // Chrome's block its window; "window.blocked" says when it changes.
     let weak = window.clone();
@@ -243,6 +257,14 @@ pub fn send_blocked(window: &BrowserWindow) {
         .page
         .web_view
         .send("window.blocked", &window.is_blocked());
+}
+
+/// Tells the page whether its popup's window is drawn as a launcher.
+pub fn send_launcher(window: &BrowserWindow) {
+    let _ = window
+        .page
+        .web_view
+        .send("window.launcher", &window.is_launcher());
 }
 
 /// Tells the page which space the window shows.

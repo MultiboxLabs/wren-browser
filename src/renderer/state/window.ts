@@ -54,18 +54,29 @@ export function useWindowBlocked() {
 }
 
 /**
- * Shows the window once what the page has drawn is on screen: the first
- * frame after this mounts has painted by the second animation frame. Until
- * then the app keeps the window hidden, so it never opens empty.
+ * Whether a popup's window is drawn as a launcher (`appWindow.launcher`);
+ * undefined until the app has said.
  */
-export function useShowWindow() {
+export function useWindowLauncher() {
+  const [launcher, setLauncher] = useState<boolean | undefined>(hasApp ? undefined : false);
+  useEffect(() => (hasApp ? follow(appWindow.launcher, appWindow.onLauncher, setLauncher) : undefined), []);
+  return launcher;
+}
+
+/**
+ * Shows the window once what the page has drawn is on screen: the first
+ * frame after the page is `ready` to be seen has painted by the second
+ * animation frame. Until then the app keeps the window hidden, so it never
+ * opens empty, or as it is not to be.
+ */
+export function useShowWindow(ready = true) {
   useEffect(() => {
-    if (!hasApp) return;
+    if (!hasApp || !ready) return;
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => void appWindow.show().catch(() => {}));
     });
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [ready]);
 }
 
 /** Whether the window is full screen, from as it starts to go until it starts to come back. */

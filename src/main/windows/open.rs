@@ -2,6 +2,7 @@
 // window's place, and one Chromium opens, which goes back where it was if
 // it was restored, or else gets a window of its own.
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use wren::{Browser, MainThread, Profile, ProfileKind, RequestedBounds};
@@ -106,8 +107,11 @@ impl State {
         );
         ipc::handle_ui(&page.web_view, &WindowRef::new(self, id), mt);
         // The page and the backdrop are drawn as in use while the window is.
-        // A popup's is never the window the user browses in.
+        // A popup's is never the window the user browses in. A launcher
+        // closes as it goes out of use, once it has been in use: as it first
+        // shows, the app may not have come forward yet.
         let state = Rc::downgrade(self);
+        let in_use = Cell::new(false);
         page.watch_active(mt, move |active| {
             let Some(state) = state.upgrade() else { return };
             let Some(window) = state.windows.get(id) else {
@@ -116,7 +120,11 @@ impl State {
             if !active {
                 // Where it is now, should the app not quit as it should.
                 state.save_frame(&window);
+                if in_use.replace(false) {
+                    state.launcher_left(mt, &window);
+                }
             } else {
+                in_use.set(true);
                 state.window_used(id);
                 if window.is_popup() {
                     // A popup in use allows Open as Tab.

@@ -7,8 +7,9 @@
 // beside it of every space to move it to instead. Then the page, edge to
 // edge. A click on the address, Open Location or New Tab opens the omnibox
 // for the page, in the middle of the window. A page the button moves to
-// another profile asks first (components/profile-move-dialog.tsx). The
-// window is light or dark as the system is.
+// another profile asks first (components/profile-move-dialog.tsx). On the
+// New Tab page, the window is a launcher instead, the omnibox alone
+// (launcher.tsx). The window is light or dark as the system is.
 
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect } from "react";
@@ -28,15 +29,26 @@ import { Keycap } from "@/components/ui/keycap";
 import { Menu, type MenuItem } from "@/components/ui/menu";
 import { useBrowser, useTabShape } from "@/state/browser";
 import { useSpace } from "@/state/space";
-import { usePopupTheme, useShowWindow, useWindowBlocked } from "@/state/window";
+import { usePopupTheme, useShowWindow, useWindowBlocked, useWindowLauncher } from "@/state/window";
 import { cn } from "@/utils/cn";
 import { address, isNewTab } from "@/utils/url";
+import { Launcher } from "./launcher";
 
 export function PopupWindow({ popup }: { popup: WindowPopup }) {
   const { space } = useSpace();
   usePopupTheme(space);
-  useShowWindow();
-  useWindowButtons();
+  // Drawn only once the app has said which it is, so it never shows as the
+  // other first.
+  const launcher = useWindowLauncher();
+  useShowWindow(launcher !== undefined);
+  useWindowButtons(launcher);
+  if (launcher === undefined) return null;
+  return launcher ? <Launcher /> : <PopupPage popup={popup} />;
+}
+
+// The toolbar, and the page under it.
+function PopupPage({ popup }: { popup: WindowPopup }) {
+  const { space } = useSpace();
   const { current, fullScreen } = useBrowser();
   const { id } = useTabShape();
   const shown = fullScreen ?? current;
@@ -85,11 +97,13 @@ export function PopupWindow({ popup }: { popup: WindowPopup }) {
 
 // Puts the window's buttons at the toolbar's left, as far in from the
 // window's top and left as the sidebar has them, which is the middle of the
-// toolbar's height.
-function useWindowButtons() {
+// toolbar's height. A launcher has none: its omnibox has a button that
+// closes it.
+function useWindowButtons(launcher: boolean | undefined) {
   useEffect(() => {
-    if (hasApp) appWindow.setButtons([WINDOW_BUTTONS.inset, WINDOW_BUTTONS.inset]);
-  }, []);
+    if (!hasApp || launcher === undefined) return;
+    appWindow.setButtons(launcher ? null : [WINDOW_BUTTONS.inset, WINDOW_BUTTONS.inset]);
+  }, [launcher]);
 }
 
 // The window's title bar, with the window's blur showing through it. A
