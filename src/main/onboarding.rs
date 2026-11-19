@@ -18,6 +18,7 @@ use crate::extensions::ad_block;
 use crate::import::Landing;
 use crate::import::run::{self, Plan, RunState};
 use crate::ipc;
+use crate::menus;
 use crate::pages::ONBOARDING;
 use crate::platform::{PageWindow, WindowKind, WindowSize};
 use crate::profiles::filling::{self, Filler};
@@ -76,7 +77,7 @@ impl State {
         });
         self.count_crashes(&page);
         *self.onboarding.borrow_mut() = Some(page);
-        self.update_menu(mt);
+        menus::update_main_menu(self, mt);
         true
     }
 
@@ -115,7 +116,7 @@ impl State {
             let Some(window) = state.onboarding.take() else {
                 return;
             };
-            state.update_menu(mt);
+            menus::update_main_menu(&state, mt);
             state.start(mt);
             drop(window);
         });

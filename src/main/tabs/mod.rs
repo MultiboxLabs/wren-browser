@@ -12,6 +12,7 @@
 
 pub mod archive;
 pub mod closes;
+pub mod groups;
 pub mod placeholder;
 pub mod previews;
 mod recreate;
@@ -30,7 +31,6 @@ use crate::analytics::{Crash, Event};
 use crate::app::State;
 use crate::clipboard;
 use crate::ipc::{self, OwnToast};
-use crate::menus;
 use crate::pins;
 use crate::sidebar::items;
 
@@ -446,7 +446,7 @@ pub fn new_group(
     let group = BrowserTab::group(mt, tabs)?;
     group.set_visuals(
         &format!("Group {number}"),
-        menus::least_used_color(&used),
+        groups::least_used_color(&used),
         false,
     )?;
     Ok(group)

@@ -12,11 +12,10 @@
 use wren::{BrowserTab, MenuItem, SplitLayout, TabGroup};
 
 use super::enabled;
-use super::group::{color_items, group_name};
 use crate::db::PinId;
 use crate::pins;
 use crate::sidebar::items::menu::{Subject, What};
-use crate::tabs;
+use crate::tabs::{self, groups};
 use crate::windows::Place;
 
 pub const OPEN: &str = "open";
@@ -233,7 +232,7 @@ fn joins(subject: &Subject, own: Option<TabGroup>, several: bool) -> Vec<MenuIte
         .map_or_else(|_| Vec::new(), groups)
         .into_iter()
         .filter(|group| Some(*group) != own)
-        .map(|group| MenuItem::item(format!("{JOIN_GROUP}{group}"), group_name(group)))
+        .map(|group| MenuItem::item(format!("{JOIN_GROUP}{group}"), groups::name(group)))
         .collect();
     let mut items = vec![MenuItem::item(NEW_GROUP, new)];
     if !others.is_empty() {
@@ -343,4 +342,21 @@ fn groups(browser: &wren::Browser) -> Vec<TabGroup> {
         }
     }
     groups
+}
+
+// The items of a group's Colour menu, its own checked: each one's ID is
+// `prefix` and the colour's name.
+fn color_items(group: TabGroup, prefix: &str) -> Result<Vec<MenuItem>, String> {
+    let (current, _) = group.visuals().map_err(|error| format!("{error:?}"))?;
+    Ok(groups::COLORS
+        .iter()
+        .map(|&color| MenuItem::Item {
+            id: format!("{prefix}{}", groups::color_name(color)),
+            label: groups::color_label(color).into(),
+            enabled: true,
+            checked: color == current,
+            hidden: false,
+            key: None,
+        })
+        .collect())
 }

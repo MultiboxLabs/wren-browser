@@ -108,7 +108,14 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle_call("downloads.menu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<String>, done| {
             let download = downloads::find(browser, &at.id)?;
-            menus::show_download_menu(mt, view, download, (at.x, at.y), done).map_err(failed)
+            let state = download.state().map_err(failed)?;
+            let chose = move |chosen: Option<String>| {
+                if let Some(chosen) = &chosen {
+                    let _ = downloads::choose(download, &state, chosen);
+                }
+                done(chosen);
+            };
+            menus::show_download_menu(mt, view, &state, (at.x, at.y), chose).map_err(failed)
         })
     });
 

@@ -19,6 +19,7 @@ use wren::{MainThread, UpdateState, UpdateStatus};
 use crate::app::State;
 use crate::db::Settings;
 use crate::ipc::{self, OwnToast};
+use crate::menus;
 use crate::platform::{Updater, UpdaterOptions, UpdaterState};
 use crate::windows::WindowId;
 
@@ -95,7 +96,7 @@ impl Updates {
         // (Settings, which it is a page of, asks as it loads).
         set_about(mt, &updater.state());
         *self.updater.borrow_mut() = Some(updater);
-        state.update_menu(mt);
+        menus::update_main_menu(state, mt);
     }
 
     /// The app has an updater: Check for Updates… can check.

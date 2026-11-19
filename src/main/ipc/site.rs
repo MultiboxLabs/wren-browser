@@ -1,6 +1,6 @@
 use serde::Serialize;
 use wren::unstable_ui::UIText;
-use wren::{Browser, MainThread, PermissionSetting, SiteAction, SiteSecurity, WebView};
+use wren::{Browser, Error, MainThread, PermissionSetting, SiteAction, SiteSecurity, WebView};
 
 use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::menus;
@@ -47,13 +47,30 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |_, browser| Ok(site(browser)))
     });
 
-    // A permission's menu, by its ID, at the point the page names; it sets
-    // what is chosen.
+    // A permission's menu, by its ID, at the point the page names, which
+    // sets what is chosen.
     let weak = window.clone();
     let _ = web_view.handle_call("site.permissionMenu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<String>, done| {
-            menus::show_permission_menu(mt, view, browser, &at.id, (at.x, at.y), done)
-                .map_err(failed)
+            let index = (0..browser.site_permission_count())
+                .find(|&index| browser.site_permission_id(index) == at.id)
+                .ok_or_else(|| failed(Error::InvalidArgument))?;
+            let permission = browser.site_permission(index).map_err(failed)?;
+            // The page the menu is about: a choice made once the tab shows
+            // another does nothing.
+            let page = browser.site_state().map_err(failed)?.page;
+            let browser = browser.clone();
+            let id = at.id;
+            let chose = move |chosen: Option<String>| {
+                let setting = chosen.as_deref().and_then(menus::site::chosen_setting);
+                if let Some(setting) = setting
+                    && let Err(error) = browser.set_site_permission(page, &id, setting)
+                {
+                    eprintln!("Wren set no permission {id}: {error:?}");
+                }
+                done(chosen);
+            };
+            menus::show_permission_menu(mt, view, &permission, (at.x, at.y), chose).map_err(failed)
         })
     });
 
@@ -61,7 +78,18 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle_call("site.menu", move |call| {
         menu_call(&weak, call, |view, browser, at: MenuAt<()>, done| {
-            menus::show_site_menu(mt, view, browser, (at.x, at.y), done).map_err(failed)
+            // The page the menu is about, as above.
+            let state = browser.site_state().ok();
+            let web = state.is_some_and(|state| state.security != SiteSecurity::Internal);
+            let browser = browser.clone();
+            let chose = move |chosen: Option<String>| {
+                let action = chosen.as_deref().and_then(menus::site::chosen_action);
+                if let (Some(action), Some(state)) = (action, state) {
+                    let _ = browser.site_action(state.page, action);
+                }
+                done(chosen);
+            };
+            menus::show_site_menu(mt, view, web, (at.x, at.y), chose).map_err(failed)
         })
     });
 

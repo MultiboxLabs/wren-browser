@@ -2,7 +2,6 @@ use serde::Serialize;
 use wren::{Browser, MainThread, TabGroup, TabGroupColor, WebView};
 
 use super::{WindowRef, failed, with_browser};
-use crate::menus;
 use crate::sidebar::items::carry;
 use crate::tabs;
 
@@ -25,7 +24,7 @@ impl Group {
         Group {
             id: group.to_string(),
             title: group.title(),
-            color: menus::color_name(color),
+            color: tabs::groups::color_name(color),
             collapsed,
             carry: carry::group_token(group),
         }

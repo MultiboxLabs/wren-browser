@@ -124,22 +124,6 @@ impl State {
         window.page.set_title(title.as_deref().unwrap_or("Wren"));
     }
 
-    /// Sets the main menu again, for its Spaces menu to list the spaces as
-    /// they are now; or onboarding's, while it is open. The app icon's menu
-    /// follows onboarding too.
-    pub fn update_menu(&self, mt: MainThread) {
-        let onboarding = self.onboarding.borrow().is_some();
-        menus::set_icon_menu(mt, onboarding);
-        if onboarding {
-            return menus::set_onboarding_menu(mt, self.default_browser.get());
-        }
-        let front = self.front_menu();
-        self.menu_front.set(front);
-        let updates = self.updates.available();
-        let default = self.default_browser.get();
-        menus::set_main_menu(mt, &self.ordered_spaces(mt), front, updates, default);
-    }
-
     /// Asks macOS whether Wren is the default browser, at startup and as it
     /// changes, as Wren's change says only that it did: Set as Default
     /// Browser is checked as it is, and every window's page is told.
@@ -153,35 +137,6 @@ impl State {
             menus::set_default_browser_item(mt, Some(default));
             ipc::broadcast_default_browser(&state, default);
         });
-    }
-
-    /// Greys out the main menu's items the window in front does not allow,
-    /// and brings them back once one that does is in front, or it does
-    /// again: switching spaces, which a window on a profile never does, and
-    /// the items for its tabs and spaces, which a dialog over it blocks.
-    pub fn update_front_menu(&self, mt: MainThread) {
-        if self.onboarding.borrow().is_some() {
-            return;
-        }
-        let front = self.front_menu();
-        if self.menu_front.replace(front) != front {
-            menus::enable_front(mt, &self.ordered_spaces(mt), front);
-        }
-    }
-
-    // What the window in front allows of the main menu.
-    fn front_menu(&self) -> menus::Front {
-        let window = self.windows.front();
-        menus::Front {
-            switching: !window
-                .as_ref()
-                .is_some_and(|window| window.is_profile_window()),
-            blocked: window.is_some_and(|window| window.is_blocked()),
-            mini_wren: self
-                .windows
-                .in_use()
-                .is_some_and(|window| window.is_mini_wren() && !window.is_on_new_tab_page()),
-        }
     }
 
     /// Opens the Mini Wren and the app's own pages held, if the app can now:

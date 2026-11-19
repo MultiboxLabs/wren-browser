@@ -1,30 +1,26 @@
 // The page info popover's menus: a permission's settings, and the site's
-// other settings.
+// other settings. What is chosen is done by ipc/site.rs, as page info is
+// Chromium's.
 
 use wren::{
-    Browser, Error, MainThread, MenuItem, NativeView, PermissionSetting, SiteAction, SiteSecurity,
+    Error, MainThread, MenuItem, NativeView, PermissionSetting, SiteAction, SitePermission,
 };
 
 use super::enabled;
 
-/// Shows the menu of the site's permission `id` below its row, as Chrome's
-/// page info offers it: the default, saying what it means now, and the
-/// settings other than that; and sets the one chosen.
+const SETTINGS: &str = "settings";
+const DATA: &str = "data";
+
+/// Shows the menu of a site's permission below its row, as Chrome's page
+/// info offers it: the default, saying what it means now, and the settings
+/// other than that. `done` hears what is chosen (`chosen_setting`).
 pub fn show_permission_menu(
     mt: MainThread,
     view: NativeView,
-    browser: &Browser,
-    id: &str,
+    permission: &SitePermission,
     point: (f64, f64),
     done: impl FnOnce(Option<String>) + 'static,
 ) -> Result<(), Error> {
-    let index = (0..browser.site_permission_count())
-        .find(|&index| browser.site_permission_id(index) == id)
-        .ok_or(Error::InvalidArgument)?;
-    let permission = browser.site_permission(index)?;
-    // The page the menu is about: a choice made once the tab shows
-    // another does nothing.
-    let page = browser.site_state()?.page;
     let choice = |setting: PermissionSetting, label: String| MenuItem::Item {
         id: setting_name(setting).into(),
         label,
@@ -43,54 +39,46 @@ pub fn show_permission_menu(
             .filter(|&setting| setting != permission.default_setting)
             .map(|setting| choice(setting, setting_label(setting).into())),
     );
-    let browser = browser.clone();
-    let id = id.to_owned();
-    mt.show_context_menu(&items, view, point, move |chosen| {
-        let setting = [
-            PermissionSetting::Default,
-            PermissionSetting::Allow,
-            PermissionSetting::Block,
-        ]
-        .into_iter()
-        .find(|&setting| chosen.as_deref() == Some(setting_name(setting)));
-        if let Some(setting) = setting
-            && let Err(error) = browser.set_site_permission(page, &id, setting)
-        {
-            eprintln!("Wren set no permission {id}: {error:?}");
-        }
-        done(chosen);
-    })
+    mt.show_context_menu(&items, view, point, done)
+}
+
+/// The setting an item of a permission's menu stands for.
+pub fn chosen_setting(chosen: &str) -> Option<PermissionSetting> {
+    [
+        PermissionSetting::Default,
+        PermissionSetting::Allow,
+        PermissionSetting::Block,
+    ]
+    .into_iter()
+    .find(|&setting| chosen == setting_name(setting))
 }
 
 /// Shows the site's other settings below the page info popover's More
 /// button: Chromium's page and dialog for the site, which a browser's own
-/// page has neither of. The certificate is the security button's, and the
-/// extensions page the Extensions section's.
+/// page has neither of (`web`). The certificate is the security button's,
+/// and the extensions page the Extensions section's. `done` hears what is
+/// chosen (`chosen_action`).
 pub fn show_site_menu(
     mt: MainThread,
     view: NativeView,
-    browser: &Browser,
+    web: bool,
     point: (f64, f64),
     done: impl FnOnce(Option<String>) + 'static,
 ) -> Result<(), Error> {
-    let state = browser.site_state().ok();
-    let web = state.is_some_and(|state| state.security != SiteSecurity::Internal);
     let items = [
-        enabled(MenuItem::item("settings", "Site Settings"), web),
-        enabled(MenuItem::item("data", "Cookies and Site Data…"), web),
+        enabled(MenuItem::item(SETTINGS, "Site Settings"), web),
+        enabled(MenuItem::item(DATA, "Cookies and Site Data…"), web),
     ];
-    let browser = browser.clone();
-    mt.show_context_menu(&items, view, point, move |chosen| {
-        let action = match chosen.as_deref() {
-            Some("settings") => Some(SiteAction::Settings),
-            Some("data") => Some(SiteAction::Data),
-            _ => None,
-        };
-        if let (Some(action), Some(state)) = (action, state) {
-            let _ = browser.site_action(state.page, action);
-        }
-        done(chosen);
-    })
+    mt.show_context_menu(&items, view, point, done)
+}
+
+/// What an item of the site's menu opens.
+pub fn chosen_action(chosen: &str) -> Option<SiteAction> {
+    match chosen {
+        SETTINGS => Some(SiteAction::Settings),
+        DATA => Some(SiteAction::Data),
+        _ => None,
+    }
 }
 
 fn setting_name(setting: PermissionSetting) -> &'static str {

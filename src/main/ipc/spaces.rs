@@ -9,6 +9,7 @@ use super::WindowRef;
 use crate::analytics::{Event, SpaceField};
 use crate::app::State;
 use crate::db::{NewSpace, SpaceChange, SpaceId, SpaceRow};
+use crate::menus;
 
 /// A space to make: whose it is, then what it has.
 #[derive(Deserialize)]
@@ -112,7 +113,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
 /// and lists them anew in the main menu.
 pub fn broadcast_spaces(state: &State) {
     if let Some(mt) = MainThread::get() {
-        state.update_menu(mt);
+        menus::update_main_menu(state, mt);
     }
     for window in state.windows.all() {
         let _ = window.page.web_view.send("spaces.changed", &());

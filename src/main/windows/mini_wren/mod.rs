@@ -30,6 +30,7 @@ use super::session::unkept_window_key;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
+use crate::menus;
 use crate::platform::Backdrop;
 use crate::tabs;
 use crate::windows::{self, BrowserWindow, MiniWren, Place, WindowId};
@@ -158,7 +159,7 @@ impl State {
         let size = window_size(on_new_tab_page, &browser);
         window.page.resize_from_top(size, SCREEN_MARGIN);
         ipc::send_new_tab_page(window);
-        self.update_front_menu(mt);
+        menus::update_front_menu(self, mt);
     }
 
     /// Window `window` went out of use, having been in use: a Mini Wren on

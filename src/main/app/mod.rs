@@ -56,7 +56,7 @@ pub struct State {
     /// app starts (onboarding.rs).
     pub(crate) onboarding: RefCell<Option<Rc<PageWindow>>>,
     /// What the main menu has the window in front allow, as it was set last
-    /// (windows/mod.rs).
+    /// (menus/main_menu.rs).
     pub(crate) menu_front: Cell<menus::Front>,
     /// What Mini Wren keeps: its key, the ones asked for before the app
     /// could open them, and the app each goes back to
@@ -148,7 +148,7 @@ impl State {
                 }
                 // A kept window on a profile deleted since goes.
                 state.leave_gone_profiles(mt);
-                state.update_menu(mt);
+                menus::update_main_menu(&state, mt);
                 state.restore_sessions(mt, profile);
                 state.restore_finished(mt);
             }

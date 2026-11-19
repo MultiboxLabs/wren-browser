@@ -1,34 +1,39 @@
-// A download's menu, in the shelf and the Library.
+// A download's menu, in the shelf and the Library. What is chosen is done
+// by `downloads::choose`.
 
-use wren::{Download, DownloadAction, Error, MainThread, MenuItem, NativeView};
+use wren::{DownloadAction, DownloadState, Error, MainThread, MenuItem, NativeView};
 
-use crate::clipboard;
 use crate::downloads;
 
-/// Shows a download's menu at `point` in the page's `view`, and does what
-/// is chosen.
+pub const OPEN: &str = "open";
+pub const SHOW: &str = "show";
+pub const COPY_LINK: &str = "copy-link";
+pub const OPEN_WHEN_DONE: &str = "open-when-done";
+pub const REMOVE: &str = "remove";
+
+/// Shows the menu of a download, as `state` has it, at `point` in the
+/// page's `view`, and hands what is chosen to `done`.
 pub fn show_download_menu(
     mt: MainThread,
     view: NativeView,
-    download: Download,
+    state: &DownloadState,
     point: (f64, f64),
     done: impl FnOnce(Option<String>) + 'static,
 ) -> Result<(), Error> {
-    let state = download.state()?;
     let available = state.available();
     let mut items = Vec::new();
     if available.contains(DownloadAction::OPEN) {
-        items.push(MenuItem::item("open", "Open"));
+        items.push(MenuItem::item(OPEN, "Open"));
     }
     if available.contains(DownloadAction::SHOW_IN_FINDER) {
-        items.push(MenuItem::item("show", "Show in Finder"));
+        items.push(MenuItem::item(SHOW, "Show in Finder"));
     }
-    items.push(MenuItem::item("copy-link", "Copy Download Link"));
+    items.push(MenuItem::item(COPY_LINK, "Copy Download Link"));
     if available.contains(DownloadAction::OPEN_WHEN_DONE) {
         items.extend([
             MenuItem::Separator,
             MenuItem::Item {
-                id: "open-when-done".into(),
+                id: OPEN_WHEN_DONE.into(),
                 label: "Always Open Files of This Type".into(),
                 enabled: true,
                 checked: state.open_when_done,
@@ -37,21 +42,11 @@ pub fn show_download_menu(
             },
         ]);
     }
-    if downloads::removable(&state) {
+    if downloads::removable(state) {
         items.extend([
             MenuItem::Separator,
-            MenuItem::item("remove", "Remove from List"),
+            MenuItem::item(REMOVE, "Remove from List"),
         ]);
     }
-    mt.show_context_menu(&items, view, point, move |chosen| {
-        let _ = match chosen.as_deref() {
-            Some("open") => download.perform(DownloadAction::OPEN),
-            Some("show") => download.perform(DownloadAction::SHOW_IN_FINDER),
-            Some("open-when-done") => download.perform(DownloadAction::OPEN_WHEN_DONE),
-            Some("copy-link") => clipboard::copy_link(&download.url(), None, state.off_the_record),
-            Some("remove") => downloads::remove(download),
-            _ => Ok(()),
-        };
-        done(chosen);
-    })
+    mt.show_context_menu(&items, view, point, done)
 }

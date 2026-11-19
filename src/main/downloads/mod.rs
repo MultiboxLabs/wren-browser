@@ -5,7 +5,8 @@
 // A window on the record lists those of every profile that is open, as the
 // user's spaces are of any profile; one off the record lists only its own
 // profile's. And the Library button's indicator while they run. Their
-// thumbnails are in thumbnails.rs.
+// thumbnails are in thumbnails.rs. What a download's menu does is here too
+// (`choose`).
 
 pub mod thumbnails;
 
@@ -20,6 +21,8 @@ use wren::{
     DownloadStatus, DownloadWarning, Error, MainThread, Profile, ProfileKind,
 };
 
+use crate::clipboard;
+use crate::menus::download as menu;
 use crate::platform;
 
 /// A download, as the page draws it.
@@ -164,6 +167,19 @@ pub fn remove(download: Download) -> Result<(), Error> {
 
 // The profiles whose downloads `browser`'s window lists: off the record, its
 // own; on it, every persistent profile that is open, its own first.
+/// Does what was chosen of `download`'s menu (menus/download.rs), which
+/// listed it as `state` had it.
+pub fn choose(download: Download, state: &DownloadState, chosen: &str) -> Result<(), Error> {
+    match chosen {
+        menu::OPEN => download.perform(DownloadAction::OPEN),
+        menu::SHOW => download.perform(DownloadAction::SHOW_IN_FINDER),
+        menu::OPEN_WHEN_DONE => download.perform(DownloadAction::OPEN_WHEN_DONE),
+        menu::COPY_LINK => clipboard::copy_link(&download.url(), None, state.off_the_record),
+        menu::REMOVE => remove(download),
+        _ => Ok(()),
+    }
+}
+
 fn listed(browser: &Browser) -> Vec<Profile> {
     let Some(own) = browser.profile() else {
         return Vec::new();

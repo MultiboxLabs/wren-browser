@@ -1,28 +1,11 @@
-// The colours a tab group may have, and its name in a menu. A group's menu
-// is built with every item's (item.rs).
+// A tab group's colours, and its name where a menu lists it. The Colour menu
+// itself is built with the rest of a group's menu (menus/item.rs).
 
-use wren::{Error, MenuItem, TabGroup, TabGroupColor};
-
-/// The items of a group's Colour menu, its own checked: each one's ID is
-/// `prefix` and the colour's name.
-pub(super) fn color_items(group: TabGroup, prefix: &str) -> Result<Vec<MenuItem>, String> {
-    let (current, _) = group.visuals().map_err(|error| format!("{error:?}"))?;
-    Ok(COLORS
-        .iter()
-        .map(|&color| MenuItem::Item {
-            id: format!("{prefix}{}", color_name(color)),
-            label: color_label(color).into(),
-            enabled: true,
-            checked: color == current,
-            hidden: false,
-            key: None,
-        })
-        .collect())
-}
+use wren::{Error, TabGroup, TabGroupColor};
 
 /// Gives a group the colour of a name (`color_name`); an unknown name
 /// changes nothing.
-pub fn set_group_color(group: TabGroup, name: &str) -> Result<(), Error> {
+pub fn set_color(group: TabGroup, name: &str) -> Result<(), Error> {
     let Some(&color) = COLORS.iter().find(|&&color| color_name(color) == name) else {
         return Ok(());
     };
@@ -30,7 +13,8 @@ pub fn set_group_color(group: TabGroup, name: &str) -> Result<(), Error> {
     group.set_visuals(&group.title(), color, collapsed)
 }
 
-const COLORS: [TabGroupColor; 9] = [
+/// The colours a group may have, in the order its Colour menu lists them.
+pub const COLORS: [TabGroupColor; 9] = [
     TabGroupColor::Grey,
     TabGroupColor::Blue,
     TabGroupColor::Red,
@@ -66,7 +50,8 @@ pub fn color_name(color: TabGroupColor) -> &'static str {
     }
 }
 
-fn color_label(color: TabGroupColor) -> &'static str {
+/// A group colour's name, as a menu shows it.
+pub fn color_label(color: TabGroupColor) -> &'static str {
     match color {
         TabGroupColor::Grey => "Grey",
         TabGroupColor::Blue => "Blue",
@@ -80,8 +65,8 @@ fn color_label(color: TabGroupColor) -> &'static str {
     }
 }
 
-// A group's title, or its colour for an untitled one.
-pub(super) fn group_name(group: TabGroup) -> String {
+/// A group's title, or its colour for an untitled one.
+pub fn name(group: TabGroup) -> String {
     match group.title() {
         title if !title.is_empty() => title,
         _ => {

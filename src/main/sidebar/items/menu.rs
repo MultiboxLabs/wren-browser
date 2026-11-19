@@ -13,7 +13,7 @@ use super::{Destination, ItemRef, Moved, Target, failed, move_items, tab_of};
 use crate::app::State;
 use crate::clipboard;
 use crate::db::{PinId, PinKind, PinPage, PinPlace, PinRow, SpaceId};
-use crate::menus::{self, item as command};
+use crate::menus::item as command;
 use crate::pins;
 use crate::tabs;
 use crate::windows::{Place, WindowId};
@@ -494,7 +494,7 @@ fn on_group(
         command::UNGROUP => BrowserTab::ungroup(mt, &members),
         command::CLOSE_GROUP => tabs::close(browser, &members),
         _ => match chosen.strip_prefix(command::COLOR) {
-            Some(name) => menus::set_group_color(group, name),
+            Some(name) => tabs::groups::set_color(group, name),
             None => Ok(()),
         },
     };

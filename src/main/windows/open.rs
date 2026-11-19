@@ -13,6 +13,7 @@ use crate::analytics::Event;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc::{self, WindowRef};
+use crate::menus;
 use crate::pages::UI;
 use crate::perf::PageCounts;
 use crate::platform::{PageWindow, WindowKind, WindowSize};
@@ -129,10 +130,10 @@ impl State {
                 state.window_used(id);
                 if window.is_mini_wren() {
                     // A Mini Wren in use allows Open as Tab.
-                    state.update_front_menu(mt);
+                    menus::update_front_menu(&state, mt);
                 } else {
                     state.windows.set_active(id);
-                    state.update_front_menu(mt);
+                    menus::update_front_menu(&state, mt);
                     // The space the user is in is the one used last.
                     if let Some(space) = window.space() {
                         state.touch_space(space);

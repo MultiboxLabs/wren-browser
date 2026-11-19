@@ -14,6 +14,7 @@ use super::{State, commands};
 use crate::extensions::{self, components};
 use crate::import;
 use crate::ipc::{self, changes};
+use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::platform::RunningApp;
 use crate::profiles::{self, filling};
@@ -28,7 +29,7 @@ pub struct Wren {
 
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
-        self.state.update_menu(mt);
+        menus::update_main_menu(&self.state, mt);
         self.state.check_default_browser(mt);
         components::ready(mt);
         ipc::handle_migrate(mt, &self.state);
@@ -89,7 +90,7 @@ impl App for Wren {
             .iter()
             .any(|change| change.kind == ChangeKind::QuitWarning)
         {
-            state.update_menu(mt);
+            menus::update_main_menu(state, mt);
         }
         // Here, in System Settings, or on Chromium's settings page.
         if changes
@@ -147,7 +148,7 @@ impl App for Wren {
             .iter()
             .any(|change| matches!(change.kind, ChangeKind::ModalDialog | ChangeKind::Active))
         {
-            state.update_front_menu(mt);
+            menus::update_front_menu(state, mt);
         }
     }
 
