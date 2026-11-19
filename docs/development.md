@@ -6,23 +6,14 @@ This page is for working on Wren Browser. It covers how Wren is built, running i
 
 Wren Browser is built on Wren Runtime, a library that wraps a prebuilt Chromium. The main process is written in Rust. It owns the windows, the profiles and what Wren keeps of its own, and calls Wren Runtime for everything Chromium does. Wren's interface, such as the sidebar, the omnibox and the dialogs, is React pages at `wren://`, styled with Tailwind CSS. They call the main process through pairs of IPC modules, one in Rust and one in TypeScript.
 
-| Path                       | What lives there                                                                    |
-| -------------------------- | ----------------------------------------------------------------------------------- |
-| `src/main/app/`            | The app's state and Wren Runtime's callbacks                                        |
-| `src/main/windows/`        | Opening, switching and restoring windows, what each holds, and the spaces they show |
-| `src/main/tabs/`           | What Wren does to tabs, and what each tab is (`roles.rs`)                           |
-| `src/main/pins/`           | Favourites and pins, and the tabs open for them                                     |
-| `src/main/sidebar/`        | What a drop or a menu in the sidebar does to a tab, a group or a pin                |
-| `src/main/db/`             | The SQLite database of spaces, pins, saved windows and settings                     |
-| `src/main/import/`         | Bringing things over from another browser                                           |
-| `src/main/extensions/`     | The extensions Wren ships, such as the ad blocker                                   |
-| `src/main/platform/`       | What Wren asks of the operating system, macOS's in `macos/`                         |
-| `src/main/ipc/`            | The main process's side of each call the interface makes                            |
-| `src/renderer/ipc/`        | The interface's side of each call, and the messages it gets                         |
-| `src/renderer/components/` | The interface, with the shared controls in `ui/`                                    |
-| `src/renderer/state/`      | The interface's state for windows, spaces, tabs and pins                            |
-| `src/renderer/pages/`      | One folder for each `wren://` page                                                  |
-| `scripts/`                 | Running, building, checking and publishing                                          |
+| Path                       | What lives there                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `src/main/`                | The main process. [Its README](../src/main/README.md) says where its code goes, and each folder has one of its own |
+| `src/renderer/ipc/`        | The interface's side of each call, and the messages it gets                                                        |
+| `src/renderer/components/` | The interface, with the shared controls in `ui/`                                                                   |
+| `src/renderer/state/`      | The interface's state for windows, spaces, tabs and pins                                                           |
+| `src/renderer/pages/`      | One folder for each `wren://` page                                                                                 |
+| `scripts/`                 | Running, building, checking and publishing                                                                         |
 
 ## Run from source
 

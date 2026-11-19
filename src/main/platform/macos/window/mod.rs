@@ -1,5 +1,5 @@
 // macOS's side of platform/window.rs: an NSWindow round the page's web view,
-// over a blur of the desktop (an NSVisualEffectView). The parts:
+// over a blur of the desktop (an NSVisualEffectView). Its files:
 //
 // - frame.rs: where the window is and how large;
 // - full_screen.rs: going full screen and coming back;

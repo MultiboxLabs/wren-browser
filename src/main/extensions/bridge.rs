@@ -5,7 +5,7 @@
 // whose first message says which page it is, from Chromium; then the page's
 // calls, each answered, as `wren.invoke`'s are, and the app's messages to
 // it, as `wren.on` gets them. src/renderer/ipc/tab-page.ts is the page's
-// side, and ipc/<part>.rs registers each page's calls (`handle_call`).
+// side, and ipc/<name>.rs registers each page's calls (`handle_call`).
 
 use std::cell::RefCell;
 use std::collections::HashMap;

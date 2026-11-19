@@ -2,7 +2,7 @@
 // show. A window shows one space at a time, and has at most one Browser for
 // each space it has been on, which stays in the background while another
 // space is in front; a space may have none. A Mini Wren shows one Browser,
-// and no space. The parts:
+// and no space. Its files:
 //
 // - open.rs: opening windows;
 // - browsers.rs: where each Browser goes, and getting it into its window;

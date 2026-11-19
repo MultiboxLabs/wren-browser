@@ -1,10 +1,11 @@
 // The calls a browser window's page makes (`wren.invoke`), each by name, and
-// the messages the app sends it (`wren.on`): one file for each part of the
-// app; the onboarding window's (onboarding.rs); and wren://migrate's, which
-// come through Wren Components (migrate.rs). src/renderer/ipc/ is
-// the page's side; keep the two together. What a window's page has been
-// told of its tabs is told.rs's, and what Chromium's changes tell each page
-// is changes.rs's.
+// the messages the app sends it (`wren.on`): one file for each kind, paired
+// with the file of its name in src/renderer/ipc/, the page's side; the
+// onboarding window's (onboarding.rs); and wren://migrate's, which come
+// through Wren Components (migrate.rs). Keep the two sides together. A
+// handler reads its call, calls one action of a part, and answers. What a
+// window's page has been told is told.rs's, and what Chromium's changes
+// tell each page is changes.rs's.
 
 mod ad_block;
 mod analytics;

@@ -1,6 +1,6 @@
 // What the app asks of the platform itself, beyond Wren and the window: one
-// file here for each part, its interface, and the same file in each
-// platform's folder, its implementation. The rest of the app calls only
+// file here for each thing it asks for, its interface, and the same file in
+// each platform's folder, its implementation. The rest of the app calls only
 // what this module exports. macOS's is the only platform yet.
 
 #[cfg(target_os = "macos")]
