@@ -23,6 +23,7 @@ use crate::db::Db;
 use crate::db::SidebarStore;
 use crate::ipc::{self, TabSwitcher};
 use crate::menus;
+use crate::onboarding;
 use crate::perf::Perf;
 use crate::platform::PageWindow;
 use crate::profiles::filling;
@@ -30,7 +31,7 @@ use crate::spaces;
 use crate::tabs;
 use crate::updates::{self, Updates};
 use crate::windows::mini_wren::MiniWrens;
-use crate::windows::{DevTools, Windows};
+use crate::windows::{self, DevTools, Windows};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {
@@ -117,7 +118,7 @@ impl State {
     // once they have. A performance run has none.
     pub(crate) fn start(self: &Rc<Self>, mt: MainThread) {
         if self.perf.is_none() && !self.db.onboarded() {
-            if !self.open_onboarding(mt) {
+            if !onboarding::open(self, mt) {
                 eprintln!("Wren could not open onboarding.");
                 mt.quit();
             }
@@ -127,8 +128,8 @@ impl State {
         // shows them. The list is read again once the first profile is open,
         // in case it was not filled yet.
         self.db.sync_profiles(&mt.profile_list());
-        if !self.open_saved_windows(mt) {
-            self.open_window(mt, None);
+        if !windows::open_saved(self, mt) {
+            windows::open(self, mt, None);
         }
         if self.windows.len() == 0 {
             eprintln!("Wren made no web view.");
@@ -136,11 +137,11 @@ impl State {
         }
         self.updates.start(self, mt);
         tabs::archive::start(mt, self);
-        self.take_mini_wren_key(mt);
+        windows::mini_wren::take_key(self, mt);
         // Restoring from now, while the profile opens: the windows wait for
         // their Browsers, which a Mini Wren must not make first
         // (windows/mini_wren/from_apps.rs).
-        self.restore_started();
+        windows::restore_started(self);
         let state = self.clone();
         mt.open_profile(None, move |result| match result {
             Ok(profile) => {
@@ -148,10 +149,10 @@ impl State {
                     spaces::changed(&state);
                 }
                 // A kept window on a profile deleted since goes.
-                state.leave_gone_profiles(mt);
+                windows::leave_gone_profiles(&state, mt);
                 menus::update_main_menu(&state, mt);
-                state.restore_sessions(mt, profile);
-                state.restore_finished(mt);
+                windows::restore_sessions(&state, mt, profile);
+                windows::restore_finished(&state, mt);
             }
             Err(error) => {
                 eprintln!("Wren opened no Profile: {error:?}");

@@ -12,7 +12,7 @@ use crate::app::State;
 use crate::db::{NewSpace, SpaceChange, SpaceId, SpaceRow};
 use crate::ipc;
 use crate::menus;
-use crate::windows::Place;
+use crate::windows::{self, Place};
 
 /// The profile's most recently used space, if it has one. A profile
 /// Chromium has just made is not in the database yet: it is added, with
@@ -142,7 +142,7 @@ pub fn delete(state: &Rc<State>, space: SpaceId, done: impl FnOnce(Result<(), St
         let state = state.upgrade().ok_or("Wren is quitting.")?;
         state.db.delete_space(space)?;
         state.analytics.record(Event::SpaceDeleted);
-        state.leave_gone_spaces(Some(&profile));
+        windows::leave_gone_spaces(&state, Some(&profile));
         changed(&state);
         Ok(())
     };
@@ -183,6 +183,6 @@ pub fn changed(state: &State) {
     }
     ipc::broadcast_spaces(state);
     for window in state.windows.all() {
-        state.update_title(&window);
+        windows::update_title(state, &window);
     }
 }

@@ -19,8 +19,13 @@ mod as_tab;
 mod commands;
 mod from_apps;
 
+pub use as_tab::open_as_tab;
 pub use commands::command;
+use from_apps::moved_to_tab;
+pub(crate) use from_apps::take_key;
 pub(crate) use from_apps::{HeldMiniWren, MiniWrens};
+pub use from_apps::{closed, open_empty};
+pub(in crate::windows) use from_apps::{hold, open_held, window_used};
 
 use std::rc::Rc;
 
@@ -68,107 +73,106 @@ enum MiniWrenPosition {
     AtPointer,
 }
 
-impl State {
-    /// Shows `browser`, a popup Chromium opened, which `opener` opened if
-    /// Chromium names it, in a Mini Wren (`show_mini_wren`), from the space
-    /// its opener's window opened it from, and cascaded from that window.
-    pub fn open_popup(self: &Rc<Self>, mt: MainThread, browser: Browser, opener: Option<Browser>) {
-        let opener_window = opener.as_ref().and_then(|opener| self.windows.of(opener));
-        let space = opener_window
-            .as_ref()
-            .zip(opener.as_ref())
-            .and_then(|(window, opener)| window.space_opened_from(opener));
-        let position = MiniWrenPosition::AsAsked {
-            near: opener_window,
-        };
-        self.show_mini_wren(mt, browser, space, position);
-    }
+/// Shows `browser`, a popup Chromium opened, which `opener` opened if
+/// Chromium names it, in a Mini Wren (`show`), from the space
+/// its opener's window opened it from, and cascaded from that window.
+pub fn open_popup(state: &Rc<State>, mt: MainThread, browser: Browser, opener: Option<Browser>) {
+    let opener_window = opener.as_ref().and_then(|opener| state.windows.of(opener));
+    let space = opener_window
+        .as_ref()
+        .zip(opener.as_ref())
+        .and_then(|(window, opener)| window.space_opened_from(opener));
+    let position = MiniWrenPosition::AsAsked {
+        near: opener_window,
+    };
+    show(state, mt, browser, space, position);
+}
 
-    /// Shows `browser` in a Mini Wren, from `space`, as large as its page
-    /// asked, at `position`; on the New Tab page, as the omnibox alone, at
-    /// its size. One that gets no window closes. Answers the window's ID.
-    fn show_mini_wren(
-        self: &Rc<Self>,
-        mt: MainThread,
-        browser: Browser,
-        space: Option<SpaceId>,
-        position: MiniWrenPosition,
-    ) -> Option<WindowId> {
-        let Some(profile) = browser.profile() else {
-            browser.close(|_| {});
-            return None;
-        };
-        let mini_wren = MiniWren {
-            space,
-            address: browser
-                .window_features()
-                .contains(WindowFeatures::LOCATION_BAR),
-        };
-        let place = Place::of_profile(&profile);
-        let window = self.open_page_window(
-            mt,
-            unkept_window_key(),
-            Some(place.clone()),
-            true,
-            Some(mini_wren),
-        );
-        let Some(window) = window else {
-            browser.close(|_| {});
-            return None;
-        };
-        // Drawn as it is to be before it is placed, and long before it
-        // shows.
-        let on_new_tab_page = is_on_new_tab_page(mini_wren, &browser) == Some(true);
-        window.set_on_new_tab_page(on_new_tab_page);
-        window.page.set_backdrop(backdrop(on_new_tab_page));
-        let size = window_size(on_new_tab_page, &browser);
-        let requested = browser.requested_bounds();
-        match position {
-            MiniWrenPosition::AsAsked { near } => {
-                let near = near.or_else(|| self.windows.front());
-                window.page.place_as_asked(
-                    size,
-                    requested.and_then(|bounds| bounds.origin),
-                    near.as_ref().map(|near| &near.page),
-                );
-            }
-            MiniWrenPosition::AtPointer => window.page.place_at_pointer(size, SCREEN_MARGIN),
+/// Shows `browser` in a Mini Wren, from `space`, as large as its page
+/// asked, at `position`; on the New Tab page, as the omnibox alone, at
+/// its size. One that gets no window closes. Answers the window's ID.
+fn show(
+    state: &Rc<State>,
+    mt: MainThread,
+    browser: Browser,
+    space: Option<SpaceId>,
+    position: MiniWrenPosition,
+) -> Option<WindowId> {
+    let Some(profile) = browser.profile() else {
+        browser.close(|_| {});
+        return None;
+    };
+    let mini_wren = MiniWren {
+        space,
+        address: browser
+            .window_features()
+            .contains(WindowFeatures::LOCATION_BAR),
+    };
+    let place = Place::of_profile(&profile);
+    let window = windows::open_page_window(
+        state,
+        mt,
+        unkept_window_key(),
+        Some(place.clone()),
+        true,
+        Some(mini_wren),
+    );
+    let Some(window) = window else {
+        browser.close(|_| {});
+        return None;
+    };
+    // Drawn as it is to be before it is placed, and long before it
+    // shows.
+    let on_new_tab_page = is_on_new_tab_page(mini_wren, &browser) == Some(true);
+    window.set_on_new_tab_page(on_new_tab_page);
+    window.page.set_backdrop(backdrop(on_new_tab_page));
+    let size = window_size(on_new_tab_page, &browser);
+    let requested = browser.requested_bounds();
+    match position {
+        MiniWrenPosition::AsAsked { near } => {
+            let near = near.or_else(|| state.windows.front());
+            window.page.place_as_asked(
+                size,
+                requested.and_then(|bounds| bounds.origin),
+                near.as_ref().map(|near| &near.page),
+            );
         }
-        self.host_as_requested(&window, place, &browser);
-        Some(window.id)
+        MiniWrenPosition::AtPointer => window.page.place_at_pointer(size, SCREEN_MARGIN),
     }
+    windows::host_as_requested(state, &window, place, &browser);
+    Some(window.id)
+}
 
-    /// Draws Mini Wren `window` as the omnibox alone once its page has gone
-    /// to the New Tab page, or with its toolbar and page again once it has
-    /// left it, as what the omnibox opens loads there. The window grows or
-    /// shrinks from its top to the size of what it shows, and its backdrop
-    /// is a panel's while it is the omnibox. The page draws it so
-    /// ("window.newTabPage"), and the main menu follows. Nothing for a
-    /// browser window.
-    pub fn follow_new_tab_page(&self, mt: MainThread, window: &BrowserWindow) {
-        let Some((mini_wren, browser)) = window.mini_wren().zip(window.browser()) else {
-            return;
-        };
-        let Some(on_new_tab_page) = is_on_new_tab_page(mini_wren, &browser) else {
-            return;
-        };
-        if !window.set_on_new_tab_page(on_new_tab_page) {
-            return;
-        }
-        window.page.set_backdrop(backdrop(on_new_tab_page));
-        let size = window_size(on_new_tab_page, &browser);
-        window.page.resize_from_top(size, SCREEN_MARGIN);
-        ipc::send_new_tab_page(window);
-        menus::update_front_menu(self, mt);
+/// Draws Mini Wren `window` as the omnibox alone once its page has gone
+/// to the New Tab page, or with its toolbar and page again once it has
+/// left it, as what the omnibox opens loads there. The window grows or
+/// shrinks from its top to the size of what it shows, and its backdrop
+/// is a panel's while it is the omnibox. The page draws it so
+/// ("window.newTabPage"), and the main menu follows. Nothing for a
+/// browser window.
+pub fn follow_new_tab_page(state: &State, mt: MainThread, window: &BrowserWindow) {
+    let Some((mini_wren, browser)) = window.mini_wren().zip(window.browser()) else {
+        return;
+    };
+    let Some(on_new_tab_page) = is_on_new_tab_page(mini_wren, &browser) else {
+        return;
+    };
+    if !window.set_on_new_tab_page(on_new_tab_page) {
+        return;
     }
+    window.page.set_backdrop(backdrop(on_new_tab_page));
+    let size = window_size(on_new_tab_page, &browser);
+    window.page.resize_from_top(size, SCREEN_MARGIN);
+    ipc::send_new_tab_page(window);
+    menus::update_front_menu(state, mt);
+}
 
-    /// Window `window` went out of use, having been in use: a Mini Wren on
-    /// the New Tab page closes, as it is done with, and leaves the user
-    /// where they went.
-    pub(super) fn window_left(self: &Rc<Self>, mt: MainThread, window: &BrowserWindow) {
-        if window.is_on_new_tab_page() {
-            windows::close_window(self, mt, window.id);
-        }
+/// Window `window` went out of use, having been in use: a Mini Wren on
+/// the New Tab page closes, as it is done with, and leaves the user
+/// where they went.
+pub(super) fn window_left(state: &Rc<State>, mt: MainThread, window: &BrowserWindow) {
+    if window.is_on_new_tab_page() {
+        windows::close(state, mt, window.id);
     }
 }
 

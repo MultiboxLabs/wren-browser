@@ -11,6 +11,7 @@ use wren::{Error, MainThread, Profile, ProfileKind};
 
 use crate::app::State;
 use crate::spaces;
+use crate::windows;
 
 /// Makes a profile named `name`, with no space, and gives `done` its ID
 /// once it is made.
@@ -76,8 +77,8 @@ pub fn delete(
             if let Err(error) = state.db.forget_profile(&id) {
                 eprintln!("Wren could not forget a profile: {error}");
             }
-            state.leave_gone_spaces(None);
-            state.leave_gone_profiles(mt);
+            windows::leave_gone_spaces(&state, None);
+            windows::leave_gone_profiles(&state, mt);
             spaces::changed(&state);
             done(Ok(()));
         });
@@ -89,9 +90,9 @@ pub fn delete(
 /// main menu show profiles' names.
 pub fn list_changed(state: &Rc<State>, mt: MainThread) {
     if state.db.sync_profiles(&mt.profile_list()) {
-        state.leave_gone_spaces(None);
+        windows::leave_gone_spaces(state, None);
     }
-    state.leave_gone_profiles(mt);
+    windows::leave_gone_profiles(state, mt);
     spaces::changed(state);
 }
 

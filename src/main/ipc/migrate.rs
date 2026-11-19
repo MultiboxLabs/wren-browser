@@ -16,6 +16,7 @@ use crate::app::State;
 use crate::extensions::bridge;
 use crate::import::listing;
 use crate::import::run::{self, Plan, RunState};
+use crate::onboarding;
 use crate::pages::{MIGRATE, Page};
 use crate::platform::{self, Privacy};
 
@@ -108,12 +109,12 @@ pub fn handle_migrate(mt: MainThread, state: &Rc<State>) {
 }
 
 /// Onboarding's calls. Its run lands each profile in a new one, and its
-/// progress comes to the window (`State::import_in_onboarding`).
+/// progress comes to the window (`onboarding::import`).
 pub fn handle_migrate_in(web_view: &WebView, state: &Rc<State>, mt: MainThread) {
     let weak = Rc::downgrade(state);
     handle_calls(web_view, mt, move |_, plan| {
         let state = weak.upgrade().ok_or("The app is closing.")?;
-        state.import_in_onboarding(mt, plan)
+        onboarding::import(&state, mt, plan)
     });
 }
 

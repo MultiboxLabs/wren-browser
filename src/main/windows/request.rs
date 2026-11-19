@@ -10,47 +10,45 @@ use std::rc::Rc;
 use wren::{Browser, MainThread, RequestedBounds, WindowRequest, WindowState};
 
 use crate::app::State;
-use crate::windows::BrowserWindow;
+use crate::windows::{self, BrowserWindow};
 
-impl State {
-    /// Does what Chromium asked of `browser`'s window. A window shows one
-    /// space at a time, so a space's Browser in the background comes to the
-    /// front of its window first, without the window coming forward.
-    pub fn answer_window_request(&self, browser: &Browser, request: WindowRequest) {
-        let Some(window) = self.windows.of(browser) else {
+/// Does what Chromium asked of `browser`'s window. A window shows one
+/// space at a time, so a space's Browser in the background comes to the
+/// front of its window first, without the window coming forward.
+pub fn answer_request(state: &State, browser: &Browser, request: WindowRequest) {
+    let Some(window) = state.windows.of(browser) else {
+        return;
+    };
+    if !window.is_front(browser) {
+        let space = window.place_of(browser).and_then(|place| place.space());
+        let Some(space) = space else {
             return;
         };
-        if !window.is_front(browser) {
-            let space = window.place_of(browser).and_then(|place| place.space());
-            let Some(space) = space else {
-                return;
-            };
-            if let Err(error) = self.show_space(window.id, space) {
-                return eprintln!("Wren did not do what Chromium asked of a window: {error}");
-            }
-        }
-        match request {
-            WindowRequest::Frame {
-                x,
-                y,
-                width,
-                height,
-            } => window.move_to(RequestedBounds {
-                origin: Some((x, y)),
-                width,
-                height,
-            }),
-            WindowRequest::State(state) => window.page.set_state(state),
+        if let Err(error) = windows::show_space(state, window.id, space) {
+            return eprintln!("Wren did not do what Chromium asked of a window: {error}");
         }
     }
+    match request {
+        WindowRequest::Frame {
+            x,
+            y,
+            width,
+            height,
+        } => window.move_to(RequestedBounds {
+            origin: Some((x, y)),
+            width,
+            height,
+        }),
+        WindowRequest::State(state) => window.page.set_state(state),
+    }
+}
 
-    /// Minimises `window` if Chromium wants `browser`, which it opened or
-    /// restored there, minimised: a window minimised as the session was
-    /// kept, or an extension's created so. Only its Browser in front says.
-    pub(super) fn start_as_requested(&self, window: &BrowserWindow, browser: &Browser) {
-        if window.is_front(browser) && browser.requested_window_state() == WindowState::Minimized {
-            window.minimize_when_shown();
-        }
+/// Minimises `window` if Chromium wants `browser`, which it opened or
+/// restored there, minimised: a window minimised as the session was
+/// kept, or an extension's created so. Only its Browser in front says.
+pub(super) fn start_as_requested(window: &BrowserWindow, browser: &Browser) {
+    if window.is_front(browser) && browser.requested_window_state() == WindowState::Minimized {
+        window.minimize_when_shown();
     }
 }
 

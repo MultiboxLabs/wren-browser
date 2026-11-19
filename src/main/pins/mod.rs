@@ -28,7 +28,7 @@ use crate::app::State;
 use crate::db::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
 use crate::tabs;
 use crate::tabs::roles;
-use crate::windows::{BrowserWindow, Place};
+use crate::windows::{self, BrowserWindow, Place};
 
 /// Where a pin goes, as the page and the menus name it: the favourites of
 /// the place's profile, or the place's space's pins.
@@ -342,7 +342,7 @@ pub fn open_in(
         return done(open(state, &browser, &place, id));
     }
     let (inner, window) = (state.clone(), window.id);
-    state.open_browser(mt, window, place, move || {
+    windows::open_browser(state, mt, window, place, move || {
         let opened = inner
             .windows
             .get(window)

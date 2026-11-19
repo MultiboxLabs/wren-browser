@@ -14,7 +14,7 @@ use crate::analytics::{Event, OmniboxPick, OpensIn};
 use crate::app::State;
 use crate::pages::icons;
 use crate::tabs;
-use crate::windows::BrowserWindow;
+use crate::windows::{self, BrowserWindow};
 
 /// What the page asks suggestions for.
 #[derive(Deserialize)]
@@ -148,7 +148,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             }
             // A Browser that is not made drops the call, which fails it.
             (Ok(Some(place)), Ok(state)) => {
-                state.open_browser(mt, weak.id, place, move || {
+                windows::open_browser(&state, mt, weak.id, place, move || {
                     let _ = call.answer(&());
                 });
             }

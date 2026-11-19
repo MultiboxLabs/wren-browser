@@ -9,7 +9,7 @@ use wren::{Browser, MainThread};
 use super::{Destination, ItemRef, Listed, listed, moving, place_of};
 use crate::app::State;
 use crate::db::SpaceId;
-use crate::windows::{Place, WindowId};
+use crate::windows::{self, Place, WindowId};
 
 /// What a move makes again in another profile, tabs of the list or a Mini
 /// Wren's page, as the page asks about it.
@@ -54,7 +54,7 @@ pub fn crossing(
         let Ok((item, source)) = listed(mt, item) else {
             continue;
         };
-        if !state.remakes_for(&source, &place)? {
+        if !windows::remakes_for(state, &source, &place)? {
             continue;
         }
         rows += 1;
@@ -79,7 +79,7 @@ pub fn page_crossing(
     source: &Browser,
     place: &Place,
 ) -> Result<Option<Crossing>, String> {
-    if !state.remakes_for(source, place)? {
+    if !windows::remakes_for(state, source, place)? {
         return Ok(None);
     }
     crossing_to(state, place, Crossed::Tab, 1).map(Some)
@@ -92,7 +92,7 @@ fn crossing_to(
     what: Crossed,
     tabs: usize,
 ) -> Result<Crossing, String> {
-    let shown = state.profile_shown(place)?;
+    let shown = windows::profile_shown(state, place)?;
     Ok(Crossing {
         space: place.space(),
         profile: shown.profile().unwrap_or_default().to_owned(),

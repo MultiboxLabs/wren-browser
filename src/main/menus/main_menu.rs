@@ -42,7 +42,7 @@ pub const SPACE: &str = "space:";
 pub const FAVORITE: &str = "favorite:";
 
 /// New Mini Wren's key, ⌥⌘N, which works in any app too
-/// (`State::take_mini_wren_key`).
+/// (`mini_wren::take_key`).
 pub fn mini_wren_key() -> MenuKey {
     MenuKey::new("n", MenuModifiers::PRIMARY | MenuModifiers::ALT)
 }
@@ -181,7 +181,7 @@ fn main_menu(
             "File",
             vec![
                 // A window of spaces, on the key window's space, or the one
-                // used last (`State::new_window`).
+                // used last (`windows::new_window`).
                 keyed(NEW_WINDOW, "New Window", "n", MenuModifiers::PRIMARY),
                 // The off-the-record side of the key window's profile, in a
                 // window of its own that shows only it: ⇧⌘N.
@@ -530,7 +530,7 @@ fn development_menu() -> MenuItem {
             development_item(TOGGLE_UI_DEVTOOLS, "Toggle UI Devtools"),
             development_item(RELOAD_UI, "Reload UI"),
             // Quits, so the next run starts with onboarding
-            // (`State::reset_onboarding`).
+            // (`onboarding::reset`).
             development_item(RESET_ONBOARDING, "Reset Onboarding"),
         ],
     )

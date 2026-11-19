@@ -9,6 +9,7 @@ use wren::{Browser, MainThread};
 use super::State;
 use crate::ipc::{self, OmniboxTarget};
 use crate::menus;
+use crate::onboarding;
 use crate::pages;
 use crate::pins;
 use crate::platform::{PageWindow, close_other_key_window};
@@ -33,11 +34,11 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
         return mt.set_as_default_browser(|_| {});
     }
     if id == menus::RESET_ONBOARDING {
-        return state.reset_onboarding(mt);
+        return onboarding::reset(state, mt);
     }
     // Onboarding's menu has nothing else of the app's but its page's
     // DevTools and Reload UI.
-    if let Some(onboarding) = state.onboarding() {
+    if let Some(onboarding) = onboarding::window(state) {
         if id == menus::TOGGLE_UI_DEVTOOLS {
             toggle_ui_devtools(&onboarding);
         } else if id == menus::RELOAD_UI {
@@ -57,7 +58,7 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
     // In the window the user browses in, whatever window is key, a
     // Mini Wren too (windows/show_page.rs).
     if id == menus::IMPORT {
-        return state.show_page(mt, &pages::MIGRATE);
+        return windows::show_page(state, mt, &pages::MIGRATE);
     }
     // A window of the system's or a plain one, such as the About
     // panel, closes as it would in any app.
@@ -91,13 +92,13 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
     let window = key.or_else(|| windows.front());
     // From the window in front, if one is.
     if id == menus::NEW_WINDOW {
-        return state.new_window(mt, window.as_deref());
+        return windows::new_window(state, mt, window.as_deref());
     }
     if id == menus::NEW_INCOGNITO_WINDOW {
-        return state.new_incognito_window(mt, window.as_deref());
+        return windows::new_incognito_window(state, mt, window.as_deref());
     }
     if id == menus::NEW_MINI_WREN {
-        return state.new_mini_wren(mt);
+        return windows::mini_wren::open_empty(state, mt);
     }
     let Some(window) = window else {
         return;
@@ -108,7 +109,7 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
         return ipc::send_choose_space(&window, space);
     }
     if id == menus::CLOSE_WINDOW {
-        return windows::close_window(state, mt, window.id);
+        return windows::close(state, mt, window.id);
     }
     if id == menus::TOGGLE_SIDEBAR {
         return ipc::send_toggle_sidebar(&window);

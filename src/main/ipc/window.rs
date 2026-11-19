@@ -64,7 +64,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // chose, or with none, the one the app picks.
     let weak = window.clone();
     let _ = web_view.handle("window.openAsTab", move |space: Option<SpaceId>| {
-        weak.state()?.open_mini_wren_as_tab(mt, weak.id, space)
+        windows::mini_wren::open_as_tab(&weak.state()?, mt, weak.id, space)
     });
 
     // The page takes the keyboard from the tab that has it, for a field of
@@ -117,7 +117,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // Closes the window, as its close button does.
     let weak = window.clone();
     let _ = web_view.handle("window.close", move |()| {
-        windows::close_window(&weak.state()?, mt, weak.id);
+        windows::close(&weak.state()?, mt, weak.id);
         Ok::<_, String>(())
     });
 
@@ -148,13 +148,15 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // follows.
     let weak = window.clone();
     let _ = web_view.handle("window.startNewSpace", move |()| {
-        weak.state()?.new_space(weak.id)
+        let state = weak.state()?;
+        windows::new_space(&state, weak.id)
     });
 
     // Brings the window back to the space it left to make one.
     let weak = window.clone();
     let _ = web_view.handle("window.cancelNewSpace", move |()| {
-        weak.state()?.cancel_new_space(weak.id)
+        let state = weak.state()?;
+        windows::cancel_new_space(&state, weak.id)
     });
 }
 

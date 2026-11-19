@@ -11,6 +11,7 @@ use super::default_browser;
 use super::migrate::handle_migrate_in;
 use super::window::{PageRef, handle_page};
 use crate::app::State;
+use crate::onboarding;
 use crate::onboarding::Choices;
 use crate::platform::PageWindow;
 
@@ -27,7 +28,8 @@ impl PageRef for OnboardingRef {
         &self,
         run: impl FnOnce(&PageWindow) -> Result<A, String>,
     ) -> Result<A, String> {
-        let page = self.app()?.onboarding().ok_or("Onboarding is over.")?;
+        let state = self.app()?;
+        let page = onboarding::window(&state).ok_or("Onboarding is over.")?;
         run(&page)
     }
 }
@@ -48,7 +50,7 @@ pub fn handle_onboarding(web_view: &WebView, state: &Rc<State>, mt: MainThread) 
     let weak = Rc::downgrade(state);
     let _ = web_view.handle("onboarding.finish", move |choices: Choices| {
         let state = weak.upgrade().ok_or("The app is closing.")?;
-        state.finish_onboarding(mt, choices);
+        onboarding::finish(&state, mt, choices);
         Ok::<(), String>(())
     });
 }

@@ -10,15 +10,14 @@ use wren::MainThread;
 use super::mini_wren::HeldMiniWren;
 use crate::app::State;
 use crate::platform::RunningApp;
+use crate::windows;
 
-impl State {
-    /// Opens `urls`, which `sender` sent if it is known, in Mini Wren, now
-    /// or once the app can.
-    pub fn open_urls(self: &Rc<Self>, mt: MainThread, urls: &[String], sender: Option<RunningApp>) {
-        let pages = urls.iter().map(|url| HeldMiniWren {
-            url: url.clone(),
-            return_to: sender.clone(),
-        });
-        self.hold_mini_wren(mt, pages);
-    }
+/// Opens `urls`, which `sender` sent if it is known, in Mini Wren, now
+/// or once the app can.
+pub fn open_urls(state: &Rc<State>, mt: MainThread, urls: &[String], sender: Option<RunningApp>) {
+    let pages = urls.iter().map(|url| HeldMiniWren {
+        url: url.clone(),
+        return_to: sender.clone(),
+    });
+    windows::mini_wren::hold(state, mt, pages);
 }

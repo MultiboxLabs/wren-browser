@@ -35,7 +35,7 @@ use crate::app::State;
 use crate::db::{PinId, SpaceId};
 use crate::pins::{self, PinTarget};
 use crate::tabs;
-use crate::windows::{Place, WindowId};
+use crate::windows::{self, Place, WindowId};
 
 /// An item, as the page names it: a tab of the list, which stands for its
 /// split if it is in one; a group, by its ID, which Chromium keeps as the
@@ -205,13 +205,15 @@ pub fn add_address(
     match to.target {
         Target::Favorites { index } => done(pin(PinTarget::Favorites, index)),
         Target::Pinned { folder, index } => done(pin(PinTarget::Space { parent: folder }, index)),
-        Target::Tabs { group, index } => state.with_browser_of(mt, window, place, move |browser| {
-            done(browser.and_then(|browser| {
-                let group = group_of(mt, &browser, group.as_deref())?;
-                tabs::open_at(mt, &browser, &url, index, group).map_err(failed)?;
-                Ok(Added::Tab)
-            }));
-        }),
+        Target::Tabs { group, index } => {
+            windows::with_browser_of(state, mt, window, place, move |browser| {
+                done(browser.and_then(|browser| {
+                    let group = group_of(mt, &browser, group.as_deref())?;
+                    tabs::open_at(mt, &browser, &url, index, group).map_err(failed)?;
+                    Ok(Added::Tab)
+                }));
+            })
+        }
         Target::Split { .. } => done(Err("An address makes no split.".into())),
     }
 }
@@ -236,7 +238,7 @@ fn move_pin(
         Target::Pinned { folder, index } => done(among(PinTarget::Space { parent: folder }, index)),
         Target::Tabs { group, index } => {
             let (inner, to) = (state.clone(), place.clone());
-            state.with_browser_of(mt, window, place, move |browser| {
+            windows::with_browser_of(state, mt, window, place, move |browser| {
                 done(browser.and_then(|browser| {
                     let group = group_of(mt, &browser, group.as_deref())?;
                     pins::to_list(&inner, mt, &browser, &to, id, index, group)?;
@@ -314,12 +316,20 @@ fn move_listed(
     };
     let inner = state.clone();
     let carried = moving.clone();
-    state.move_to_place(mt, window, moving, place.clone(), index, move |moved| {
-        done(moved.and_then(|(browser, brought)| {
-            let listed = brought_as(listed, &carried, &brought)?;
-            land(&inner, mt, &browser, &place, listed, target)
-        }));
-    });
+    windows::move_to_place(
+        state,
+        mt,
+        window,
+        moving,
+        place.clone(),
+        index,
+        move |moved| {
+            done(moved.and_then(|(browser, brought)| {
+                let listed = brought_as(listed, &carried, &brought)?;
+                land(&inner, mt, &browser, &place, listed, target)
+            }));
+        },
+    );
 }
 
 // `item` as it is once its tabs, `moving`, have come to another Browser as

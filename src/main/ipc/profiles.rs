@@ -7,6 +7,7 @@ use wren::{MainThread, PageCall, WebView};
 use super::WindowRef;
 use crate::db::avatar;
 use crate::profiles;
+use crate::windows;
 
 /// A profile as the Library lists it.
 #[derive(Serialize)]
@@ -62,7 +63,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // on the profile.
     let weak = window.clone();
     let _ = web_view.handle("profiles.openWindow", move |id: String| {
-        weak.state()?.open_window_for_profile(mt, id)
+        windows::open_for_profile(&weak.state()?, mt, id)
     });
 
     // Renames a profile, answering once Chromium has its new name.

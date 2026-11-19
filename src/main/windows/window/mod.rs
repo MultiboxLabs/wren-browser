@@ -111,7 +111,7 @@ pub struct BrowserWindow {
     shown: Cell<bool>,
     mini_wren: Option<MiniWren>,
     // A Mini Wren on the New Tab page, drawn as the omnibox alone
-    // (`State::follow_new_tab_page`).
+    // (`mini_wren::follow_new_tab_page`).
     on_new_tab_page: Cell<bool>,
     /// What its page is sent, counted during a performance run (perf.rs).
     pub perf_counts: Option<PageCounts>,
@@ -164,7 +164,7 @@ impl BrowserWindow {
     }
 
     /// Whether it is a Mini Wren on the New Tab page, drawn as the omnibox
-    /// alone (`State::follow_new_tab_page`).
+    /// alone (`mini_wren::follow_new_tab_page`).
     pub fn is_on_new_tab_page(&self) -> bool {
         self.on_new_tab_page.get()
     }

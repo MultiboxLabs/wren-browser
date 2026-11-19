@@ -23,14 +23,14 @@ use crate::windows::{self, BrowserWindow};
 pub fn command(state: &Rc<State>, mt: MainThread, id: &str, window: &BrowserWindow) {
     let front = state.windows.front();
     match id {
-        menus::CLOSE_TAB | menus::CLOSE_WINDOW => windows::close_window(state, mt, window.id),
+        menus::CLOSE_TAB | menus::CLOSE_WINDOW => windows::close(state, mt, window.id),
         menus::COPY_URL => {
             if let Some(browser) = window.browser() {
                 let _ = tabs::copy_url(&browser);
             }
         }
         menus::OPEN_AS_TAB => {
-            if let Err(error) = state.open_mini_wren_as_tab(mt, window.id, None) {
+            if let Err(error) = super::open_as_tab(state, mt, window.id, None) {
                 eprintln!("Wren could not open the Mini Wren's page as a tab: {error}");
             }
         }
@@ -55,9 +55,9 @@ pub fn command(state: &Rc<State>, mt: MainThread, id: &str, window: &BrowserWind
         {
             ipc::send_show_omnibox(window, OmniboxTarget::Current, true);
         }
-        menus::NEW_WINDOW => state.new_window(mt, front.as_deref()),
-        menus::NEW_INCOGNITO_WINDOW => state.new_incognito_window(mt, front.as_deref()),
-        menus::NEW_MINI_WREN => state.new_mini_wren(mt),
+        menus::NEW_WINDOW => windows::new_window(state, mt, front.as_deref()),
+        menus::NEW_INCOGNITO_WINDOW => windows::new_incognito_window(state, mt, front.as_deref()),
+        menus::NEW_MINI_WREN => super::open_empty(state, mt),
         menus::NEW_TAB | menus::OPEN_LOCATION => {
             let Some(front) = front else { return };
             front.page.bring_forward();

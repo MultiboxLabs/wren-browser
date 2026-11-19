@@ -12,14 +12,14 @@ use crate::ipc;
 use crate::pins;
 use crate::platform::QUITS_WITH_LAST_WINDOW;
 use crate::tabs;
-use crate::windows::{BrowserWindow, WindowId};
+use crate::windows::{self, BrowserWindow, WindowId};
 
 /// The close button of window `id`. Where the last window quits the app
 /// (not on a Mac), it is kept with its session for the next run. Any
 /// other is forgotten, and leaves by closing its Browsers, as Chrome's
 /// does, and goes once they have. A page's "Leave site?" may keep them
 /// all open, and the window with them, still kept.
-pub fn close_window(state: &Rc<State>, mt: MainThread, id: WindowId) {
+pub fn close(state: &Rc<State>, mt: MainThread, id: WindowId) {
     if QUITS_WITH_LAST_WINDOW && state.windows.len() <= 1 {
         return mt.quit();
     }
@@ -34,11 +34,11 @@ pub fn close_window(state: &Rc<State>, mt: MainThread, id: WindowId) {
         let closed = window.clone();
         return window.close_browsers(move || {
             if let Some(state) = state.upgrade() {
-                state.forget_window(&closed);
+                windows::forget(&state, &closed);
             }
         });
     }
-    state.forget_window(&window);
+    windows::forget(state, &window);
     // It has no Browser to close, and is not dropped inside its own
     // delegate's call.
     let state = Rc::downgrade(state);
@@ -58,7 +58,7 @@ pub fn close_tab(state: &Rc<State>, mt: MainThread, window: &BrowserWindow) {
         return ipc::send_close_omnibox(window);
     }
     if window.left_space().is_some() {
-        if let Err(error) = state.cancel_new_space(window.id) {
+        if let Err(error) = windows::cancel_new_space(state, window.id) {
             eprintln!("Wren could not leave the new space: {error}");
         }
         return;
@@ -77,7 +77,7 @@ pub fn close_tab(state: &Rc<State>, mt: MainThread, window: &BrowserWindow) {
                 let _ = tabs::closes::close(&browser, tab, TabFrom::Command);
             }
         },
-        None => close_window(state, mt, window.id),
+        None => close(state, mt, window.id),
     }
 }
 
@@ -87,7 +87,7 @@ pub fn close_tab(state: &Rc<State>, mt: MainThread, window: &BrowserWindow) {
 /// the last window where it quits so. A window on a profile stays too: at
 /// quit, each Browser closes before the app hears of the quit, and the
 /// window must be kept. One whose profile was deleted goes with it
-/// (`State::leave_gone_profiles`). A Mini Wren goes with its Browser,
+/// (`leave_gone_profiles`). A Mini Wren goes with its Browser,
 /// always.
 pub fn browser_closed(state: &Rc<State>, mt: MainThread, browser: &Browser) {
     let Some(window) = state.windows.of(browser) else {
@@ -95,7 +95,7 @@ pub fn browser_closed(state: &Rc<State>, mt: MainThread, browser: &Browser) {
     };
     let place = window.remove(browser);
     if window.is_mini_wren() {
-        state.mini_wren_closed(&window);
+        windows::mini_wren::closed(state, &window);
         ipc::quit_window_closing(state, window.id);
         ipc::forget_move_question(window.id);
         state.windows.remove(window.id);
@@ -112,7 +112,7 @@ pub fn browser_closed(state: &Rc<State>, mt: MainThread, browser: &Browser) {
     }
     if place.is_some() && place == window.place() {
         ipc::send_no_browser(&window);
-        state.update_title(&window);
+        windows::update_title(state, &window);
     } else if let Some(place) = place {
         ipc::send_no_tabs_for(&window, &place);
     }

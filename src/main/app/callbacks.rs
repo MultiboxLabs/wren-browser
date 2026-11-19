@@ -15,6 +15,7 @@ use crate::extensions::{self, components};
 use crate::import;
 use crate::ipc::{self, changes};
 use crate::menus;
+use crate::onboarding;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::platform::RunningApp;
 use crate::profiles::{self, filling};
@@ -71,9 +72,9 @@ impl App for Wren {
         opener: Option<Browser>,
     ) {
         match kind {
-            BrowserType::Normal => self.state.place_opened(mt, opened, opener),
+            BrowserType::Normal => windows::place_opened(&self.state, mt, opened, opener),
             BrowserType::Devtools => self.state.devtools.opened(opened),
-            _ => self.state.open_popup(mt, opened, opener),
+            _ => windows::mini_wren::open_popup(&self.state, mt, opened, opener),
         }
     }
 
@@ -137,11 +138,11 @@ impl App for Wren {
         }
         for window in self.state.windows.all() {
             if changes::apply(&window, changes) {
-                state.update_title(&window);
+                windows::update_title(state, &window);
             }
             // A Mini Wren's page may have gone to the New Tab page, or left
             // it.
-            state.follow_new_tab_page(mt, &window);
+            windows::mini_wren::follow_new_tab_page(state, mt, &window);
         }
         // A dialog opened or closed, or another Browser came in front, as
         // a switch makes one active and another not.
@@ -191,7 +192,7 @@ impl App for Wren {
     // Chromium asks for a Browser's window to move, resize, minimise, zoom
     // or come back to normal (windows/request.rs).
     fn window_request(&self, _: MainThread, browser: Browser, request: WindowRequest) {
-        self.state.answer_window_request(&browser, request);
+        windows::answer_request(&self.state, &browser, request);
     }
 
     // ⌘Q warns in the page of the window in front, in place of Chromium's
@@ -219,7 +220,7 @@ impl App for Wren {
     // Each window open now comes back where it is.
     fn will_quit(&self, _: MainThread) {
         for window in self.state.windows.all() {
-            self.state.save_frame(&window);
+            windows::save_frame(&self.state, &window);
         }
         self.state.analytics.quit();
     }
@@ -227,11 +228,11 @@ impl App for Wren {
     // The Dock icon, with no window open: a new one; or onboarding, until
     // the user is through it.
     fn reopen(&self, mt: MainThread, _: bool) {
-        if let Some(onboarding) = self.state.onboarding() {
+        if let Some(onboarding) = onboarding::window(&self.state) {
             return onboarding.bring_forward();
         }
         if self.state.windows.len() == 0 {
-            self.state.open_recent_window(mt);
+            windows::open_recent(&self.state, mt);
         }
     }
 
@@ -245,15 +246,8 @@ impl App for Wren {
             id: "com.hnc.Discord".into(),
             name: "Discord".into(),
         };
-        self.state.open_urls(mt, urls, Some(sender));
+        windows::open_urls(&self.state, mt, urls, Some(sender));
     }
-
-    // Chromium closes a Browser whose last tab closes. Its window stays, with
-    // the space empty, unless the user is closing the window: that goes with
-    // its last Browser, and the app with the last window where it quits so.
-    // A window on a profile stays too: at quit, each Browser closes before
-    // the app hears of the quit, and the window must be kept. One whose
-    // profile was deleted goes with it (`State::leave_gone_profiles`). A
 
     // A Browser closed: its tabs are forgotten, and its window, of undocked
     // DevTools or the app's own, does what it does as one goes
