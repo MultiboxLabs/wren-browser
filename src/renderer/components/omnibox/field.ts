@@ -72,12 +72,14 @@ type QueryOptions = {
 /**
  * The field's state and handlers. `onDone` is called once what was chosen
  * is open (`opened`), or the omnibox closed without it, its tab given the
- * keyboard back by then.
+ * keyboard back by then. `stays`: what was chosen opens with the omnibox
+ * left open for another choice, and `onDone` is called only as it closes.
  */
 export function useOmniboxField(
   target: OmniboxTarget,
   input: RefObject<HTMLInputElement | null>,
   tabs: OmniboxTabs,
+  stays: boolean,
   onDone: (opened: boolean) => void
 ) {
   const [field, setField] = useState<Field>(empty);
@@ -194,7 +196,7 @@ export function useOmniboxField(
     const { items, first } = listOf(field, latestTabs.current);
     const item = items[index ?? (field.moved ? field.selected : first)];
     if (!item || done.current) return;
-    if (how === "background-tab") {
+    if (how === "background-tab" || stays) {
       // The omnibox stays as it is, for the next one; Chromium's list is
       // spent by this one, so it is asked again.
       openItem(item, field.suggestions?.result, target, how).then(

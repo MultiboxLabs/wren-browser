@@ -13,12 +13,13 @@
 // On the New Tab page, as an empty one opens, it is the omnibox alone
 // instead, filling the window, which the app draws with no buttons
 // (windows/mini_wren/mod.rs). A press that moves on the omnibox's background
-// moves the window. What is chosen opens in its page, which leaves the New
-// Tab page, and the toolbar and the page come back; until then the omnibox
-// stays as it was. Closing the omnibox closes the window: Escape, or its
-// close button. ⌘W closes the window too, and so does going to another
-// window or app. A dialog over the window takes the omnibox away, and it
-// opens afresh once the dialog has closed.
+// moves the window. What is chosen opens in its page, and once the page has
+// left the New Tab page, the toolbar and the page come back. Until then the
+// omnibox stays, for another choice, as what was chosen may not leave it: the
+// New Tab page itself, a download or another app's link. Closing the omnibox
+// closes the window: Escape, or its close button. ⌘W closes the window too,
+// and so does going to another window or app. A dialog over the window
+// takes the omnibox away, and it opens afresh once the dialog has closed.
 
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect } from "react";
@@ -55,15 +56,16 @@ export function MiniWrenWindow({ miniWren }: { miniWren: WindowMiniWren }) {
 }
 
 // On the New Tab page: the omnibox, filling the window. What it opens loads
-// in the page, and the app then draws the toolbar and the page instead.
+// in the page, and the app then draws the toolbar and the page instead. It
+// stays open as what was chosen opens, so it is done only as it closes.
 function NewTabOmnibox() {
   const blocked = useWindowBlocked();
-  const done = (opened: boolean) => {
-    if (!opened) appWindow.close().catch(() => {});
+  const close = () => {
+    appWindow.close().catch(() => {});
   };
   return (
     <div data-scheme="system" inert={blocked} className="relative h-full">
-      {!blocked && <Omnibox target="current" place="window" onDone={done} />}
+      {!blocked && <Omnibox target="current" place="window" onDone={close} />}
       <QuitDialog />
     </div>
   );

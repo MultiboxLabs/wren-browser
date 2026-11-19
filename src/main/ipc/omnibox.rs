@@ -257,7 +257,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             // A new tab gets it as it arrives in its element (App::changed),
             // and a new window as it is shown.
             if !matches!(open.disposition, Disposition::NewWindow) {
-                give_back_keyboard(browser);
+                give_page_keyboard(window, browser);
             }
             Ok(())
         })
@@ -298,7 +298,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 }
                 _ => tabs::open(&state, browser, &url, None).map_err(failed)?,
             }
-            give_back_keyboard(browser);
+            give_page_keyboard(window, browser);
             Ok(())
         })
     });
@@ -367,6 +367,16 @@ pub fn send_close_omnibox(window: &BrowserWindow) {
 pub fn stop_omnibox(window: &BrowserWindow) {
     if let Some(browser) = window.take_omnibox_query() {
         let _ = browser.omnibox_stop();
+    }
+}
+
+// The active tab's page has the keyboard once what was chosen opens. Not a
+// Mini Wren's drawn as the omnibox alone: its page is not shown, and the
+// omnibox stays for another choice. The page gets the keyboard once it
+// is shown (`mini_wren::follow_new_tab_page`).
+fn give_page_keyboard(window: &BrowserWindow, browser: &Browser) {
+    if !window.is_on_new_tab_page() {
+        give_back_keyboard(browser);
     }
 }
 

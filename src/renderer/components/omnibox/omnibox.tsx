@@ -49,7 +49,10 @@ export function Omnibox({
 }: {
   target: OmniboxTarget;
   place: OmniboxPlace;
-  /** It has closed, or opened what was chosen (`opened`). */
+  /**
+   * It has closed, or opened what was chosen (`opened`). Filling a Mini
+   * Wren, it stays open as what was chosen opens, so only closing calls it.
+   */
   onDone: (opened: boolean) => void;
 }) {
   // The window's tabs, listed while nothing is typed; the active one's
@@ -63,6 +66,7 @@ export function Omnibox({
     target,
     input,
     tabs,
+    fills,
     onDone
   );
   const anchored = typeof place === "object";

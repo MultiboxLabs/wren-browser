@@ -147,7 +147,8 @@ fn show(
 
 /// Draws Mini Wren `window` as the omnibox alone once its page has gone
 /// to the New Tab page, or with its toolbar and page again once it has
-/// left it, as what the omnibox opens loads there. The window grows or
+/// left it, as what the omnibox opens loads there, and the page has the
+/// keyboard, which the omnibox kept until then. The window grows or
 /// shrinks from its top to the size of what it shows, and its backdrop
 /// is a panel's while it is the omnibox, which is never full screen: a
 /// window in full screen leaves it first. The page draws it so
@@ -168,6 +169,9 @@ pub fn follow_new_tab_page(state: &State, mt: MainThread, window: &BrowserWindow
     window.resize_from_top(window_size(on_new_tab_page, &browser), SCREEN_MARGIN);
     ipc::send_new_tab_page(window);
     menus::update_front_menu(state, mt);
+    if !on_new_tab_page && let Some(tab) = browser.active_tab() {
+        let _ = tab.focus();
+    }
 }
 
 /// Window `window` went out of use, having been in use: a Mini Wren on
