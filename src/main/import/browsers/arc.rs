@@ -20,7 +20,10 @@ use std::fs;
 
 use serde_json::Value;
 
-use crate::import::data::{Look, Pin, PinPage, Space, SpaceIcon, Spaces, is_page};
+use crate::import::data::{
+    Look, Pin, PinPage, Space, SpaceIcon, Spaces, UNNAMED_FOLDER, UNNAMED_SPACE, is_page, name_or,
+    split_ratio,
+};
 use crate::import::engines::chromium::Chromium;
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile};
 use crate::platform;
@@ -43,7 +46,7 @@ impl Arc {
     fn sidebar(&self) -> Result<Sidebar, ReadError> {
         let file = self.chromium.root().with_file_name("StorableSidebar.json");
         let json: Value = serde_json::from_str(&fs::read_to_string(file)?)?;
-        let this_mac = this_mac();
+        let this_mac = this_mac(self.about().app);
         let mut sidebar = Sidebar::from_json(&json, this_mac.as_deref());
         // Without its windows, every folder comes over closed.
         let windows = self.chromium.root().with_file_name("StorableWindows.json");
@@ -71,12 +74,11 @@ fn open_folders(windows: &Value) -> HashSet<String> {
         .collect()
 }
 
-// This Mac's ID, as the browser knows it.
-fn this_mac() -> Option<String> {
-    let preferences =
-        platform::home_dir().join("Library/Preferences/company.thebrowser.Browser.plist");
-    let preferences = platform::read_property_list(&preferences).ok()?;
-    preferences["machineID"].as_str().map(str::to_owned)
+// This Mac's ID, as the app `app` keeps it in its preferences.
+fn this_mac(app: &str) -> Option<String> {
+    platform::app_preferences(app)?["machineID"]
+        .as_str()
+        .map(str::to_owned)
 }
 
 impl Source for Arc {
@@ -220,11 +222,7 @@ impl Sidebar {
             .iter()
             .filter(|(folder, _)| folder == profile)
             .map(|(_, space)| Space {
-                name: space["title"]
-                    .as_str()
-                    .filter(|title| !title.is_empty())
-                    .unwrap_or("Space")
-                    .to_owned(),
+                name: name_or(space["title"].as_str(), UNNAMED_SPACE),
                 icon: icon(&space["customInfo"]["iconType"]),
                 look: look(&space["customInfo"]["windowTheme"]),
                 pins: pinned_container(space)
@@ -259,7 +257,7 @@ impl Sidebar {
         if data.get("list").is_some() {
             let id = item["id"].as_str().unwrap_or_default();
             return vec![Pin::Folder {
-                name: item["title"].as_str().unwrap_or("Folder").to_owned(),
+                name: name_or(item["title"].as_str(), UNNAMED_FOLDER),
                 pins: self.children(id),
                 open: self.open_folders.contains(id),
             }];
@@ -278,15 +276,11 @@ impl Sidebar {
                     .flatten()
                     .filter_map(Value::as_f64)
                     .collect();
-                let ratio = match &widths[..] {
-                    [a, b, ..] if a + b > 0.0 => a / (a + b),
-                    _ => 0.5,
-                };
                 return vec![Pin::Split {
                     first: first.clone(),
                     second: second.clone(),
                     stacked: split["layoutOrientation"].as_str() == Some("vertical"),
-                    ratio,
+                    ratio: split_ratio(&widths),
                 }];
             }
             return pages.into_iter().map(Pin::Tab).collect();

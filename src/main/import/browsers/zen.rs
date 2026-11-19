@@ -12,7 +12,10 @@ use std::fs;
 
 use serde_json::Value;
 
-use crate::import::data::{Look, Pin, PinPage, Space, SpaceIcon, Spaces, is_page, pruned};
+use crate::import::data::{
+    Look, Pin, PinPage, Space, SpaceIcon, Spaces, UNNAMED_FOLDER, UNNAMED_SPACE, is_page, name_or,
+    pruned,
+};
 use crate::import::engines::gecko::{Gecko, mozlz4};
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile};
 
@@ -150,7 +153,7 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
             .collect();
         pins.extend(in_folder.remove(id).unwrap_or_default());
         Pin::Folder {
-            name: folder["name"].as_str().unwrap_or("Folder").to_owned(),
+            name: name_or(folder["name"].as_str(), UNNAMED_FOLDER),
             pins,
             open: folder["collapsed"].as_bool() == Some(false),
         }
@@ -169,11 +172,7 @@ pub fn from_sessions(sessions: &Value) -> Spaces {
                 .collect();
             pins.extend(in_space.remove(id).unwrap_or_default());
             Space {
-                name: space["name"]
-                    .as_str()
-                    .filter(|name| !name.is_empty())
-                    .unwrap_or("Space")
-                    .to_owned(),
+                name: name_or(space["name"].as_str(), UNNAMED_SPACE),
                 icon: icon(space["icon"].as_str()),
                 look: look(&space["theme"]),
                 pins: pruned(pins),

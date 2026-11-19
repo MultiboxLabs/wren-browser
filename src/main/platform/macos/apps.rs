@@ -1,12 +1,20 @@
 // macOS's side of platform/apps.rs: NSWorkspace finds an installed app,
 // and its icon, by its bundle identifier, and NSRunningApplication a
-// running one.
+// running one. An app's defaults are a property list named for it in the
+// user's Preferences folder.
 
 use objc2_app_kit::{NSApplicationActivationOptions, NSRunningApplication, NSWorkspace};
 use objc2_foundation::NSString;
 
 use super::files::image_png;
+use super::paths::home_dir;
+use super::property_list;
 use crate::platform::RunningApp;
+
+pub fn app_preferences(id: &str) -> Option<serde_json::Value> {
+    let file = home_dir().join(format!("Library/Preferences/{id}.plist"));
+    property_list::parse(&std::fs::read(file).ok()?)
+}
 
 pub fn is_app_installed(id: &str) -> bool {
     NSWorkspace::sharedWorkspace()

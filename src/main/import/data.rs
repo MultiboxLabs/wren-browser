@@ -176,6 +176,26 @@ pub fn count_pins(pins: &[Pin]) -> usize {
         .sum()
 }
 
+/// What a space or a folder the source left unnamed comes over as.
+pub const UNNAMED_SPACE: &str = "Space";
+pub const UNNAMED_FOLDER: &str = "Folder";
+
+/// `name`, or `unnamed` if the source left it empty.
+pub fn name_or(name: Option<&str>, unnamed: &str) -> String {
+    name.filter(|name| !name.trim().is_empty())
+        .unwrap_or(unnamed)
+        .to_owned()
+}
+
+/// The first page's share of a split, from each page's width in any unit:
+/// its part of the first two's sum, or half if there aren't two to go by.
+pub fn split_ratio(widths: &[f64]) -> f64 {
+    match widths {
+        [first, second, ..] if first + second > 0.0 => first / (first + second),
+        _ => 0.5,
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Space {
     pub name: String,
@@ -279,6 +299,20 @@ mod tests {
 
     fn tab(url: &str) -> Pin {
         Pin::Tab(PinPage::bookmark("", url))
+    }
+
+    #[test]
+    fn a_split_shares_its_width_as_its_pages_did() {
+        assert_eq!(split_ratio(&[3.0, 1.0]), 0.75);
+        assert_eq!(split_ratio(&[1.0]), 0.5);
+        assert_eq!(split_ratio(&[0.0, 0.0]), 0.5);
+    }
+
+    #[test]
+    fn an_unnamed_space_or_folder_is_named_for_what_it_is() {
+        assert_eq!(name_or(Some("Work"), UNNAMED_SPACE), "Work");
+        assert_eq!(name_or(Some(" "), UNNAMED_SPACE), UNNAMED_SPACE);
+        assert_eq!(name_or(None, UNNAMED_FOLDER), UNNAMED_FOLDER);
     }
 
     #[test]

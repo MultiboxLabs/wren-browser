@@ -116,7 +116,7 @@ impl From<serde_json::Error> for ReadError {
 #[derive(Debug, Default)]
 pub struct Survey {
     /// Spaces, and their pins with the favourites; none from a source that
-    /// keeps no spaces.
+    /// keeps no spaces, or if they could not be read.
     pub spaces: Option<SpaceSurvey>,
     pub bookmarks: usize,
     /// Pages visited since `history_kept_since`.
@@ -207,12 +207,16 @@ pub trait Source: Sync {
     /// Its engine's survey, and its spaces if it keeps them.
     fn survey(&self, profile: &SourceProfile) -> Survey {
         let mut survey = self.engine().survey(profile);
-        if self.keeps_spaces()
-            && let Ok(spaces) = self.spaces(profile)
-        {
-            survey.spaces = Some(SpaceSurvey::Counted(spaces.count()));
+        if self.keeps_spaces() {
+            survey.spaces = self.survey_spaces(profile);
         }
         survey
+    }
+    /// What a survey says of its spaces: how many, read in full; none if
+    /// they could not be read.
+    fn survey_spaces(&self, profile: &SourceProfile) -> Option<SpaceSurvey> {
+        let spaces = self.spaces(profile).ok()?;
+        Some(SpaceSurvey::Counted(spaces.count()))
     }
     fn bookmarks(&self, profile: &SourceProfile) -> Result<Bookmarks, ReadError> {
         self.engine().bookmarks(profile)

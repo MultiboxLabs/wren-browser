@@ -59,8 +59,7 @@ fn decrypt(file: &[u8], log: &[u8], key: &[u8]) -> Result<Vec<u8>, ReadError> {
     if file.len() < PAGE || !file.len().is_multiple_of(PAGE) {
         return Err(unreadable("it is not a database"));
     }
-    let (logged, size) = committed(log).unwrap_or_default();
-    let pages = if size > 0 { size } else { file.len() / PAGE };
+    let (logged, pages) = committed(log).unwrap_or_else(|| (HashMap::new(), file.len() / PAGE));
     let hmac_key = hmac_key(key, &file[..SALT]).ok_or(unreadable("its key could not be made"))?;
     let mut plain = Vec::with_capacity(pages * PAGE);
     for number in 1..=pages {

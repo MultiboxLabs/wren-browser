@@ -14,7 +14,10 @@ use std::collections::{HashMap, HashSet};
 
 use rusqlite::Connection;
 
-use crate::import::data::{Look, Pin, PinPage, Space, SpaceIcon, Spaces, is_page, pruned};
+use crate::import::data::{
+    Look, Pin, PinPage, Space, SpaceIcon, Spaces, UNNAMED_FOLDER, UNNAMED_SPACE, is_page, name_or,
+    pruned, split_ratio,
+};
 use crate::import::source::ReadError;
 
 /// The colour of each of its themes, which it names but keeps no value for:
@@ -43,7 +46,7 @@ struct Tree<'a> {
     children: HashMap<i64, Vec<Node>>,
     /// Each folder's name, by its ID.
     folders: HashMap<String, Option<String>>,
-    /// Each split's widths, as JSON, by its tab's ID.
+    /// Each split's widths, a JSON list of each page's, by its tab's ID.
     widths: HashMap<String, Option<String>>,
     /// Each page, by its content pane's ID.
     pages: HashMap<String, PinPage>,
@@ -61,30 +64,21 @@ pub fn read(db: &Connection, open_folders: &HashSet<String>) -> Result<Spaces, R
     )?;
     let spaces = query
         .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<f64>>(3)?,
-            ))
+            let id: String = row.get(0)?;
+            Ok(Space {
+                name: name_or(row.get::<_, Option<String>>(1)?.as_deref(), UNNAMED_SPACE),
+                icon: SpaceIcon::None,
+                look: look(row.get::<_, Option<String>>(2)?.as_deref(), row.get(3)?),
+                pins: pruned(
+                    [
+                        tree.root_pins("pinned_container", Some(&id)),
+                        tree.root_pins("window", Some(&id)),
+                    ]
+                    .concat(),
+                ),
+            })
         })?
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .map(|(id, title, theme, intensity)| Space {
-            name: title
-                .filter(|title| !title.trim().is_empty())
-                .unwrap_or_else(|| "Space".into()),
-            icon: SpaceIcon::None,
-            look: look(theme.as_deref(), intensity),
-            pins: pruned(
-                [
-                    tree.root_pins("pinned_container", Some(&id)),
-                    tree.root_pins("window", Some(&id)),
-                ]
-                .concat(),
-            ),
-        })
-        .collect();
+        .collect::<Result<_, _>>()?;
     Ok(Spaces { favorites, spaces })
 }
 
@@ -138,6 +132,16 @@ impl<'a> Tree<'a> {
         })
     }
 
+    // The widths of the pages of the split in tab `id`; none if it keeps
+    // none.
+    fn widths(&self, id: &str) -> Vec<f64> {
+        self.widths
+            .get(id)
+            .and_then(Option::as_deref)
+            .and_then(|widths| serde_json::from_str(widths).ok())
+            .unwrap_or_default()
+    }
+
     // The pins under every root of `kind`, of `space` if it names one, in
     // order.
     fn root_pins(&self, kind: &str, space: Option<&str>) -> Vec<Pin> {
@@ -163,13 +167,10 @@ impl<'a> Tree<'a> {
     fn pins(&self, node: &Node) -> Vec<Pin> {
         match node.kind.as_str() {
             "group" => vec![Pin::Folder {
-                name: self
-                    .folders
-                    .get(&node.entity)
-                    .cloned()
-                    .flatten()
-                    .filter(|name| !name.trim().is_empty())
-                    .unwrap_or_else(|| "Folder".into()),
+                name: name_or(
+                    self.folders.get(&node.entity).and_then(Option::as_deref),
+                    UNNAMED_FOLDER,
+                ),
                 pins: self.children_pins(node.id),
                 open: self.open_folders.contains(&node.entity),
             }],
@@ -184,7 +185,7 @@ impl<'a> Tree<'a> {
                     .collect();
                 match <[PinPage; 2]>::try_from(pages) {
                     Ok([first, second]) => vec![Pin::Split {
-                        ratio: ratio(self.widths.get(&node.entity).cloned().flatten()),
+                        ratio: split_ratio(&self.widths(&node.entity)),
                         first,
                         second,
                         stacked: false,
@@ -204,23 +205,12 @@ fn by_id(db: &Connection, sql: &str) -> Result<HashMap<String, Option<String>>, 
     Ok(rows.collect::<Result<_, _>>()?)
 }
 
-// The first page's share of a split, from its widths, a JSON list of each
-// page's part; half where it keeps no two.
-fn ratio(widths: Option<String>) -> f64 {
-    let widths: Vec<f64> = widths
-        .and_then(|widths| serde_json::from_str(&widths).ok())
-        .unwrap_or_default();
-    match widths[..] {
-        [first, second] if first > 0.0 && second > 0.0 => first / (first + second),
-        _ => 0.5,
-    }
-}
-
+// How its theme draws it: the colour it names, and how much of it shows.
 fn look(theme: Option<&str>, intensity: Option<f64>) -> Look {
     let colour = COLOURS
         .iter()
         .find(|(name, _)| Some(*name) == theme)
-        .map(|(_, [red, green, blue])| [*red, *green, *blue].map(|part| f64::from(part) / 255.0));
+        .map(|(_, colour)| colour.map(|part| f64::from(part) / 255.0));
     Look {
         colours: colour.into_iter().collect(),
         intensity: intensity.filter(|intensity| (0.0..=1.0).contains(intensity)),
@@ -326,12 +316,5 @@ mod tests {
         assert_eq!(named.name.as_deref(), Some("Mine"));
         assert_eq!((name.as_str(), pins.len()), ("Docs", 1));
         assert_eq!(*ratio, 0.5);
-    }
-
-    #[test]
-    fn a_split_keeps_its_widths() {
-        assert_eq!(ratio(Some("[3, 1]".into())), 0.75);
-        assert_eq!(ratio(Some("[1]".into())), 0.5);
-        assert_eq!(ratio(None), 0.5);
     }
 }

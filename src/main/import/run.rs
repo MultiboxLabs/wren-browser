@@ -358,27 +358,28 @@ fn next(mt: MainThread, id: u64) {
         route,
         thing,
     };
-    let Some((source, from, to, locked, key_refused)) = with(id, |run| {
+    let Some((source, from, to, key_refused)) = with(id, |run| {
         run.reading = true;
         run.pending = 0;
         if let Some(progress) = progress(run, thing) {
             progress.state = Stage::Flying;
         }
         let route = &run.routes[route];
+        let key_refused = run.key_refused && locked_with_key(thing, &route.survey);
         (
             run.source,
             route.from.clone(),
             route.to.clone(),
-            locked_with_key(thing, &route.survey),
-            run.key_refused,
+            key_refused,
         )
     }) else {
         return;
     };
     tell(id);
     let name = source.about().name;
-    if locked && key_refused {
-        return read_over(mt, step, Some(ReadError::Refused.message(name)));
+    // The user would not let Wren have the key it is locked with.
+    if key_refused {
+        return read_failed(mt, step, name, ReadError::Refused);
     }
     match thing {
         Thing::History => in_batches(
@@ -552,15 +553,14 @@ fn in_batches<T: Send + 'static>(
                 );
             });
         });
-        let refused = matches!(read, Err(ReadError::Refused));
-        let unread = *read.as_ref().unwrap_or(&0);
-        let why = read.err().map(|error| error.message(source));
-        let _ = wren::post_to_main_thread(move |mt| {
-            with(step.run, |run| {
-                run.key_refused |= refused;
-                *run.left_out.entry(step.thing).or_default() += unread;
-            });
-            read_over(mt, step, why);
+        let _ = wren::post_to_main_thread(move |mt| match read {
+            Ok(unread) => {
+                with(step.run, |run| {
+                    *run.left_out.entry(step.thing).or_default() += unread;
+                });
+                read_over(mt, step, None);
+            }
+            Err(error) => read_failed(mt, step, source, error),
         });
     });
 }
@@ -575,14 +575,12 @@ fn whole<T: Send + 'static>(
 ) {
     std::thread::spawn(move || {
         let read = read();
-        let refused = matches!(read, Err(ReadError::Refused));
-        let _ = wren::post_to_main_thread(move |mt| {
-            with(step.run, |run| run.key_refused |= refused);
-            let why = match read {
-                Ok(read) => land(mt, step, read),
-                Err(error) => Some(error.message(source)),
-            };
-            read_over(mt, step, why);
+        let _ = wren::post_to_main_thread(move |mt| match read {
+            Ok(read) => {
+                let why = land(mt, step, read);
+                read_over(mt, step, why);
+            }
+            Err(error) => read_failed(mt, step, source, error),
         });
     });
 }
@@ -697,6 +695,15 @@ fn read_over(mt: MainThread, step: Step, why: Option<String>) {
         }
     });
     step_over(mt, step);
+}
+
+// The step's thing could not be read, for `error`, which its note says.
+// A key the user refused is not asked for again.
+fn read_failed(mt: MainThread, step: Step, source: &str, error: ReadError) {
+    with(step.run, |run| {
+        run.key_refused |= matches!(error, ReadError::Refused);
+    });
+    read_over(mt, step, Some(error.message(source)));
 }
 
 fn note_failure(run: &mut Run, thing: Thing, why: String) {

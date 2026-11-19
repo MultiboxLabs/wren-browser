@@ -27,7 +27,7 @@ use serde_json::Value;
 
 use crate::import::data::Spaces;
 use crate::import::engines::chromium::Chromium;
-use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, SpaceSurvey, Survey};
+use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, SpaceSurvey};
 use crate::platform::{self, BrowserKey, Hash};
 
 /// The database its sidebar is in, in each profile, as its label names it.
@@ -61,16 +61,12 @@ fn database_key(key: &BrowserKey, profile: &SourceProfile, name: &str) -> Vec<u8
     platform::hkdf(Hash::Sha256, key.bytes(), &salt, label.as_bytes(), 32)
 }
 
-// The folders open in any of its windows, by ID; none if its preferences
-// say nothing of them.
-fn open_folders() -> HashSet<String> {
-    let preferences = platform::home_dir().join("Library/Preferences/company.thebrowser.dia.plist");
-    let Some(windows) = platform::read_property_list(&preferences)
-        .ok()
-        .and_then(|preferences| {
-            serde_json::from_str::<Value>(preferences["persistedWindowData"].as_str()?).ok()
-        })
-    else {
+// The folders open in any window of the app `app`, by ID, as its
+// preferences keep them; none if they say nothing of them.
+fn open_folders(app: &str) -> HashSet<String> {
+    let Some(windows) = platform::app_preferences(app).and_then(|preferences| {
+        serde_json::from_str::<Value>(preferences["persistedWindowData"].as_str()?).ok()
+    }) else {
         return HashSet::new();
     };
     windows["windows"]
@@ -92,12 +88,11 @@ impl Source for Dia {
         &self.chromium
     }
 
-    fn survey(&self, profile: &SourceProfile) -> Survey {
-        let mut survey = Engine::survey(&self.chromium, profile);
-        if sidebar_file(profile).is_file() {
-            survey.spaces = Some(SpaceSurvey::Locked);
-        }
-        survey
+    // Its spaces can't be counted until the user lets Wren have the key.
+    fn survey_spaces(&self, profile: &SourceProfile) -> Option<SpaceSurvey> {
+        sidebar_file(profile)
+            .is_file()
+            .then_some(SpaceSurvey::Locked)
     }
 
     // Its sidebar's tabs are the pins its spaces come with, so the bar's
@@ -116,6 +111,6 @@ impl Source for Dia {
         fs::metadata(&file)?;
         let key = database_key(&self.chromium.key()?, profile, SIDEBAR);
         let db = sqlcipher::open(&file, &key)?;
-        sidebar::read(&db, &open_folders())
+        sidebar::read(&db, &open_folders(self.about().app))
     }
 }

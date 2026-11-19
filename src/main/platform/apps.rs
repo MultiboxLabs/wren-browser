@@ -29,6 +29,13 @@ pub fn frontmost_other_app() -> Option<RunningApp> {
     current::apps::frontmost_other_app()
 }
 
+/// The preferences of the app the platform knows as `id`, as JSON: on
+/// macOS, its defaults, from its property list in the user's Preferences
+/// folder. None if it keeps none Wren can read.
+pub fn app_preferences(id: &str) -> Option<serde_json::Value> {
+    current::apps::app_preferences(id)
+}
+
 /// The icon of the app the platform knows as `id` (on macOS, its bundle
 /// identifier), `size` points square at twice that in pixels, as a PNG;
 /// None if no such app is installed.

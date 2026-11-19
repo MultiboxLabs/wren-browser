@@ -22,7 +22,8 @@ mod updater;
 mod window;
 
 pub use apps::{
-    RunningApp, activate_app, frontmost_other_app, installed_app_icon, is_app_installed,
+    RunningApp, activate_app, app_preferences, frontmost_other_app, installed_app_icon,
+    is_app_installed,
 };
 #[cfg(test)]
 pub use crypto::encrypt_aes_cbc;
