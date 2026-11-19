@@ -60,7 +60,8 @@ export type StoreExtension = {
 
 /** What a profile of a source has, of each thing; a thing it has none of is left out. */
 export type Survey = {
-  spaces?: { spaces: number; pins: number };
+  /** How many spaces and pins; or "locked", where the source locks them with the key the run asks for, so they are counted only as they come over. */
+  spaces?: { spaces: number; pins: number } | "locked";
   bookmarks?: number;
   /** Pages visited in the past 90 days. */
   history?: number;

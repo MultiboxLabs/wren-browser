@@ -16,10 +16,10 @@ export const count = (n: number) => n.toLocaleString();
 const plural = (n: number, one: string, many = `${one}s`) => `${count(n)} ${n === 1 ? one : many}`;
 
 /** How much of a thing there is, as its row says it before it flies. */
-export function detail({ thing, count: n, pins = 0 }: ThingSummary) {
+export function detail({ thing, count: n, pins = 0, locked }: ThingSummary) {
   switch (thing) {
     case "spaces":
-      return `${plural(n, "space")} · ${plural(pins, "pin")}`;
+      return locked ? "Every space and its pins" : `${plural(n, "space")} · ${plural(pins, "pin")}`;
     case "history":
       return "The past 90 days";
     case "cookies":

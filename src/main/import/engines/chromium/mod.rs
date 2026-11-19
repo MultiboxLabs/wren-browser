@@ -17,7 +17,7 @@ use wren::{Cookie, HistoryEntry};
 use crate::import::data::{Bookmarks, Favicons};
 use crate::import::snapshot;
 use crate::import::source::{About, Engine, ReadError, Source, SourceProfile, Survey};
-use crate::platform;
+use crate::platform::{self, BrowserKey};
 
 /// The Keychain item a Chromium-based browser keeps its cookies' key in, on
 /// macOS ("Chrome Safe Storage", "Chrome").
@@ -56,6 +56,14 @@ impl Chromium {
     /// Its data folder.
     pub fn root(&self) -> PathBuf {
         platform::data_dir().join(self.folder)
+    }
+
+    /// The key it locks its cookies with, which the platform asks the user
+    /// for the first time it is read while Wren runs.
+    pub fn key(&self) -> Result<BrowserKey, ReadError> {
+        platform::chromium_key(self.key.service, self.key.account, &self.root())
+            .map_err(ReadError::Unreadable)?
+            .ok_or(ReadError::Refused)
     }
 }
 
@@ -112,7 +120,7 @@ impl Engine for Chromium {
         profile: &SourceProfile,
         batch: &mut dyn FnMut(Vec<Cookie>),
     ) -> Result<usize, ReadError> {
-        cookies::read(&self.key, &self.root(), &profile.folder, batch)
+        cookies::read(self, &profile.folder, batch)
     }
 
     fn favicons(&self, profile: &SourceProfile, pages: &[String]) -> Result<Favicons, ReadError> {

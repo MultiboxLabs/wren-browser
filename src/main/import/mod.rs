@@ -19,7 +19,7 @@ use crate::platform;
 pub use data::SpaceCount;
 pub use land::extensions::retry as pin_waiting_extensions;
 pub use land::profiles::Landing;
-pub use source::{ReadError, Source, SourceProfile, Survey};
+pub use source::{ReadError, Source, SourceProfile, SpaceSurvey, Survey};
 use sources::SOURCES;
 
 /// The source with `id`, if it is installed.

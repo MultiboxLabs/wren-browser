@@ -5,6 +5,7 @@
 // its cookies' key in.
 
 use super::browsers::arc::Arc;
+use super::browsers::dia::Dia;
 use super::browsers::zen::Zen;
 use super::engines::chromium::{Chromium, KeyItem};
 use super::engines::gecko::Gecko;
@@ -34,11 +35,11 @@ static CHROME: Chromium = Chromium::new(
     "Google/Chrome",
     key("Chrome Safe Storage", "Chrome"),
 );
-static DIA: Chromium = Chromium::new(
+static DIA: Dia = Dia::new(Chromium::new(
     about("dia", "Dia", "company.thebrowser.dia"),
     "Dia/User Data",
     key("Dia Safe Storage", "Dia"),
-);
+));
 static EDGE: Chromium = Chromium::new(
     about("edge", "Edge", "com.microsoft.edgemac"),
     "Microsoft Edge",

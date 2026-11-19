@@ -3,4 +3,5 @@
 // and overrides only what it keeps differently (source.rs).
 
 pub mod arc;
+pub mod dia;
 pub mod zen;

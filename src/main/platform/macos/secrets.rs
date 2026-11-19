@@ -2,14 +2,23 @@
 // password in the Keychain ("Chrome Safe Storage"), and encrypts each value
 // with a key made from it: PBKDF2 with HMAC-SHA1, salt "saltysalt", 1003
 // rounds, 16 bytes; then AES-128-CBC, its IV sixteen spaces, after a "v10".
-// The Keychain is the Security framework's, and the rest CommonCrypto's, in
-// libSystem: no crate, as only these few calls are needed.
+// The Keychain is the Security framework's, and the ciphers CommonCrypto's
+// (crypto.rs).
 
 use std::ffi::c_void;
 use std::path::Path;
 
+use super::crypto;
+use crate::platform::Hash;
+
 #[derive(Clone)]
 pub struct Key([u8; 16]);
+
+impl Key {
+    pub fn bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
 
 #[link(name = "Security", kind = "framework")]
 unsafe extern "C" {
@@ -28,33 +37,6 @@ unsafe extern "C" {
     fn SecKeychainItemFreeContent(attributes: *const c_void, data: *mut c_void) -> i32;
 }
 
-unsafe extern "C" {
-    fn CCKeyDerivationPBKDF(
-        algorithm: u32,
-        password: *const u8,
-        password_len: usize,
-        salt: *const u8,
-        salt_len: usize,
-        prf: u32,
-        rounds: u32,
-        derived: *mut u8,
-        derived_len: usize,
-    ) -> i32;
-    fn CCCrypt(
-        op: u32,
-        algorithm: u32,
-        options: u32,
-        key: *const c_void,
-        key_len: usize,
-        iv: *const c_void,
-        data_in: *const c_void,
-        data_in_len: usize,
-        data_out: *mut c_void,
-        data_out_available: usize,
-        data_out_moved: *mut usize,
-    ) -> i32;
-}
-
 const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 const ERR_SEC_USER_CANCELED: i32 = -128;
 const ERR_SEC_AUTH_FAILED: i32 = -25293;
@@ -66,12 +48,6 @@ const ROUNDS: u32 = 1003;
 /// What a value it encrypted starts with, before its ciphertext.
 const VERSION: &[u8] = b"v10";
 const IV: [u8; 16] = [b' '; 16];
-
-const K_CC_PBKDF2: u32 = 2;
-const K_CC_PRF_HMAC_SHA1: u32 = 1;
-const K_CC_DECRYPT: u32 = 1;
-const K_CC_AES: u32 = 0;
-const K_CC_PKCS7_PADDING: u32 = 1;
 
 pub fn chromium_key(
     service: &str,
@@ -86,50 +62,14 @@ pub fn chromium_key(
 
 // The key Chromium makes from `password`.
 fn derive(password: &[u8]) -> Result<Key, String> {
-    let mut key = [0u8; 16];
-    let status = unsafe {
-        CCKeyDerivationPBKDF(
-            K_CC_PBKDF2,
-            password.as_ptr(),
-            password.len(),
-            SALT.as_ptr(),
-            SALT.len(),
-            K_CC_PRF_HMAC_SHA1,
-            ROUNDS,
-            key.as_mut_ptr(),
-            key.len(),
-        )
-    };
-    if status != 0 {
-        return Err(format!("CommonCrypto could not make the key ({status})."));
-    }
-    Ok(Key(key))
+    crypto::pbkdf2(Hash::Sha1, password, SALT, ROUNDS, 16)
+        .and_then(|key| key.try_into().ok())
+        .map(Key)
+        .ok_or_else(|| "CommonCrypto could not make the key.".into())
 }
 
 pub fn decrypt(key: &Key, value: &[u8]) -> Option<Vec<u8>> {
-    let sealed = value.strip_prefix(VERSION)?;
-    let mut out = vec![0u8; sealed.len() + 16];
-    let mut moved = 0usize;
-    let status = unsafe {
-        CCCrypt(
-            K_CC_DECRYPT,
-            K_CC_AES,
-            K_CC_PKCS7_PADDING,
-            key.0.as_ptr().cast(),
-            key.0.len(),
-            IV.as_ptr().cast(),
-            sealed.as_ptr().cast(),
-            sealed.len(),
-            out.as_mut_ptr().cast(),
-            out.len(),
-            &mut moved,
-        )
-    };
-    if status != 0 {
-        return None;
-    }
-    out.truncate(moved);
-    Some(out)
+    crypto::decrypt_aes_cbc(&key.0, &IV, value.strip_prefix(VERSION)?, true)
 }
 
 // The password of the Keychain's generic password item `service` /
@@ -180,25 +120,7 @@ mod tests {
     fn decrypts_what_chromium_encrypts() {
         let key = derive(b"peanuts").unwrap();
         let plain = b"a cookie's value";
-        let mut sealed = vec![0u8; plain.len() + 16];
-        let mut moved = 0usize;
-        let status = unsafe {
-            CCCrypt(
-                0,
-                K_CC_AES,
-                K_CC_PKCS7_PADDING,
-                key.0.as_ptr().cast(),
-                key.0.len(),
-                IV.as_ptr().cast(),
-                plain.as_ptr().cast(),
-                plain.len(),
-                sealed.as_mut_ptr().cast(),
-                sealed.len(),
-                &mut moved,
-            )
-        };
-        assert_eq!(status, 0);
-        sealed.truncate(moved);
+        let sealed = crypto::encrypt_aes_cbc(&key.0, &IV, plain, true).unwrap();
         let mut value = VERSION.to_vec();
         value.extend(sealed);
         assert_eq!(decrypt(&key, &value).as_deref(), Some(&plain[..]));

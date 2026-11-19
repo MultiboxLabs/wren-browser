@@ -17,6 +17,10 @@ pub struct Bookmarks {
 /// The folder the bookmarks off the bar come over in.
 pub const OTHER_BOOKMARKS: &str = "Other Bookmarks";
 
+/// The folder the bar's bookmarks come over in, from a source whose bar's
+/// don't come over as pins of their own (`Source::bookmarks_bar_in_folder`).
+pub const BOOKMARKS_BAR: &str = "Bookmarks Bar";
+
 impl Bookmarks {
     /// How many pages there are, in folders too.
     pub fn count(&self) -> usize {
@@ -37,13 +41,26 @@ impl Bookmarks {
         self
     }
 
-    /// As the pins they come over as: the bar's, then a folder of the rest.
-    pub fn into_pins(self) -> Vec<Pin> {
-        let mut pins = self.bar;
-        if !self.other.is_empty() {
-            pins.push(Pin::closed_folder(OTHER_BOOKMARKS, self.other));
-        }
+    /// As the pins they come over as: the bar's, as pins of their own or in
+    /// a folder (`BOOKMARKS_BAR`) if `bar_in_folder`, then a folder of the
+    /// rest (`OTHER_BOOKMARKS`). A folder that would be empty is left out.
+    pub fn into_pins(self, bar_in_folder: bool) -> Vec<Pin> {
+        let mut pins = if bar_in_folder {
+            in_folder(BOOKMARKS_BAR, self.bar)
+        } else {
+            self.bar
+        };
+        pins.extend(in_folder(OTHER_BOOKMARKS, self.other));
         pins
+    }
+}
+
+// `pins` in a closed folder `name`, or nothing if there are none.
+fn in_folder(name: &str, pins: Vec<Pin>) -> Vec<Pin> {
+    if pins.is_empty() {
+        Vec::new()
+    } else {
+        vec![Pin::closed_folder(name, pins)]
     }
 }
 
@@ -265,7 +282,7 @@ mod tests {
     }
 
     #[test]
-    fn bookmarks_are_the_bars_pins_then_a_folder_of_the_rest() {
+    fn bookmarks_are_the_bars_then_a_folder_of_the_rest() {
         let bookmarks = Bookmarks {
             bar: vec![
                 tab("https://x.example/"),
@@ -275,7 +292,7 @@ mod tests {
             other: vec![tab("https://z.example/")],
         }
         .pruned();
-        let pins = bookmarks.into_pins();
+        let pins = bookmarks.clone().into_pins(false);
         assert_eq!(pins.len(), 3);
         assert!(matches!(&pins[1], Pin::Folder { name, .. } if name == "Y"));
         assert!(
@@ -286,6 +303,14 @@ mod tests {
             bar: vec![tab("https://x.example/")],
             other: Vec::new(),
         };
-        assert_eq!(bar_only.into_pins().len(), 1);
+        assert_eq!(bar_only.into_pins(false).len(), 1);
+        // The bar's in a folder of their own, beside the rest's, and no
+        // folder for a bar with nothing on it.
+        let pins = bookmarks.into_pins(true);
+        assert!(matches!(&pins[..], [
+            Pin::Folder { name: bar, pins: on_bar, open: false },
+            Pin::Folder { name: other, .. },
+        ] if bar == BOOKMARKS_BAR && on_bar.len() == 2 && other == OTHER_BOOKMARKS));
+        assert!(Bookmarks::default().into_pins(true).is_empty());
     }
 }

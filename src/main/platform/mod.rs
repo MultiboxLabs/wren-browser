@@ -10,6 +10,7 @@ mod macos;
 use macos as current;
 
 mod apps;
+mod crypto;
 mod files;
 mod keyboard;
 mod paths;
@@ -23,11 +24,14 @@ mod window;
 pub use apps::{
     RunningApp, activate_app, frontmost_other_app, installed_app_icon, is_app_installed,
 };
+#[cfg(test)]
+pub use crypto::encrypt_aes_cbc;
+pub use crypto::{Hash, decrypt_aes_cbc, hkdf, hmac, pbkdf2};
 pub use files::{file_kind, file_thumbnail, file_type_icon};
 pub use keyboard::{Key, KeyWatch};
 pub use paths::{data_dir, home_dir, resources_dir};
 pub use property_list::read_property_list;
-pub use secrets::{chromium_key, decrypt};
+pub use secrets::{BrowserKey, chromium_key, decrypt};
 pub use shortcut::GlobalShortcut;
 pub use system::{OS_NAME, Privacy, app_version, open_privacy_settings, os_version};
 pub use updater::{Updater, UpdaterOptions, UpdaterState};

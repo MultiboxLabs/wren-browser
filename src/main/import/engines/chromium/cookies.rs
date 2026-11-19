@@ -1,7 +1,7 @@
 // A Chromium profile's cookies: its `Cookies` file, each value encrypted
 // with the browser's key, which the platform keeps (platform::secrets) and
-// asks the user for. Since the file's version 24, a value starts with a hash
-// of its host, which goes.
+// asks the user for (`Chromium::key`). Since the file's version 24, a value
+// starts with a hash of its host, which goes.
 
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -10,7 +10,7 @@ use rusqlite::types::ValueRef;
 use rusqlite::{Connection, Row};
 use wren::Cookie;
 
-use super::{KeyItem, chromium_time, unix_ms};
+use super::{Chromium, chromium_time, unix_ms};
 use crate::import::engines::same_site;
 use crate::import::snapshot::{self, Snapshot};
 use crate::import::source::{COOKIE_BATCH, CookieCount, ReadError};
@@ -45,8 +45,7 @@ fn live() -> String {
 }
 
 pub fn read(
-    item: &KeyItem,
-    root: &Path,
+    browser: &Chromium,
     profile: &Path,
     batch: &mut dyn FnMut(Vec<Cookie>),
 ) -> Result<usize, ReadError> {
@@ -62,9 +61,7 @@ pub fn read(
     let hashed = version >= 24;
     let columns = columns(db)?;
     let has = |name: &str| columns.iter().any(|column| column == name);
-    let key = platform::chromium_key(item.service, item.account, root)
-        .map_err(ReadError::Unreadable)?
-        .ok_or(ReadError::Refused)?;
+    let key = browser.key()?;
     let query = format!(
         "SELECT host_key, name, value, encrypted_value, path, creation_utc, expires_utc, last_access_utc, \
          is_secure, is_httponly, samesite, is_persistent, {}, {} FROM cookies WHERE {}",

@@ -1,6 +1,7 @@
 // macOS's side of each part of platform/, under the same names.
 
 pub mod apps;
+pub mod crypto;
 pub mod files;
 pub mod keyboard;
 pub mod paths;

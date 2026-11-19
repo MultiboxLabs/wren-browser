@@ -1,9 +1,11 @@
 // How another browser on this platform locks what it keeps on disk, for
 // bringing it over (import/): the key a Chromium-based browser encrypts its
-// cookies with, and decrypting with it. On macOS the key is a password in
-// the user's Keychain, which macOS asks the user before handing over. A key
-// the user gave is kept while Wren runs, so they are asked once, not for each
-// of the browser's profiles.
+// cookies with, and decrypting with it. A browser that locks more with the
+// key, as Dia does its databases, makes its own keys from its bytes, with
+// the ciphers in crypto.rs. On macOS the key is a password in the user's
+// Keychain, which macOS asks the user before handing over. A key the user
+// gave is kept while Wren runs, so they are asked once, not for each of the
+// browser's profiles.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -14,6 +16,14 @@ use super::current;
 /// A browser's key, as the platform opens it.
 #[derive(Clone)]
 pub struct BrowserKey(current::secrets::Key);
+
+impl BrowserKey {
+    /// The key itself, as Chromium keeps it in memory (OSCrypt's), which a
+    /// browser built on it may derive other keys from.
+    pub fn bytes(&self) -> &[u8] {
+        self.0.bytes()
+    }
+}
 
 /// The keys given, by their item's service and account.
 static GIVEN: LazyLock<Mutex<HashMap<(String, String), BrowserKey>>> =

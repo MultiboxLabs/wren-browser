@@ -117,7 +117,7 @@ impl From<serde_json::Error> for ReadError {
 pub struct Survey {
     /// Spaces, and their pins with the favourites; none from a source that
     /// keeps no spaces.
-    pub spaces: Option<SpaceCount>,
+    pub spaces: Option<SpaceSurvey>,
     pub bookmarks: usize,
     /// Pages visited since `history_kept_since`.
     pub history: usize,
@@ -150,6 +150,15 @@ impl Survey {
         self.cookies = count.cookies;
         self.cookie_sites = count.sites;
     }
+}
+
+/// What a survey says of a profile's spaces.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SpaceSurvey {
+    Counted(SpaceCount),
+    /// It has spaces, locked with the source's key, which a survey doesn't
+    /// ask the user for: they are counted as they come over.
+    Locked,
 }
 
 /// How many cookies a profile has, and for how many sites.
@@ -201,7 +210,7 @@ pub trait Source: Sync {
         if self.keeps_spaces()
             && let Ok(spaces) = self.spaces(profile)
         {
-            survey.spaces = Some(spaces.count());
+            survey.spaces = Some(SpaceSurvey::Counted(spaces.count()));
         }
         survey
     }
@@ -224,6 +233,12 @@ pub trait Source: Sync {
     }
     fn favicons(&self, profile: &SourceProfile, pages: &[String]) -> Result<Favicons, ReadError> {
         self.engine().favicons(profile, pages)
+    }
+
+    /// Its bookmarks bar's come over in a folder of their own
+    /// (`BOOKMARKS_BAR`), not as pins of their own.
+    fn bookmarks_bar_in_folder(&self) -> bool {
+        false
     }
 
     /// It keeps tabs in spaces, which come over as Wren's.

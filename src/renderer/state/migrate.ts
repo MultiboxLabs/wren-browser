@@ -23,8 +23,8 @@ export type Phase = "loading" | "incognito" | "none" | "choose" | "flying" | "la
 /** A source's profile as the user has it: whether it comes, and where to. */
 export type ProfileChoice = { on: boolean; landing: Landing };
 
-/** One thing, summed over the profiles switched on: how much of it there is. */
-export type ThingSummary = { thing: Thing; count: number; pins?: number };
+/** One thing, summed over the profiles switched on: how much of it there is, unless it is `locked` and is counted only as it comes over. */
+export type ThingSummary = { thing: Thing; count: number; pins?: number; locked?: boolean };
 
 /** A survey's key: its source's and profile's IDs. */
 const surveyKey = (source: string, profile: string) => `${source}/${profile}`;
@@ -112,9 +112,13 @@ export function useMigrate(calls: MigrateCalls = migrate) {
 
   const summaries: ThingSummary[] = THINGS.flatMap((thing): ThingSummary[] => {
     if (thing === "spaces") {
-      const spaces = chosenSurveys.reduce((sum, each) => sum + (each.spaces?.spaces ?? 0), 0);
-      const pins = chosenSurveys.reduce((sum, each) => sum + (each.spaces?.pins ?? 0), 0);
-      return source?.keepsSpaces && spaces ? [{ thing, count: spaces, pins }] : [];
+      if (!source?.keepsSpaces) return [];
+      const surveyed = chosenSurveys.map((each) => each.spaces);
+      if (surveyed.includes("locked")) return [{ thing, count: 0, locked: true }];
+      const counted = surveyed.filter((each) => typeof each === "object");
+      const spaces = counted.reduce((sum, each) => sum + each.spaces, 0);
+      const pins = counted.reduce((sum, each) => sum + each.pins, 0);
+      return spaces ? [{ thing, count: spaces, pins }] : [];
     }
     if (thing === "extensions") return storeExtensions.length ? [{ thing, count: storeExtensions.length }] : [];
     const count = chosenSurveys.reduce((sum, each) => sum + (each[thing] ?? 0), 0);

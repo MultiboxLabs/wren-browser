@@ -20,7 +20,7 @@ use wren::{CookieResult, MainThread, Profile, WebStoreInstallResult};
 use super::data::{Bookmarks, Spaces};
 use super::land::profiles::{self, Landing};
 use super::land::{bookmarks, extensions, spaces};
-use super::source::{ReadError, Source, SourceProfile, Survey};
+use super::source::{ReadError, Source, SourceProfile, SpaceSurvey, Survey};
 use crate::app::State;
 use crate::extensions::bridge;
 use crate::pages::MIGRATE;
@@ -127,8 +127,8 @@ struct Run {
     // batches Wren has yet to answer.
     reading: bool,
     pending: usize,
-    /// The user would not let Wren have the source's key: its other
-    /// profiles' cookies are not asked for again.
+    /// The user would not let Wren have the source's key: nothing else
+    /// locked with it is asked for again.
     key_refused: bool,
 }
 
@@ -275,7 +275,11 @@ fn surveyed(
 
 fn total(survey: &Survey, thing: Thing, chosen: &HashSet<String>) -> usize {
     match thing {
-        Thing::Spaces => survey.spaces.map_or(0, |spaces| spaces.pins),
+        // Spaces locked with the key are counted as they come over.
+        Thing::Spaces => match survey.spaces {
+            Some(SpaceSurvey::Counted(count)) => count.pins,
+            _ => 0,
+        },
         Thing::Bookmarks => survey.bookmarks,
         Thing::History => survey.history,
         Thing::Cookies => survey.cookies,
@@ -284,6 +288,17 @@ fn total(survey: &Survey, thing: Thing, chosen: &HashSet<String>) -> usize {
             .iter()
             .filter(|extension| chosen.contains(&extension.id))
             .count(),
+    }
+}
+
+// Whether a profile's `thing` is locked with the source's key, which the
+// user is asked for as it is read: its cookies, and its spaces if a survey
+// could not count them.
+fn locked_with_key(thing: Thing, survey: &Survey) -> bool {
+    match thing {
+        Thing::Cookies => true,
+        Thing::Spaces => survey.spaces == Some(SpaceSurvey::Locked),
+        _ => false,
     }
 }
 
@@ -343,20 +358,26 @@ fn next(mt: MainThread, id: u64) {
         route,
         thing,
     };
-    let Some((source, from, to)) = with(id, |run| {
+    let Some((source, from, to, locked, key_refused)) = with(id, |run| {
         run.reading = true;
         run.pending = 0;
         if let Some(progress) = progress(run, thing) {
             progress.state = Stage::Flying;
         }
         let route = &run.routes[route];
-        (run.source, route.from.clone(), route.to.clone())
+        (
+            run.source,
+            route.from.clone(),
+            route.to.clone(),
+            locked_with_key(thing, &route.survey),
+            run.key_refused,
+        )
     }) else {
         return;
     };
     tell(id);
     let name = source.about().name;
-    if thing == Thing::Cookies && with(id, |run| run.key_refused) == Some(true) {
+    if locked && key_refused {
         return read_over(mt, step, Some(ReadError::Refused.message(name)));
     }
     match thing {
@@ -554,7 +575,9 @@ fn whole<T: Send + 'static>(
 ) {
     std::thread::spawn(move || {
         let read = read();
+        let refused = matches!(read, Err(ReadError::Refused));
         let _ = wren::post_to_main_thread(move |mt| {
+            with(step.run, |run| run.key_refused |= refused);
             let why = match read {
                 Ok(read) => land(mt, step, read),
                 Err(error) => Some(error.message(source)),
@@ -567,14 +590,18 @@ fn whole<T: Send + 'static>(
 // Lands a route's bookmarks as pins in its Wren profile: why they did not,
 // if not.
 fn land_bookmarks(mt: MainThread, step: Step, read: Bookmarks) -> Option<String> {
-    let (app, to) = with(step.run, |run| {
-        (run.app.upgrade(), run.routes[step.route].to.id())
+    let (app, to, bar_in_folder) = with(step.run, |run| {
+        (
+            run.app.upgrade(),
+            run.routes[step.route].to.id(),
+            run.source.bookmarks_bar_in_folder(),
+        )
     })?;
     let Some(entry) = mt.profile_list().into_iter().find(|entry| entry.id == to) else {
         return Some("That profile is gone.".into());
     };
     let count = read.count();
-    let added = match bookmarks::land(&app?, &entry, read) {
+    let added = match bookmarks::land(&app?, &entry, read, bar_in_folder) {
         Ok(added) => added,
         Err(error) => return Some(error),
     };
@@ -589,7 +616,14 @@ fn land_bookmarks(mt: MainThread, step: Step, read: Bookmarks) -> Option<String>
 
 // Lands a route's spaces in its Wren profile: why they did not, if not.
 fn land_spaces(_: MainThread, step: Step, read: Spaces) -> Option<String> {
+    let count = read.count();
     let (app, to, made) = with(step.run, |run| {
+        // Spaces a survey could not count are counted now, as they are read.
+        if run.routes[step.route].survey.spaces == Some(SpaceSurvey::Locked)
+            && let Some(progress) = progress(run, step.thing)
+        {
+            progress.total += count.pins;
+        }
         let route = &run.routes[step.route];
         (run.app.upgrade(), route.to.id(), route.made)
     })?;

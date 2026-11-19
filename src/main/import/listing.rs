@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 use wren::{MainThread, Profile, ProfileListEntry};
 
-use super::{Landing, ReadError, SourceProfile, SpaceCount, Survey};
+use super::{Landing, ReadError, SourceProfile, SpaceCount, SpaceSurvey, Survey};
 use crate::pages::icons;
 
 /// A profile of the user's in Wren.
@@ -48,6 +48,10 @@ const SOURCE_ICON_SIZE: f64 = 112.0;
 /// What the user must allow for Wren to read what macOS keeps from it.
 const FULL_DISK_ACCESS: &str = "fullDiskAccess";
 
+/// What the page is told of spaces that can be counted only as they come
+/// over (`SpaceSurvey::Locked`).
+const LOCKED: &str = "locked";
+
 /// A browser installed with a real profile, as the page lists it; or one
 /// whose profiles macOS keeps from Wren, with none until the user allows it.
 #[derive(Serialize)]
@@ -79,7 +83,7 @@ struct ListedProfile {
 #[derive(Serialize)]
 pub struct ListedSurvey {
     #[serde(skip_serializing_if = "Option::is_none")]
-    spaces: Option<SpaceCount>,
+    spaces: Option<ListedSpaces>,
     #[serde(skip_serializing_if = "is_zero")]
     bookmarks: usize,
     #[serde(skip_serializing_if = "is_zero")]
@@ -92,6 +96,14 @@ pub struct ListedSurvey {
     /// What the user must allow for Wren to read the rest.
     #[serde(skip_serializing_if = "Option::is_none")]
     access: Option<&'static str>,
+}
+
+/// A profile's spaces as the page takes them: how many, or `LOCKED`.
+#[derive(Serialize)]
+#[serde(untagged)]
+enum ListedSpaces {
+    Counted(SpaceCount),
+    Locked(&'static str),
 }
 
 #[derive(Serialize)]
@@ -250,7 +262,13 @@ fn suggested_landing(
 // Its extensions' icons are named for the page to fetch.
 fn listed_survey(survey: Survey) -> ListedSurvey {
     ListedSurvey {
-        spaces: survey.spaces.filter(|count| count.spaces > 0),
+        spaces: match survey.spaces {
+            Some(SpaceSurvey::Counted(count)) if count.spaces > 0 => {
+                Some(ListedSpaces::Counted(count))
+            }
+            Some(SpaceSurvey::Locked) => Some(ListedSpaces::Locked(LOCKED)),
+            _ => None,
+        },
         bookmarks: survey.bookmarks,
         history: survey.history,
         cookies: survey.cookie_sites,
