@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::channel::Channel;
+use crate::app::channel::Channel;
 
 pub struct Perf {
     /// The script's settings, as the page reads them.

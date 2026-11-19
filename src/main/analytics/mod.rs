@@ -31,7 +31,7 @@ pub use event::{
     SpaceField, SplitFrom, TabFrom,
 };
 
-use crate::channel::Channel;
+use crate::app::channel::Channel;
 use crate::db::{self, Db, UsageCounts, UsageStore};
 use crate::platform;
 use crate::updates::VERSION;
@@ -268,7 +268,7 @@ pub fn catch_panics(data: PathBuf, channel: Channel, perf: bool) {
 }
 
 // A file of the app's own is named from the repository's root (`src/main/
-// app.rs`); one of a dependency's is a path on the machine it was built on,
+// main.rs`); one of a dependency's is a path on the machine it was built on,
 // of which only the crate's folder and the file are kept.
 fn source_file(file: &str) -> String {
     if !file.starts_with('/') {

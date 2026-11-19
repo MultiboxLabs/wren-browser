@@ -1,12 +1,9 @@
 mod analytics;
 mod app;
-mod changes;
-mod channel;
 mod clipboard;
 mod db;
 mod downloads;
 mod extensions;
-mod filling;
 mod import;
 mod ipc;
 mod menus;
@@ -15,6 +12,7 @@ mod pages;
 mod perf;
 mod pins;
 mod platform;
+mod profiles;
 mod sidebar;
 mod tabs;
 mod updates;
@@ -24,8 +22,8 @@ use std::rc::Rc;
 
 use wren::{ExitStatus, Scheme, SchemePrivileges, Startup};
 
+use crate::app::channel::{self, Channel};
 use crate::app::{State, Wren};
-use crate::channel::Channel;
 use crate::pages::{SCHEME, Source};
 use crate::perf::Perf;
 

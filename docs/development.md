@@ -8,7 +8,7 @@ Wren Browser is built on Wren Runtime, a library that wraps a prebuilt Chromium.
 
 | Path                       | What lives there                                                                    |
 | -------------------------- | ----------------------------------------------------------------------------------- |
-| `src/main/app.rs`          | The app's state and Wren Runtime's callbacks                                        |
+| `src/main/app/`            | The app's state and Wren Runtime's callbacks                                        |
 | `src/main/windows/`        | Opening, switching and restoring windows, what each holds, and the spaces they show |
 | `src/main/tabs/`           | What Wren does to tabs, and what each tab is (`roles.rs`)                           |
 | `src/main/pins/`           | Favourites and pins, and the tabs open for them                                     |
@@ -82,7 +82,7 @@ Every channel builds `Wren.app` with the bundle ID `dev.multibox.wren`, so build
 
 Stable and Beta keep the key that encrypts cookies and saved passwords in the login Keychain, as "Wren Safe Storage". Dev keeps a fixed key in memory instead. A local build is signed ad hoc, and its signature changes with every build, so a local Stable or Beta build asks for the Keychain again each time it's rebuilt. Use Dev unless you're testing a channel.
 
-Each manifest names the app's display name and icon. The build script sets `WREN_CHANNEL` at compile time, and `src/main/channel.rs` picks the data folder, the Keychain item and Chromium's branding from it. The icons are `branding/<channel>.icon`, with a PNG logo of each for Chromium. When you change an icon, export its PNG again at 256 pixels or larger.
+Each manifest names the app's display name and icon. The build script sets `WREN_CHANNEL` at compile time, and `src/main/app/channel.rs` picks the data folder, the Keychain item and Chromium's branding from it. The icons are `branding/<channel>.icon`, with a PNG logo of each for Chromium. When you change an icon, export its PNG again at 256 pixels or larger.
 
 ## The app's own pages
 

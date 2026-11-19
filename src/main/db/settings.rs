@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use super::{Db, sql};
-use crate::channel::Channel;
+use crate::app::channel::Channel;
 
 /// Every setting, as the page has them.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -35,11 +35,11 @@ pub struct Settings {
     /// (extensions/ad_block.rs).
     pub block_ads_in_new_profiles: bool,
     /// Chromium's password manager is on in every profile; off, it saves,
-    /// fills and suggests no password (filling.rs).
+    /// fills and suggests no password (profiles/filling.rs).
     pub password_manager: bool,
     /// Chromium's autofill is on in every profile; off, it saves, fills and
     /// suggests no address, payment method or value typed before
-    /// (filling.rs).
+    /// (profiles/filling.rs).
     pub autofill: bool,
     /// A gap is left round the page, between it and the window's edges; off,
     /// the page fills the window (pages/ui/app.tsx).

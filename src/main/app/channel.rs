@@ -75,9 +75,9 @@ impl Channel {
 
     fn logo(self) -> &'static [u8] {
         match self {
-            Channel::Stable => include_bytes!("../../branding/stable.png"),
-            Channel::Beta => include_bytes!("../../branding/beta.png"),
-            Channel::Dev => include_bytes!("../../branding/dev.png"),
+            Channel::Stable => include_bytes!("../../../branding/stable.png"),
+            Channel::Beta => include_bytes!("../../../branding/beta.png"),
+            Channel::Dev => include_bytes!("../../../branding/dev.png"),
         }
     }
 
@@ -87,9 +87,10 @@ impl Channel {
         startup.product_name = Some("Wren".into());
         startup.product_icon_png = Some(self.logo().to_vec());
         startup.product_icon_dark_png = Some(self.logo().to_vec());
-        startup.product_icon_svg = Some(include_bytes!("../../branding/wren-light.svg").to_vec());
+        startup.product_icon_svg =
+            Some(include_bytes!("../../../branding/wren-light.svg").to_vec());
         startup.product_icon_dark_svg =
-            Some(include_bytes!("../../branding/wren-dark.svg").to_vec());
+            Some(include_bytes!("../../../branding/wren-dark.svg").to_vec());
         startup.company_name = Some("Multibox Labs".into());
         startup.copyright = Some("Copyright © 2026 Multibox Labs.".into());
         startup.help_url = Some("https://github.com/MultiboxLabs/wren-browser".into());

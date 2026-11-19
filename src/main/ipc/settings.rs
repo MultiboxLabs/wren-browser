@@ -13,7 +13,7 @@ use super::WindowRef;
 use crate::analytics::{Event, Setting};
 use crate::app::State;
 use crate::db::{AddressBar, Settings, SettingsChange};
-use crate::filling::{self, Filler};
+use crate::profiles::filling::{self, Filler};
 use crate::tabs::archive;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {

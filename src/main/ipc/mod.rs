@@ -3,12 +3,14 @@
 // app; the onboarding window's (onboarding.rs); and wren://migrate's, which
 // come through Wren Components (migrate.rs). src/renderer/ipc/ is
 // the page's side; keep the two together. What a window's page has been
-// told of its tabs is told.rs's.
+// told of its tabs is told.rs's, and what Chromium's changes tell each page
+// is changes.rs's.
 
 mod ad_block;
 mod analytics;
 mod anchors;
 mod browser;
+pub mod changes;
 mod default_browser;
 mod downloads;
 mod extensions;
