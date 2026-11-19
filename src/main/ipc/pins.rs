@@ -108,7 +108,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("pins.newFolder", move |new: NewFolder| {
         let state = weak.state()?;
-        pins::new_folder_counted(&state, new.space, new.parent, new.index)
+        pins::new_folder(&state, new.space, new.parent, new.index)
     });
 
     let weak = window.clone();
@@ -128,7 +128,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("pins.delete", move |id: PinId| {
         let state = weak.state()?;
-        pins::delete_counted(&state, id)
+        pins::delete(&state, id)
     });
 
     // Opens a pin in the window's place, or selects its tab if it is open.

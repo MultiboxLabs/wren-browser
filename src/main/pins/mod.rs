@@ -140,7 +140,8 @@ pub fn add_address(
     Ok(id)
 }
 
-/// Makes a folder named "New Folder" among a space's pins, and answers its ID.
+/// Makes a folder named "New Folder" among a space's pins, as the user asks
+/// for one, and answers its ID.
 pub fn new_folder(
     state: &State,
     space: SpaceId,
@@ -153,21 +154,9 @@ pub fn new_folder(
     };
     let id = state.db.create_pin(&place, index, folder)?;
     crate::ipc::broadcast_pins(state);
-    Ok(id)
-}
-
-/// `new_folder`, as the page's New Folder asks, counted. An item's menu
-/// makes its folder with `new_folder`, which counts nothing.
-pub fn new_folder_counted(
-    state: &State,
-    space: SpaceId,
-    parent: Option<PinId>,
-    index: Option<usize>,
-) -> Result<PinId, String> {
-    let folder = new_folder(state, space, parent, index)?;
     let kind = analytics::PinKind::Folder;
     state.analytics.record(Event::PinAdded { kind });
-    Ok(folder)
+    Ok(id)
 }
 
 /// Names pin `id`; with none, or nothing but spaces, its page's title names
@@ -504,19 +493,21 @@ pub fn close(state: &State, browser: &Browser, id: PinId) -> Result<(), String> 
     Ok(())
 }
 
-/// Deletes pin `id`, and what is in it, closing their tabs in every window.
+/// Deletes pin `id`, and what is in it, as the user asks, closing their
+/// tabs in every window.
 pub fn delete(state: &State, id: PinId) -> Result<(), String> {
-    let deleted = state.db.delete_pin(id)?;
-    close_where(state, &deleted, |_, _| true);
-    crate::ipc::broadcast_pins(state);
+    remove(state, id)?;
+    state.analytics.record(Event::PinDeleted);
     Ok(())
 }
 
-/// `delete`, as the page's Delete asks, counted. An item's menu removes a
-/// pin with `delete`, which counts nothing.
-pub fn delete_counted(state: &State, id: PinId) -> Result<(), String> {
-    delete(state, id)?;
-    state.analytics.record(Event::PinDeleted);
+// Takes pin `id` away, and what is in it, closing their tabs in every
+// window. It counts nothing, as a pin that goes back to the list goes this
+// way too, and is counted as unpinned.
+fn remove(state: &State, id: PinId) -> Result<(), String> {
+    let deleted = state.db.delete_pin(id)?;
+    close_where(state, &deleted, |_, _| true);
+    crate::ipc::broadcast_pins(state);
     Ok(())
 }
 
@@ -605,7 +596,7 @@ pub fn to_list(
         (PinKind::Folder { .. }, _) => return Err("A folder can't be a tab.".into()),
     }
     // Its tabs here are the list's now, and those elsewhere close with it.
-    delete(state, id)
+    remove(state, id)
 }
 
 // Closes the tabs of `pins` in every Browser `closes` picks, each pin's
