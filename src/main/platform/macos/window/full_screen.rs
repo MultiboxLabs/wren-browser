@@ -1,13 +1,13 @@
-// A page's window going full screen and coming back. AppKit says when it
-// starts and finishes in notifications, and when it fails only to the
-// window's delegate.
+// A page's window going full screen and coming back, and whether the user
+// can take it there. AppKit says when it starts and finishes in
+// notifications, and when it fails only to the window's delegate.
 
 use std::rc::Rc;
 
 use objc2_app_kit::{
-    NSWindow, NSWindowDidEnterFullScreenNotification, NSWindowDidExitFullScreenNotification,
-    NSWindowStyleMask, NSWindowWillEnterFullScreenNotification,
-    NSWindowWillExitFullScreenNotification,
+    NSWindow, NSWindowCollectionBehavior, NSWindowDidEnterFullScreenNotification,
+    NSWindowDidExitFullScreenNotification, NSWindowStyleMask,
+    NSWindowWillEnterFullScreenNotification, NSWindowWillExitFullScreenNotification,
 };
 
 use super::{PageWindow, observe};
@@ -53,11 +53,27 @@ impl PageWindow {
             .on_full_screen_failed(move || changed(is_full_screen(&window)));
     }
 
+    pub fn allow_full_screen(&self, allowed: bool) {
+        self.title_bar.kept_out_of_full_screen.set(!allowed);
+        if !self.is_full_screen() {
+            allow(&self.window, allowed);
+        }
+    }
+
     pub fn set_full_screen(&self, full_screen: bool) {
         if self.is_full_screen() != full_screen {
             self.window.toggleFullScreen(None);
         }
     }
+}
+
+// Lets `window`, which is not full screen, go there, or keeps it out.
+pub(super) fn allow(window: &NSWindow, allowed: bool) {
+    window.setCollectionBehavior(if allowed {
+        NSWindowCollectionBehavior::FullScreenPrimary
+    } else {
+        NSWindowCollectionBehavior::FullScreenAuxiliary
+    });
 }
 
 // Whether AppKit has the window full screen now, which it says only once

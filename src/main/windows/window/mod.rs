@@ -101,9 +101,9 @@ pub struct BrowserWindow {
     // Whether the window went full screen for a page, and comes back once
     // the page is done; not so for full screen the user chose.
     full_screen_for_page: Cell<bool>,
-    // Where Chromium asked the window to be while it was full screen, to go
-    // once it is back (windows/request.rs).
-    frame_after_full_screen: Cell<Option<RequestedBounds>>,
+    // Where the window was asked to be while it was full screen, to go
+    // once it is back (`move_to`, `resize_from_top`).
+    frame_after_full_screen: Cell<Option<Frame>>,
     // Chromium wants the window minimised once it is shown: a Browser it
     // opened or restored so (windows/request.rs).
     minimized_when_shown: Cell<bool>,
@@ -321,11 +321,23 @@ impl BrowserWindow {
     /// Moves and sizes the window to `frame`, as Chromium asked; in full
     /// screen, once it has left it, as its frame is the screen's until then.
     pub fn move_to(&self, frame: RequestedBounds) {
+        self.set_frame(Frame::Requested(frame));
+    }
+
+    /// Grows or shrinks the window to `size` from its top, kept `margin`
+    /// points inside its screen; in full screen, once it has left it.
+    pub fn resize_from_top(&self, size: (f64, f64), margin: f64) {
+        self.set_frame(Frame::FromTop { size, margin });
+    }
+
+    // Puts the window at `frame`, or leaves full screen to put it there
+    // once it has.
+    fn set_frame(&self, frame: Frame) {
         if self.page.is_full_screen() {
             self.frame_after_full_screen.set(Some(frame));
             self.page.set_full_screen(false);
         } else {
-            self.page.restore_frame(frame);
+            frame.apply(&self.page);
         }
     }
 
@@ -528,7 +540,7 @@ impl BrowserWindow {
         if !full_screen {
             self.full_screen_for_page.set(false);
             if let Some(frame) = self.frame_after_full_screen.take() {
-                self.page.restore_frame(frame);
+                frame.apply(&self.page);
             }
         }
         for slot in self.places.borrow().values() {
@@ -551,6 +563,23 @@ impl BrowserWindow {
             if let Err(error) = named {
                 eprintln!("Wren named no anchor {}: {error:?}", anchor.name());
             }
+        }
+    }
+}
+
+// Where a window is asked to be (`BrowserWindow::set_frame`).
+enum Frame {
+    // As Chromium asked (`BrowserWindow::move_to`).
+    Requested(RequestedBounds),
+    // Grown or shrunk from its top (`BrowserWindow::resize_from_top`).
+    FromTop { size: (f64, f64), margin: f64 },
+}
+
+impl Frame {
+    fn apply(self, page: &PageWindow) {
+        match self {
+            Frame::Requested(bounds) => page.restore_frame(bounds),
+            Frame::FromTop { size, margin } => page.resize_from_top(size, margin),
         }
     }
 }

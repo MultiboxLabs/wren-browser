@@ -264,6 +264,13 @@ impl PageWindow {
         self.native.watch_full_screen_finished(changed);
     }
 
+    /// Lets the user take the window into full screen, or keeps it out:
+    /// not allowed, it can still show over another app's window in full
+    /// screen. A window in full screen is kept out once it has left.
+    pub fn allow_full_screen(&self, allowed: bool) {
+        self.native.allow_full_screen(allowed);
+    }
+
     /// Takes the window into full screen or out of it, unless it is so
     /// already or going to be.
     pub fn set_full_screen(&self, full_screen: bool) {

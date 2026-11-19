@@ -8,7 +8,8 @@
 // and using it never brings Wren forward. Its page draws a toolbar, whose
 // address opens the omnibox for its page, above the page
 // (pages/ui/mini-wren.tsx). On the New Tab page, as an empty one opens, it
-// is the omnibox alone instead (`follow_new_tab_page`). It is on its
+// is the omnibox alone instead, which is never full screen
+// (`follow_new_tab_page`). It is on its
 // profile's place, and never kept: its Browser closing takes it
 // (close.rs). Its page can move to a tab of a window the user browses in
 // (as_tab.rs). What the main menu's commands do in one is commands.rs's.
@@ -126,6 +127,7 @@ fn show(
     let on_new_tab_page = is_on_new_tab_page(mini_wren, &browser) == Some(true);
     window.set_on_new_tab_page(on_new_tab_page);
     window.page.set_backdrop(backdrop(on_new_tab_page));
+    window.page.allow_full_screen(!on_new_tab_page);
     let size = window_size(on_new_tab_page, &browser);
     let requested = browser.requested_bounds();
     match position {
@@ -147,7 +149,8 @@ fn show(
 /// to the New Tab page, or with its toolbar and page again once it has
 /// left it, as what the omnibox opens loads there. The window grows or
 /// shrinks from its top to the size of what it shows, and its backdrop
-/// is a panel's while it is the omnibox. The page draws it so
+/// is a panel's while it is the omnibox, which is never full screen: a
+/// window in full screen leaves it first. The page draws it so
 /// ("window.newTabPage"), and the main menu follows. Nothing for a
 /// browser window.
 pub fn follow_new_tab_page(state: &State, mt: MainThread, window: &BrowserWindow) {
@@ -161,8 +164,8 @@ pub fn follow_new_tab_page(state: &State, mt: MainThread, window: &BrowserWindow
         return;
     }
     window.page.set_backdrop(backdrop(on_new_tab_page));
-    let size = window_size(on_new_tab_page, &browser);
-    window.page.resize_from_top(size, SCREEN_MARGIN);
+    window.page.allow_full_screen(!on_new_tab_page);
+    window.resize_from_top(window_size(on_new_tab_page, &browser), SCREEN_MARGIN);
     ipc::send_new_tab_page(window);
     menus::update_front_menu(state, mt);
 }

@@ -2,8 +2,8 @@
 // style, the one kind of window AppKit lets take the keyboard while its app
 // stays in the background. Its other panel ways are undone, so in all else
 // it is a window like any other: it can be the main window, it stays on
-// screen while the app is in the background, it is in the Window menu, and
-// Escape is its page's alone.
+// screen while the app is in the background, it is in the Window menu, it
+// can go full screen, and Escape is its page's alone.
 
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject};
@@ -51,5 +51,8 @@ pub(super) fn open(
     let window = Retained::into_super(Retained::into_super(panel));
     window.setHidesOnDeactivate(false);
     window.setExcludedFromWindowsMenu(false);
+    // AppKit lets a window go full screen unasked, but a panel only when
+    // told to.
+    super::full_screen::allow(&window, true);
     window
 }

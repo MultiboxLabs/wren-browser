@@ -2,7 +2,7 @@
 // over a blur of the desktop (an NSVisualEffectView). Its files:
 //
 // - frame.rs: where the window is and how large;
-// - full_screen.rs: going full screen and coming back;
+// - full_screen.rs: going full screen and coming back, and whether it can;
 // - state.rs: minimised, zoomed or neither;
 // - panel.rs: the window of `WindowKind::Panel`, an NSPanel;
 // - delegate.rs: the window's delegate, which hears its close button;
@@ -149,6 +149,9 @@ impl PageWindow {
                 if let Some(full_screen) = full_screen {
                     title_bar.full_screen.set(full_screen);
                     window.setToolbar((!full_screen).then_some(&*toolbar));
+                    if !full_screen {
+                        full_screen::allow(&window, !title_bar.kept_out_of_full_screen.get());
+                    }
                 }
                 title_bar.apply(&window);
             })

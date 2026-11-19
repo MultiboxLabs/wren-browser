@@ -8,10 +8,14 @@ use objc2_app_kit::{NSAppearanceCustomization, NSButton, NSWindow, NSWindowButto
 use objc2_foundation::NSPoint;
 
 // The window's buttons as the page wants them, and whether the window is
-// full screen, where AppKit shows them in a title bar of its own instead.
+// full screen, where AppKit shows them in a title bar of its own instead,
+// and whether its zoom button is kept from taking it there.
 #[derive(Default)]
 pub(super) struct TitleBar {
     pub(super) full_screen: Cell<bool>,
+    // Set on the window once it is out of full screen
+    // (`PageWindow::allow_full_screen`).
+    pub(super) kept_out_of_full_screen: Cell<bool>,
     pub(super) buttons_at: Cell<Option<(f64, f64)>>,
     pub(super) buttons_hidden: Cell<bool>,
     // Whether the page around them is dark.
