@@ -26,12 +26,19 @@
 
 /* Lighter and clearer than the omnibox's, so more of the page shows
    through. It closes as the window goes to the background, so it has no
-   solid one for then, as the omnibox has. */
+   solid one for then, as the omnibox has. The dims are the opacity of a
+   site's favicon under a title that isn't selected, and under one hovered:
+   the placeholder's and the rows' text's alpha over the typed text's, so
+   the favicon dims as much as its title. */
 :root[data-system-scheme="dark"] .tab-switcher {
   --tab-switcher-bg: rgb(36 36 40 / 0.8);
+  --tab-switcher-dim: 0.61;
+  --tab-switcher-hover-dim: 0.91;
 }
 :root[data-system-scheme="light"] .tab-switcher {
   --tab-switcher-bg: rgb(252 252 252 / 0.8);
+  --tab-switcher-dim: 0.45;
+  --tab-switcher-hover-dim: 0.93;
 }
 
 /* A tab's picture, with a faint edge over it, so a page as dark or as
@@ -56,4 +63,13 @@
 }
 [aria-selected="true"] > .tab-switcher-preview {
   outline-color: var(--tab-switcher-selected);
+}
+
+/* A site's favicon under a title is a picture, which the title's colour
+   doesn't reach, as it does Wren's glyphs, so it dims by its opacity. */
+[aria-selected="false"] > .tab-switcher-label img {
+  opacity: var(--tab-switcher-dim);
+}
+[aria-selected="false"]:hover > .tab-switcher-label img {
+  opacity: var(--tab-switcher-hover-dim);
 }

@@ -168,8 +168,8 @@ function Card({
       // chooses, and no menu opens.
       onPointerDown={(event) => event.button === 0 && onChoose()}
       onContextMenu={(event) => event.preventDefault()}
-      // The others' titles are dimmer, so the selected one's reads with its
-      // ring.
+      // The others' titles and favicons are dimmer, so the selected one's
+      // reads with its ring.
       className={cn(
         "flex w-42 shrink-0 flex-col gap-3",
         selected ? "text-omnibox-typed" : "text-omnibox-placeholder hover:text-omnibox-fg"
@@ -182,7 +182,7 @@ function Card({
           <TabPreview key={tab.id} tab={tab} iconSize={tabs.length > 1 ? 24 : 32} />
         ))}
       </span>
-      <span className="flex min-w-0 items-center gap-2 px-1">
+      <span className="tab-switcher-label flex min-w-0 items-center gap-2 px-1">
         {tabs.map((tab) => (
           <span key={tab.id} className="flex min-w-0 flex-1 items-center gap-2">
             <Favicon url={tab.url} icon={tab.favicon} />
