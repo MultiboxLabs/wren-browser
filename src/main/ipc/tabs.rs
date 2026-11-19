@@ -228,7 +228,7 @@ impl TabChanges {
         if !self.listed && !self.whole && self.changed.is_empty() {
             return;
         }
-        let page = &window.page_tabs;
+        let page = &window.told.tabs;
         let reordered = || {
             let ids: Vec<i32> = browser.tabs().into_iter().map(BrowserTab::id).collect();
             !page.is_order(browser, &ids)
@@ -344,7 +344,8 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
         })
         .collect();
     window
-        .page_tabs
+        .told
+        .tabs
         .listed(browser, tabs.iter().map(|tab| tab.id).collect());
     Tabs {
         browser: Some(browser.id()),
@@ -364,9 +365,9 @@ fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> T
     let alert = |alert| state.is_some_and(|state| state.alert_set().contains(alert));
     Tab {
         id: tab.id(),
-        title: window.page_tabs.title(tab),
-        url: window.page_tabs.url(tab),
-        favicon: window.page_tabs.favicon(tab),
+        title: window.told.tabs.title(tab),
+        url: window.told.tabs.url(tab),
+        favicon: window.told.tabs.favicon(tab),
         loading: state.is_some_and(|state| state.shows_loading),
         progress: state.map_or(0, |state| state.load_progress),
         can_go_back: state.is_some_and(|state| state.can_go_back),

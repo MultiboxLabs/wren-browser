@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 use wren::{Browser, MainThread};
 
+use crate::analytics::Event;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
@@ -157,6 +158,15 @@ fn leave_front(window: &BrowserWindow) {
         window.page.set_full_screen(false);
     }
     ipc::stop_omnibox(window);
+}
+
+/// Brings `space` forward in window `id`, as the user asks, and counts it.
+/// What the app switches for itself is `State::show_space`, which counts
+/// nothing.
+pub fn switch_space(state: &State, id: WindowId, space: SpaceId) -> Result<(), String> {
+    state.show_space(id, space)?;
+    state.analytics.record(Event::SpaceSwitched);
+    Ok(())
 }
 
 /// Chromium asked for `browser` to come forward. A restore asks for the

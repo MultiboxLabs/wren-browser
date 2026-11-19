@@ -1,19 +1,65 @@
-// What a window's page has been told of its tabs, beyond what Chromium
-// keeps: each tab's title, address and favicon ID (pages/icons.rs), and the
-// order of each Browser's tabs it was last sent whole. The tabs' messages
-// (ipc/tabs.rs) read it, so a list sent again reads from Chromium only what
-// a change said is new, and a switch of tabs that leaves the order as it
-// was says only which tab is active. The window keeps it for every tab of
-// its Browsers, and forgets a tab once it is in none of them, and a Browser
-// once it isn't the window's.
+// What a window's page has been told, which its window keeps
+// (`BrowserWindow::told`), so the same is not sent again.
+//
+// Of its tabs, beyond what Chromium keeps: each tab's title, address and
+// favicon ID (pages/icons.rs), and the order of each Browser's tabs it was
+// last sent whole. The tabs' messages (tabs.rs) read it, so a list sent
+// again reads from Chromium only what a change said is new, and a switch of
+// tabs that leaves the order as it was says only which tab is active. The
+// window keeps it for every tab of its Browsers, and forgets a tab once it
+// is in none of them, and a Browser once it isn't the window's.
+//
+// Of its downloads (downloads.rs): the shelf's list and the history, as
+// each was last sent.
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 use wren::{Browser, BrowserTab, TabFields};
 
+use crate::downloads;
 use crate::pages::icons;
 
+/// What a window's page has been told.
+#[derive(Default)]
+pub struct Told {
+    /// Of its tabs.
+    pub tabs: PageTabs,
+    // The downloads it was told of last, the shelf's and the history; None
+    // until it has been told any.
+    downloads: RefCell<Option<Vec<downloads::Item>>>,
+    history: RefCell<Option<Vec<downloads::Item>>>,
+}
+
+impl Told {
+    /// Notes `list` as the downloads the page is told of. None if it was
+    /// told the same last, and need not be again; else the IDs of those that
+    /// have started since it was told last, none the first time.
+    pub fn note_downloads(&self, list: &[downloads::Item]) -> Option<Vec<String>> {
+        let mut sent = self.downloads.borrow_mut();
+        if sent.as_deref() == Some(list) {
+            return None;
+        }
+        let started = sent
+            .as_deref()
+            .map_or_else(Vec::new, |before| downloads::started(before, list));
+        *sent = Some(list.to_vec());
+        Some(started)
+    }
+
+    /// Notes `history` as the download history the page is told of. False
+    /// if it was told the same last, and need not be again.
+    pub fn note_history(&self, history: &[downloads::Item]) -> bool {
+        let mut sent = self.history.borrow_mut();
+        if sent.as_deref() == Some(history) {
+            return false;
+        }
+        *sent = Some(history.to_vec());
+        true
+    }
+}
+
+/// What a window's page has been told of its tabs.
 #[derive(Default)]
 pub struct PageTabs {
     // By tab ID.

@@ -1,9 +1,8 @@
 use wren::WebView;
 
 use super::{WindowRef, with_window};
-use crate::analytics::Event;
 use crate::db::SidebarState;
-use crate::sidebar::hover::SidebarRegions;
+use crate::sidebar::{self, hover::SidebarRegions};
 use crate::windows::BrowserWindow;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
@@ -18,20 +17,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
     let _ = web_view.handle("sidebar.save", move |saved: SidebarState| {
         let state = weak.state()?;
-        // It is saved as its width is dragged too.
-        let docked = saved.is_docked();
-        let toggled = state
-            .sidebar
-            .load()
-            .is_some_and(|last| last.is_docked() != docked);
-        state
-            .sidebar
-            .save(&saved)
-            .map_err(|error| error.to_string())?;
-        if toggled {
-            state.analytics.record(Event::SidebarToggled { docked });
-        }
-        Ok::<_, String>(())
+        sidebar::save_state(&state, &saved)
     });
 
     // Where the pointer brings the sidebar out and keeps it out

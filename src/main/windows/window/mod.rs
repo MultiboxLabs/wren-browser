@@ -25,8 +25,7 @@ use serde::Serialize;
 use wren::{Browser, BrowserTab, BubbleAnchor, Error, RequestedBounds, WindowState};
 
 use crate::db::SpaceId;
-use crate::downloads;
-use crate::ipc::PageTabs;
+use crate::ipc::Told;
 use crate::perf::PageCounts;
 use crate::platform::PageWindow;
 use crate::sidebar::hover::SidebarHover;
@@ -84,8 +83,9 @@ pub struct BrowserWindow {
     /// Whether the pointer is over the floating sidebar, or at the edge
     /// that brings it out.
     pub sidebar_hover: SidebarHover,
-    /// What its page has been told of its tabs.
-    pub page_tabs: PageTabs,
+    /// What its page has been told, of its tabs and its downloads
+    /// (ipc/told.rs).
+    pub told: Told,
     places: RefCell<HashMap<Place, Slot>>,
     // A window on a profile has only that place in front, ever.
     front: RefCell<Front>,
@@ -109,11 +109,6 @@ pub struct BrowserWindow {
     minimized_when_shown: Cell<bool>,
     // The page has drawn, and the window been shown (ipc/window.rs).
     shown: Cell<bool>,
-    // The downloads the page was told of last (ipc/downloads.rs), the
-    // shelf's and the history, so the same list is not sent again; None
-    // until it has been told any.
-    downloads_sent: RefCell<Option<Vec<downloads::Item>>>,
-    history_sent: RefCell<Option<Vec<downloads::Item>>>,
     mini_wren: Option<MiniWren>,
     // A Mini Wren on the New Tab page, drawn as the omnibox alone
     // (`State::follow_new_tab_page`).
@@ -142,7 +137,7 @@ impl BrowserWindow {
             key,
             page,
             sidebar_hover: SidebarHover::default(),
-            page_tabs: PageTabs::default(),
+            told: Told::default(),
             places: RefCell::default(),
             front: RefCell::new(place.map_or(Front::Waiting, Front::Place)),
             framed: Cell::new(framed),
@@ -153,8 +148,6 @@ impl BrowserWindow {
             frame_after_full_screen: Cell::default(),
             minimized_when_shown: Cell::default(),
             shown: Cell::default(),
-            downloads_sent: RefCell::default(),
-            history_sent: RefCell::default(),
             mini_wren,
             on_new_tab_page: Cell::default(),
             perf_counts,
@@ -379,32 +372,6 @@ impl BrowserWindow {
     /// Notes that the page's omnibox asks none, and answers the one it did.
     pub fn take_omnibox_query(&self) -> Option<Browser> {
         self.omnibox_query.borrow_mut().take()
-    }
-
-    /// Notes `list` as the downloads the page is told of. None if it was
-    /// told the same last, and need not be again; else the IDs of those that
-    /// have started since it was told last, none the first time.
-    pub fn note_downloads(&self, list: &[downloads::Item]) -> Option<Vec<String>> {
-        let mut sent = self.downloads_sent.borrow_mut();
-        if sent.as_deref() == Some(list) {
-            return None;
-        }
-        let started = sent
-            .as_deref()
-            .map_or_else(Vec::new, |before| downloads::started(before, list));
-        *sent = Some(list.to_vec());
-        Some(started)
-    }
-
-    /// Notes `history` as the download history the page is told of. False
-    /// if it was told the same last, and need not be again.
-    pub fn note_history(&self, history: &[downloads::Item]) -> bool {
-        let mut sent = self.history_sent.borrow_mut();
-        if sent.as_deref() == Some(history) {
-            return false;
-        }
-        *sent = Some(history.to_vec());
-        true
     }
 
     /// Whether the page's omnibox asks `browser` for suggestions.

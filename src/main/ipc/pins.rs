@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use wren::{MainThread, WebView};
 
 use super::{WindowRef, with_browser, with_window};
-use crate::analytics::{self, Event};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinLayout, PinPage, PinRow, SpaceId};
 use crate::pages::icons;
@@ -109,36 +108,27 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("pins.newFolder", move |new: NewFolder| {
         let state = weak.state()?;
-        let folder = pins::new_folder(&state, new.space, new.parent, new.index)?;
-        let kind = analytics::PinKind::Folder;
-        state.analytics.record(Event::PinAdded { kind });
-        Ok::<_, String>(folder)
+        pins::new_folder_counted(&state, new.space, new.parent, new.index)
     });
 
     let weak = window.clone();
     let _ = web_view.handle("pins.rename", move |rename: Rename| {
         let state = weak.state()?;
-        state.db.rename_pin(rename.id, rename.name.as_deref())?;
-        broadcast_pins(&state);
-        Ok::<_, String>(())
+        pins::rename(&state, rename.id, rename.name.as_deref())
     });
 
     // Opens a folder, or closes it.
     let weak = window.clone();
     let _ = web_view.handle("pins.setOpen", move |set: SetOpen| {
         let state = weak.state()?;
-        state.db.set_folder_open(set.id, set.open)?;
-        broadcast_pins(&state);
-        Ok::<_, String>(())
+        pins::set_folder_open(&state, set.id, set.open)
     });
 
     // Deletes a pin, and a folder's with it, closing their tabs.
     let weak = window.clone();
     let _ = web_view.handle("pins.delete", move |id: PinId| {
         let state = weak.state()?;
-        pins::delete(&state, id)?;
-        state.analytics.record(Event::PinDeleted);
-        Ok::<_, String>(())
+        pins::delete_counted(&state, id)
     });
 
     // Opens a pin in the window's place, or selects its tab if it is open.

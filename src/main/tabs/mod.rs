@@ -27,7 +27,7 @@ use wren::{
     TabFields, TabGroup, TabSplit, TabState,
 };
 
-use crate::analytics::{Crash, Event};
+use crate::analytics::{Crash, Event, TabFrom};
 use crate::app::State;
 use crate::clipboard;
 use crate::ipc::{self, OwnToast};
@@ -91,10 +91,20 @@ pub fn last_active_in(state: &TabState) -> SystemTime {
 }
 
 /// A tab on `url`, at the top of the list, as the sidebar shows new tabs.
-pub fn open(browser: &Browser, url: &str) -> Result<(), Error> {
+/// `from` says who asked, where a person did, and is counted.
+pub fn open(
+    state: &State,
+    browser: &Browser,
+    url: &str,
+    from: Option<TabFrom>,
+) -> Result<(), Error> {
     browser
         .add_tab(url, Some(at_list(browser, 0)), true)
-        .map(drop)
+        .map(drop)?;
+    if let Some(from) = from {
+        state.analytics.record(Event::TabOpened { from });
+    }
+    Ok(())
 }
 
 /// The tabs the sidebar's list shows, in its order: those whose role is to
@@ -475,9 +485,15 @@ pub fn copy_url(browser: &Browser) -> Result<(), Error> {
     if is_new_tab(&url) {
         return Ok(());
     }
-    let off_the_record = clipboard::is_off_the_record(browser);
-    clipboard::copy_link(&url, Some(tab.title()), off_the_record)?;
+    copy_link(browser, tab)?;
     ipc::show_toast(browser, OwnToast::UrlCopied)
+}
+
+/// Puts the address of `tab`, one of `browser`'s, on the clipboard, with
+/// its title.
+pub fn copy_link(browser: &Browser, tab: BrowserTab) -> Result<(), Error> {
+    let off_the_record = clipboard::is_off_the_record(browser);
+    clipboard::copy_link(&tab.url(), Some(tab.title()), off_the_record)
 }
 
 /// The group an ID from a page names, if it is `browser`'s.

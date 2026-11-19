@@ -78,7 +78,7 @@ pub use spaces::broadcast_spaces;
 pub use tab_switcher::{TabSwitcher, watch_tab_switcher_keys};
 pub use tabs::{TabChanges, send_no_tabs_for, send_tabs};
 pub use toast::{OwnToast, send_toast, show_requested_toast, show_toast, show_zoom_bubble};
-pub use told::PageTabs;
+pub use told::Told;
 pub use update::{broadcast_update, send_open_update};
 pub use window::{
     send_blocked, send_choose_space, send_full_screen, send_new_tab_page, show_active,

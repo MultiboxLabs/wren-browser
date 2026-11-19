@@ -119,12 +119,12 @@ pub fn forget_changed(window: &BrowserWindow, changes: &[Change]) {
             continue;
         }
         if let Some(tab) = change.tab {
-            window.page_tabs.changed(tab, change.tab_fields);
+            window.told.tabs.changed(tab, change.tab_fields);
         }
         closed |= change.kind == ChangeKind::Tabs;
     }
     if closed {
-        window.page_tabs.forget_closed(&window.browsers());
+        window.told.tabs.forget_closed(&window.browsers());
     }
 }
 

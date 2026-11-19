@@ -15,13 +15,11 @@ use serde::{Deserialize, Serialize};
 use wren::{MainThread, MenuItem, PageCall, WebView};
 
 use super::{WindowRef, profile_move};
-use crate::analytics::{self, Event, SplitFrom, TabFrom};
 use crate::app::State;
 use crate::db::PinId;
 use crate::menus;
-use crate::pins::PinTarget;
 use crate::sidebar::items::menu::Subject;
-use crate::sidebar::items::{self, Added, Destination, ItemRef, Moved, carry};
+use crate::sidebar::items::{self, Destination, ItemRef, carry};
 use crate::windows::WindowId;
 
 #[derive(Deserialize)]
@@ -110,9 +108,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             if !go {
                 return answer(call, Err("The move was cancelled.".into()));
             }
-            let counted = mover.clone();
             items::move_items(&mover, mt, window, found, to, move |moved| {
-                answer(call, moved.map(|moved| count_moves(&counted, moved)));
+                answer(call, moved)
             });
         };
         profile_move::ask_before_profile_move(&state, window, crossing, proceed);
@@ -163,9 +160,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         let Some((adding, state, call)) = asked::<Add>(&weak, call) else {
             return;
         };
-        let counted = state.clone();
         items::add_address(&state, mt, weak.id, adding.url, adding.to, move |added| {
-            answer(call, added.map(|added| count_add(&counted, added)));
+            answer(call, added);
         });
     });
 }
@@ -183,8 +179,8 @@ pub(super) fn menu_of(
     Ok((subject, items))
 }
 
-/// Does what was chosen from `subject`'s menu, counts it, and calls `done`
-/// with what to answer the page. What fails is logged: the page hears what
+/// Does what was chosen from `subject`'s menu, and calls `done` with what
+/// to answer the page. What fails is logged: the page hears what
 /// was chosen all the same, as the menu has closed.
 pub(super) fn choose(
     state: &Rc<State>,
@@ -199,13 +195,9 @@ pub(super) fn choose(
             folder: None,
         });
     };
-    let counted = state.clone();
-    items::menu::choose(state, mt, subject, &id.clone(), move |did| {
-        let folder = match did {
-            Ok(did) => {
-                count_moves(&counted, did.moved);
-                did.folder
-            }
+    items::menu::choose(state, mt, subject, &id.clone(), move |folder| {
+        let folder = match folder {
+            Ok(folder) => folder,
             Err(error) => {
                 eprintln!("Wren did not do what was chosen from a menu: {error}");
                 None
@@ -242,44 +234,4 @@ fn answer(call: PageCall, result: Result<(), String>) {
         Ok(()) => call.answer(&()),
         Err(error) => call.fail(&error),
     };
-}
-
-fn count_moves(state: &State, moved: Vec<Moved>) {
-    for moved in moved {
-        count_move(state, moved);
-    }
-}
-
-fn count_move(state: &State, moved: Moved) {
-    let event = match moved {
-        Moved::Placed => return,
-        Moved::Pinned(PinTarget::Favorites) => Event::TabPinned {
-            to: analytics::PinTo::Favorites,
-        },
-        Moved::Pinned(PinTarget::Space { .. }) => Event::TabPinned {
-            to: analytics::PinTo::Space,
-        },
-        Moved::Unpinned => Event::PinUnpinned,
-        Moved::Split { pin: false } => Event::SplitOpened {
-            from: SplitFrom::Tabs,
-        },
-        Moved::Split { pin: true } => Event::SplitOpened {
-            from: SplitFrom::Pin,
-        },
-        Moved::Folder => Event::PinAdded {
-            kind: analytics::PinKind::Folder,
-        },
-    };
-    state.analytics.record(event);
-}
-
-fn count_add(state: &State, added: Added) {
-    state.analytics.record(match added {
-        Added::Tab => Event::TabOpened {
-            from: TabFrom::Drop,
-        },
-        Added::Pin => Event::PinAdded {
-            kind: analytics::PinKind::Address,
-        },
-    });
 }

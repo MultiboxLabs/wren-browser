@@ -30,6 +30,7 @@ use std::rc::Rc;
 use serde::Deserialize;
 use wren::{Browser, BrowserTab, MainThread, TabGroup};
 
+use crate::analytics::{self, Event, SplitFrom, TabFrom};
 use crate::app::State;
 use crate::db::{PinId, SpaceId};
 use crate::pins::{self, PinTarget};
@@ -154,19 +155,23 @@ pub fn move_item(
     }
 }
 
-/// Moves `items` to `to` in window `window`, then calls `done` with what
-/// each move did, or why they did not move. One item moves as `move_item`
-/// moves it. Several, which are all tabs of the list or all pinned tabs,
-/// land together from the place `to` names, in the order they are given:
-/// where one of them may not go, none go.
+/// Moves `items` to `to` in window `window`, counts what each move did, then
+/// calls `done`, with why they did not move if they did not. One item moves
+/// as `move_item` moves it. Several, which are all tabs of the list or all
+/// pinned tabs, land together from the place `to` names, in the order they
+/// are given: where one of them may not go, none go.
 pub fn move_items(
     state: &Rc<State>,
     mt: MainThread,
     window: WindowId,
     mut items: Vec<ItemRef>,
     to: Destination,
-    done: impl FnOnce(Result<Vec<Moved>, String>) + 'static,
+    done: impl FnOnce(Result<(), String>) + 'static,
 ) {
+    let counted = state.clone();
+    let done = move |moved: Result<Vec<Moved>, String>| {
+        done(moved.map(|moved| count_moves(&counted, moved)));
+    };
     if items.len() != 1 {
         return together::move_together(state, mt, window, items, to, Box::new(done));
     }
@@ -177,16 +182,20 @@ pub fn move_items(
 }
 
 /// Puts an address dropped on the sidebar at `to`: a tab on it in the list,
-/// shown, or an unopened pin among the pins or the favourites. Calls `done`
-/// with which, as `move_item` does.
+/// shown, or an unopened pin among the pins or the favourites. Counts
+/// which, then calls `done`, as `move_items` does.
 pub fn add_address(
     state: &Rc<State>,
     mt: MainThread,
     window: WindowId,
     url: String,
     to: Destination,
-    done: impl FnOnce(Result<Added, String>) + 'static,
+    done: impl FnOnce(Result<(), String>) + 'static,
 ) {
+    let counted = state.clone();
+    let done = move |added: Result<Added, String>| {
+        done(added.map(|added| count_add(&counted, added)));
+    };
     let place = match place_of(state, window, to.space) {
         Ok(place) => place,
         Err(error) => return done(Err(error)),
@@ -504,4 +513,46 @@ fn group_of(
 
 fn failed(error: wren::Error) -> String {
     format!("{error:?}")
+}
+
+// Counts what each move did.
+fn count_moves(state: &State, moved: Vec<Moved>) {
+    for moved in moved {
+        count_move(state, moved);
+    }
+}
+
+fn count_move(state: &State, moved: Moved) {
+    let event = match moved {
+        Moved::Placed => return,
+        Moved::Pinned(PinTarget::Favorites) => Event::TabPinned {
+            to: analytics::PinTo::Favorites,
+        },
+        Moved::Pinned(PinTarget::Space { .. }) => Event::TabPinned {
+            to: analytics::PinTo::Space,
+        },
+        Moved::Unpinned => Event::PinUnpinned,
+        Moved::Split { pin: false } => Event::SplitOpened {
+            from: SplitFrom::Tabs,
+        },
+        Moved::Split { pin: true } => Event::SplitOpened {
+            from: SplitFrom::Pin,
+        },
+        Moved::Folder => Event::PinAdded {
+            kind: analytics::PinKind::Folder,
+        },
+    };
+    state.analytics.record(event);
+}
+
+// Counts what an address dropped on the sidebar made.
+fn count_add(state: &State, added: Added) {
+    state.analytics.record(match added {
+        Added::Tab => Event::TabOpened {
+            from: TabFrom::Drop,
+        },
+        Added::Pin => Event::PinAdded {
+            kind: analytics::PinKind::Address,
+        },
+    });
 }

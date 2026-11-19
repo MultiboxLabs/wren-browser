@@ -42,22 +42,14 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("groups.toggle", move |id: String| {
         with_browser(&weak, |_, browser| {
-            let group = group(mt, browser, &id)?;
-            let (color, collapsed) = group.visuals().map_err(failed)?;
-            group
-                .set_visuals(&group.title(), color, !collapsed)
-                .map_err(failed)
+            tabs::groups::toggle(group(mt, browser, &id)?).map_err(failed)
         })
     });
 
     let weak = window.clone();
     let _ = web_view.handle("groups.rename", move |rename: Rename| {
         with_browser(&weak, |_, browser| {
-            let group = group(mt, browser, &rename.id)?;
-            let (color, collapsed) = group.visuals().map_err(failed)?;
-            group
-                .set_visuals(rename.title.trim(), color, collapsed)
-                .map_err(failed)
+            tabs::groups::rename(group(mt, browser, &rename.id)?, &rename.title).map_err(failed)
         })
     });
 }

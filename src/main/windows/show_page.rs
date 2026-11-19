@@ -62,7 +62,7 @@ impl State {
         let urls = self.held_pages.take();
         // The first ends up first in the list, and in front.
         for url in urls.iter().rev() {
-            if let Err(error) = tabs::open(&browser, url) {
+            if let Err(error) = tabs::open(self, &browser, url, None) {
                 eprintln!("Wren could not open {url}: {error:?}");
             }
         }

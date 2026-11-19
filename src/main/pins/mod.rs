@@ -23,6 +23,7 @@ use std::rc::Rc;
 
 use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, SplitState, TabGroup};
 
+use crate::analytics::{self, Event};
 use crate::app::State;
 use crate::db::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
 use crate::tabs;
@@ -153,6 +154,35 @@ pub fn new_folder(
     let id = state.db.create_pin(&place, index, folder)?;
     crate::ipc::broadcast_pins(state);
     Ok(id)
+}
+
+/// `new_folder`, as the page's New Folder asks, counted. An item's menu
+/// makes its folder with `new_folder`, which counts nothing.
+pub fn new_folder_counted(
+    state: &State,
+    space: SpaceId,
+    parent: Option<PinId>,
+    index: Option<usize>,
+) -> Result<PinId, String> {
+    let folder = new_folder(state, space, parent, index)?;
+    let kind = analytics::PinKind::Folder;
+    state.analytics.record(Event::PinAdded { kind });
+    Ok(folder)
+}
+
+/// Names pin `id`; with none, or nothing but spaces, its page's title names
+/// it again.
+pub fn rename(state: &State, id: PinId, name: Option<&str>) -> Result<(), String> {
+    state.db.rename_pin(id, name)?;
+    crate::ipc::broadcast_pins(state);
+    Ok(())
+}
+
+/// Opens folder `id`, or closes it.
+pub fn set_folder_open(state: &State, id: PinId, open: bool) -> Result<(), String> {
+    state.db.set_folder_open(id, open)?;
+    crate::ipc::broadcast_pins(state);
+    Ok(())
 }
 
 /// Makes `group`, of `browser`'s list, a folder among the pins of the space
@@ -479,6 +509,14 @@ pub fn delete(state: &State, id: PinId) -> Result<(), String> {
     let deleted = state.db.delete_pin(id)?;
     close_where(state, &deleted, |_, _| true);
     crate::ipc::broadcast_pins(state);
+    Ok(())
+}
+
+/// `delete`, as the page's Delete asks, counted. An item's menu removes a
+/// pin with `delete`, which counts nothing.
+pub fn delete_counted(state: &State, id: PinId) -> Result<(), String> {
+    delete(state, id)?;
+    state.analytics.record(Event::PinDeleted);
     Ok(())
 }
 

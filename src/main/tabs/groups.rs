@@ -1,4 +1,5 @@
-// A tab group's colours, and its name where a menu lists it. The Colour menu
+// What the app does to a tab group: collapsing and renaming it, its
+// colours, and its name where a menu lists it. The Colour menu
 // itself is built with the rest of a group's menu (menus/item.rs).
 
 use wren::{Error, TabGroup, TabGroupColor};
@@ -11,6 +12,18 @@ pub fn set_color(group: TabGroup, name: &str) -> Result<(), Error> {
     };
     let (_, collapsed) = group.visuals()?;
     group.set_visuals(&group.title(), color, collapsed)
+}
+
+/// Collapses an open group, or opens a collapsed one.
+pub fn toggle(group: TabGroup) -> Result<(), Error> {
+    let (color, collapsed) = group.visuals()?;
+    group.set_visuals(&group.title(), color, !collapsed)
+}
+
+/// Gives a group `title` as its name, without the spaces round it.
+pub fn rename(group: TabGroup, title: &str) -> Result<(), Error> {
+    let (color, collapsed) = group.visuals()?;
+    group.set_visuals(title.trim(), color, collapsed)
 }
 
 /// The colours a group may have, in the order its Colour menu lists them.

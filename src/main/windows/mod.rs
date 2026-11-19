@@ -39,7 +39,7 @@ pub use close::{browser_closed, close_tab, close_window};
 pub use devtools::DevTools;
 pub use list::Windows;
 pub use request::fullscreen;
-pub use switch::foreground_requested;
+pub use switch::{foreground_requested, switch_space};
 pub use window::{BrowserWindow, MiniWren, Place, Tag, WindowId, marks};
 
 use std::rc::Rc;

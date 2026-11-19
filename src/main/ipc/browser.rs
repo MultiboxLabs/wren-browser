@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 use wren::{Browser, BrowserTab, MainThread, TabStatus, WebView};
 
 use super::{WindowRef, failed, with_browser, with_window};
-use crate::analytics::{Event, TabFrom};
-use crate::clipboard;
+use crate::analytics::TabFrom;
 use crate::tabs;
 use crate::windows::BrowserWindow;
 
@@ -47,10 +46,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("tabs.open", move |url: String| {
         with_browser(&weak, |_, browser| {
-            tabs::open(browser, &url).map_err(failed)?;
-            let from = TabFrom::Sidebar;
-            weak.state()?.analytics.record(Event::TabOpened { from });
-            Ok(())
+            let state = weak.state()?;
+            tabs::open(&state, browser, &url, Some(TabFrom::Sidebar)).map_err(failed)
         })
     });
 
@@ -59,8 +56,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("tabs.copyLink", move |()| {
         with_browser(&weak, |_, browser| {
             let tab = browser.active_tab().ok_or("There is no tab.")?;
-            let off_the_record = clipboard::is_off_the_record(browser);
-            clipboard::copy_link(&tab.url(), Some(tab.title()), off_the_record).map_err(failed)
+            tabs::copy_link(browser, tab).map_err(failed)
         })
     });
 

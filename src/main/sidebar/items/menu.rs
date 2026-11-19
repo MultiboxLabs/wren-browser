@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use wren::{Browser, BrowserTab, MainThread, SplitLayout, TabGroup};
 
-use super::{Destination, ItemRef, Moved, Target, failed, move_items, tab_of};
+use super::{Destination, ItemRef, Target, failed, move_items, tab_of};
 use crate::app::State;
 use crate::clipboard;
 use crate::db::{PinId, PinKind, PinPage, PinPlace, PinRow, SpaceId};
@@ -61,14 +61,6 @@ pub enum What {
         browser: Option<Browser>,
         folders: Vec<(PinId, String)>,
     },
-}
-
-/// What a choice did: the folder New Folder made, for the page to name, and
-/// what each move did, for what counts it.
-#[derive(Default)]
-pub struct Did {
-    pub folder: Option<PinId>,
-    pub moved: Vec<Moved>,
 }
 
 impl Subject {
@@ -196,8 +188,9 @@ impl Subject {
     }
 }
 
-/// Does `chosen` of `subject`'s menu, then calls `done` with what that did,
-/// or why it did not. A space without a Browser gets one first to open a
+/// Does `chosen` of `subject`'s menu, then calls `done` with the folder New
+/// Folder made, for the page to name, or why it did nothing. A move counts
+/// what it did (`move_items`). A space without a Browser gets one first to open a
 /// pin in, so `done` may be called later. What is the page's to do is
 /// nothing here: renaming, and asking before a folder is deleted.
 pub fn choose(
@@ -205,7 +198,7 @@ pub fn choose(
     mt: MainThread,
     subject: Subject,
     chosen: &str,
-    done: impl FnOnce(Result<Did, String>) + 'static,
+    done: impl FnOnce(Result<Option<PinId>, String>) + 'static,
 ) {
     let keeping = match keeping(state, &subject.what, chosen) {
         Ok(keeping) => keeping,
@@ -222,24 +215,18 @@ pub fn choose(
             target,
         };
         return move_items(state, mt, subject.window, items, to, move |moved| {
-            done(moved.map(|moved| Did {
-                folder: made,
-                moved,
-            }));
+            done(moved.map(|()| made));
         });
     }
     if let (What::Kept { pin, .. }, command::OPEN) = (&subject.what, chosen) {
         return match state.windows.get(subject.window) {
             Some(window) => pins::open_in(state, mt, &window, pin.id, |opened| {
-                done(opened.map(|()| Did::default()));
+                done(opened.map(|()| None));
             }),
             None => done(Err("The window is closing.".into())),
         };
     }
-    done(act(state, mt, &subject, chosen).map(|folder| Did {
-        folder,
-        ..Did::default()
-    }));
+    done(act(state, mt, &subject, chosen));
 }
 
 // Does what is done at once, and answers the folder New Folder made.
@@ -380,11 +367,7 @@ fn on_listed(
     // which keeps the split, and other rows' tabs are the ones that close.
     let row = tabs::with_split(tab);
     let done = match chosen {
-        command::COPY_LINK => clipboard::copy_link(
-            &tab.url(),
-            Some(tab.title()),
-            clipboard::is_off_the_record(browser),
-        ),
+        command::COPY_LINK => tabs::copy_link(browser, tab),
         command::DUPLICATE => tabs::duplicate(tab),
         command::NEW_GROUP => tabs::new_group(mt, browser, &row).map(drop),
         command::LEAVE_GROUP => BrowserTab::ungroup(mt, &row),

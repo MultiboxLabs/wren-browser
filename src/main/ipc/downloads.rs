@@ -49,7 +49,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |found, browser| {
             // Those that started before the page asked are no news to it.
             let list = downloads::list(browser);
-            found.note_downloads(&list);
+            found.told.note_downloads(&list);
             Ok(list)
         })
     });
@@ -60,7 +60,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let _ = web_view.handle("downloads.history", move |()| {
         with_browser(&weak, |found, browser| {
             let history = downloads::history(browser);
-            found.note_history(&history);
+            found.told.note_history(&history);
             Ok(history)
         })
     });
@@ -141,12 +141,12 @@ pub fn send_downloads(window: &BrowserWindow, browser: &Browser) {
     // A Mini Wren has no Library.
     if !window.is_mini_wren() {
         let history = downloads::history(browser);
-        if window.note_history(&history) {
+        if window.told.note_history(&history) {
             let _ = window.page.web_view.send("downloads.history", &history);
         }
     }
     let list = downloads::list(browser);
-    let Some(started) = window.note_downloads(&list) else {
+    let Some(started) = window.told.note_downloads(&list) else {
         return;
     };
     let web_view = &window.page.web_view;

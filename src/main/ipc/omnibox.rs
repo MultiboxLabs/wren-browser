@@ -296,7 +296,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                         .ok_or("There is no tab to open it in.")?;
                     tab.navigate(&url).map_err(failed)?;
                 }
-                _ => tabs::open(browser, &url).map_err(failed)?,
+                _ => tabs::open(&state, browser, &url, None).map_err(failed)?,
             }
             give_back_keyboard(browser);
             Ok(())
