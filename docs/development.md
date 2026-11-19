@@ -50,6 +50,14 @@ bun run check
 
 It builds `cn`'s class-merging tables (`scripts/cn-tables.ts`), then checks that what Wren restyles on Chromium's own pages is still in the Chromium it runs (`scripts/check-chrome-pages.ts`), and that React Compiler compiles every component and hook of the sidebar and the window's state (`scripts/check-compiler.ts`). Then it runs `cargo check`, `cargo clippy --all-targets` and TypeScript's type checker. `bun run format` formats the repository with Prettier and rustfmt.
 
+`bun run check` compiles the Rust unit tests but doesn't run them. To run them:
+
+```sh
+bun run test:cargo
+```
+
+It runs `cargo test`. A test binary isn't in `Wren.app`, and the framework's install name points into a bundle, so `.cargo/config.toml` sets `DYLD_FRAMEWORK_PATH` to `.wren/runtime` for what cargo runs.
+
 The restyle check matters because a renamed Chromium property breaks nothing visibly. That piece of the page just goes back to Chromium's look, and the check is what names it.
 
 CI (`.github/workflows/ci.yml`) runs `bun run check`, and checks the formatting, on every push to `main` and every pull request.
@@ -98,7 +106,7 @@ Two commands update data in the repository for the next build:
 ## The sidebar's performance budget
 
 ```sh
-bun run perf
+bun run test:perf
 ```
 
 It builds an optimised Dev `Wren.app`, opens 200 tabs on a data folder of its own, and measures the sidebar against the budgets in `src/renderer/perf/budgets.ts`. It fails when one is missed. Selecting a tab is budgeted in frames of the display the run is on: the time until the page hears the app's answer, then two frames. `--tabs <n>` and `--seconds <n>` change the load, `--no-build` runs the `Wren.app` already there, and `--manual` hands you the window and prints each slow frame until you quit. `--background` opens the app behind your windows so you can keep working. A run keeps drawing while its window is covered, but its frames may not come quite as they do in front, so run it in front, and leave it there, for a figure to rely on.
@@ -106,7 +114,7 @@ It builds an optimised Dev `Wren.app`, opens 200 tabs on a data folder of its ow
 ## Checking the sidebar's drags
 
 ```sh
-bun run drags
+bun run test:drags
 ```
 
 It builds an optimised Dev `Wren.app` and opens it on a data folder of its own, behind your windows, so you can keep working. The sidebar's page then drags its own rows, such as a tab into a group, a split out of a folder, a link onto the favourites and a tab to another space, and compares what the sidebar holds after each drag with what it should. It prints each check and fails with the names of those that went wrong. `--no-build` runs the `Wren.app` already there.

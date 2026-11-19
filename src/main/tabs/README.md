@@ -17,5 +17,5 @@ A part. It is what Wren does to a Browser's tabs, whoever asks, and what each ta
 
 ## Rules
 
-- **`roles.rs` is the one table that says what a tab is.** Never keep that anywhere else, and never read Chromium's pinned flag to decide it. A tab that two places describe differently is open with no row in the sidebar, and `bun run drags` fails when one is.
+- **`roles.rs` is the one table that says what a tab is.** Never keep that anywhere else, and never read Chromium's pinned flag to decide it. A tab that two places describe differently is open with no row in the sidebar, and `bun run test:drags` fails when one is.
 - **An index is among the tabs the list shows.** Turn it into the Browser's own only where a tab is put in place, as a pin's tab and the placeholder are not in the list.

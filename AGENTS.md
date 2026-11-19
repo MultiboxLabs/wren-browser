@@ -27,11 +27,14 @@ bun run start      # builds Wren.app and opens it
 bun run build      # builds Wren.app; both take --channel stable|beta|dev and --debug
 bun run check      # every check; run it before every commit
 bun run format     # Prettier and rustfmt
-bun run perf       # the sidebar's performance budget
-bun run drags      # checks the sidebar's drags, in an app behind your windows
+bun run test:cargo # the Rust unit tests
+bun run test:drags # checks the sidebar's drags, in an app behind your windows
+bun run test:perf  # the sidebar's performance budget
 ```
 
-`bun run check` builds `cn`'s class-merging tables, checks that what Wren restyles on Chromium's pages is still in the Chromium it runs and that React Compiler compiles the sidebar and its state, then runs `cargo check`, `cargo clippy --all-targets` and `tsc`.
+`bun run check` builds `cn`'s class-merging tables, checks that what Wren restyles on Chromium's pages is still in the Chromium it runs and that React Compiler compiles the sidebar and its state, then runs `cargo check`, `cargo clippy --all-targets` and `tsc`. It doesn't run the tests.
+
+`bun run test:cargo` runs `cargo test`. A test binary isn't in `Wren.app`, so it can't find Wren Runtime's framework on its own, and `.cargo/config.toml` points it at `.wren/runtime`. Don't link or copy the framework into `target/` instead.
 
 `bun run publish` signs, notarises and publishes a release with the user's certificates and accounts. Run it only with `--dry-run`, and only when the user asks. [docs/publishing.md](docs/publishing.md) has the rest.
 
@@ -40,7 +43,7 @@ bun run drags      # checks the sidebar's drags, in an app behind your windows
 - **Use the wrappers in `src/renderer/components/ui`.** They wrap Radix UI so that every control looks and behaves the same. Never import `radix-ui` from anywhere else. If a wrapper is missing, add it there.
 - **A popover's trigger keeps its box still.** A control that opens a popover or a menu must not move or resize the box the popover hangs off, or the popover moves with it. The press scale does exactly that, so a popover slides as its trigger is pressed. `Button` still scales, but reports the box it rests in (`restingBox` in `ui/press.ts`) when Radix marks it as a trigger with `aria-haspopup`, so use `Button` for a trigger. A trigger that is anything else must do the same, or not animate its size.
 - **A space's light or dark is the window's alone.** It covers the sidebar, the cards and whatever else is drawn on the window. Anything over the window, such as a menu, a tooltip, a popover, a dialog, the omnibox or the find bar, is light or dark as the system is, as the platform's own are. Give such a surface `data-scheme="system"` (see `index.css`), or use a wrapper in `components/ui` that does. Its colours then follow the system's. Without it, a menu turns dark over a dark space while the system is light.
-- **Ask `tabs::roles` what a tab is.** `src/main/tabs/roles.rs` is the one table that says whether a tab is in the sidebar's list, a pin's, the placeholder or closing for a pin, and a tab it doesn't name is in the list. Never keep that anywhere else, and never read Chromium's pinned flag to decide it. A tab that two places describe differently is open with no row in the sidebar, where nobody can see or close it. `bun run drags` fails when one is.
+- **Ask `tabs::roles` what a tab is.** `src/main/tabs/roles.rs` is the one table that says whether a tab is in the sidebar's list, a pin's, the placeholder or closing for a pin, and a tab it doesn't name is in the list. Never keep that anywhere else, and never read Chromium's pinned flag to decide it. A tab that two places describe differently is open with no row in the sidebar, where nobody can see or close it. `bun run test:drags` fails when one is.
 - **Change both sides of a call together.** A call from a page into the main process lives in `src/main/ipc/<name>.rs`, and its renderer side in `src/renderer/ipc/<name>.ts`. They're one call, so change both in the same commit.
 - **Put main process code where `src/main/README.md` says.** Code there is the core, a part or a layer, by three questions asked in order, and the folder's `README.md` says what belongs in it. Code that fits no folder's README is a new part, not a reason to stretch one. A file in the wrong folder is one the next person can't find.
 - **A handler translates.** A handler in `src/main/ipc/` reads the call, calls one action of a part and answers. A file in `src/main/menus/` lists a menu and hands back what was chosen. When a menu or a key needs what a page already does, and you'd have to copy it out of a handler, move it to the part and have both call it.

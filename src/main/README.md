@@ -32,7 +32,7 @@ This page says where code in `src/main/` goes. Read it before you add a file, a 
 | [`import/`](import/README.md)         | Bringing things over from another browser                                                                                      |
 | [`analytics/`](analytics/README.md)   | What Wren counts and sends, and its crash reports                                                                              |
 | `clipboard.rs`                        | The links Wren copies. One copied off the record stays out of clipboard history                                                |
-| `perf.rs`                             | The sidebar's performance run, which `bun run perf` and `bun run drags` start                                                  |
+| `perf.rs`                             | The sidebar's performance run, which `bun run test:perf` and `bun run test:drags` start                                        |
 
 ## Where a piece of code goes
 

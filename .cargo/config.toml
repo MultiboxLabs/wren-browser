@@ -1,0 +1,7 @@
+# Lets what cargo runs load Wren Runtime's framework from the release
+# linked at .wren/runtime. The framework's install name is in a bundle's
+# Frameworks folder, so a binary outside Wren.app, such as `cargo test`'s,
+# can't find it otherwise. Only what cargo starts gets the variable:
+# Wren.app is opened from its bundle, and finds its own copy.
+[env]
+DYLD_FRAMEWORK_PATH = { value = ".wren/runtime", relative = true }
