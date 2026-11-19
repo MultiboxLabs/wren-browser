@@ -1,7 +1,8 @@
-# Runs `bun run check` and checks the formatting on every push to main and every
-# pull request, as a contributor runs them before a commit. They are two jobs,
-# so each reports on its own. Formatting needs no Wren Runtime, so it runs on
-# Linux, which starts sooner and costs less than macOS.
+# Runs `bun run check` and the Rust tests, and checks the formatting, on every
+# push to main and every pull request, as a contributor runs them before a
+# commit. Each is a job of its own, so each reports on its own, and a failed
+# check doesn't keep the tests from running. Formatting needs no Wren Runtime,
+# so it runs on Linux, which starts sooner and costs less than macOS.
 name: CI
 
 on:
@@ -22,15 +23,20 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - run: bun install --frozen-lockfile
+      - name: Install the packages
+        run: bun install --frozen-lockfile
 
-      - run: bunx prettier --check .
+      - name: Check the formatting with Prettier
+        run: bunx prettier --check .
 
-      - run: cargo fmt --check
+      - name: Check the formatting with rustfmt
+        run: cargo fmt --check
 
   # On macOS on Apple silicon, the only platform Wren Runtime ships for, with
   # the release of it that wren-app.json names, as `bun run build` does.
@@ -38,38 +44,52 @@ jobs:
     name: Check
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
           components: clippy
 
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Restore Rust's build cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
-      # The release is over 400 MB, so it is kept between runs, by the
-      # version the manifest names.
-      - name: Read the Wren Runtime version
-        id: runtime
-        run: echo "version=$(jq -r .wren wren-app.json)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.wren/runtimes/${{ steps.runtime.outputs.version }}
-          key: wren-runtime-${{ steps.runtime.outputs.version }}
-
-      # `wren install` asks GitHub's API for the release. Without a token,
-      # runners share an hourly limit by address that is often already spent.
       - name: Install Wren Runtime
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          curl -fsSL https://wrenbrowser.com/runtime/cli/install.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          "$HOME/.local/bin/wren" install --manifest wren-app.json
+        uses: ./.github/actions/wren-runtime
 
-      - run: bun install --frozen-lockfile
+      - name: Install the packages
+        run: bun install --frozen-lockfile
 
-      - run: bun run check
+      - name: Run the checks
+        run: bun run check
+
+  # On macOS too, as the test binary loads Wren Runtime's framework from the
+  # release, which .cargo/config.toml points it at.
+  test:
+    name: Test
+    runs-on: macos-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+
+      - name: Restore Rust's build cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Install Wren Runtime
+        uses: ./.github/actions/wren-runtime
+
+      - name: Run the Rust tests
+        run: bun run test:cargo

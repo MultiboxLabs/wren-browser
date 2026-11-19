@@ -60,7 +60,7 @@ It runs `cargo test`. A test binary isn't in `Wren.app`, and the framework's ins
 
 The restyle check matters because a renamed Chromium property breaks nothing visibly. That piece of the page just goes back to Chromium's look, and the check is what names it.
 
-CI (`.github/workflows/ci.yml`) runs `bun run check`, and checks the formatting, on every push to `main` and every pull request.
+CI (`.github/workflows/ci.yml`) runs `bun run check` and `bun run test:cargo`, and checks the formatting, on every push to `main` and every pull request.
 
 ## Build channels
 
