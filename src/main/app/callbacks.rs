@@ -18,6 +18,7 @@ use crate::menus;
 use crate::pages::{SCHEME, Source, serve_page};
 use crate::platform::RunningApp;
 use crate::profiles::{self, filling};
+use crate::settings;
 use crate::sidebar::items;
 use crate::tabs;
 use crate::windows;
@@ -30,7 +31,7 @@ pub struct Wren {
 impl App for Wren {
     fn ready(&self, mt: MainThread) {
         menus::update_main_menu(&self.state, mt);
-        self.state.check_default_browser(mt);
+        settings::check_default_browser(&self.state, mt);
         components::ready(mt);
         ipc::handle_migrate(mt, &self.state);
         ipc::watch_tab_switcher_keys(&self.state);
@@ -97,7 +98,7 @@ impl App for Wren {
             .iter()
             .any(|change| change.kind == ChangeKind::DefaultBrowser)
         {
-            state.check_default_browser(mt);
+            settings::check_default_browser(state, mt);
         }
         // Before anything below tells a page of its tabs.
         for window in state.windows.all() {

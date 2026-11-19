@@ -118,7 +118,7 @@ pub fn land(
             }
         }
     }
-    ipc::broadcast_spaces(state);
+    crate::spaces::changed(state);
     ipc::broadcast_pins(state);
     Ok(added)
 }

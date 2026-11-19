@@ -5,32 +5,20 @@
 // At startup the windows open first, each drawing its place empty, and the
 // restored Browsers find their way back into them by their tags. An
 // off-the-record window is never kept. Each profile keeps its session
-// cookies and sessionStorage for the restore, so a restored tab is still
-// signed in where a site keeps the sign-in only for the session.
+// cookies and sessionStorage for the restore (profiles/mod.rs), so a
+// restored tab is still signed in where a site keeps the sign-in only for
+// the session.
 
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use wren::{Browser, Error, MainThread, Profile, ProfileKind, RequestedBounds};
+use wren::{Browser, MainThread, Profile, RequestedBounds};
 
 use crate::app::State;
 use crate::db::{SavedWindow, WindowFrame};
+use crate::spaces;
 use crate::tabs::placeholder;
 use crate::windows::{BrowserWindow, Place, Tag};
-
-/// Has a profile Chromium loaded (`ChangeKind::ProfileOpened`) keep its
-/// session data for the next restore. A profile reads the setting as it
-/// loads, so this applies from its next load. Policy may keep it off, which
-/// is no error. An off-the-record or ephemeral profile has none to keep.
-pub fn keep_session_data(profile: &Profile) {
-    if profile.kind() != ProfileKind::Persistent || profile.keeps_session_data() {
-        return;
-    }
-    match profile.set_keeps_session_data(true) {
-        Ok(()) | Err(Error::NotAllowed) => {}
-        Err(error) => eprintln!("Wren could not keep a profile's session data: {error:?}"),
-    }
-}
 
 impl State {
     /// Opens the windows kept at the last quit, in the order they opened,
@@ -122,7 +110,7 @@ impl State {
                 return;
             };
             // A profile with no space: the window is on the profile.
-            let Some(space) = state.recent_space(mt, &profile) else {
+            let Some(space) = spaces::recent(&state, mt, &profile) else {
                 return state.open_browser(mt, window.id, place, || {});
             };
             if let Err(error) = state.show_space(window.id, space) {
@@ -147,7 +135,7 @@ impl State {
         };
         let free = window.browser_of(&place).is_none() && !window.is_opening(&place);
         let fits = match place.space() {
-            Some(space) => !window.is_profile_window() && self.is_space_of(space, profile),
+            Some(space) => !window.is_profile_window() && spaces::is_of(self, space, profile),
             None => window.place().as_ref() == Some(&place) && Place::of_profile(profile) == place,
         };
         if !free || !fits {

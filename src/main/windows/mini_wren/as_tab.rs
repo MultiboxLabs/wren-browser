@@ -9,6 +9,7 @@ use wren::{BrowserTab, MainThread, Profile};
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::sidebar::items;
+use crate::spaces;
 use crate::windows::{BrowserWindow, Place, WindowId};
 use crate::{ipc, tabs};
 
@@ -105,11 +106,11 @@ impl State {
         if own.is_off_the_record() {
             return own;
         }
-        let of_profile = |space: &SpaceId| self.is_space_of(*space, profile);
+        let of_profile = |space: &SpaceId| spaces::is_of(self, *space, profile);
         opened_from
             .filter(of_profile)
             .or_else(|| self.windows.front()?.space().filter(of_profile))
-            .or_else(|| self.recent_space(mt, profile))
+            .or_else(|| spaces::recent(self, mt, profile))
             .map_or(own, Place::Space)
     }
 

@@ -39,67 +39,16 @@ pub use close::{browser_closed, close_tab, close_window};
 pub use devtools::DevTools;
 pub use list::Windows;
 pub use request::fullscreen;
-pub use session::keep_session_data;
 pub use switch::foreground_requested;
 pub use window::{BrowserWindow, MiniWren, Place, Tag, WindowId, marks};
 
 use std::rc::Rc;
 
-use wren::{MainThread, Profile};
+use wren::MainThread;
 
 use crate::app::State;
-use crate::db::SpaceId;
-use crate::ipc;
-use crate::menus;
 
 impl State {
-    /// The profile's most recently used space, if it has one. A profile
-    /// Chromium has just made is not in the database yet: it is added, with
-    /// no space, so a window on it can be kept.
-    pub(super) fn recent_space(&self, mt: MainThread, profile: &Profile) -> Option<SpaceId> {
-        let id = profile.id();
-        let recent = || match self.db.recent_space(&id) {
-            Ok(space) => space.map(|space| space.id),
-            Err(error) => {
-                eprintln!("Wren could not read the spaces: {error}");
-                None
-            }
-        };
-        recent().or_else(|| {
-            if self.db.sync_profiles(&mt.profile_list()) {
-                ipc::broadcast_spaces(self);
-            }
-            recent()
-        })
-    }
-
-    /// Every space, in the user's order, of any profile. Each is named, with
-    /// its profile's name when there is more than one.
-    pub fn ordered_spaces(&self, mt: MainThread) -> Vec<(SpaceId, String)> {
-        let profiles = mt.profile_list();
-        let spaces = match self.db.list_spaces() {
-            Ok(spaces) => spaces,
-            Err(error) => {
-                eprintln!("Wren could not read the spaces: {error}");
-                Vec::new()
-            }
-        };
-        let many = spaces
-            .windows(2)
-            .any(|pair| pair[0].profile != pair[1].profile);
-        spaces
-            .into_iter()
-            .map(|space| {
-                let owner = profiles.iter().find(|entry| entry.id == space.profile);
-                let name = match owner {
-                    Some(owner) if many => format!("{} — {}", space.name, owner.name),
-                    _ => space.name,
-                };
-                (space.id, name)
-            })
-            .collect()
-    }
-
     /// Names `window` for its active tab, or with none, for the space it
     /// shows, or the profile, as the page names it; or for the space the
     /// user makes.
@@ -124,21 +73,6 @@ impl State {
         window.page.set_title(title.as_deref().unwrap_or("Wren"));
     }
 
-    /// Asks macOS whether Wren is the default browser, at startup and as it
-    /// changes, as Wren's change says only that it did: Set as Default
-    /// Browser is checked as it is, and every window's page is told.
-    pub fn check_default_browser(self: &Rc<Self>, mt: MainThread) {
-        let state = Rc::downgrade(self);
-        mt.default_browser_state(move |result| {
-            let (Some(state), Ok(default)) = (state.upgrade(), result) else {
-                return;
-            };
-            state.default_browser.set(Some(default));
-            menus::set_default_browser_item(mt, Some(default));
-            ipc::broadcast_default_browser(&state, default);
-        });
-    }
-
     /// Opens the Mini Wren and the app's own pages held, if the app can now:
     /// not before startup opens the windows, nor while restoring.
     pub(super) fn open_held(self: &Rc<Self>, mt: MainThread) {
@@ -161,17 +95,5 @@ impl State {
                     .place()
                     .is_some_and(|place| place.is_off_the_record())
         })
-    }
-
-    /// Whether `space` is one of `profile`'s, and still there.
-    fn is_space_of(&self, space: SpaceId, profile: &Profile) -> bool {
-        matches!(self.db.space(space), Ok(Some(row)) if row.profile == profile.id())
-    }
-
-    /// Notes that `space` is in use now.
-    pub fn touch_space(&self, space: SpaceId) {
-        if let Err(error) = self.db.touch_space(space) {
-            eprintln!("Wren could not note a space's use: {error}");
-        }
     }
 }

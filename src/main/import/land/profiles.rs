@@ -1,6 +1,6 @@
 // Which Wren profile each of a source's profiles lands in: the tab's own, one
 // of the user's others, or a new one of its name, made as the Library makes
-// one (ipc/profiles.rs).
+// one (profiles/mod.rs).
 
 use std::rc::Rc;
 
@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use wren::{MainThread, Profile};
 
 use crate::app::State;
-use crate::ipc;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -53,7 +52,7 @@ pub fn resolve(
             let state = state.clone();
             mt.create_profile(Some(name), move |result| {
                 state.db.sync_profiles(&mt.profile_list());
-                ipc::broadcast_spaces(&state);
+                crate::spaces::changed(&state);
                 done(
                     result
                         .map(|profile| (profile, true))

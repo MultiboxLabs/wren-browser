@@ -12,6 +12,7 @@ use crate::menus;
 use crate::pages;
 use crate::pins;
 use crate::platform::{PageWindow, close_other_key_window};
+use crate::settings;
 use crate::tabs;
 use crate::windows;
 
@@ -81,7 +82,7 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
     }
     // Every window's, a Mini Wren in front too.
     if id == menus::TOGGLE_ADDRESS_BAR {
-        let _ = ipc::toggle_address_bar(state);
+        let _ = settings::toggle_address_bar(state);
         return;
     }
     if let Some(window) = key.as_ref().filter(|window| window.is_mini_wren()) {

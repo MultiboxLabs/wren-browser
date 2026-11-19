@@ -22,7 +22,7 @@ pub fn land(
     let space = state.db.space_for_imports(profile)?;
     let pins = bookmarks.into_pins().into_iter().map(imported).collect();
     let added = state.db.add_pins(space, pins)?;
-    ipc::broadcast_spaces(state);
+    crate::spaces::changed(state);
     ipc::broadcast_pins(state);
     Ok(added)
 }

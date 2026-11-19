@@ -1,12 +1,12 @@
 // The user's profiles: the list Chromium keeps, and making, renaming and
-// deleting them. The Library shows them.
+// deleting them, each done by profiles/. The Library shows them.
 
 use serde::{Deserialize, Serialize};
-use wren::{MainThread, WebView};
+use wren::{MainThread, PageCall, WebView};
 
-use super::{self as ipc, WindowRef, failed};
-use crate::analytics::Event;
+use super::WindowRef;
 use crate::db::avatar;
+use crate::profiles;
 
 /// A profile as the Library lists it.
 #[derive(Serialize)]
@@ -46,22 +46,14 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 return;
             }
         };
-        let name = name.trim().to_owned();
-        if name.is_empty() {
-            let _ = call.fail("A profile needs a name.");
-            return;
-        }
-        mt.create_profile(Some(&name), move |result| {
-            let made = result.map(|profile| profile.id());
-            state.db.sync_profiles(&mt.profile_list());
-            ipc::broadcast_spaces(&state);
+        profiles::create(&state, mt, &name, move |made| {
             // A page that went before its answer is no error.
             let _ = match made {
                 Ok(id) => match list(mt).into_iter().find(|entry| entry.id == id) {
                     Some(entry) => call.answer(&entry),
                     None => call.fail("The new profile is not in the list."),
                 },
-                Err(error) => call.fail(&failed(error)),
+                Err(error) => call.fail(&error),
             };
         });
     });
@@ -70,17 +62,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // on the profile.
     let weak = window.clone();
     let _ = web_view.handle("profiles.openWindow", move |id: String| {
-        if !mt.profile_list().iter().any(|profile| profile.id == id) {
-            return Err("That profile is gone.".to_owned());
-        }
-        let state = weak.state()?;
-        state.open_window_for_profile(mt, id);
-        state.analytics.record(Event::ProfileWindowOpened);
-        Ok(())
+        weak.state()?.open_window_for_profile(mt, id)
     });
 
-    // Renames a profile, answering once Chromium has its new name. The list
-    // changing tells every window (`profiles::list_changed`).
+    // Renames a profile, answering once Chromium has its new name.
     let _ = web_view.handle_call("profiles.rename", move |call| {
         let Rename { id, name } = match call.value() {
             Ok(rename) => rename,
@@ -89,17 +74,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 return;
             }
         };
-        let name = name.trim().to_owned();
-        if name.is_empty() {
-            let _ = call.fail("A profile needs a name.");
-            return;
-        }
-        mt.open_profile(Some(&id), move |result| {
-            let _ = match result.and_then(|profile| profile.rename(&name)) {
-                Ok(()) => call.answer_json(None),
-                Err(error) => call.fail(&failed(error)),
-            };
-        });
+        profiles::rename(mt, &id, &name, move |result| answer(call, result));
     });
 
     // Deletes a profile and its data, once its Browsers have closed, and its
@@ -120,31 +95,17 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 return;
             }
         };
-        mt.open_profile(Some(&id), move |result| {
-            let profile = match result {
-                Ok(profile) => profile,
-                Err(error) => {
-                    let _ = call.fail(&failed(error));
-                    return;
-                }
-            };
-            let id = profile.id();
-            profile.delete(move |result| {
-                let _ = match result {
-                    Ok(()) => {
-                        if let Err(error) = state.db.forget_profile(&id) {
-                            eprintln!("Wren could not forget a profile: {error}");
-                        }
-                        state.leave_gone_spaces(None);
-                        state.leave_gone_profiles(mt);
-                        ipc::broadcast_spaces(&state);
-                        call.answer_json(None)
-                    }
-                    Err(error) => call.fail(&failed(error)),
-                };
-            });
-        });
+        profiles::delete(&state, mt, &id, move |result| answer(call, result));
     });
+}
+
+// Answers `call` with nothing, or fails it. A page that went before its
+// answer is no error.
+fn answer(call: PageCall, result: Result<(), String>) {
+    let _ = match result {
+        Ok(()) => call.answer_json(None),
+        Err(error) => call.fail(&error),
+    };
 }
 
 fn list(mt: MainThread) -> Vec<Entry> {

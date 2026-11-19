@@ -56,7 +56,7 @@ fn answer(call: PageCall, result: Result<DefaultBrowserState, Error>) {
 }
 
 /// Tells every window's page whether Wren is the default browser, as it
-/// changed (`State::check_default_browser`).
+/// changed (`settings::check_default_browser`).
 pub fn broadcast_default_browser(state: &State, default: DefaultBrowserState) {
     let default = DefaultBrowser::of(default);
     for window in state.windows.all() {

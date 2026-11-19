@@ -17,6 +17,7 @@ use crate::menus;
 use crate::pages::UI;
 use crate::perf::PageCounts;
 use crate::platform::{PageWindow, WindowKind, WindowSize};
+use crate::spaces;
 use crate::tabs::placeholder;
 use crate::windows::{BrowserWindow, MiniWren, Place, WindowId};
 
@@ -136,7 +137,7 @@ impl State {
                     menus::update_front_menu(&state, mt);
                     // The space the user is in is the one used last.
                     if let Some(space) = window.space() {
-                        state.touch_space(space);
+                        spaces::touch(&state, space);
                     }
                 }
             }
@@ -188,7 +189,7 @@ impl State {
             return eprintln!("Wren opened no window.");
         };
         if let Some(space) = place.space() {
-            self.touch_space(space);
+            spaces::touch(self, space);
         }
         self.open_browser(mt, id, place, || {});
     }
@@ -204,18 +205,30 @@ impl State {
         }
     }
 
-    /// Opens a window for profile `id`: on its most recent space, or with
-    /// none, on the profile.
-    pub fn open_window_for_profile(self: &Rc<Self>, mt: MainThread, id: String) {
-        let place = match self.db.recent_space(&id) {
-            Ok(Some(space)) => Place::Space(space.id),
-            Ok(None) => Place::Profile {
-                id,
-                off_the_record: false,
-            },
-            Err(error) => return eprintln!("Wren could not read the spaces: {error}"),
-        };
-        self.open_window_on(mt, place);
+    /// Opens a window for profile `id`, as the user asks: on its most
+    /// recent space, or with none, on the profile. Fails if the profile is
+    /// gone.
+    pub fn open_window_for_profile(
+        self: &Rc<Self>,
+        mt: MainThread,
+        id: String,
+    ) -> Result<(), String> {
+        if !mt.profile_list().iter().any(|profile| profile.id == id) {
+            return Err("That profile is gone.".to_owned());
+        }
+        match self.db.recent_space(&id) {
+            Ok(Some(space)) => self.open_window_on(mt, Place::Space(space.id)),
+            Ok(None) => self.open_window_on(
+                mt,
+                Place::Profile {
+                    id,
+                    off_the_record: false,
+                },
+            ),
+            Err(error) => eprintln!("Wren could not read the spaces: {error}"),
+        }
+        self.analytics.record(Event::ProfileWindowOpened);
+        Ok(())
     }
 
     /// New Incognito Window: on the off-the-record side of `window`'s
@@ -387,18 +400,18 @@ impl State {
             browser.close(|_| {});
             return;
         }
-        let of_profile = |space: &SpaceId| self.is_space_of(*space, &profile);
+        let of_profile = |space: &SpaceId| spaces::is_of(self, *space, &profile);
         let space = opener
             .and_then(|opener| self.windows.of(&opener)?.space_opened_from(&opener))
             .filter(of_profile)
             .or_else(|| self.windows.front()?.space().filter(of_profile))
-            .or_else(|| self.recent_space(mt, &profile));
+            .or_else(|| spaces::recent(self, mt, &profile));
         let place = space.map_or_else(|| Place::of_profile(&profile), Place::Space);
         placeholder::adopt(&browser);
         if self.host_opened(mt, &browser, place, self.windows.waiting())
             && let Some(space) = space
         {
-            self.touch_space(space);
+            spaces::touch(self, space);
         }
     }
 

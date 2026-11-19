@@ -11,6 +11,7 @@ use wren::{
 use super::{enabled, set_icon_menu};
 use crate::app::State;
 use crate::db::SpaceId;
+use crate::spaces;
 
 pub const NEW_WINDOW: &str = "new-window";
 pub const NEW_INCOGNITO_WINDOW: &str = "new-incognito-window";
@@ -84,7 +85,7 @@ pub fn update_main_menu(state: &State, mt: MainThread) {
     state.menu_front.set(front);
     let updates = state.updates.available();
     let default = state.default_browser.get();
-    set_main_menu(mt, &state.ordered_spaces(mt), front, updates, default);
+    set_main_menu(mt, &spaces::ordered(state, mt), front, updates, default);
 }
 
 /// Greys out the main menu's items the window in front does not allow,
@@ -97,7 +98,7 @@ pub fn update_front_menu(state: &State, mt: MainThread) {
     }
     let front = front_menu(state);
     if state.menu_front.replace(front) != front {
-        enable_front(mt, &state.ordered_spaces(mt), front);
+        enable_front(mt, &spaces::ordered(state, mt), front);
     }
 }
 

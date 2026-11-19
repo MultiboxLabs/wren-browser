@@ -1,20 +1,13 @@
-// The user's settings (db/settings.rs), which the Library shows and changes;
-// `settings.changed` tells every window of a change. A shorter time to
-// archive tabs after archives those it makes due at once, and the updater
-// follows Automatic Updates and Beta Updates. Analytics hears of each
-// setting the user changes, once it may.
+// The user's settings, which the Library shows and changes (settings.rs
+// does what follows a change); `settings.changed` tells every window of
+// one.
 
-use serde::Serialize;
-use serde_json::Value;
-
-use wren::{MainThread, WebView};
+use wren::WebView;
 
 use super::WindowRef;
-use crate::analytics::{Event, Setting};
 use crate::app::State;
-use crate::db::{AddressBar, Settings, SettingsChange};
-use crate::profiles::filling::{self, Filler};
-use crate::tabs::archive;
+use crate::db::{Settings, SettingsChange};
+use crate::settings;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
@@ -24,75 +17,8 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();
     let _ = web_view.handle("settings.update", move |change: SettingsChange| {
         let state = weak.state()?;
-        let changed = changed(&change);
-        let fillers = [
-            (Filler::PasswordManager, change.password_manager),
-            (Filler::Autofill, change.autofill),
-        ];
-        let updates = change.automatic_updates.is_some() || change.beta_updates.is_some();
-        let beta_was = state.db.settings()?.beta_updates;
-        let settings = state.db.update_settings(change)?;
-        if updates {
-            state.updates.settings_changed(&settings, beta_was);
-        }
-        if let Some(mt) = MainThread::get() {
-            for (filler, on) in fillers {
-                if let Some(on) = on {
-                    filling::set(mt, filler, on);
-                }
-            }
-        }
-        state.analytics.set_on(settings.share_usage_data);
-        for (setting, value) in changed {
-            state
-                .analytics
-                .record(Event::SettingChanged { setting, value });
-        }
-        broadcast_settings(&state, &settings);
-        archive::archive_due(&state);
-        Ok::<Settings, String>(settings)
+        settings::update(&state, change)
     });
-}
-
-// The settings the user changes in `change`, with what each is now. Not the
-// favourites' tip, which the user closes, not chooses.
-fn changed(change: &SettingsChange) -> Vec<(Setting, Value)> {
-    fn value(value: impl Serialize) -> Value {
-        serde_json::to_value(value).unwrap_or_default()
-    }
-    [
-        change
-            .archive_after
-            .map(|after| (Setting::ArchiveAfter, value(after))),
-        change
-            .automatic_updates
-            .map(|on| (Setting::AutomaticUpdates, value(on))),
-        change
-            .beta_updates
-            .map(|on| (Setting::BetaUpdates, value(on))),
-        change
-            .share_usage_data
-            .map(|on| (Setting::ShareUsageData, value(on))),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-/// Moves the address to the other place, atop the sidebar or atop the page
-/// (the main menu's Toggle Address Bar), and tells every window.
-pub fn toggle_address_bar(state: &State) -> Result<(), String> {
-    let address_bar = match state.db.settings()?.address_bar {
-        AddressBar::Sidebar => AddressBar::Top,
-        AddressBar::Top => AddressBar::Sidebar,
-    };
-    let change = SettingsChange {
-        address_bar: Some(address_bar),
-        ..SettingsChange::default()
-    };
-    let settings = state.db.update_settings(change)?;
-    broadcast_settings(state, &settings);
-    Ok(())
 }
 
 /// Tells every window the settings as they are now.

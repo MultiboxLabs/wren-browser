@@ -26,6 +26,7 @@ use crate::menus;
 use crate::perf::Perf;
 use crate::platform::PageWindow;
 use crate::profiles::filling;
+use crate::spaces;
 use crate::tabs;
 use crate::updates::{self, Updates};
 use crate::windows::mini_wren::MiniWrens;
@@ -68,7 +69,7 @@ pub struct State {
     /// browses in has its Browser (windows/show_page.rs).
     pub(crate) held_pages: RefCell<Vec<String>>,
     /// Whether Wren is the default browser, as macOS said last; none before
-    /// it says (windows/mod.rs).
+    /// it says (settings.rs).
     pub(crate) default_browser: Cell<Option<DefaultBrowserState>>,
 }
 
@@ -144,7 +145,7 @@ impl State {
         mt.open_profile(None, move |result| match result {
             Ok(profile) => {
                 if state.db.sync_profiles(&mt.profile_list()) {
-                    ipc::broadcast_spaces(&state);
+                    spaces::changed(&state);
                 }
                 // A kept window on a profile deleted since goes.
                 state.leave_gone_profiles(mt);

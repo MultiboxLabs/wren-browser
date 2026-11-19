@@ -5,12 +5,12 @@
 
 use std::rc::Rc;
 
-use wren::{Browser, Error, MainThread};
+use wren::{Browser, MainThread};
 
-use crate::analytics::Event;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
+use crate::spaces;
 use crate::windows::{BrowserWindow, Place, WindowId};
 
 impl State {
@@ -30,7 +30,7 @@ impl State {
         leave_front(&window);
         let front = window.switch_to(space);
         self.save_window(&window);
-        self.touch_space(space);
+        spaces::touch(self, space);
         match front {
             Some(browser) => {
                 ipc::send_browser(&window, &browser);
@@ -68,7 +68,7 @@ impl State {
         };
         let space = match self.db.space(left)? {
             Some(_) => left,
-            None => self.space_left(None)?,
+            None => spaces::left(self, None)?,
         };
         self.show_space(id, space)
     }
@@ -100,69 +100,17 @@ impl State {
         window.page.bring_forward();
     }
 
-    /// Deletes `space` once its Browsers, in every window, have closed with
-    /// their tabs, all or none: a page's "Leave site?" asks first, its window
-    /// switching to the space to show it (`bring_forward`), and Stay keeps
-    /// the space. Then each window on it switches to the most recently used
-    /// space of its profile left. `done` hears how it ended. The app's last
-    /// space is refused before anything closes.
-    pub fn delete_space(
-        self: &Rc<Self>,
-        space: SpaceId,
-        done: impl FnOnce(Result<(), String>) + 'static,
-    ) {
-        let profile = match self.db.space(space) {
-            Ok(Some(row)) => row.profile,
-            Ok(None) => return done(Err("That space is gone.".into())),
-            Err(error) => return done(Err(error)),
-        };
-        match self.db.list_spaces() {
-            Ok(spaces) if spaces.len() <= 1 => {
-                return done(Err("Wren needs at least one space.".into()));
-            }
-            Ok(_) => {}
-            Err(error) => return done(Err(error)),
-        }
-        let place = Place::Space(space);
-        let browsers: Vec<Browser> = self
-            .windows
-            .all()
-            .iter()
-            .filter_map(|window| window.browser_of(&place))
-            .collect();
-        let state = Rc::downgrade(self);
-        let delete = move || {
-            let state = state.upgrade().ok_or("Wren is quitting.")?;
-            state.db.delete_space(space)?;
-            state.analytics.record(Event::SpaceDeleted);
-            state.leave_gone_spaces(Some(&profile));
-            ipc::broadcast_spaces(&state);
-            Ok(())
-        };
-        if browsers.is_empty() {
-            return done(delete());
-        }
-        Browser::close_all(&browsers, move |result| {
-            done(match result {
-                Ok(()) => delete(),
-                Err(Error::Cancelled) => Err("A page kept the space open.".into()),
-                Err(error) => Err(format!("Wren could not close the space's tabs: {error:?}")),
-            })
-        });
-    }
-
     /// Spaces were deleted, one alone or a profile's with it: each window
     /// on one switches to the most recently used space left, of `profile`
     /// if given (the deleted space's), and its Browsers of those spaces
     /// close with their tabs. A space deleted alone has none left
-    /// (`delete_space`); a profile's closed with the profile.
+    /// (`spaces::delete`); a profile's closed with the profile.
     pub fn leave_gone_spaces(&self, profile: Option<&str>) {
         let exists = |space| matches!(self.db.space(space), Ok(Some(_)));
         for window in self.windows.all() {
             if window.space().is_some_and(|current| !exists(current)) {
-                let shown = self
-                    .space_left(profile)
-                    .and_then(|next| self.show_space(window.id, next));
+                let shown =
+                    spaces::left(self, profile).and_then(|next| self.show_space(window.id, next));
                 if let Err(error) = shown {
                     eprintln!("Wren could not leave a deleted space: {error}");
                 }
@@ -198,21 +146,6 @@ impl State {
                 super::close_window(self, mt, window.id);
             }
         }
-    }
-
-    // The space to go to from a deleted one: `profile`'s most recently
-    // used, or with none, the most recently used of all.
-    fn space_left(&self, profile: Option<&str>) -> Result<SpaceId, String> {
-        let of_profile = match profile {
-            Some(profile) => self.db.recent_space(profile)?,
-            None => None,
-        };
-        let next = match of_profile {
-            Some(space) => Some(space),
-            None => self.db.most_recent_space()?,
-        };
-        next.map(|space| space.id)
-            .ok_or_else(|| "No space is left.".into())
     }
 }
 

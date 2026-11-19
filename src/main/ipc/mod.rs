@@ -70,7 +70,7 @@ pub use permission::{send_permission, show_permission_prompt};
 pub use pins::broadcast_pins;
 pub use profile_move::{ask_before_profile_move, forget_move_question};
 pub use quit::{OpenQuitPrompt, quit_window_closing, show_quit_prompt};
-pub use settings::{broadcast_settings, toggle_address_bar};
+pub use settings::broadcast_settings;
 pub use side_panel::send_side_panel;
 pub use sidebar::check_sidebar_hover;
 pub use site::send_site;
