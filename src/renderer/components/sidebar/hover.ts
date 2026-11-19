@@ -1,6 +1,6 @@
 // Whether the pointer is over the floating sidebar, or at the window's left
 // edge, which brings it out. The app works it out from each move it sees
-// (shell/sidebar_hover.rs): beyond the window's edge too, and never missing
+// (sidebar/hover.rs): beyond the window's edge too, and never missing
 // a quick move across it, as the page's own events would. The page gives it
 // the regions. With no app (the dev server), the page's own events over the
 // edge and the sidebar do it.

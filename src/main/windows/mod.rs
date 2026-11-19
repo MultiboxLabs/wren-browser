@@ -14,9 +14,12 @@
 // - session.rs: keeping the windows, so each comes back as it was;
 // - request.rs: what Chromium asks of a window, done.
 //
-// What a window is, and holds, is shell/'s: `BrowserWindow`
-// (shell/browser.rs), and the platform's window round its page.
+// What a window is, and holds, is window/'s: `BrowserWindow`, the places it
+// shows Browsers for and the tag each Browser carries. list.rs is the list
+// of the windows that are open. The window round a window's page is the
+// platform's (`platform::PageWindow`).
 
+mod list;
 mod mini_wren;
 mod move_tabs;
 mod open;
@@ -25,9 +28,12 @@ mod request;
 mod session;
 mod show_page;
 mod switch;
+mod window;
 
+pub use list::Windows;
 pub(crate) use mini_wren::HeldMiniWren;
 pub use session::keep_session_data;
+pub use window::{BrowserWindow, MiniWren, Place, Tag, WindowId, marks};
 
 use std::rc::Rc;
 
@@ -37,7 +43,6 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
 use crate::menus;
-use crate::shell::{BrowserWindow, Place};
 
 impl State {
     /// The profile's most recently used space, if it has one. A profile

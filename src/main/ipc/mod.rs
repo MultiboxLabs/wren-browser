@@ -2,7 +2,8 @@
 // the messages the app sends it (`wren.on`): one file for each part of the
 // app; the onboarding window's (onboarding.rs); and wren://migrate's, which
 // come through Wren Components (migrate.rs). src/renderer/ipc/ is
-// the page's side; keep the two together.
+// the page's side; keep the two together. What a window's page has been
+// told of its tabs is told.rs's.
 
 mod ad_block;
 mod analytics;
@@ -33,6 +34,7 @@ mod splits;
 mod tab_switcher;
 mod tabs;
 mod toast;
+mod told;
 mod update;
 mod window;
 
@@ -43,8 +45,8 @@ use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
-use crate::shell::{BrowserWindow, WindowId};
 use crate::tabs::is_new_tab;
+use crate::windows::{BrowserWindow, WindowId};
 
 pub use ad_block::broadcast_ad_block;
 pub use anchors::send_anchors;
@@ -73,6 +75,7 @@ pub use spaces::broadcast_spaces;
 pub use tab_switcher::watch_tab_switcher_keys;
 pub use tabs::{TabChanges, send_no_tabs_for, send_tabs};
 pub use toast::{OwnToast, send_toast, show_toast};
+pub use told::PageTabs;
 pub use update::{broadcast_update, send_open_update};
 pub use window::{
     send_blocked, send_choose_space, send_full_screen, send_new_tab_page, show_active,

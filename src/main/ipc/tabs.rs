@@ -17,10 +17,10 @@ use super::splits::Split;
 use super::window::page_space;
 use super::{WindowRef, with_window};
 use crate::db::{PinId, SpaceId};
-use crate::items::carry;
 use crate::pins;
-use crate::shell::{BrowserWindow, Place};
+use crate::sidebar::items::carry;
 use crate::tabs::roles::{self, Role};
+use crate::windows::{BrowserWindow, Place};
 
 /// A tab as the sidebar draws it.
 #[derive(Serialize)]
@@ -59,7 +59,7 @@ pub struct Tab {
     split: Option<String>,
     /// Where the page draws it.
     role: PageRole,
-    /// What a drag of it to another window names it by (items/carry.rs).
+    /// What a drag of it to another window names it by (sidebar/items/carry.rs).
     carry: Option<String>,
 }
 
@@ -206,7 +206,7 @@ impl TabChanges {
     }
 
     /// Hears that the app changed a field of `tab` itself, which Chromium
-    /// does not tell of: its token, renewed (items/carry.rs).
+    /// does not tell of: its token, renewed (sidebar/items/carry.rs).
     pub fn hear_tab(&mut self, tab: BrowserTab) {
         if !self.changed.contains(&tab) {
             self.changed.push(tab);

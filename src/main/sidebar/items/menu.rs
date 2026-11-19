@@ -15,8 +15,8 @@ use crate::clipboard;
 use crate::db::{PinId, PinKind, PinPage, PinPlace, PinRow, SpaceId};
 use crate::menus::{self, item as command};
 use crate::pins;
-use crate::shell::{Place, WindowId};
 use crate::tabs;
+use crate::windows::{Place, WindowId};
 
 /// The item a menu is for, in the window it was asked in.
 pub struct Subject {

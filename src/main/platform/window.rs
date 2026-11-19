@@ -1,7 +1,7 @@
 // The app's own windows: a window showing one page in a web view (a browser
 // window, or a Mini Wren), and the window of Chromium's undocked DevTools.
-// What a browser window holds is shell/'s, and what the app does with its
-// windows is windows/'s.
+// What a browser window holds, and what the app does with its windows, is
+// windows/'s.
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;

@@ -9,7 +9,7 @@ use wren::{Browser, Error, Popover, PopoverKind, ToastOptions, WebView};
 
 use super::{WindowRef, failed, with_browser};
 use crate::pages::icons;
-use crate::shell::BrowserWindow;
+use crate::windows::BrowserWindow;
 
 /// The app's own toasts.
 #[derive(Clone, Copy)]

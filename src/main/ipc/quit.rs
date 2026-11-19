@@ -11,7 +11,7 @@ use wren::{MainThread, PopoverAnswer, QuitPrompt, WebView};
 
 use super::{WindowRef, give_back_keyboard, with_window};
 use crate::app::State;
-use crate::shell::WindowId;
+use crate::windows::WindowId;
 
 /// The prompt open, and the window whose page asks it.
 pub struct OpenQuitPrompt {

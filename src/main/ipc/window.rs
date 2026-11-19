@@ -8,7 +8,7 @@ use crate::analytics::Event;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::platform::PageWindow;
-use crate::shell::{BrowserWindow, Place};
+use crate::windows::{BrowserWindow, Place};
 
 /// The space the page draws for a window on a profile, made up, as no space
 /// of the database has ID 0. Its tabs are this space's.

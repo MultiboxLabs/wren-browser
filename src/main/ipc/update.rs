@@ -8,8 +8,8 @@ use wren::{MainThread, WebView};
 
 use super::WindowRef;
 use crate::app::State;
-use crate::shell::BrowserWindow;
 use crate::updates::Shown;
+use crate::windows::BrowserWindow;
 
 /// The update as the window's page first reads it.
 #[derive(Serialize)]

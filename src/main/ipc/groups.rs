@@ -2,8 +2,8 @@ use serde::Serialize;
 use wren::{Browser, MainThread, TabGroup, TabGroupColor, WebView};
 
 use super::{WindowRef, failed, with_browser};
-use crate::items::carry;
 use crate::menus;
+use crate::sidebar::items::carry;
 use crate::tabs;
 
 /// A tab group, as the sidebar heads its tabs.
@@ -15,7 +15,7 @@ pub struct Group {
     /// Chromium's name for its colour: "grey", "blue", ...
     color: &'static str,
     collapsed: bool,
-    /// What a drag of it to another window names it by (items/carry.rs).
+    /// What a drag of it to another window names it by (sidebar/items/carry.rs).
     carry: Option<String>,
 }
 

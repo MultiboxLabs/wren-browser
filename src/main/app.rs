@@ -15,11 +15,11 @@ use crate::analytics::{self, Analytics, Event};
 use crate::changes;
 use crate::channel::Channel;
 use crate::db::Db;
+use crate::db::SidebarStore;
 use crate::extensions::{ad_block, components};
 use crate::filling;
 use crate::import;
 use crate::ipc::{self, OmniboxTarget, OwnToast};
-use crate::items;
 use crate::menus;
 use crate::pages::{self, SCHEME, Source, serve_page};
 use crate::perf::Perf;
@@ -28,11 +28,11 @@ use crate::platform::{
     DevToolsWindow, GlobalShortcut, KeyWatch, PageWindow, QUITS_WITH_LAST_WINDOW, RunningApp,
     close_other_key_window,
 };
-use crate::shell::{BrowserWindow, WindowId, Windows};
-use crate::sidebar::SidebarStore;
+use crate::sidebar::items;
 use crate::tabs::{self, placeholder};
 use crate::updates::{self, Updates};
 use crate::windows::{self, HeldMiniWren};
+use crate::windows::{BrowserWindow, WindowId, Windows};
 
 // What the app holds, shared with the closures it hands Wren.
 pub struct State {

@@ -1,7 +1,7 @@
 use wren::{Browser, WebView};
 
 use super::{WindowRef, with_browser};
-use crate::shell::{BrowserWindow, marks};
+use crate::windows::{BrowserWindow, marks};
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
     // The page's marks that one of Chromium's bubbles hangs off now, so

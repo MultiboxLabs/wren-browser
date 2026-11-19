@@ -30,7 +30,7 @@ use super::{MiniWrenPosition, PAGE_SIZE, TOOLBAR};
 use crate::app::State;
 use crate::menus;
 use crate::platform::{self, GlobalShortcut, RunningApp};
-use crate::shell::{BrowserWindow, Place, WindowId};
+use crate::windows::{BrowserWindow, Place, WindowId};
 
 /// Chromium's New Tab page, where an empty Mini Wren opens.
 const NEW_TAB_PAGE: &str = "chrome://newtab/";

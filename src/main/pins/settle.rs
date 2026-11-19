@@ -11,9 +11,9 @@ use super::open::{self, Kept, Opening};
 use super::{is_away, pin_for};
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinRow};
-use crate::shell::Place;
 use crate::tabs;
 use crate::tabs::roles::{self, Role};
+use crate::windows::Place;
 
 /// Settles the Browser's pins after `change`, one of its tabs' changes,
 /// and answers whether any tab's role changed with it, so that the page is

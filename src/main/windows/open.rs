@@ -16,8 +16,8 @@ use crate::ipc::{self, WindowRef};
 use crate::pages::UI;
 use crate::perf::PageCounts;
 use crate::platform::{PageWindow, WindowKind, WindowSize};
-use crate::shell::{BrowserWindow, MiniWren, Place, WindowId};
 use crate::tabs::placeholder;
+use crate::windows::{BrowserWindow, MiniWren, Place, WindowId};
 
 /// A browser window's size when nothing gives it one.
 const WINDOW_SIZE: (f64, f64) = (1280.0, 800.0);

@@ -15,8 +15,8 @@ use wren::{Browser, Error, MainThread, Profile, ProfileKind, RequestedBounds};
 
 use crate::app::State;
 use crate::db::{SavedWindow, WindowFrame};
-use crate::shell::{BrowserWindow, Place, Tag};
 use crate::tabs::placeholder;
+use crate::windows::{BrowserWindow, Place, Tag};
 
 /// Has a profile Chromium loaded (`ChangeKind::ProfileOpened`) keep its
 /// session data for the next restore. A profile reads the setting as it

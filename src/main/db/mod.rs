@@ -3,7 +3,8 @@
 // profiles' favourites, the windows open at quit, the user's settings, what
 // analytics keeps between runs, whether the user has been through
 // onboarding, and the size the user last gave a Mini Wren.
-// It is used on the main thread only, and its methods take `&self`.
+// It is used on the main thread only, and its methods take `&self`. The
+// sidebar's state is kept in a file beside it (sidebar.rs).
 
 mod analytics;
 mod imports;
@@ -13,6 +14,7 @@ mod onboarding;
 mod pins;
 mod profiles;
 mod settings;
+mod sidebar;
 mod spaces;
 mod theme;
 mod windows;
@@ -30,6 +32,7 @@ pub use onboarding::FirstSpace;
 pub use pins::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow};
 pub use profiles::avatar;
 pub use settings::{AddressBar, Settings, SettingsChange};
+pub use sidebar::{SidebarState, SidebarStore};
 pub use spaces::{DEFAULT_ICON, NewSpace, SpaceChange, SpaceId, SpaceRow};
 pub use theme::{Appearance, Hsb, SpaceTheme};
 pub use windows::{SavedWindow, WindowFrame};

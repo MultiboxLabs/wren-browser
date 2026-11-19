@@ -15,7 +15,7 @@ use wren::{
 
 use super::{WindowRef, failed, with_browser};
 use crate::app::State;
-use crate::shell::BrowserWindow;
+use crate::windows::BrowserWindow;
 
 /// The open request, as the page draws it.
 #[derive(Serialize)]

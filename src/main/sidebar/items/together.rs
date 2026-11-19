@@ -19,8 +19,8 @@ use super::{
 use crate::app::State;
 use crate::db::{PinId, PinKind, PinPlace};
 use crate::pins::{self, PinTarget};
-use crate::shell::{Place, WindowId};
 use crate::tabs;
+use crate::windows::{Place, WindowId};
 
 type Done = Box<dyn FnOnce(Result<Vec<Moved>, String>)>;
 

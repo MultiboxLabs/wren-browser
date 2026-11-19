@@ -16,8 +16,8 @@ use std::rc::Rc;
 use wren::{Browser, BrowserTab, Error, MainThread};
 
 use crate::app::State;
-use crate::shell::{Place, WindowId};
 use crate::tabs;
+use crate::windows::{Place, WindowId};
 
 impl State {
     /// Brings `moving`, all of one Browser of any window, to window `id`'s

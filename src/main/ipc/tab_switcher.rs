@@ -15,7 +15,7 @@ use super::WindowRef;
 use crate::analytics::Event;
 use crate::app::State;
 use crate::platform::{Key, KeyWatch};
-use crate::shell::BrowserWindow;
+use crate::windows::BrowserWindow;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
     let weak = window.clone();

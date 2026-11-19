@@ -9,7 +9,7 @@ use wren::{Browser, MainThread};
 use super::{Destination, ItemRef, Listed, listed, moving, place_of};
 use crate::app::State;
 use crate::db::SpaceId;
-use crate::shell::{Place, WindowId};
+use crate::windows::{Place, WindowId};
 
 /// What a move makes again in another profile, tabs of the list or a Mini
 /// Wren's page, as the page asks about it.

@@ -11,7 +11,7 @@ use crate::app::State;
 use crate::db::{PinId, PinKind, PinLayout, PinPage, PinRow, SpaceId};
 use crate::pages::icons;
 use crate::pins;
-use crate::shell::Place;
+use crate::windows::Place;
 
 /// A pin as the page draws it.
 #[derive(Serialize)]

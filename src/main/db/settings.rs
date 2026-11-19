@@ -48,7 +48,7 @@ pub struct Settings {
     /// in its card (components/tab-view.tsx).
     pub address_bar: AddressBar,
     /// Wren asks before tabs go to another profile's space, where they are
-    /// made again without their history (items/crossing.rs).
+    /// made again without their history (sidebar/items/crossing.rs).
     pub ask_before_profile_move: bool,
 }
 

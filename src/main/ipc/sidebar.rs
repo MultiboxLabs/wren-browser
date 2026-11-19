@@ -2,8 +2,9 @@ use wren::WebView;
 
 use super::{WindowRef, with_window};
 use crate::analytics::Event;
-use crate::shell::{BrowserWindow, SidebarRegions};
-use crate::sidebar::SidebarState;
+use crate::db::SidebarState;
+use crate::sidebar::hover::SidebarRegions;
+use crate::windows::BrowserWindow;
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
     // The sidebar's state as it was saved, or null; the page saves it when
@@ -34,7 +35,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef) {
     });
 
     // Where the pointer brings the sidebar out and keeps it out
-    // (shell/sidebar_hover.rs), as the window's size or the sidebar change.
+    // (sidebar/hover.rs), as the window's size or the sidebar change.
     // Answers whether the pointer is over now; "sidebar.hovered" says when
     // that changes.
     let weak = window.clone();

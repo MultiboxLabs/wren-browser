@@ -25,9 +25,9 @@ use wren::{Browser, BrowserTab, Error, MainThread, SplitLayout, SplitState, TabG
 
 use crate::app::State;
 use crate::db::{NewPin, PinId, PinKind, PinLayout, PinPage, PinPlace, PinRow, SpaceId};
-use crate::shell::{BrowserWindow, Place};
 use crate::tabs;
 use crate::tabs::roles;
+use crate::windows::{BrowserWindow, Place};
 
 /// Where a pin goes, as the page and the menus name it: the favourites of
 /// the place's profile, or the place's space's pins.

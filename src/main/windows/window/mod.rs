@@ -11,6 +11,12 @@
 // on its profile's place. It is never kept,
 // and is not the window the user browses in (`Windows::front`).
 
+mod place;
+mod tag;
+
+pub use place::Place;
+pub use tag::Tag;
+
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -18,14 +24,12 @@ use std::rc::Rc;
 use serde::Serialize;
 use wren::{Browser, BrowserTab, BubbleAnchor, Error, RequestedBounds, WindowState};
 
-use super::Place;
-use super::page_tabs::PageTabs;
-use super::sidebar_hover::SidebarHover;
-use super::tag::Tag;
 use crate::db::SpaceId;
 use crate::downloads;
+use crate::ipc::PageTabs;
 use crate::perf::PageCounts;
 use crate::platform::PageWindow;
+use crate::sidebar::hover::SidebarHover;
 use crate::tabs::placeholder;
 
 /// The page's mark on its page info button, which the site's bubbles (page

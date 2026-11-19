@@ -1,5 +1,5 @@
 // Asking before tabs go to another profile, where they are made again
-// without their history (items/crossing.rs): a drop of tabs of the list
+// without their history (sidebar/items/crossing.rs): a drop of tabs of the list
 // (items.rs), or a Mini Wren's page opened as a tab
 // (windows/mini_wren/as_tab.rs). The page of the window it happens in asks
 // ("profileMove.ask", components/profile-move-dialog.tsx), and the move
@@ -14,8 +14,8 @@ use wren::WebView;
 
 use super::{WindowRef, give_back_keyboard, with_window};
 use crate::app::State;
-use crate::items::Crossing;
-use crate::shell::WindowId;
+use crate::sidebar::items::Crossing;
+use crate::windows::WindowId;
 
 /// A move waiting for the page's answer: it goes if the answer is yes.
 type Waiting = Box<dyn FnOnce(bool)>;

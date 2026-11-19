@@ -18,8 +18,8 @@ use wren::{Browser, BrowserTab, Error, ProfileKind, SplitLayout};
 use super::pin_layout;
 use crate::app::State;
 use crate::db::{PinId, PinPage, PinPlace, SpaceId};
-use crate::shell::Place;
 use crate::tabs::roles::{self, Claim};
+use crate::windows::Place;
 
 /// Whose an open pin is: the favourites of a profile, which every place of
 /// that profile shows, or the pins of one space.

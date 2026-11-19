@@ -9,8 +9,8 @@ use wren::{Browser, BrowserTab, MainThread, TabStatus, WebView};
 use super::{WindowRef, failed, with_browser, with_window};
 use crate::analytics::{Event, TabFrom};
 use crate::clipboard;
-use crate::shell::BrowserWindow;
 use crate::tabs;
+use crate::windows::BrowserWindow;
 
 /// What "tabs.previewChanged" says: a new picture of a tab's page.
 #[derive(Serialize)]

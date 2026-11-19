@@ -20,7 +20,7 @@ use crate::app::State;
 use crate::db::Settings;
 use crate::ipc::{self, OwnToast};
 use crate::platform::{Updater, UpdaterOptions, UpdaterState};
-use crate::shell::WindowId;
+use crate::windows::WindowId;
 
 /// The version that runs: `Cargo.toml`'s, which a release sets along with the
 /// manifests' (scripts/publish.ts).

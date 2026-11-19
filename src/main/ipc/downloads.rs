@@ -17,7 +17,7 @@ use super::{MenuAt, WindowRef, failed, menu_call, with_browser};
 use crate::app::State;
 use crate::downloads::{self, Indicator, thumbnails};
 use crate::menus;
-use crate::shell::{BrowserWindow, WindowId};
+use crate::windows::{BrowserWindow, WindowId};
 
 /// What `downloads.perform` takes.
 #[derive(Deserialize)]

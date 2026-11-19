@@ -33,8 +33,8 @@ use wren::{Browser, BrowserTab, MainThread, TabGroup};
 use crate::app::State;
 use crate::db::{PinId, SpaceId};
 use crate::pins::{self, PinTarget};
-use crate::shell::{Place, WindowId};
 use crate::tabs;
+use crate::windows::{Place, WindowId};
 
 /// An item, as the page names it: a tab of the list, which stands for its
 /// split if it is in one; a group, by its ID, which Chromium keeps as the

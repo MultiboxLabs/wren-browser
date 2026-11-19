@@ -6,7 +6,7 @@
 // rows marked together, of the list or of the pins, have what acts on them
 // all, and nothing that is about one page.
 //
-// What is chosen is done by items/menu.rs, which also finds the item
+// What is chosen is done by sidebar/items/menu.rs, which also finds the item
 // (`Subject`).
 
 use wren::{BrowserTab, MenuItem, SplitLayout, TabGroup};
@@ -14,10 +14,10 @@ use wren::{BrowserTab, MenuItem, SplitLayout, TabGroup};
 use super::enabled;
 use super::group::{color_items, group_name};
 use crate::db::PinId;
-use crate::items::menu::{Subject, What};
 use crate::pins;
-use crate::shell::Place;
+use crate::sidebar::items::menu::{Subject, What};
 use crate::tabs;
+use crate::windows::Place;
 
 pub const OPEN: &str = "open";
 pub const RELOAD: &str = "reload";

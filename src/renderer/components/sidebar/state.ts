@@ -1,5 +1,5 @@
 // The sidebar's state between runs. The page's own storage is thrown away
-// with its Profile, so the app keeps it (src/main/sidebar.rs).
+// with its Profile, so the app keeps it (src/main/db/sidebar.rs).
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hasApp, sidebar, type SidebarState } from "@/ipc";

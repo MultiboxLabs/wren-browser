@@ -28,8 +28,8 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
 use crate::platform::Backdrop;
-use crate::shell::{BrowserWindow, MiniWren, Place, WindowId};
 use crate::tabs;
+use crate::windows::{BrowserWindow, MiniWren, Place, WindowId};
 
 /// The height of a Mini Wren's toolbar, in points, which the page draws
 /// above its page (pages/ui/mini-wren.tsx). The size a page asks for is its

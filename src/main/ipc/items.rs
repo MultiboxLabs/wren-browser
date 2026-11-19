@@ -18,11 +18,11 @@ use super::{WindowRef, profile_move};
 use crate::analytics::{self, Event, SplitFrom, TabFrom};
 use crate::app::State;
 use crate::db::PinId;
-use crate::items::menu::Subject;
-use crate::items::{self, Added, Destination, ItemRef, Moved, carry};
 use crate::menus;
 use crate::pins::PinTarget;
-use crate::shell::WindowId;
+use crate::sidebar::items::menu::Subject;
+use crate::sidebar::items::{self, Added, Destination, ItemRef, Moved, carry};
+use crate::windows::WindowId;
 
 #[derive(Deserialize)]
 struct Move {
@@ -31,7 +31,7 @@ struct Move {
 }
 
 /// An item a move names: as the page knows it, or, dropped from another
-/// window's sidebar, by the token its drag carried (items/carry.rs).
+/// window's sidebar, by the token its drag carried (sidebar/items/carry.rs).
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum Moving {
@@ -119,7 +119,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 
     // A drag of the sidebar's items ended, wherever it was dropped: the
-    // tokens it carried name nothing once it is over (items/carry.rs).
+    // tokens it carried name nothing once it is over (sidebar/items/carry.rs).
     let weak = window.clone();
     let _ = web_view.handle("items.dragEnded", move |tokens: Vec<String>| {
         let state = weak.state()?;

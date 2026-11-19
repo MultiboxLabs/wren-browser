@@ -11,7 +11,7 @@ use crate::analytics::Event;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
-use crate::shell::{BrowserWindow, Place, WindowId};
+use crate::windows::{BrowserWindow, Place, WindowId};
 
 impl State {
     /// Brings `space` forward in window `id`: its Browser if the window has

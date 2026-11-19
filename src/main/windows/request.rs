@@ -7,7 +7,7 @@
 use wren::{Browser, RequestedBounds, WindowRequest, WindowState};
 
 use crate::app::State;
-use crate::shell::BrowserWindow;
+use crate::windows::BrowserWindow;
 
 impl State {
     /// Does what Chromium asked of `browser`'s window. A window shows one

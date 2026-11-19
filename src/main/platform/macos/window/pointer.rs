@@ -74,7 +74,7 @@ impl PageWindow {
 }
 
 // Runs `moved` on each of the app's pointer moves and drags, and as a button
-// comes up, which may end a hold on the sidebar (shell/sidebar_hover.rs),
+// comes up, which may end a hold on the sidebar (sidebar/hover.rs),
 // until the monitor is removed.
 fn add_monitor(moved: Rc<dyn Fn()>) -> Option<Retained<AnyObject>> {
     let block = RcBlock::new(move |event: NonNull<NSEvent>| -> *mut NSEvent {

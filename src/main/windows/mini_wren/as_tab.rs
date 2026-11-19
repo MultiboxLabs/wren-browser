@@ -8,8 +8,9 @@ use wren::{BrowserTab, MainThread, Profile};
 
 use crate::app::State;
 use crate::db::SpaceId;
-use crate::shell::{BrowserWindow, Place, WindowId};
-use crate::{ipc, items, tabs};
+use crate::sidebar::items;
+use crate::windows::{BrowserWindow, Place, WindowId};
+use crate::{ipc, tabs};
 
 impl State {
     /// Moves the page of Mini Wren `id` to a new tab, at the top of the
