@@ -43,19 +43,19 @@ const SPACE_GAP = 24;
 /** How far apart two spaces' content is side by side: the sidebar's width, and the room between. */
 export const spacing = (sidebar: HTMLElement) => sidebar.clientWidth + SPACE_GAP;
 
-const out = { duration: 0.08, ease: "easeIn" } as const;
+const out = { duration: 0.068, ease: "easeIn" } as const;
 // A space chosen glides to it as a press wants: from still, critically
-// damped, with a response of 0.25s, so it never goes past.
-const PRESS_RESPONSE = 0.25;
+// damped, with a response of 0.2125s, so it never goes past.
+const PRESS_RESPONSE = 0.2125;
 const spring = {
   type: "spring",
   stiffness: ((2 * Math.PI) / PRESS_RESPONSE) ** 2,
   damping: (4 * Math.PI) / PRESS_RESPONSE,
   mass: 1
 } as const;
-// A swipe's glide: critically damped, with a response of 0.3s, so it
+// A swipe's glide: critically damped, with a response of 0.255s, so it
 // takes the fingers' speed and slows into place rather than snapping there.
-const RESPONSE = 0.3;
+const RESPONSE = 0.255;
 const glide = {
   type: "spring",
   stiffness: ((2 * Math.PI) / RESPONSE) ** 2,
