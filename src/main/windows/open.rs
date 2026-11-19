@@ -91,7 +91,7 @@ impl State {
         let weak = Rc::downgrade(self);
         let should_close = move || {
             if let Some(state) = weak.upgrade() {
-                state.close_window(mt, id);
+                super::close_window(&state, mt, id);
             }
             // The window goes as its Browsers close (`browser_closed`).
             false

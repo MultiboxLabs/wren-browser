@@ -3,11 +3,17 @@
 // alike. The app answers their requests with its own (`App::popover`), which
 // the page draws (pages/ui/toast.tsx); Chromium still decides when each goes.
 
+use std::rc::Rc;
+
 use serde::{Deserialize, Serialize};
 use wren::unstable_ui::UIText;
-use wren::{Browser, Error, Popover, PopoverKind, ToastOptions, WebView};
+use wren::{
+    Browser, Error, MainThread, Popover, PopoverAnswer, PopoverKind, PopoverRequest, ToastOptions,
+    WebView,
+};
 
 use super::{WindowRef, failed, with_browser};
+use crate::app::State;
 use crate::pages::icons;
 use crate::windows::BrowserWindow;
 
@@ -111,6 +117,41 @@ pub fn show_toast(browser: &Browser, toast: OwnToast) -> Result<(), Error> {
         name: Some(toast.name().into()),
         ..Default::default()
     })
+}
+
+/// Chromium's zoom bubble, for `App::popover`: the zoom is a toast of the
+/// app's instead ("110%"), one for each change, through the Browser's toast
+/// queue as the rest, once Chromium's call is over. Chromium's bubble does
+/// not show.
+pub fn show_zoom_bubble(mt: MainThread, request: &PopoverRequest) -> PopoverAnswer {
+    let browser = request.browser.clone();
+    mt.later(move |_| {
+        if let Ok(zoom) = browser.zoom_state() {
+            let _ = show_toast(&browser, OwnToast::Zoom(zoom.percent));
+        }
+    });
+    PopoverAnswer::None
+}
+
+/// A toast Chromium asks to show, its own or the app's, for `App::popover`:
+/// the page draws it, at the window's top right, and hears of it once
+/// Chromium's call is over, when the request is open.
+pub fn show_requested_toast(
+    state: &Rc<State>,
+    mt: MainThread,
+    request: &PopoverRequest,
+) -> PopoverAnswer {
+    let state = Rc::downgrade(state);
+    let browser = request.browser.clone();
+    mt.later(move |_| {
+        let Some(state) = state.upgrade() else { return };
+        if let Some(window) = state.windows.of(&browser)
+            && window.is_front(&browser)
+        {
+            send_toast(&window, &browser);
+        }
+    });
+    PopoverAnswer::App
 }
 
 /// Tells the page a toast came or went.

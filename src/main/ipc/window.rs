@@ -8,7 +8,7 @@ use crate::analytics::Event;
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::platform::PageWindow;
-use crate::windows::{BrowserWindow, Place};
+use crate::windows::{self, BrowserWindow, Place};
 
 /// The space the page draws for a window on a profile, made up, as no space
 /// of the database has ID 0. Its tabs are this space's.
@@ -118,7 +118,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // Closes the window, as its close button does.
     let weak = window.clone();
     let _ = web_view.handle("window.close", move |()| {
-        weak.state()?.close_window(mt, weak.id);
+        windows::close_window(&weak.state()?, mt, weak.id);
         Ok::<_, String>(())
     });
 

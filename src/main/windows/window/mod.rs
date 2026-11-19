@@ -306,8 +306,9 @@ impl BrowserWindow {
 
     /// Closes the window's Browsers, all or none, as a page's "Leave site?"
     /// may keep them open. The window goes as the last of them closes
-    /// (`App::browser_closed`), and then `closed` runs; if they stay, the
-    /// window stays as it was. A close asked again while one asks is let be.
+    /// (`browser_closed`, close.rs), and then `closed` runs; if they stay,
+    /// the window stays as it was. A close asked again while one asks is
+    /// let be.
     pub fn close_browsers(self: &Rc<Self>, closed: impl FnOnce() + 'static) {
         if self.closing.replace(true) {
             return;

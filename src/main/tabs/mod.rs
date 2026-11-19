@@ -19,13 +19,59 @@ pub mod roles;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use std::rc::Rc;
+
 use wren::{
-    Browser, BrowserTab, BrowserType, Error, MainThread, SplitLayout, TabGroup, TabSplit, TabState,
+    Browser, BrowserTab, BrowserType, Change, ChangeKind, Error, MainThread, SplitLayout,
+    TabFields, TabGroup, TabSplit, TabState,
 };
 
+use crate::analytics::{Crash, Event};
+use crate::app::State;
 use crate::clipboard;
 use crate::ipc::{self, OwnToast};
 use crate::menus;
+use crate::pins;
+use crate::sidebar::items;
+
+/// What follows a change to `browser`'s tabs, to one of them, or to a split
+/// (`change`). A placeholder goes, or stays, as the tabs change, and the
+/// pins' links follow them. A tab left for another has its picture taken,
+/// and one whose page changes has it go stale. The page is told of the tabs
+/// when a pin settled.
+pub fn changed(state: &Rc<State>, browser: &Browser, change: &Change) {
+    closes::settle(&state.analytics);
+    roles::forget_closed();
+    items::carry::forget_gone();
+    placeholder::settle(browser);
+    previews::follow_active(browser);
+    if let Some(tab) = change.tab
+        && change
+            .tab_fields
+            .intersects(TabFields::URL | TabFields::LOADING)
+    {
+        previews::page_changed(tab);
+    }
+    if pins::settle(state, browser, change)
+        && let Some(window) = state.windows.of(browser)
+    {
+        ipc::send_tabs(&window, browser);
+    }
+}
+
+/// Counts a tab whose page has just crashed, if `change` says one did.
+pub fn record_crash(state: &State, change: &Change) {
+    if change.kind != ChangeKind::Tab || !change.tab_fields.contains(TabFields::CRASHED) {
+        return;
+    }
+    let crash = change
+        .tab
+        .and_then(|tab| tab.state().ok())
+        .map(|tab| tab.crash);
+    if let Some(reason) = crash.and_then(Crash::of) {
+        state.analytics.record(Event::TabCrashed { reason });
+    }
+}
 
 /// When `tab` was last in use: what archiving counts from, and a pin's last
 /// use (pins/). Now while it is shown or its Browser's active tab, even in a

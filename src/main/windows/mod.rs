@@ -12,15 +12,20 @@
 // - switch.rs: switching a window between its spaces;
 // - move_tabs.rs: moving tabs from one of its spaces to another;
 // - session.rs: keeping the windows, so each comes back as it was;
-// - request.rs: what Chromium asks of a window, done.
+// - request.rs: what Chromium asks of a window, done;
+// - close.rs: the close button, ⌘W, and a window as one of its Browsers
+//   closes;
+// - devtools.rs: the window of Chromium's undocked DevTools.
 //
 // What a window is, and holds, is window/'s: `BrowserWindow`, the places it
 // shows Browsers for and the tag each Browser carries. list.rs is the list
 // of the windows that are open. The window round a window's page is the
 // platform's (`platform::PageWindow`).
 
+mod close;
+mod devtools;
 mod list;
-mod mini_wren;
+pub mod mini_wren;
 mod move_tabs;
 mod open;
 mod open_urls;
@@ -30,9 +35,12 @@ mod show_page;
 mod switch;
 mod window;
 
+pub use close::{browser_closed, close_tab, close_window};
+pub use devtools::DevTools;
 pub use list::Windows;
-pub(crate) use mini_wren::HeldMiniWren;
+pub use request::fullscreen;
 pub use session::keep_session_data;
+pub use switch::foreground_requested;
 pub use window::{BrowserWindow, MiniWren, Place, Tag, WindowId, marks};
 
 use std::rc::Rc;

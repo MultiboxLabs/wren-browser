@@ -11,6 +11,7 @@ use wren::{
 
 use super::{WindowRef, failed, give_back_keyboard, with_browser, with_window};
 use crate::analytics::{Event, OmniboxPick, OpensIn};
+use crate::app::State;
 use crate::pages::icons;
 use crate::tabs;
 use crate::windows::BrowserWindow;
@@ -432,4 +433,23 @@ fn kind(kind: SuggestionKind) -> &'static str {
         SuggestionKind::Clipboard => "clipboard",
         SuggestionKind::Other => "other",
     }
+}
+
+/// Chromium wants the address field, as a New Tab page given the keyboard
+/// does, for `App::focus_location_bar`: the omnibox opens for it, as ⌘L
+/// opens it. Not for the placeholder, which the page does not show, nor
+/// over the omnibox for a new tab, nor in a Mini Wren, whose omnibox opens
+/// only when the user asks for it.
+pub fn focus_location_bar(state: &State, browser: &Browser) {
+    let Some(window) = state
+        .windows
+        .of(browser)
+        .filter(|window| window.is_front(browser) && !window.is_mini_wren())
+    else {
+        return;
+    };
+    if window.active_tab().is_none() || window.has_new_tab_omnibox() {
+        return;
+    }
+    send_show_omnibox(&window, OmniboxTarget::Current, false);
 }

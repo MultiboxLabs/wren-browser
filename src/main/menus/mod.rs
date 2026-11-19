@@ -156,7 +156,7 @@ fn main_menu(
                     "N",
                     MenuModifiers::PRIMARY,
                 ),
-                // An empty Mini Wren (windows/mini_wren.rs).
+                // An empty Mini Wren (windows/mini_wren/from_apps.rs).
                 keyed_by(NEW_MINI_WREN, "New Mini Wren", mini_wren_key()),
                 // The app's own, not Chromium's: both open the page's
                 // omnibox, which opens what is chosen in a new tab at the

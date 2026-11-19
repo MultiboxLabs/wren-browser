@@ -22,6 +22,8 @@
 // One a page or Chromium opens is as large as its page asks, and keeps
 // nothing.
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use wren::{MainThread, RequestedBounds};
@@ -42,6 +44,19 @@ pub(crate) struct HeldMiniWren {
     pub return_to: Option<RunningApp>,
 }
 
+/// What Mini Wren keeps between calls.
+#[derive(Default)]
+pub(crate) struct MiniWrens {
+    /// New Mini Wren's key, taken from every app.
+    shortcut: RefCell<Option<GlobalShortcut>>,
+    /// The Mini Wren asked for before the app could open them.
+    held: RefCell<Vec<HeldMiniWren>>,
+    /// The app each Mini Wren goes back to as it closes: the one that sent
+    /// its link, or that was in front as it opened empty, until the user
+    /// goes to another window.
+    returns_to: RefCell<HashMap<WindowId, RunningApp>>,
+}
+
 impl State {
     /// Takes New Mini Wren's key from every app, so that it opens one
     /// wherever the user is. A performance run leaves the key to the user's
@@ -59,7 +74,7 @@ impl State {
         if shortcut.is_none() {
             eprintln!("Wren could not take New Mini Wren's key from other apps.");
         }
-        *self.mini_wren_shortcut.borrow_mut() = shortcut;
+        *self.mini_wrens.shortcut.borrow_mut() = shortcut;
     }
 
     /// Opens an empty Mini Wren, on the New Tab page, now or once the app
@@ -79,20 +94,20 @@ impl State {
         mt: MainThread,
         held: impl IntoIterator<Item = HeldMiniWren>,
     ) {
-        self.held_mini_wren.borrow_mut().extend(held);
+        self.mini_wrens.held.borrow_mut().extend(held);
         self.open_held(mt);
     }
 
     /// Opens each Mini Wren held.
     pub(in crate::windows) fn open_held_mini_wren(self: &Rc<Self>, mt: MainThread) {
-        if self.held_mini_wren.borrow().is_empty() {
+        if self.mini_wrens.held.borrow().is_empty() {
             return;
         }
         let Some(place) = self.mini_wren_place() else {
             return;
         };
         // Each comes in front of the last, so the first is in front.
-        for held in self.held_mini_wren.take().into_iter().rev() {
+        for held in self.mini_wrens.held.take().into_iter().rev() {
             self.open_mini_wren(mt, held, place.clone());
         }
     }
@@ -144,7 +159,7 @@ impl State {
                     };
                     state.keep_page_size(window);
                     if let Some(app) = return_to {
-                        state.returns_to.borrow_mut().insert(window, app);
+                        state.mini_wrens.returns_to.borrow_mut().insert(window, app);
                     }
                 }
                 Err(error) => eprintln!("Wren could not open a Mini Wren: {error:?}"),
@@ -191,7 +206,8 @@ impl State {
     /// Window `id` came into use: no Mini Wren but it goes back to its app
     /// as it closes.
     pub(in crate::windows) fn window_used(&self, id: WindowId) {
-        self.returns_to
+        self.mini_wrens
+            .returns_to
             .borrow_mut()
             .retain(|window, _| *window == id);
     }
@@ -199,13 +215,13 @@ impl State {
     /// Mini Wren `id`'s page moved to a tab, where it goes on: its window
     /// closes without going back to its app.
     pub(super) fn mini_wren_moved_to_tab(&self, id: WindowId) {
-        self.returns_to.borrow_mut().remove(&id);
+        self.mini_wrens.returns_to.borrow_mut().remove(&id);
     }
 
     /// Mini Wren `window` is closing: if it keeps an app, and it is still
     /// the window in use, that app comes back to the front.
     pub fn mini_wren_closed(&self, window: &BrowserWindow) {
-        let app = self.returns_to.borrow_mut().remove(&window.id);
+        let app = self.mini_wrens.returns_to.borrow_mut().remove(&window.id);
         if let Some(app) = app.filter(|_| window.page.is_active())
             && !platform::activate_app(&app.id)
         {

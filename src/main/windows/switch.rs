@@ -195,7 +195,7 @@ impl State {
                 .and_then(Place::profile)
                 .is_some_and(|id| !listed.iter().any(|profile| profile.id == id));
             if gone {
-                self.close_window(mt, window.id);
+                super::close_window(self, mt, window.id);
             }
         }
     }
@@ -224,4 +224,16 @@ fn leave_front(window: &BrowserWindow) {
         window.page.set_full_screen(false);
     }
     ipc::stop_omnibox(window);
+}
+
+/// Chromium asked for `browser` to come forward. A restore asks for the
+/// Browser Chromium had active, which would take the window off the space
+/// it was kept on: its request is forgotten, and Chromium's next is
+/// reported. Any other is done (`State::bring_forward`).
+pub fn foreground_requested(state: &State, browser: &Browser) {
+    if state.is_restoring() {
+        let _ = browser.clear_foreground_request();
+        return;
+    }
+    state.bring_forward(browser);
 }

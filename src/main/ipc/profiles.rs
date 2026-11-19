@@ -80,7 +80,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 
     // Renames a profile, answering once Chromium has its new name. The list
-    // changing tells every window (`App::changed`).
+    // changing tells every window (`profiles::list_changed`).
     let _ = web_view.handle_call("profiles.rename", move |call| {
         let Rename { id, name } = match call.value() {
             Ok(rename) => rename,

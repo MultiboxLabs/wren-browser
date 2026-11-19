@@ -58,11 +58,12 @@ pub use downloads::{
     downloads_changed, send_downloads, send_indicator, send_reveal, show_downloads_bubble,
 };
 pub use extensions::send_extensions;
-pub use find::{send_find, send_show_find};
+pub use find::{send_find, show_find_bar};
 pub use menu::{send_show_settings, send_toggle_sidebar};
 pub use migrate::handle_migrate;
 pub use omnibox::{
-    OmniboxTarget, send_close_omnibox, send_omnibox, send_show_omnibox, stop_omnibox,
+    OmniboxTarget, focus_location_bar, send_close_omnibox, send_omnibox, send_show_omnibox,
+    stop_omnibox,
 };
 pub use onboarding::handle_onboarding;
 pub use permission::{send_permission, show_permission_prompt};
@@ -74,9 +75,9 @@ pub use side_panel::send_side_panel;
 pub use sidebar::check_sidebar_hover;
 pub use site::send_site;
 pub use spaces::broadcast_spaces;
-pub use tab_switcher::watch_tab_switcher_keys;
+pub use tab_switcher::{TabSwitcher, watch_tab_switcher_keys};
 pub use tabs::{TabChanges, send_no_tabs_for, send_tabs};
-pub use toast::{OwnToast, send_toast, show_toast};
+pub use toast::{OwnToast, send_toast, show_requested_toast, show_toast, show_zoom_bubble};
 pub use told::PageTabs;
 pub use update::{broadcast_update, send_open_update};
 pub use window::{
@@ -222,8 +223,8 @@ fn menu_call<Id: DeserializeOwned>(
 
 // The active tab's page has the keyboard back, as the omnibox or the find
 // bar closes. Not a New Tab page's: Chromium would ask for the address field
-// for it (App::focus_location_bar), and the omnibox that closed would open
-// again.
+// for it (`focus_location_bar`, omnibox.rs), and the omnibox that closed
+// would open again.
 fn give_back_keyboard(browser: &Browser) {
     if let Some(tab) = browser.active_tab()
         && !is_new_tab(&tab.url())

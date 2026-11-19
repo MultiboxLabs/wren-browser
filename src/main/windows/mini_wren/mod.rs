@@ -10,14 +10,17 @@
 // (pages/ui/mini-wren.tsx). On the New Tab page, as an empty one opens, it
 // is the omnibox alone instead (`follow_new_tab_page`). It is on its
 // profile's place, and never kept: its Browser closing takes it
-// (`App::browser_closed`). Its page can move to a tab of a window the user
-// browses in (as_tab.rs). Document Picture-in-Picture is none of these:
-// Chromium shows it in a window of its own, with no Browser.
+// (close.rs). Its page can move to a tab of a window the user browses in
+// (as_tab.rs). What the main menu's commands do in one is commands.rs's.
+// Document Picture-in-Picture is none of these: Chromium shows it in a
+// window of its own, with no Browser.
 
 mod as_tab;
+mod commands;
 mod from_apps;
 
-pub(crate) use from_apps::HeldMiniWren;
+pub use commands::command;
+pub(crate) use from_apps::{HeldMiniWren, MiniWrens};
 
 use std::rc::Rc;
 
@@ -29,7 +32,7 @@ use crate::db::SpaceId;
 use crate::ipc;
 use crate::platform::Backdrop;
 use crate::tabs;
-use crate::windows::{BrowserWindow, MiniWren, Place, WindowId};
+use crate::windows::{self, BrowserWindow, MiniWren, Place, WindowId};
 
 /// The height of a Mini Wren's toolbar, in points, which the page draws
 /// above its page (pages/ui/mini-wren.tsx). The size a page asks for is its
@@ -163,7 +166,7 @@ impl State {
     /// where they went.
     pub(super) fn window_left(self: &Rc<Self>, mt: MainThread, window: &BrowserWindow) {
         if window.is_on_new_tab_page() {
-            self.close_window(mt, window.id);
+            windows::close_window(self, mt, window.id);
         }
     }
 }

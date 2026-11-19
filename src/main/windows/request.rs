@@ -2,9 +2,12 @@
 // zoom or come back to normal, for an extension (`chrome.windows`), DevTools
 // or a Mini Wren's page (`resizeTo`, `moveTo`); and the state a Browser it opens
 // wants its window in. The app does as it asks; Chromium decides what may
-// ask, and reads the window as it is after.
+// ask, and reads the window as it is after. A page asks for the whole
+// window too (`fullscreen`).
 
-use wren::{Browser, RequestedBounds, WindowRequest, WindowState};
+use std::rc::Rc;
+
+use wren::{Browser, MainThread, RequestedBounds, WindowRequest, WindowState};
 
 use crate::app::State;
 use crate::windows::BrowserWindow;
@@ -49,4 +52,32 @@ impl State {
             window.minimize_when_shown();
         }
     }
+}
+
+/// A page of `browser` wants the whole window, or is done with it, for
+/// `App::fullscreen`. Whether the window does as it asks: it goes full
+/// screen for the page once Chromium's call is over, and Chromium hears
+/// when it has (`BrowserWindow::full_screen_finished`). A page in the
+/// background, or one leaving full screen the user chose, has its way at
+/// once.
+pub fn fullscreen(state: &Rc<State>, mt: MainThread, browser: &Browser, fullscreen: bool) -> bool {
+    let Some(window) = state
+        .windows
+        .of(browser)
+        .filter(|window| window.is_front(browser))
+    else {
+        return false;
+    };
+    if !window.wants_full_screen_for_page(fullscreen) {
+        return false;
+    }
+    let state = Rc::downgrade(state);
+    let id = window.id;
+    mt.later(move |_| {
+        let Some(state) = state.upgrade() else { return };
+        if let Some(window) = state.windows.get(id) {
+            window.page.set_full_screen(fullscreen);
+        }
+    });
+    true
 }

@@ -4,10 +4,17 @@
 // ends, as when its tab is switched away from; the page's field sets the
 // string, steps through the matches, and closes it.
 
+use std::rc::Rc;
+
 use serde::{Deserialize, Serialize};
-use wren::{Browser, BrowserTab, Find, PageToken, Popover, PopoverKind, WebView};
+use wren::{
+    Browser, BrowserTab, Find, MainThread, PageToken, Popover, PopoverAnswer, PopoverKind,
+    PopoverRequest, PopoverTrigger, WebView,
+};
 
 use super::{WindowRef, failed, give_back_keyboard, with_browser};
+use crate::analytics::Event;
+use crate::app::State;
 use crate::windows::BrowserWindow;
 
 /// The find open in the active tab, as the page's bar shows it.
@@ -131,6 +138,30 @@ pub fn send_show_find(
     };
     let _ = window.page.web_view.send("find.show", &shown);
     send_find(window, browser);
+}
+
+/// Chromium's find bar, for `App::popover`: the page draws the bar, at the
+/// active tab's, and hears of it once Chromium's call is over, when the
+/// request is open.
+pub fn show_find_bar(state: &Rc<State>, mt: MainThread, request: &PopoverRequest) -> PopoverAnswer {
+    // A find the user opened takes the keyboard; one that comes back with
+    // its tab does not.
+    let focus = request.trigger != PopoverTrigger::Automatic;
+    if focus {
+        state.analytics.record(Event::FindOpened);
+    }
+    let state = Rc::downgrade(state);
+    let browser = request.browser.clone();
+    let tab = request.tab;
+    mt.later(move |_| {
+        let Some(state) = state.upgrade() else { return };
+        if let Some(window) = state.windows.of(&browser)
+            && window.is_front(&browser)
+        {
+            send_show_find(&window, &browser, tab, focus);
+        }
+    });
+    PopoverAnswer::App
 }
 
 // The request the app answered with its own bar, while the find is open.
