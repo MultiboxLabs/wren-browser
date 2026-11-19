@@ -14,8 +14,10 @@
 // so a swipe is from their landing to their lifting. Its first move decides
 // its axis: a horizontal one is the swipe's, and kept from the list and from
 // history; a vertical one scrolls the list. The glide after a swipe
-// (`wrenMomentumPhase`) is the swipe's too, and goes nowhere. A mouse's
-// wheel, which has no phases, steps a space at a time as it turns sideways.
+// (`wrenMomentumPhase`) is the swipe's too, and goes nowhere. A pointer that
+// leaves the sidebar lifts the swipe there, since the wheel events, and the
+// fingers' lifting with them, go elsewhere after it. A mouse's wheel, which
+// has no phases, steps a space at a time as it turns sideways.
 
 import { type RefObject, useEffect, useEffectEvent } from "react";
 import type { SpaceSlide } from "@/state/space-slide";
@@ -252,7 +254,13 @@ export function useSpaceSwipe(
       }
     };
 
+    const onLeave = (event: MouseEvent) => lift(event.timeStamp);
+
     element.addEventListener("wheel", onWheel, { passive: false });
-    return () => element.removeEventListener("wheel", onWheel);
+    element.addEventListener("mouseleave", onLeave);
+    return () => {
+      element.removeEventListener("wheel", onWheel);
+      element.removeEventListener("mouseleave", onLeave);
+    };
   }, []);
 }
