@@ -6,7 +6,7 @@ use std::path::Path;
 use std::time::SystemTime;
 
 use rusqlite::Connection;
-use wren::Cookie;
+use wren::{Cookie, CookiePriority};
 
 use crate::import::engines::{same_site, unix_micros};
 use crate::import::snapshot::{self, Snapshot};
@@ -54,6 +54,7 @@ pub fn read(profile: &Path, batch: &mut dyn FnMut(Vec<Cookie>)) -> Result<usize,
                 secure: row.get(7)?,
                 http_only: row.get(8)?,
                 same_site: same_site(row.get(9)?),
+                priority: CookiePriority::Medium,
                 partition_site: partition_site(&attributes),
                 partition_cross_site_ancestor: false,
             }))

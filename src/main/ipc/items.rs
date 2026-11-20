@@ -143,7 +143,7 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
                 return;
             }
         };
-        let shown = mt.show_context_menu(&items, view, (at.x, at.y), move |chosen| {
+        let shown = menus::show_context_menu(mt, view, (at.x, at.y), &items, move |chosen| {
             choose(&state, mt, subject, chosen, move |choice| {
                 let _ = call.answer(&choice);
             });

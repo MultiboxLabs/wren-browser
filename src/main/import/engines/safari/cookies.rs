@@ -17,7 +17,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use wren::{Cookie, CookieSameSite};
+use wren::{Cookie, CookiePriority, CookieSameSite};
 
 use super::unix_ms;
 use crate::import::engines::unix_micros;
@@ -176,6 +176,7 @@ fn read_cookie(cookie: &[u8]) -> Option<(Cookie, usize)> {
         secure: flags & SECURE != 0,
         http_only: flags & HTTP_ONLY != 0,
         same_site: CookieSameSite::Unspecified,
+        priority: CookiePriority::Medium,
         partition_site: None,
         partition_cross_site_ancestor: false,
     };

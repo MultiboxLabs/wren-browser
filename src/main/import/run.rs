@@ -402,7 +402,7 @@ fn next(mt: MainThread, id: u64) {
             name,
             move |batch| source.cookies(&from, batch),
             |to, batch, landed| {
-                to.add_cookies(batch, move |result| {
+                to.set_cookies(batch, move |result| {
                     landed(
                         result
                             .map(|results| cookies_landed(&results))

@@ -10,13 +10,30 @@ pub mod item;
 mod main_menu;
 pub mod site;
 
-use wren::MenuItem;
+use wren::{Error, MainThread, MenuItem, NativeView};
 
 pub use download::show_download_menu;
 pub use icon::set_icon_menu;
 pub use item::item_menu;
 pub use main_menu::*;
 pub use site::{show_permission_menu, show_site_menu};
+
+/// Shows `items` as a context menu at `point` in `view`, and hands the ID
+/// of the item chosen, if any, to `done`.
+pub fn show_context_menu(
+    mt: MainThread,
+    view: NativeView,
+    point: (f64, f64),
+    items: &[MenuItem],
+    done: impl FnOnce(Option<String>) + 'static,
+) -> Result<(), Error> {
+    let menu = mt.create_context_menu(view, point)?;
+    let shown = menu.show(items, move |choice| done(choice.app_item));
+    if shown.is_err() {
+        let _ = menu.close();
+    }
+    shown
+}
 
 // `item`, greyed out unless `on`.
 fn enabled(mut item: MenuItem, on: bool) -> MenuItem {

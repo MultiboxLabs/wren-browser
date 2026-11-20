@@ -6,8 +6,8 @@
 use std::rc::Rc;
 
 use wren::{
-    App, Browser, BrowserType, Change, ChangeKind, MainThread, PopoverAnswer, PopoverKind,
-    PopoverRequest, ProfileExtensionsRequest, QuitPrompt, WindowRequest,
+    App, Browser, BrowserType, Change, ChangeKind, MainThread, OpenURLsRequest, PopoverAnswer,
+    PopoverKind, PopoverRequest, ProfileExtensionsRequest, QuitPrompt, WindowRequest,
 };
 
 use super::{State, commands};
@@ -238,7 +238,7 @@ impl App for Wren {
 
     // A link clicked in another app while Wren is the default browser, or a
     // page opened with it: a Mini Wren each (windows/open_urls.rs).
-    fn open_urls(&self, mt: MainThread, urls: &[String]) {
+    fn open_urls(&self, mt: MainThread, request: &OpenURLsRequest) {
         // TODO: take the sender from Wren Runtime's next version, which
         // gives its app_id, app_name and app_path with the URLs. Until then
         // every link is Discord's.
@@ -246,7 +246,7 @@ impl App for Wren {
             id: "com.hnc.Discord".into(),
             name: "Discord".into(),
         };
-        windows::open_urls(&self.state, mt, urls, Some(sender));
+        windows::open_urls(&self.state, mt, &request.urls, Some(sender));
     }
 
     // A Browser closed: its tabs are forgotten, and its window, of undocked

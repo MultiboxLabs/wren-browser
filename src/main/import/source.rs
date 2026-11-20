@@ -19,7 +19,7 @@ use super::data::{Bookmarks, Favicons, SpaceCount, Spaces, StoreExtension};
 pub const HISTORY_BATCH: usize = 5_000;
 
 /// How many cookies a reader hands over at once: one of Wren's
-/// `add_cookies` calls.
+/// `set_cookies` calls.
 pub const COOKIE_BATCH: usize = 1_000;
 
 /// How far back Wren keeps history, which is all a survey counts.

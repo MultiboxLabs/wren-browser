@@ -8,7 +8,7 @@ use std::time::SystemTime;
 
 use rusqlite::types::ValueRef;
 use rusqlite::{Connection, Row};
-use wren::Cookie;
+use wren::{Cookie, CookiePriority};
 
 use super::{Chromium, chromium_time, unix_ms};
 use crate::import::engines::same_site;
@@ -115,6 +115,7 @@ pub fn read(
             secure: row.get(8)?,
             http_only: row.get(9)?,
             same_site: same_site(row.get(10)?),
+            priority: CookiePriority::Medium,
             partition_site: (!partition.is_empty()).then_some(partition),
             partition_cross_site_ancestor: row.get(13)?,
         }))

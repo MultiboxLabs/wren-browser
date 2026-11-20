@@ -39,7 +39,7 @@ pub fn show_permission_menu(
             .filter(|&setting| setting != permission.default_setting)
             .map(|setting| choice(setting, setting_label(setting).into())),
     );
-    mt.show_context_menu(&items, view, point, done)
+    super::show_context_menu(mt, view, point, &items, done)
 }
 
 /// The setting an item of a permission's menu stands for.
@@ -69,7 +69,7 @@ pub fn show_site_menu(
         enabled(MenuItem::item(SETTINGS, "Site Settings"), web),
         enabled(MenuItem::item(DATA, "Cookies and Site Data…"), web),
     ];
-    mt.show_context_menu(&items, view, point, done)
+    super::show_context_menu(mt, view, point, &items, done)
 }
 
 /// What an item of the site's menu opens.

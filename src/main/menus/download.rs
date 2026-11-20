@@ -48,5 +48,5 @@ pub fn show_download_menu(
             MenuItem::item(REMOVE, "Remove from List"),
         ]);
     }
-    mt.show_context_menu(&items, view, point, done)
+    super::show_context_menu(mt, view, point, &items, done)
 }
