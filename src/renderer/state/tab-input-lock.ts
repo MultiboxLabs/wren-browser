@@ -4,11 +4,13 @@
 // of a lock as its first holder takes it and as its last lets it go.
 
 import type { LockTabInput } from "@/components/ui/tab-input-lock";
-import { appWindow, type TabInputLock } from "@/ipc";
+import { appWindow, hasApp, type TabInputLock } from "@/ipc";
 
 const holders = new Map<TabInputLock, number>();
 
 export const lockTabInput: LockTabInput = (lock) => {
+  // Outside the app, as in a browser on Vite's dev server, there are no tabs.
+  if (!hasApp) return () => {};
   const count = holders.get(lock) ?? 0;
   holders.set(lock, count + 1);
   if (count === 0) void appWindow.lockTabInput(lock, true);
