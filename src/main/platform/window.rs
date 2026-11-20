@@ -45,7 +45,7 @@ pub enum WindowKind {
     Panel,
 }
 
-type CrashWatch = Rc<RefCell<Option<Box<dyn Fn()>>>>;
+type Watch = Rc<RefCell<Option<Box<dyn Fn()>>>>;
 
 /// A window showing one page. Its web view drops first, which takes the page
 /// out of the window.
@@ -53,7 +53,9 @@ pub struct PageWindow {
     pub web_view: Rc<WebView>,
     native: current::window::PageWindow,
     // What `watch_crash` was given.
-    crash_watch: CrashWatch,
+    crash_watch: Watch,
+    // What `watch_page_gone` was given.
+    gone_watch: Watch,
 }
 
 impl PageWindow {
@@ -81,20 +83,25 @@ impl PageWindow {
         // so it holds it weakly.
         let reloaded = Rc::downgrade(&web_view);
         let crashed = Cell::new(false);
-        let crash_watch: CrashWatch = Rc::default();
-        let watch = crash_watch.clone();
+        let loading = Cell::new(false);
+        let crash_watch: Watch = Rc::default();
+        let gone_watch: Watch = Rc::default();
+        let (on_crash, on_gone) = (crash_watch.clone(), gone_watch.clone());
         web_view.set_changed(Some(Box::new(move |state| {
             let now_crashed = state.crash != TabCrash::None;
-            if now_crashed
-                && !crashed.get()
-                && let Some(web_view) = reloaded.upgrade()
-            {
+            let crash_started = !crashed.replace(now_crashed) && now_crashed;
+            let load_started = !loading.replace(state.loading) && state.loading;
+            if crash_started && let Some(web_view) = reloaded.upgrade() {
                 let _ = web_view.reload();
-                if let Some(watch) = &*watch.borrow() {
+                if let Some(watch) = &*on_crash.borrow() {
                     watch();
                 }
             }
-            crashed.set(now_crashed);
+            if (crash_started || load_started)
+                && let Some(watch) = &*on_gone.borrow()
+            {
+                watch();
+            }
             if state.load_error != 0 || state.crash != TabCrash::None {
                 show();
             }
@@ -105,6 +112,7 @@ impl PageWindow {
             web_view,
             native,
             crash_watch,
+            gone_watch,
         }
     }
 
@@ -239,6 +247,13 @@ impl PageWindow {
     /// Calls `crashed` each time the page crashes, as it is reloaded.
     pub fn watch_crash(&self, crashed: impl Fn() + 'static) {
         *self.crash_watch.borrow_mut() = Some(Box::new(crashed));
+    }
+
+    /// Calls `gone` each time the page goes, with whatever it held: as it
+    /// crashes, and as another load starts, such as a reload from DevTools
+    /// or the dev server.
+    pub fn watch_page_gone(&self, gone: impl Fn() + 'static) {
+        *self.gone_watch.borrow_mut() = Some(Box::new(gone));
     }
 
     /// Brings the window to the front, and the app with it, as Chrome does

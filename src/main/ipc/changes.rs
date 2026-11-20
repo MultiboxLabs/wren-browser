@@ -7,6 +7,7 @@
 use wren::{Browser, Change, ChangeKind, TabFields};
 
 use crate::ipc;
+use crate::tabs;
 use crate::windows::BrowserWindow;
 
 /// Tells `window`'s page of the changes to its Browser in front, and
@@ -85,7 +86,7 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
                     && active
                     && tab.state().is_ok_and(|state| state.in_element)
                 {
-                    let _ = tab.focus();
+                    tabs::input::give_keyboard(tab);
                 }
             }
             _ => {}

@@ -1,3 +1,6 @@
+/** Why the window's tabs ignore input, as one of Wren's dialogs covers them. Each is held and let go on its own. */
+export type TabInputLock = "dialog";
+
 /** The space a window is on, or that it is on none while the user makes one. */
 export type WindowSpace = { kind: "space"; id: number } | { kind: "newSpace" };
 
@@ -55,6 +58,8 @@ export const appWindow = {
    */
   blocked: () => wren.invoke<boolean>("window.blocked"),
   onBlocked: (listener: (blocked: boolean) => void) => wren.on<boolean>("window.blocked", listener),
+  /** Holds `lock` on the window's tabs, or lets it go. They ignore input while any lock is held. */
+  lockTabInput: (lock: TabInputLock, held: boolean) => wren.invoke<null>("window.lockTabInput", { lock, held }),
   /** Whether the window's space has an active tab, as the app knows it now, not as the page was last told. */
   hasActiveTab: () => wren.invoke<boolean>("window.hasActiveTab"),
   /** The space the window shows; null while it waits for its first Browser, or shows a profile. */

@@ -20,6 +20,7 @@ import { Button } from "./button";
 import { useDialogTurn } from "./dialog-turn";
 import { useHoldWhile } from "./hold";
 import { Keycap } from "./keycap";
+import { useTabInputLockWhile } from "./tab-input-lock";
 import { useWindowBlocked } from "@/state/window";
 import { cn } from "@/utils/cn";
 import { EASE_LEAVE, EASE_OUT } from "@/utils/motion";
@@ -75,6 +76,8 @@ export function Dialog(props: DialogProps) {
   const [present, setPresent] = useState(false);
   const shown = useDialogTurn(props.open || present) && props.open;
   if (shown && !present) setPresent(true);
+  // Its scrim covers the tabs from the moment it shows until it has gone.
+  useTabInputLockWhile("dialog", present);
   return (
     <Radix.Root open={shown} onOpenChange={props.onOpenChange}>
       {/* The card is made afresh each time it opens, so nothing of the last
