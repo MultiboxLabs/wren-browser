@@ -186,6 +186,24 @@ export const scenes = (url: string): Scene[] => [
         name: "a pinned tab onto the right half of another, which takes its page as its split's other side",
         does: dragged(pin(5), half(pin(0), "right")),
         shows: "pins (0|5) (1|4) | tabs (3|2)"
+      },
+      {
+        name: "Move Tab Up with a pinned split selected, which moves it above the pin before it",
+        does: async () => {
+          await opened(pin(1))();
+          await perf.moveTab(-1);
+        },
+        shows: "pins (1|4) (0|5) | tabs (3|2)"
+      },
+      {
+        name: "Move Tab Up again, at the top, which leaves it",
+        does: () => perf.moveTab(-1),
+        shows: "pins (1|4) (0|5) | tabs (3|2)"
+      },
+      {
+        name: "Move Tab Down, which moves it back",
+        does: () => perf.moveTab(1),
+        shows: "pins (0|5) (1|4) | tabs (3|2)"
       }
     ]
   },

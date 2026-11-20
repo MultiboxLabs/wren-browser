@@ -33,6 +33,7 @@ use crate::clipboard;
 use crate::ipc::{self, OwnToast};
 use crate::pins;
 use crate::sidebar::items;
+use crate::windows::Place;
 
 /// What follows a change to `browser`'s tabs, to one of them, or to a split
 /// (`change`). A placeholder goes, or stays, as the tabs change, and the
@@ -242,9 +243,31 @@ fn runs(browser: &Browser, tab: BrowserTab) -> Result<(Vec<Vec<BrowserTab>>, usi
     Ok((runs, mine))
 }
 
-/// Moves a tab one place up the list (`by` -1) or down (1), past a tab, a
-/// split or a whole group, as dragging it there would. Its split goes with it.
-pub fn move_by(mt: MainThread, browser: &Browser, tab: BrowserTab, by: isize) -> Result<(), Error> {
+/// Moves `tab`, of the Browser for `place`, one place up (`by` -1) or down
+/// (1), as Move Tab Up and Move Tab Down do: a pin's moves its pin among the
+/// pins beside it (`pins::move_by`), and any other moves in the list.
+pub fn move_by(
+    state: &State,
+    mt: MainThread,
+    place: &Place,
+    browser: &Browser,
+    tab: BrowserTab,
+    by: isize,
+) -> Result<(), String> {
+    match roles::pin_of(tab) {
+        Some(pin) => pins::move_by(state, place, pin, by),
+        None => move_in_list(mt, browser, tab, by).map_err(|error| format!("{error:?}")),
+    }
+}
+
+// Moves a tab one place up the list (`by` -1) or down (1), past a tab, a
+// split or a whole group, as dragging it there would. Its split goes with it.
+fn move_in_list(
+    mt: MainThread,
+    browser: &Browser,
+    tab: BrowserTab,
+    by: isize,
+) -> Result<(), Error> {
     let (runs, mine) = runs(browser, tab)?;
     let Some(next) = mine
         .checked_add_signed(by)

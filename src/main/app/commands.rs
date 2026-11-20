@@ -138,18 +138,16 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
     let Some(browser) = window.browser() else {
         return;
     };
+    if id == menus::MOVE_TAB_UP || id == menus::MOVE_TAB_DOWN {
+        let by = if id == menus::MOVE_TAB_UP { -1 } else { 1 };
+        if let (Some(tab), Some(place)) = (browser.active_tab(), window.place_of(&browser)) {
+            let _ = tabs::move_by(state, mt, &place, &browser, tab, by);
+        }
+        return;
+    }
     let _ = match id {
         menus::COPY_URL => tabs::copy_url(&browser),
         menus::DUPLICATE_TAB => browser.active_tab().map_or(Ok(()), tabs::duplicate),
-        menus::MOVE_TAB_UP | menus::MOVE_TAB_DOWN => match browser.active_tab() {
-            Some(tab) => tabs::move_by(
-                mt,
-                &browser,
-                tab,
-                if id == menus::MOVE_TAB_UP { -1 } else { 1 },
-            ),
-            None => Ok(()),
-        },
         _ => Ok(()),
     };
 }

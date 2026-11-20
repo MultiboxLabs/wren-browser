@@ -550,6 +550,25 @@ pub fn move_pin(
     Ok(())
 }
 
+/// Moves pin `id` one place up (`by` -1) or down (1) among those beside
+/// it, in the favourites, its space's pins or its folder, as Move Tab Up and
+/// Move Tab Down do for its tab in the window on `place`. At either end it
+/// stays.
+pub fn move_by(state: &State, place: &Place, id: PinId, by: isize) -> Result<(), String> {
+    let (at, index) = state.db.pin_place(id)?.ok_or("That pin is gone.")?;
+    let count = siblings(state, &at)?.len();
+    let Some(to) = index.checked_add_signed(by).filter(|to| *to < count) else {
+        return Ok(());
+    };
+    let target = match at {
+        PinPlace::Favorites { .. } => PinTarget::Favorites,
+        PinPlace::Space { parent, .. } => PinTarget::Space { parent },
+    };
+    // Its neighbour's index among them all is, among the others that
+    // `move_pin` counts, the place on the neighbour's far side.
+    move_pin(state, place, id, target, Some(to))
+}
+
 /// Whether pin `id` goes to another profile as it moves to the window on
 /// `place`, which its tabs can't follow it to.
 pub fn goes_to_another_profile(state: &State, place: &Place, id: PinId) -> Result<bool, String> {

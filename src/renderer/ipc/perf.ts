@@ -69,6 +69,8 @@ export const perf = {
     wren.invoke<MenuChoice>("perf.choose", { item, side, label, marked }),
   /** Reopens what the window's space closed last, as Reopen Closed Tab does, which no call of the page's does. Only in a run. */
   reopenClosedTab: () => wren.invoke<null>("perf.reopenClosedTab"),
+  /** Moves the tab in front one place up (-1) or down (1), as Move Tab Up and Move Tab Down do, which no call of the page's does. Only in a run. */
+  moveTab: (by: -1 | 1) => wren.invoke<null>("perf.moveTab", by),
   /** The addresses of the window's tabs that are closing for a pin that has gone, which no sidebar draws until they have. Only in a run. */
   leaving: () => wren.invoke<string[]>("perf.leaving"),
   /** Ends the run: the app quits. */

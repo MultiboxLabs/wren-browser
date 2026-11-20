@@ -77,6 +77,19 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
+    // Moves the tab in front one place up (-1) or down (1), as the main
+    // menu's Move Tab Up and Move Tab Down do, which no call of the page's
+    // does.
+    let weak = window.clone();
+    let _ = web_view.handle("perf.moveTab", move |by: isize| {
+        let state = run(&weak)?;
+        with_browser(&weak, |window, browser| {
+            let tab = browser.active_tab().ok_or("No tab is in front.")?;
+            let place = window.place_of(browser).ok_or("The window is closing.")?;
+            tabs::move_by(&state, mt, &place, browser, tab, by)
+        })
+    });
+
     // The addresses of the tabs of the window's Browsers that are leaving
     // (`Role::Leaving`): closing for a pin that has gone, and drawn nowhere
     // until they have. The run that checks the sidebar's drags waits for
