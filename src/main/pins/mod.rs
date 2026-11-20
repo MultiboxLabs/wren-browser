@@ -648,6 +648,30 @@ pub fn split_in_list(
     tabs::split(first, second).map_err(failed)
 }
 
+/// Makes tab pin `target` a split pin with the page of tab pin `id`, on
+/// `side` (0: first), and removes `id`, as `id` dropped on half of
+/// `target`'s row does: it goes where it is dropped, and `target` keeps its
+/// place and name. `id` comes to the list first, from any space (`to_list`),
+/// and `target` takes its tab from there (`split_with`).
+pub fn split_pins(
+    state: &State,
+    mt: MainThread,
+    browser: &Browser,
+    place: &Place,
+    id: PinId,
+    target: PinId,
+    side: usize,
+) -> Result<(), String> {
+    if id == target {
+        return Err("A pin makes no split with itself.".into());
+    }
+    if !matches!(pin_for(state, place, target)?.kind, PinKind::Tab(_)) {
+        return Err("Only a tab pin makes a split.".into());
+    }
+    let own = tab_pin_to_list(state, mt, browser, place, id, 0, None)?;
+    split_with(state, browser, place, target, own, side)
+}
+
 // Closes the tabs of `pins` in every Browser `closes` picks, each pin's
 // all or none (`let_go`).
 fn close_where(state: &State, pins: &[PinId], closes: impl Fn(&BrowserWindow, &Browser) -> bool) {

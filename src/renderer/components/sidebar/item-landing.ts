@@ -181,11 +181,11 @@ function placeBetween(
  * Where a drag at a point, in the page's coordinates, would land in a list
  * of the sidebar: the space's pins or the Browser's tabs, drawn in `zone`.
  *
- * With nothing drawn, it goes first. A tab alone, on the middle of another
- * tab's row, makes a split with it, on the left or right of it: a tab of
- * the list on any tab's row, and a pinned tab or a favourite on the row of
- * a tab of the list, which takes it out of its place into the list, in a
- * split with that tab, from any space (pins/).
+ * With nothing drawn, it goes first. A tab alone, of the list, a pinned
+ * tab or a favourite, on the middle of another tab's row, makes a split
+ * with it, on the left or right of it, where that tab is (pins/): in the
+ * list, it leaves the pins for it, and on a pinned tab's row, it goes into
+ * that pin, as its split's other side.
  * On the middle of a folder's row it goes in, first if it is open and last
  * if not, and on a folded group's, last. Otherwise it goes in the nearest
  * place between the rows that it may take. Past the last row of a folder or
@@ -244,7 +244,7 @@ export function listLandingAt(
     return { to: "tabs", group, index };
   };
 
-  if (dragged.kind === "tab" && (dragged.type === "normal" || section === "tabs")) {
+  if (dragged.kind === "tab") {
     const target = rows.find((row) => row.kind === "tab" && row !== own && onMiddle(row.box, y));
     if (target) {
       const side = x < (target.box.left + target.box.right) / 2 ? "left" : "right";

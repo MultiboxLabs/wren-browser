@@ -232,9 +232,11 @@ pub fn add_address(
 // A pin goes among the pins or the favourites as it is, and to the list as
 // an ordinary tab, from any space of any profile. The database refuses a
 // folder in the favourites. A tab pin dropped on half of a tab of the list
-// goes to the list too, in a split with that tab. A pin of another space
-// comes to this one's pins first, for the list (pins/). One that goes to
-// another profile brings the window to the space it went to, as tabs do.
+// goes to the list too, in a split with that tab, and one dropped on half
+// of another tab pin's row goes into that pin, as its split's other side. A
+// pin of another space comes to this one's pins first, for the list
+// (pins/). One that goes to another profile brings the window to the space
+// it went to, as tabs do.
 fn move_pin(
     state: &Rc<State>,
     mt: MainThread,
@@ -282,9 +284,19 @@ fn move_pin(
             pins::split_in_list(state, mt, &browser, &place, id, tab, side.index())?;
             Ok(Moved::Split { pin: true })
         })()),
-        Target::Split { .. } => done(Err(
-            "A pin makes a split only with a tab of the list.".into()
-        )),
+        Target::Split {
+            with: ItemRef::Pin(with),
+            side,
+        } => {
+            let (inner, to) = (state.clone(), place.clone());
+            windows::with_browser_of(state, mt, window, place, move |browser| {
+                done(browser.and_then(|browser| {
+                    pins::split_pins(&inner, mt, &browser, &to, id, with, side.index())?;
+                    Ok(Moved::Split { pin: true })
+                }));
+            });
+        }
+        Target::Split { .. } => done(Err("A pin makes no split with a group.".into())),
     }
 }
 

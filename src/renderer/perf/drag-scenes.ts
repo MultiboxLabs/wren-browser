@@ -180,6 +180,12 @@ export const scenes = (url: string): Scene[] => [
         name: "a pinned tab onto a split of the list, which the app refuses",
         does: moveRefused(pin(0), splitWith(3, "left")),
         shows: "pins 0 (1|4) | tabs (3|2) 5"
+      },
+      { name: "a tab onto the space's heading", does: dragged(tab(5), heading), shows: "pins 5 0 (1|4) | tabs (3|2)" },
+      {
+        name: "a pinned tab onto the right half of another, which takes its page as its split's other side",
+        does: dragged(pin(5), half(pin(0), "right")),
+        shows: "pins (0|5) (1|4) | tabs (3|2)"
       }
     ]
   },
