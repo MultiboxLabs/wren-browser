@@ -64,7 +64,7 @@ pub fn read(
     let key = browser.key()?;
     let query = format!(
         "SELECT host_key, name, value, encrypted_value, path, creation_utc, expires_utc, last_access_utc, \
-         is_secure, is_httponly, samesite, is_persistent, {}, {} FROM cookies WHERE {}",
+         is_secure, is_httponly, samesite, is_persistent, {}, {}, {} FROM cookies WHERE {}",
         if has("top_frame_site_key") {
             "top_frame_site_key"
         } else {
@@ -75,6 +75,7 @@ pub fn read(
         } else {
             "0"
         },
+        if has("priority") { "priority" } else { "1" },
         live(),
     );
     let mut unread = 0;
@@ -115,12 +116,21 @@ pub fn read(
             secure: row.get(8)?,
             http_only: row.get(9)?,
             same_site: same_site(row.get(10)?),
-            priority: CookiePriority::Medium,
+            priority: priority(row.get(14)?),
             partition_site: (!partition.is_empty()).then_some(partition),
             partition_cross_site_ancestor: row.get(13)?,
         }))
     })?;
     Ok(unread)
+}
+
+// Chromium numbers priority 0 low, 1 medium, 2 high.
+fn priority(value: i64) -> CookiePriority {
+    match value {
+        0 => CookiePriority::Low,
+        2 => CookiePriority::High,
+        _ => CookiePriority::Medium,
+    }
 }
 
 // A column's bytes, which some browsers keep as text and others as a blob,
@@ -155,5 +165,13 @@ mod tests {
         assert_eq!(read("SELECT CAST('v10' AS BLOB)"), b"v10");
         assert_eq!(read("SELECT 'v10'"), b"v10");
         assert_eq!(read("SELECT NULL"), b"");
+    }
+
+    #[test]
+    fn reads_chromiums_cookie_priority() {
+        assert_eq!(priority(0), CookiePriority::Low);
+        assert_eq!(priority(1), CookiePriority::Medium);
+        assert_eq!(priority(2), CookiePriority::High);
+        assert_eq!(priority(99), CookiePriority::Medium);
     }
 }
