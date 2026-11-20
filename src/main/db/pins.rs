@@ -350,9 +350,16 @@ impl Db {
     }
 
     /// Moves a pin to `index` (None, or one past the last: last) among the
-    /// pins of `to`, the pins of both places closing up. A pin stays with its
-    /// profile, and a folder never goes to the favourites or into itself.
-    pub fn move_pin(&self, id: PinId, to: &PinPlace, index: Option<usize>) -> Result<(), String> {
+    /// pins of `to`, the pins of both places closing up, and returns its ID
+    /// and those of everything in it. A folder takes all in it to the space
+    /// it goes to. A pin stays with its profile, and a folder never goes to
+    /// the favourites or into itself.
+    pub fn move_pin(
+        &self,
+        id: PinId,
+        to: &PinPlace,
+        index: Option<usize>,
+    ) -> Result<Vec<PinId>, String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
         let from = kept_spot(&transaction, id)?;
         let (to_profile, to_space, to_parent) = resolve(&transaction, to)?;
@@ -362,9 +369,8 @@ impl Db {
         if from.kind == "folder" && to_space.is_none() {
             return Err("A folder can only be among a space's pins.".into());
         }
-        if let Some(parent) = to_parent
-            && descendants(&transaction, id)?.contains(&parent)
-        {
+        let moving = descendants(&transaction, id)?;
+        if to_parent.is_some_and(|parent| moving.contains(&parent)) {
             return Err("A folder can't go into itself.".into());
         }
         close_gap(&transaction, &from)?;
@@ -381,7 +387,17 @@ impl Db {
                 params![id, to_space, to_parent, position],
             )
             .map_err(sql)?;
-        transaction.commit().map_err(sql)
+        // What is in a folder goes to its space with it.
+        for each in moving.iter().filter(|each| **each != id) {
+            transaction
+                .execute(
+                    "UPDATE pins SET space_id = ?2 WHERE id = ?1",
+                    params![each, to_space],
+                )
+                .map_err(sql)?;
+        }
+        transaction.commit().map_err(sql)?;
+        Ok(moving)
     }
 
     /// Makes a split pin a tab pin of its page on `side` (0 or 1), as its

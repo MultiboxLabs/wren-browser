@@ -507,10 +507,11 @@ fn remove(state: &State, id: PinId) -> Result<(), String> {
 }
 
 /// Moves pin `id` to `target` of the window on `place`, at `index` (None:
-/// last). A favourite that becomes a space's pin keeps its tab in each
-/// window that has that space's Browser, moved there from another space if
-/// it is in one, and is closed in the Browsers of the other spaces, which
-/// no longer show it.
+/// last), with all in it if it is a folder. Each pin that goes to a space's
+/// pins, from the favourites or another space, keeps its tab in each window
+/// that has that space's Browser, moved there from another space if it is
+/// in one, and is closed in the Browsers of the other spaces, which no
+/// longer show it.
 pub fn move_pin(
     state: &State,
     place: &Place,
@@ -519,18 +520,22 @@ pub fn move_pin(
     index: Option<usize>,
 ) -> Result<(), String> {
     let to = target.resolve(state, place)?;
-    state.db.move_pin(id, &to, index)?;
-    open::moved(state, id);
+    let moved = state.db.move_pin(id, &to, index)?;
+    for pin in &moved {
+        open::moved(state, *pin);
+    }
     if let PinPlace::Space { space, .. } = to {
         for window in state.windows.all() {
             let Some(target) = window.browser_of(&Place::Space(space)) else {
                 continue;
             };
-            if let Err(error) = bring(state, &target, id, false) {
-                eprintln!("Wren could not keep a favourite's tab as it became a pin: {error}");
+            for pin in &moved {
+                if let Err(error) = bring(state, &target, *pin, false) {
+                    eprintln!("Wren could not keep a pin's tab as it went to a space: {error}");
+                }
             }
         }
-        close_where(state, &[id], |window, browser| {
+        close_where(state, &moved, |window, browser| {
             window.space_of(browser) != Some(space)
         });
     }

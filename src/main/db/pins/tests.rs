@@ -37,6 +37,14 @@ fn ids(rows: &[PinRow]) -> Vec<PinId> {
     rows.iter().map(|row| row.id).collect()
 }
 
+// What is in a folder's row.
+fn items_of(row: &PinRow) -> &[PinRow] {
+    match &row.kind {
+        PinKind::Folder { items, .. } => items,
+        _ => panic!("not a folder"),
+    }
+}
+
 #[test]
 fn pins_come_back_in_order_with_their_folders() {
     let db = db();
@@ -359,6 +367,49 @@ fn a_folder_stays_among_its_profiles_pins_and_out_of_itself() {
     assert!(db.move_pin(folder, &top(other), None).is_err());
     db.move_pin(deep, &top(space), Some(0)).unwrap();
     assert_eq!(ids(&db.space_pins(space).unwrap()), vec![deep, folder]);
+}
+
+#[test]
+fn a_folder_takes_all_in_it_to_another_space() {
+    let db = db();
+    let (space, other) = (space(&db, "a"), space(&db, "a"));
+    let stays = db.create_pin(&top(space), None, tab("https://a/")).unwrap();
+    let folder = db
+        .create_pin(&top(space), None, NewPin::Folder { name: "F".into() })
+        .unwrap();
+    let in_folder = |space, parent| PinPlace::Space {
+        space,
+        parent: Some(parent),
+    };
+    let inner = db
+        .create_pin(&in_folder(space, folder), None, tab("https://b/"))
+        .unwrap();
+    let deep = db
+        .create_pin(
+            &in_folder(space, folder),
+            None,
+            NewPin::Folder { name: "G".into() },
+        )
+        .unwrap();
+    let deepest = db
+        .create_pin(&in_folder(space, deep), None, tab("https://c/"))
+        .unwrap();
+    let there = db.create_pin(&top(other), None, tab("https://d/")).unwrap();
+
+    let mut moved = db.move_pin(folder, &top(other), Some(0)).unwrap();
+    moved.sort();
+    assert_eq!(moved, vec![folder, inner, deep, deepest]);
+    assert_eq!(ids(&db.space_pins(space).unwrap()), vec![stays]);
+    let pins = db.space_pins(other).unwrap();
+    assert_eq!(ids(&pins), vec![folder, there]);
+    assert_eq!(ids(items_of(&pins[0])), vec![inner, deep]);
+    assert_eq!(ids(items_of(&items_of(&pins[0])[1])), vec![deepest]);
+    // What is in it stays dense in its new space.
+    let added = db
+        .create_pin(&in_folder(other, folder), None, tab("https://e/"))
+        .unwrap();
+    let pins = db.space_pins(other).unwrap();
+    assert_eq!(ids(items_of(&pins[0])), vec![inner, deep, added]);
 }
 
 #[test]

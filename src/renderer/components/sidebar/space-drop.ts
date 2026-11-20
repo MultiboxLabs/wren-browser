@@ -3,12 +3,12 @@
 // other space. Let go on the button of one of the same profile, it moves to
 // the top of that space's list, and the window stays where it is. One of
 // another profile gets it made again at the top of its list, and the window
-// goes there (windows/move_tabs.rs). A pinned tab, a pinned split or several
-// marked pinned tabs go only to another space of the same profile, to the
-// top of its pins, as a pin is its profile's. Held over the button a moment,
-// as the platform springs a folder open, the window switches to that space,
-// and the drag goes on there: to a place in its sidebar, or to another
-// space's button.
+// goes there (windows/move_tabs.rs). A pinned tab, a pinned split, several
+// marked pinned tabs or a folder go only to another space of the same
+// profile, to the top of its pins, as a pin is its profile's. Held over the
+// button a moment, as the platform springs a folder open, the window
+// switches to that space, and the drag goes on there: to a place in its
+// sidebar, or to another space's button.
 
 import { type DragEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type Destination, items } from "@/ipc";
@@ -47,15 +47,13 @@ export function useSpaceDrop() {
   // Whether the button of space `id` may take what the page carries, or
   // switch to it, as it comes from a space that is made: a tab of the list,
   // its split, its group or marked tabs, any space's; a pinned tab, a pinned
-  // split or marked pinned tabs, only one of the same profile. Not a
-  // favourite, which every space of its profile shows. Not a folder either,
-  // as the app moves a folder's own row alone, and the pins in it would
-  // stay in the space it left (db/pins.rs).
+  // split, marked pinned tabs or a folder, only one of the same profile. Not
+  // a favourite, which every space of its profile shows.
   const goesTo = (unit: Carried, id: number) => {
     const from = profileOf(unit.space);
     if (from === undefined) return false;
     if (unit.type === "normal") return true;
-    return unit.type === "pinned" && unit.kind !== "folder" && profileOf(id) === from;
+    return unit.type === "pinned" && profileOf(id) === from;
   };
 
   const carriedOver = (event: DragEvent, id: number) => {

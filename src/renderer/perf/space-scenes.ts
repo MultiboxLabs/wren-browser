@@ -2,7 +2,7 @@
 // take items to another space, of the same profile or of another.
 // drag-scenes.ts has the rest, and these come after them.
 
-import { browser, perf } from "@/ipc";
+import { browser, perf, pins } from "@/ipc";
 import {
   askedFirst,
   chosen,
@@ -25,7 +25,7 @@ import {
   spaceOfAnotherProfile,
   switchesTo
 } from "./drag-steps";
-import { after, closeOmnibox, group, half, heading, pin, spaceButton, tab } from "./dragging";
+import { after, closeOmnibox, folder, group, half, heading, onto, pin, spaceButton, spaces, tab } from "./dragging";
 
 /** The scenes between spaces, for a run whose pages are at `url`. */
 export const spaceScenes = (url: string): Scene[] => [
@@ -180,6 +180,43 @@ export const spaceScenes = (url: string): Scene[] => [
         does: isDrawnOpen(pin(7)),
         shows: "favs (7|8) | pins 1 0 / favs (7|8) | pins 2 | tabs 2 0 {3}"
       }
+    ]
+  },
+  {
+    // On the second space the scene before made.
+    name: "A folder to another space",
+    tabs: 4,
+    steps: [
+      {
+        name: "a tab onto the second space's button",
+        does: dragged(tab(3), spaceButton(1)),
+        shows: "tabs 0 1 2 / tabs 3"
+      },
+      { name: "a tab onto the space's heading", does: dragged(tab(0), heading), shows: "pins 0 | tabs 1 2 / tabs 3" },
+      { name: "another onto the space's heading", does: dragged(tab(1), heading), shows: "pins 1 0 | tabs 2 / tabs 3" },
+      {
+        name: "a folder made",
+        does: () => pins.newFolder(spaces[0], null, null),
+        shows: "pins 1 0 [] | tabs 2 / tabs 3"
+      },
+      {
+        name: "a pinned tab onto the folder",
+        does: dragged(pin(0), onto(folder)),
+        shows: "pins 1 [0] | tabs 2 / tabs 3"
+      },
+      keepsTabs(pin(0), 1, {
+        name: "the folder onto the second space's button, which takes all in it, and the open pin's tab, to the top of that space's pins",
+        does: dragged(folder, spaceButton(1)),
+        shows: "pins 1 | tabs 2 / pins [0] | tabs 3"
+      }),
+      keepsTabs(pin(0), 0, {
+        name: "the folder held over the first space's button, then to a place among that space's pins",
+        does: async () => {
+          await shownSpace(1)();
+          await draggedThroughButton(folder, 0, after(pin(1)));
+        },
+        shows: "pins 1 [0] | tabs 2 / tabs 3"
+      })
     ]
   },
   {
