@@ -29,6 +29,7 @@ use crate::ipc::Told;
 use crate::perf::PageCounts;
 use crate::platform::PageWindow;
 use crate::sidebar::hover::SidebarHover;
+use crate::tabs::input::{self, WindowInputLocks};
 use crate::tabs::placeholder;
 
 /// The page's mark on its page info button, which the site's bubbles (page
@@ -86,6 +87,8 @@ pub struct BrowserWindow {
     /// What its page has been told, of its tabs and its downloads
     /// (ipc/told.rs).
     pub told: Told,
+    /// The locks it holds on all its tabs' input (tabs/input.rs).
+    pub input_locks: WindowInputLocks,
     places: RefCell<HashMap<Place, Slot>>,
     // A window on a profile has only that place in front, ever.
     front: RefCell<Front>,
@@ -138,6 +141,7 @@ impl BrowserWindow {
             page,
             sidebar_hover: SidebarHover::default(),
             told: Told::default(),
+            input_locks: WindowInputLocks::default(),
             places: RefCell::default(),
             front: RefCell::new(place.map_or(Front::Waiting, Front::Place)),
             framed: Cell::new(framed),
@@ -445,6 +449,7 @@ impl BrowserWindow {
         {
             self.page.restore_frame(bounds);
         }
+        input::follow(self, &browser);
         self.places.borrow_mut().insert(place, Slot::Open(browser));
     }
 

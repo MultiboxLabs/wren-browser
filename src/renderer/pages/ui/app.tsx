@@ -2,11 +2,13 @@ import { motion, MotionConfig } from "motion/react";
 import { type CSSProperties, useEffect, useRef } from "react";
 import { hasApp, type SidebarState } from "@/ipc";
 import { HoldContext } from "@/components/ui/hold";
+import { TabInputLockContext } from "@/components/ui/tab-input-lock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ResizeHandle } from "@/components/ui/resize-handle";
 import { BrowserProvider, useSidePanel, useTab, useTabShape } from "@/state/browser";
 import { DownloadsProvider } from "@/state/downloads";
 import { PinsProvider } from "@/state/pins";
+import { lockTabInput } from "@/state/tab-input-lock";
 import { SpaceProvider, useSpace } from "@/state/space";
 import { useShowWindow, useWindowBlocked, useWindowMiniWren, useWindowTheme } from "@/state/window";
 import { useSpaceBlend } from "@/state/space-blend";
@@ -47,24 +49,26 @@ export function App() {
       <BrowserProvider>
         <Perf />
         <SpaceProvider miniWren={miniWren}>
-          <TooltipProvider>
-            {miniWren ? (
-              <MiniWrenWindow miniWren={miniWren} />
-            ) : (
-              miniWren === null && (
-                // Its spaces' pins are read while the sidebar's state is.
-                <PinsProvider>
-                  {saved !== undefined && margins !== undefined && addressBar !== undefined && (
-                    <WindowMarginsContext value={margins}>
-                      <AddressBarContext value={addressBar}>
-                        <BrowserWindow saved={saved} />
-                      </AddressBarContext>
-                    </WindowMarginsContext>
-                  )}
-                </PinsProvider>
-              )
-            )}
-          </TooltipProvider>
+          <TabInputLockContext value={lockTabInput}>
+            <TooltipProvider>
+              {miniWren ? (
+                <MiniWrenWindow miniWren={miniWren} />
+              ) : (
+                miniWren === null && (
+                  // Its spaces' pins are read while the sidebar's state is.
+                  <PinsProvider>
+                    {saved !== undefined && margins !== undefined && addressBar !== undefined && (
+                      <WindowMarginsContext value={margins}>
+                        <AddressBarContext value={addressBar}>
+                          <BrowserWindow saved={saved} />
+                        </AddressBarContext>
+                      </WindowMarginsContext>
+                    )}
+                  </PinsProvider>
+                )
+              )}
+            </TooltipProvider>
+          </TabInputLockContext>
         </SpaceProvider>
       </BrowserProvider>
     </MotionConfig>

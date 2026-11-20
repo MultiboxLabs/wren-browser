@@ -8,6 +8,7 @@ A part. It is what Wren does to a Browser's tabs, whoever asks, and what each ta
 - What each tab is, which is a tab of the sidebar's list, a pin's, the placeholder, or one closing for a pin.
 - Archiving tabs, the pictures of tabs, and making tabs again in another profile.
 - What follows a change Chromium makes to a Browser's tabs.
+- The locks on each tab's input, such as one a window holds on all its tabs while Wren's own UI covers them.
 
 ## What goes elsewhere
 

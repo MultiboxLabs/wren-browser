@@ -17,6 +17,7 @@ use crate::pages::UI;
 use crate::perf::PageCounts;
 use crate::platform::{PageWindow, WindowKind, WindowSize};
 use crate::spaces;
+use crate::tabs;
 use crate::windows::{self, BrowserWindow, MiniWren, Place, WindowId};
 
 /// A browser window's size when nothing gives it one.
@@ -150,6 +151,13 @@ pub(super) fn open_page_window(
         }
     });
     count_crashes(state, &page);
+    let weak = Rc::downgrade(state);
+    page.watch_page_gone(move || {
+        let Some(state) = weak.upgrade() else { return };
+        if let Some(window) = state.windows.get(id) {
+            tabs::input::page_gone(&window);
+        }
+    });
     let weak = Rc::downgrade(state);
     page.watch_full_screen(move |full_screen| {
         let Some(state) = weak.upgrade() else { return };

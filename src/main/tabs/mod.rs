@@ -9,10 +9,14 @@
 //
 // Tabs brought from another Browser move there if it is of their profile,
 // and close and are made again if it is of another (recreate.rs).
+//
+// A tab ignores input while any lock is on it, such as one a window's
+// dialog holds on all its tabs (input.rs).
 
 pub mod archive;
 pub mod closes;
 pub mod groups;
+pub mod input;
 pub mod placeholder;
 pub mod previews;
 mod recreate;
@@ -39,10 +43,12 @@ use crate::windows::Place;
 /// (`change`). A placeholder goes, or stays, as the tabs change, and the
 /// pins' links follow them. A tab left for another has its picture taken,
 /// and one whose page changes has it go stale. The page is told of the tabs
-/// when a pin settled.
+/// when a pin settled. Tabs that come to a Browser take on its window's
+/// locks on their input.
 pub fn changed(state: &Rc<State>, browser: &Browser, change: &Change) {
     closes::settle(&state.analytics);
     roles::forget_closed();
+    input::forget_closed();
     items::carry::forget_gone();
     placeholder::settle(browser);
     previews::follow_active(browser);
@@ -57,6 +63,11 @@ pub fn changed(state: &Rc<State>, browser: &Browser, change: &Change) {
         && let Some(window) = state.windows.of(browser)
     {
         ipc::send_tabs(&window, browser);
+    }
+    if change.kind == ChangeKind::Tabs
+        && let Some(window) = state.windows.of(browser)
+    {
+        input::follow(&window, browser);
     }
 }
 

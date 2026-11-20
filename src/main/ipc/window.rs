@@ -1,12 +1,13 @@
 use std::rc::Rc;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use wren::{MainThread, WebView};
 
 use super::{WindowRef, failed, give_back_keyboard, with_window};
 use crate::app::State;
 use crate::db::SpaceId;
 use crate::platform::PageWindow;
+use crate::tabs::input::{self, InputLock};
 use crate::windows::{self, BrowserWindow, Place};
 
 /// The space the page draws for a window on a profile, made up, as no space
@@ -54,6 +55,13 @@ fn shown_profile(window: &BrowserWindow) -> Option<ShownProfile> {
         Place::Profile { id, off_the_record } => Some(ShownProfile { id, off_the_record }),
         Place::Space(_) => None,
     }
+}
+
+/// What `window.lockTabInput` takes.
+#[derive(Deserialize)]
+struct LockTabInput {
+    lock: InputLock,
+    held: bool,
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
@@ -126,6 +134,16 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("window.blocked", move |()| {
         with_window(&weak, |window| Ok(window.is_blocked()))
+    });
+
+    // Holds a lock on the window's tabs' input while Wren's own UI covers
+    // them, or lets it go.
+    let weak = window.clone();
+    let _ = web_view.handle("window.lockTabInput", move |call: LockTabInput| {
+        with_window(&weak, |window| {
+            input::set_on_window(window, call.lock, call.held);
+            Ok(())
+        })
     });
 
     // Whether the place in front has an active tab, as the app knows it now.
