@@ -161,8 +161,13 @@ export const scenes = (url: string): Scene[] => [
         shows: "pins 1 | tabs (3|2) 4 0 5"
       },
       {
-        name: "a pinned tab onto the left half of a tab, which it takes as its split's other side",
+        name: "a pinned tab onto the left half of a tab, which leaves the pins for a split with it in the list",
         does: dragged(pin(1), half(tab(4), "left")),
+        shows: "tabs (3|2) (1|4) 0 5"
+      },
+      {
+        name: "the split onto the space's heading",
+        does: dragged(tab(1), heading),
         shows: "pins (1|4) | tabs (3|2) 0 5"
       },
       {
@@ -321,9 +326,9 @@ export const scenes = (url: string): Scene[] => [
         shows: "favs 0 | tabs 2 1 3 4 5"
       },
       {
-        name: "a favourite onto the right half of a tab, which it takes as its split's other side",
+        name: "a favourite onto the right half of a tab, which leaves the favourites for a split with it in the list",
         does: dragged(pin(0), half(tab(3), "right")),
-        shows: "favs (3|0) | tabs 2 1 4 5"
+        shows: "tabs 2 1 (3|0) 4 5"
       }
     ]
   },

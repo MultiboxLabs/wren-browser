@@ -110,6 +110,17 @@ pub enum Side {
     Right,
 }
 
+impl Side {
+    // The half of a split it makes the tab dropped on it, as pins/ counts
+    // them: 0 the first.
+    fn index(self) -> usize {
+        match self {
+            Side::Left => 0,
+            Side::Right => 1,
+        }
+    }
+}
+
 /// What a move did, for what counts it (analytics/).
 pub enum Moved {
     /// It changed place where it was kept: in the list, or among the pins.
@@ -221,10 +232,9 @@ pub fn add_address(
 // A pin goes among the pins or the favourites as it is, and to the list as
 // an ordinary tab, from any space of any profile. The database refuses a
 // folder in the favourites. A tab pin dropped on half of a tab of the list
-// takes that tab as its split's other side, and stays where it is kept. A
-// pin of another space comes to this one's pins first, for the list or a
-// split (pins/). One that goes to another profile brings the window to the
-// space it went to, as tabs do.
+// goes to the list too, in a split with that tab. A pin of another space
+// comes to this one's pins first, for the list (pins/). One that goes to
+// another profile brings the window to the space it went to, as tabs do.
 fn move_pin(
     state: &Rc<State>,
     mt: MainThread,
@@ -269,16 +279,7 @@ fn move_pin(
             let found = state.windows.get(window).ok_or("The window is closing.")?;
             let browser = found.browser_of(&place).ok_or("There is no such tab.")?;
             let tab = tab_of(mt, &browser, with)?;
-            if tab.state().map_err(failed)?.split.is_some() {
-                return Err("A pin makes a split only with a tab alone.".into());
-            }
-            // The pin's page takes the half it was dropped on, and the tab
-            // the other.
-            let side = match side {
-                Side::Left => 1,
-                Side::Right => 0,
-            };
-            pins::split_with(state, &browser, &place, id, tab, side)?;
+            pins::split_in_list(state, mt, &browser, &place, id, tab, side.index())?;
             Ok(Moved::Split { pin: true })
         })()),
         Target::Split { .. } => done(Err(
@@ -465,11 +466,7 @@ fn land(
             with: ItemRef::Pin(with),
             side,
         } => {
-            let side = match side {
-                Side::Left => 0,
-                Side::Right => 1,
-            };
-            pins::split_with(state, browser, place, with, tab, side)?;
+            pins::split_with(state, browser, place, with, tab, side.index())?;
             Ok(Moved::Split { pin: true })
         }
         Target::Split {

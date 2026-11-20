@@ -270,10 +270,9 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
 
 /// Makes tab pin `id` a split of its page and `tab`'s, `tab` on `side` (0:
 /// first), side by side, as a tab of the list dropped on half of the pin's
-/// row does, or the pin on half of the tab's: `tab` leaves the list, and the
-/// two open as the pin's split, where the pin is kept. A pin the window
-/// doesn't show comes to the top of its space's pins first (`come_here`).
-/// An unopened pin opens first.
+/// row does: `tab` leaves the list, and the two open as the pin's split,
+/// where the pin is kept. An unopened pin opens first. The pin dropped on
+/// half of the tab's row goes to the list instead (`split_in_list`).
 pub fn split_with(
     state: &State,
     browser: &Browser,
@@ -282,13 +281,12 @@ pub fn split_with(
     tab: BrowserTab,
     side: usize,
 ) -> Result<(), String> {
-    if !matches!(pin_row(state, id)?.kind, PinKind::Tab(_)) {
+    if !matches!(pin_for(state, place, id)?.kind, PinKind::Tab(_)) {
         return Err("Only a tab pin makes a split with a tab.".into());
     }
     if roles::pin_of(tab).is_some() {
         return Err("That tab is a pin's.".into());
     }
-    come_here(state, place, id)?;
     open(state, browser, place, id)?;
     let own = open::opening(browser, id)
         .and_then(|opening| opening.tabs().first().copied())
@@ -559,12 +557,12 @@ pub fn goes_to_another_profile(state: &State, place: &Place, id: PinId) -> Resul
     Ok(profile_of(state, place)?.as_deref() != Some(profile.as_str()))
 }
 
-/// Makes pin `id` an ordinary tab at `index` of the list, in `group`, and
-/// removes the pin. A pin the window doesn't show comes to the top of its
-/// space's pins first (`come_here`). Its tab in `browser`'s window, moved
-/// here from another space if it is in one, stays, unpinned (a split's two
-/// still a split), or, unopened, opens here. Its tabs in other windows
-/// close with it.
+/// Makes pin `id` an ordinary tab at `index` of the list, in `group`,
+/// removes the pin, and returns its tabs in the list, in order. A pin the
+/// window doesn't show comes to the top of its space's pins first
+/// (`come_here`). Its tab in `browser`'s window, moved here from another
+/// space if it is in one, stays, unpinned (a split's two still a split),
+/// or, unopened, opens here. Its tabs in other windows close with it.
 pub fn to_list(
     state: &State,
     mt: MainThread,
@@ -573,7 +571,7 @@ pub fn to_list(
     id: PinId,
     index: usize,
     group: Option<TabGroup>,
-) -> Result<(), String> {
+) -> Result<Vec<BrowserTab>, String> {
     let pin = pin_row(state, id)?;
     // A folder stays where it is, rather than come here and then fail.
     if matches!(pin.kind, PinKind::Folder { .. }) {
@@ -582,13 +580,14 @@ pub fn to_list(
     come_here(state, place, id)?;
     bring(state, browser, id, false)?;
     let open = open::opening(browser, id).map_or_else(Vec::new, |opening| opening.tabs());
-    match (pin.kind, open.as_slice()) {
+    let listed = match (pin.kind, open.as_slice()) {
         (PinKind::Tab(_), [tab]) => {
             roles::release(*tab);
             tabs::move_tab(mt, browser, *tab, index, group).map_err(failed)?;
+            vec![*tab]
         }
         (PinKind::Tab(page), _) => {
-            tabs::add_at(mt, browser, &page.url, index, group, true).map_err(failed)?;
+            vec![tabs::add_at(mt, browser, &page.url, index, group, true).map_err(failed)?]
         }
         (PinKind::Split { .. }, [first, second]) => {
             // Out of their split as they are unpinned, as Chromium ends a
@@ -599,6 +598,7 @@ pub fn to_list(
             let split = first.split_with(*second, layout).map_err(failed)?;
             split.set_ratio(ratio, false).map_err(failed)?;
             tabs::move_split(mt, browser, split, index, group).map_err(failed)?;
+            vec![*first, *second]
         }
         (
             PinKind::Split {
@@ -615,11 +615,37 @@ pub fn to_list(
             one.split_with(two, split_layout(layout))
                 .and_then(|split| split.set_ratio(ratio, false))
                 .map_err(failed)?;
+            vec![one, two]
         }
         (PinKind::Folder { .. }, _) => return Err(FOLDER_IS_NO_TAB.into()),
-    }
+    };
     // Its tabs here are the list's now, and those elsewhere close with it.
-    remove(state, id)
+    remove(state, id)?;
+    Ok(listed)
+}
+
+/// Makes tab pin `id` an ordinary tab of the list in a split with `tab`, a
+/// tab of the list alone, the pin's page on `side` (0: first), and removes
+/// the pin, as the pin dropped on half of the tab's row does: it goes where
+/// it is dropped. It lands as `to_list` puts it, beside `tab`.
+pub fn split_in_list(
+    state: &State,
+    mt: MainThread,
+    browser: &Browser,
+    place: &Place,
+    id: PinId,
+    tab: BrowserTab,
+    side: usize,
+) -> Result<(), String> {
+    let now = tab.state().map_err(failed)?;
+    if now.split.is_some() {
+        return Err("A pin makes a split only with a tab alone.".into());
+    }
+    let index = tabs::listed(browser).iter().position(|each| *each == tab);
+    let index = index.ok_or("That tab is not in the list.")?;
+    let own = tab_pin_to_list(state, mt, browser, place, id, index, now.group)?;
+    let (first, second) = if side == 0 { (own, tab) } else { (tab, own) };
+    tabs::split(first, second).map_err(failed)
 }
 
 // Closes the tabs of `pins` in every Browser `closes` picks, each pin's
@@ -722,13 +748,34 @@ fn profile_of(state: &State, place: &Place) -> Result<Option<String>, String> {
 
 // Brings pin `id` to the top of the pins of `place`'s space if the window
 // doesn't show it, from another space of any profile, so that it lands in
-// the list or makes a split there as one of the space's own.
+// the list there as one of the space's own.
 fn come_here(state: &State, place: &Place, id: PinId) -> Result<(), String> {
     let (profile, space, _) = state.db.pin(id)?.ok_or("That pin is gone.")?;
     if shows(state, place, &profile, space)? {
         return Ok(());
     }
     move_pin(state, place, id, PinTarget::Space { parent: None }, Some(0))
+}
+
+// Makes tab pin `id` an ordinary tab at `index` of the list, in `group`, as
+// `to_list` does, and returns it, for a split to be made with it. Any other
+// pin stays where it is.
+fn tab_pin_to_list(
+    state: &State,
+    mt: MainThread,
+    browser: &Browser,
+    place: &Place,
+    id: PinId,
+    index: usize,
+    group: Option<TabGroup>,
+) -> Result<BrowserTab, String> {
+    if !matches!(pin_row(state, id)?.kind, PinKind::Tab(_)) {
+        return Err("Only a tab pin makes a split.".into());
+    }
+    match to_list(state, mt, browser, place, id, index, group)?[..] {
+        [tab] => Ok(tab),
+        _ => Err("The pin did not come to the list as one tab.".into()),
+    }
 }
 
 // Pin `id`'s row, wherever it is kept.

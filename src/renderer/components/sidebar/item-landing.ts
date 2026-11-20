@@ -184,8 +184,8 @@ function placeBetween(
  * With nothing drawn, it goes first. A tab alone, on the middle of another
  * tab's row, makes a split with it, on the left or right of it: a tab of
  * the list on any tab's row, and a pinned tab or a favourite on the row of
- * a tab of the list. A pin of another space comes to this one's pins first
- * (pins/), and makes its split here.
+ * a tab of the list, which takes it out of its place into the list, in a
+ * split with that tab, from any space (pins/).
  * On the middle of a folder's row it goes in, first if it is open and last
  * if not, and on a folded group's, last. Otherwise it goes in the nearest
  * place between the rows that it may take. Past the last row of a folder or

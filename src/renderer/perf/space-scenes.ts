@@ -194,12 +194,12 @@ export const spaceScenes = (url: string): Scene[] => [
         shows: "favs (7|8) | pins 1 0 / favs (7|8) | pins 2 | tabs 2 0 {3}"
       },
       {
-        name: "a pinned tab of the first space held over the second space's button, then onto half of a tab, which makes a split there",
+        name: "a pinned tab of the first space held over the second space's button, then onto half of a tab, which makes a split with it in that space's list",
         does: async () => {
           await shownSpace(0)();
           await draggedThroughButton(pin(1), 1, half(tab(0), "left"));
         },
-        shows: "favs (7|8) | pins 0 / favs (7|8) | pins (1|0) 2 | tabs 2 {3}"
+        shows: "favs (7|8) | pins 0 / favs (7|8) | pins 2 | tabs 2 (1|0) {3}"
       }
     ]
   },
@@ -327,8 +327,13 @@ export const spaceScenes = (url: string): Scene[] => [
         shows: "pins 5 / nothing / tabs {3 4} (2|1) 0"
       },
       {
-        name: "the pinned tab held over the other profile's space's button, then onto half of a tab, which makes a split there",
+        name: "the pinned tab held over the other profile's space's button, then onto half of a tab, which makes a split with it in that space's list",
         does: () => draggedThroughButton(pin(5), 2, half(tab(0), "right")),
+        shows: "nothing / nothing / tabs {3 4} (2|1) (0|5)"
+      },
+      {
+        name: "the split onto the space's heading",
+        does: dragged(tab(0), heading),
         shows: "nothing / nothing / pins (0|5) | tabs {3 4} (2|1)"
       },
       {
