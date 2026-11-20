@@ -89,8 +89,8 @@ impl PageWindow {
         let (on_crash, on_gone) = (crash_watch.clone(), gone_watch.clone());
         web_view.set_changed(Some(Box::new(move |state| {
             let now_crashed = state.crash != TabCrash::None;
-            let crash_started = now_crashed && !crashed.replace(now_crashed);
-            let load_started = state.loading && !loading.replace(state.loading);
+            let crash_started = !crashed.replace(now_crashed) && now_crashed;
+            let load_started = !loading.replace(state.loading) && state.loading;
             if crash_started && let Some(web_view) = reloaded.upgrade() {
                 let _ = web_view.reload();
                 if let Some(watch) = &*on_crash.borrow() {
