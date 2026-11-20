@@ -24,7 +24,7 @@ import { hasApp, type ItemRef, items as itemCalls, type MovingRef } from "@/ipc"
 import { useReadTabs } from "@/state/browser";
 import { type Item, itemKey, type ItemType } from "@/state/items";
 import { useDrawnSpace, useSpace } from "@/state/space";
-import { holdForDrag } from "./drag-hold";
+import { holdForDrag, holdThroughDrag, whenDragEnds } from "./drag-hold";
 import { carriesAddress } from "./dropped-address";
 import { useMarking } from "./marking";
 
@@ -91,30 +91,15 @@ const TYPES: ItemType[] = ["normal", "pinned", "favorite"];
 // only what it carries once it is dropped, and where it would land depends
 // on it.
 let carried: Carried | null = null;
-let forget = () => {};
 
-// Keeps `mine` as what is carried until its drag is over, then has the app
-// renew its tokens. The end is heard on the window, after what took the drop
-// has asked what it carried, and more ways than one: what was dragged may
-// have gone from the page meanwhile, and then hears no `dragend`, so the
-// pointer's next press, or its first move with its button up, ends it too.
-// Not the window losing focus, which a drag outlasts: the tab a press
-// selects may take it.
+// Keeps `mine` as what is carried until its drag ends (drag-hold.ts), then
+// has the app renew its tokens.
 function carry(mine: Carried) {
-  forget();
   carried = mine;
-  const over = new AbortController();
-  const { signal } = over;
-  forget = () => {
-    over.abort();
+  whenDragEnds(() => {
     if (carried === mine) carried = null;
     if (hasApp && mine.tokens.length) itemCalls.dragEnded(mine.tokens).catch(() => {});
-  };
-  window.addEventListener("dragend", forget, { signal });
-  window.addEventListener("drop", forget, { signal });
-  window.addEventListener("pointerdown", forget, { signal, capture: true });
-  // Moves with the button down come before a drag begins, and none during it.
-  window.addEventListener("pointermove", (event) => event.buttons === 0 && forget(), { signal });
+  });
 }
 
 /** The kind an item moves as. */
@@ -261,6 +246,8 @@ export function useItemDrag() {
         // A tab of a group is picked up by its own element, inside the group's.
         const element = event.currentTarget;
         if ((event.target as Element).closest("[draggable=true]") !== element) return;
+        // A drag now, which outlasts the window losing focus.
+        holdThroughDrag();
         const row = rowOf(element, kind);
         const box = row.getBoundingClientRect();
         // The rows marked with it, if it is one of several, go with it.

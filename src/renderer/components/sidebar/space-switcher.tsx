@@ -10,8 +10,8 @@
 // it passes, and letting it go asks the app to move it there. One that comes
 // or goes opens or closes its place in the row, which the others slide from.
 //
-// A tab of the list dragged onto a space moves there, and held over it, the
-// window switches to it (space-drop.ts).
+// A tab dragged onto a space moves there, and held over it, the window
+// switches to it (space-drop.ts says which tabs).
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useLayoutEffect, useMemo, useRef, useState } from "react";

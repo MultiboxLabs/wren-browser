@@ -1,42 +1,58 @@
-// While something of the sidebar is pressed, and may be dragged, the page
-// does not move the window (`data-reordering` in index.css): the drag would
-// not reach what is under a drag region. A press that does not become a drag
-// lets go at its release; a drag is let go of where it ends.
+// The press of an item of the sidebar, and the drag it may become
+// (item-drag.ts). While it lasts, the page does not move the window
+// (`data-reordering` in index.css): the drag would not reach what is under
+// a drag region. What lasts as long as the drag waits for its end
+// (`whenDragEnds`): what it carries (item-drag.ts), and the space's button
+// it is over (space-drop.ts).
 //
-// The end is heard here, not where the press started, and more ways than
-// one, as a missed end leaves the window unmovable. What was dragged may
-// have gone from the page meanwhile (a tab whose space the window left for
-// another, as the drag waited on that one's button), and then hears no
-// `dragend`; a control-click's menu takes the release. So the pointer's
-// first move with its button up lets go too, as does a menu or the window
-// losing focus.
+// The end is heard here, and more ways than one, as a missed end leaves the
+// window unmovable. A press that does not become a drag ends at its
+// release, or at a menu or the window losing focus, as a control-click's
+// menu takes the release. A drag ends at its drop or its `dragend`, heard on
+// the window after what took the drop has asked what it carried. What was
+// dragged may have gone from the page meanwhile (a tab whose space the
+// window left for another, as the drag waited on that one's button), and
+// then hears no `dragend`, so the pointer's next press, or its first move
+// with its button up, ends either. A drag outlasts the window losing focus:
+// the tab a press selects takes the keyboard as its page comes, which may be
+// after the drag has begun.
 
 let held: AbortController | null = null;
 let ends: (() => void)[] = [];
 
-/** Lets go of the window's drag regions until the press is released, or the drag it starts ends. */
+/** Holds as an item is pressed, until the press is released, or the drag it becomes ends. */
 export function holdForDrag() {
   releaseDrag();
-  held = new AbortController();
-  const { signal } = held;
-  document.documentElement.dataset.reordering = "";
-  window.addEventListener("pointerup", releaseDrag, { signal });
-  // After what took the drop or the drag's end, which may ask what it carried.
-  window.addEventListener("dragend", releaseDrag, { signal });
-  window.addEventListener("drop", releaseDrag, { signal });
-  // Moves with the button down come before a drag begins, and none during it.
-  window.addEventListener("pointermove", (event) => event.buttons === 0 && releaseDrag(), { signal });
-  window.addEventListener("contextmenu", releaseDrag, { signal });
-  window.addEventListener("blur", releaseDrag, { signal });
+  holdUntil(["pointerup", "contextmenu", "blur"]);
 }
 
-/** Runs `then` once the drag held now ends, or at once if none is held. */
+/** Holds on through the drag the press has become, until the drag ends. */
+export function holdThroughDrag() {
+  holdUntil([]);
+}
+
+/** Runs `then` once what is held now ends, or at once if nothing is. */
 export function whenDragEnds(then: () => void) {
   if (held) ends.push(then);
   else then();
 }
 
-// Gives the window its drag regions back.
+// Holds until a drag's end, `releases`, or the pointer's next press or first
+// move with its button up, in place of what held before. What waits for the
+// end goes on waiting.
+function holdUntil(releases: (keyof WindowEventMap)[]) {
+  held?.abort();
+  held = new AbortController();
+  const { signal } = held;
+  document.documentElement.dataset.reordering = "";
+  for (const type of ["dragend", "drop", ...releases]) window.addEventListener(type, releaseDrag, { signal });
+  // Before what is pressed, which may hold again.
+  window.addEventListener("pointerdown", releaseDrag, { signal, capture: true });
+  // Moves with the button down come before a drag begins, and none during it.
+  window.addEventListener("pointermove", (event) => event.buttons === 0 && releaseDrag(), { signal });
+}
+
+// Gives the window its drag regions back, and ends what waits for the end.
 function releaseDrag() {
   held?.abort();
   held = null;

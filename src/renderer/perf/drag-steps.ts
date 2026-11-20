@@ -461,11 +461,15 @@ export async function spaceOfAnotherProfile() {
 }
 
 /**
- * Drags a tab to the button of the run's space at `at` and holds it there
- * until the window shows that space, then drops it at a place in its list.
+ * Drags an item to the button of the run's space at `at` and holds it
+ * there until the window shows that space, then drops it at `where` in
+ * that space's sidebar.
+ * With `focusLost`, the page loses focus once the drag has begun, as it
+ * does when the tab the press selects takes the keyboard.
  */
-export async function draggedThroughButton(what: What, at: number, where: Where) {
+export async function draggedThroughButton(what: What, at: number, where: Where, { focusLost = false } = {}) {
   const carrying = await pickUp(what);
+  if (focusLost) window.dispatchEvent(new FocusEvent("blur"));
   let shown = false;
   const end = performance.now() + 5000;
   while (!shown) {

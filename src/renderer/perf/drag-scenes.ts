@@ -781,10 +781,10 @@ export const scenes = (url: string): Scene[] => [
         shows: "pins 0 / tabs {2 3} 1"
       }),
       {
-        name: "the pinned tab held over the second space's button, then to a place in that space's list, which unpins it there",
+        name: "the pinned tab held over the second space's button as the page loses focus, then to a place in that space's list, which unpins it there",
         does: async () => {
           await shownSpace(0)();
-          await draggedThroughButton(pin(0), 1, after(tab(1)));
+          await draggedThroughButton(pin(0), 1, after(tab(1)), { focusLost: true });
         },
         shows: "nothing / tabs {2 3} 1 0"
       },
