@@ -17,7 +17,6 @@ use crate::ipc::{self, changes};
 use crate::menus;
 use crate::onboarding;
 use crate::pages::{SCHEME, Source, serve_page};
-use crate::platform::RunningApp;
 use crate::profiles::{self, filling};
 use crate::settings;
 use crate::sidebar::items;
@@ -239,14 +238,7 @@ impl App for Wren {
     // A link clicked in another app while Wren is the default browser, or a
     // page opened with it: a Mini Wren each (windows/open_urls.rs).
     fn open_urls(&self, mt: MainThread, request: &OpenURLsRequest) {
-        // TODO: take the sender from Wren Runtime's next version, which
-        // gives its app_id, app_name and app_path with the URLs. Until then
-        // every link is Discord's.
-        let sender = RunningApp {
-            id: "com.hnc.Discord".into(),
-            name: "Discord".into(),
-        };
-        windows::open_urls(&self.state, mt, &request.urls, Some(sender));
+        windows::open_urls(&self.state, mt, request);
     }
 
     // A Browser closed: its tabs are forgotten, and its window, of undocked
