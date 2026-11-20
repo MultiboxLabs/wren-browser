@@ -25,7 +25,20 @@ import {
   spaceOfAnotherProfile,
   switchesTo
 } from "./drag-steps";
-import { after, closeOmnibox, folder, group, half, heading, onto, pin, spaceButton, spaces, tab } from "./dragging";
+import {
+  after,
+  closeOmnibox,
+  favorites,
+  folder,
+  group,
+  half,
+  heading,
+  onto,
+  pin,
+  spaceButton,
+  spaces,
+  tab
+} from "./dragging";
 
 /** The scenes between spaces, for a run whose pages are at `url`. */
 export const spaceScenes = (url: string): Scene[] => [
@@ -179,6 +192,14 @@ export const spaceScenes = (url: string): Scene[] => [
         name: "the split favourite, open in the second space, drawn open in both",
         does: isDrawnOpen(pin(7)),
         shows: "favs (7|8) | pins 1 0 / favs (7|8) | pins 2 | tabs 2 0 {3}"
+      },
+      {
+        name: "a pinned tab of the first space held over the second space's button, then onto half of a tab, which makes a split there",
+        does: async () => {
+          await shownSpace(0)();
+          await draggedThroughButton(pin(1), 1, half(tab(0), "left"));
+        },
+        shows: "favs (7|8) | pins 0 / favs (7|8) | pins (1|0) 2 | tabs 2 {3}"
       }
     ]
   },
@@ -290,11 +311,63 @@ export const spaceScenes = (url: string): Scene[] => [
         does: dragged(tab(5), heading),
         shows: "pins 5 / nothing / tabs {3 4} (2|1) 0"
       },
+      // A pin goes to another profile unopened, as no tab can go there, and
+      // without asking.
+      switchesTo(2, {
+        name: "an open pinned tab onto the other profile's space's button, which takes it to that space's pins unopened and shows that space",
+        does: async () => {
+          await dragged(pin(5), spaceButton(2))();
+          await isUnopened(pin(5))();
+        },
+        shows: "nothing / nothing / pins 5 | tabs {3 4} (2|1) 0"
+      }),
       {
-        name: "a pinned tab onto the other profile's space's button, which takes none",
-        does: refused(pin(5), spaceButton(2)),
+        name: "the pinned tab held over the first space's button, then onto that space's heading",
+        does: () => draggedThroughButton(pin(5), 0, heading),
         shows: "pins 5 / nothing / tabs {3 4} (2|1) 0"
-      }
+      },
+      {
+        name: "the pinned tab held over the other profile's space's button, then onto half of a tab, which makes a split there",
+        does: () => draggedThroughButton(pin(5), 2, half(tab(0), "right")),
+        shows: "nothing / nothing / pins (0|5) | tabs {3 4} (2|1)"
+      },
+      {
+        name: "the split pin held over the first space's button, then onto the favourites",
+        does: () => draggedThroughButton(pin(0), 0, favorites),
+        shows: "favs (0|5) / favs (0|5) / tabs {3 4} (2|1)"
+      },
+      {
+        name: "the favourite onto the other profile's space's button, which takes none",
+        does: refused(pin(0), spaceButton(2)),
+        shows: "favs (0|5) / favs (0|5) / tabs {3 4} (2|1)"
+      },
+      {
+        name: "Pin to Space",
+        does: chosen(pin(0), "Pin to Space"),
+        shows: "pins (0|5) / nothing / tabs {3 4} (2|1)"
+      },
+      {
+        name: "the split pin held over the other profile's space's button, then to a place in its list, which unpins it there",
+        does: () => draggedThroughButton(pin(0), 2, after(tab(2))),
+        shows: "nothing / nothing / tabs {3 4} (2|1) (0|5)"
+      },
+      {
+        name: "a folder made, and the split put in it, which pins it",
+        does: async () => {
+          await pins.newFolder(spaces[2], null, null);
+          await shows("nothing / nothing / pins [] | tabs {3 4} (2|1) (0|5)");
+          await dragged(tab(0), onto(folder))();
+        },
+        shows: "nothing / nothing / pins [(0|5)] | tabs {3 4} (2|1)"
+      },
+      switchesTo(0, {
+        name: "the folder onto the first space's button, which takes all in it there, the open split pin unopened",
+        does: async () => {
+          await dragged(folder, spaceButton(0))();
+          await isUnopened(pin(0))();
+        },
+        shows: "pins [(0|5)] / nothing / tabs {3 4} (2|1)"
+      })
     ]
   }
 ];
