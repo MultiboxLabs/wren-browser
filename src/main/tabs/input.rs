@@ -40,12 +40,6 @@ impl InputLock {
 #[derive(Default)]
 pub struct WindowInputLocks(RefCell<HashSet<InputLock>>);
 
-impl WindowInputLocks {
-    fn holds(&self, lock: InputLock) -> bool {
-        self.0.borrow().contains(&lock)
-    }
-}
-
 thread_local! {
     // By tab, whose ID is the app's own whichever Browser it is in. A tab
     // with no lock on it has no entry.
@@ -55,17 +49,10 @@ thread_local! {
 /// Holds `lock` on `window`'s tabs, or lets it go.
 pub fn set_on_window(window: &BrowserWindow, lock: InputLock, held: bool) {
     let was_locked = !window.input_locks.0.borrow().is_empty();
-    {
-        let mut locks = window.input_locks.0.borrow_mut();
-        if held {
-            locks.insert(lock);
-        } else {
-            locks.remove(&lock);
-        }
-    }
+    toggle(&mut window.input_locks.0.borrow_mut(), lock, held);
     for browser in window.browsers() {
         for tab in browser.tabs() {
-            set(tab, lock, held);
+            change(tab, |on_tab| toggle(on_tab, lock, held));
         }
     }
     // A tab that ignores input can still take keys from an input method and
@@ -83,26 +70,16 @@ pub fn page_gone(window: &BrowserWindow) {
     }
 }
 
-/// Gives `browser`'s tabs the locks `window` holds on all its tabs, and
-/// takes off those of a window they were in before, as it comes to the
-/// window and as tabs come to it.
+/// Gives `browser`'s tabs the locks `window` holds on all its tabs in place
+/// of any window's before, as it comes to the window and as tabs come to
+/// it. A tab's own locks stay.
 pub fn follow(window: &BrowserWindow, browser: &Browser) {
+    let of_window = window.input_locks.0.borrow();
     for tab in browser.tabs() {
-        let window_wide: Vec<InputLock> = LOCKS.with(|locks| {
-            locks.borrow().get(&tab).map_or_else(Vec::new, |on_tab| {
-                on_tab
-                    .iter()
-                    .copied()
-                    .filter(|lock| lock.is_window_wide())
-                    .collect()
-            })
+        change(tab, |on_tab| {
+            on_tab.retain(|lock| !lock.is_window_wide());
+            on_tab.extend(of_window.iter().copied());
         });
-        for lock in window_wide {
-            set(tab, lock, window.input_locks.holds(lock));
-        }
-        for lock in window.input_locks.0.borrow().iter().copied() {
-            set(tab, lock, true);
-        }
     }
 }
 
@@ -111,24 +88,29 @@ pub fn forget_closed() {
     LOCKS.with(|locks| locks.borrow_mut().retain(|tab, _| tab.browser().is_some()));
 }
 
-// Puts `lock` on `tab`, or takes it off. The tab ignores input while its
-// list has any.
-fn set(tab: BrowserTab, lock: InputLock, held: bool) {
-    let changed = LOCKS.with(|locks| {
+fn toggle(locks: &mut HashSet<InputLock>, lock: InputLock, held: bool) {
+    if held {
+        locks.insert(lock);
+    } else {
+        locks.remove(&lock);
+    }
+}
+
+// Changes `tab`'s locks. The tab ignores input while it has any.
+fn change(tab: BrowserTab, change: impl FnOnce(&mut HashSet<InputLock>)) {
+    let (was_locked, locked) = LOCKS.with(|locks| {
         let mut locks = locks.borrow_mut();
-        let was_locked = locks.contains_key(&tab);
-        if held {
-            locks.entry(tab).or_default().insert(lock);
-        } else if let Some(on_tab) = locks.get_mut(&tab) {
-            on_tab.remove(&lock);
-            if on_tab.is_empty() {
-                locks.remove(&tab);
-            }
+        let mut on_tab = locks.remove(&tab).unwrap_or_default();
+        let was_locked = !on_tab.is_empty();
+        change(&mut on_tab);
+        let locked = !on_tab.is_empty();
+        if locked {
+            locks.insert(tab, on_tab);
         }
-        was_locked != locks.contains_key(&tab)
+        (was_locked, locked)
     });
-    if changed {
+    if locked != was_locked {
         // It fails only for a tab that has closed.
-        let _ = tab.set_ignores_input(held);
+        let _ = tab.set_ignores_input(locked);
     }
 }
