@@ -12,6 +12,7 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::ipc;
 use crate::spaces;
+use crate::tabs;
 use crate::windows::{self, BrowserWindow, Place, WindowId};
 
 /// Brings `space` forward in window `id`: its Browser if the window has
@@ -35,7 +36,7 @@ pub fn show_space(state: &State, id: WindowId, space: SpaceId) -> Result<(), Str
         Some(browser) => {
             ipc::send_browser(&window, &browser);
             if let Some(tab) = browser.active_tab() {
-                let _ = tab.focus();
+                tabs::input::give_keyboard(tab);
             }
         }
         None => ipc::send_no_browser(&window),

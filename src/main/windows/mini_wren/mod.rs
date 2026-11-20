@@ -170,7 +170,7 @@ pub fn follow_new_tab_page(state: &State, mt: MainThread, window: &BrowserWindow
     ipc::send_new_tab_page(window);
     menus::update_front_menu(state, mt);
     if !on_new_tab_page && let Some(tab) = browser.active_tab() {
-        let _ = tab.focus();
+        tabs::input::give_keyboard(tab);
     }
 }
 

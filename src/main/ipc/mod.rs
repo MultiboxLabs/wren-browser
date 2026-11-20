@@ -48,6 +48,7 @@ use serde::de::DeserializeOwned;
 use wren::{Browser, MainThread, NativeView, PageCall, WebView};
 
 use crate::app::State;
+use crate::tabs::input::give_keyboard;
 use crate::tabs::is_new_tab;
 use crate::windows::{BrowserWindow, WindowId};
 
@@ -230,7 +231,7 @@ fn give_back_keyboard(browser: &Browser) {
     if let Some(tab) = browser.active_tab()
         && !is_new_tab(&tab.url())
     {
-        let _ = tab.focus();
+        give_keyboard(tab);
     }
 }
 
