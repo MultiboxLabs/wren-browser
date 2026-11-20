@@ -5,7 +5,7 @@ import { HoldContext } from "@/components/ui/hold";
 import { TabInputLockContext } from "@/components/ui/tab-input-lock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ResizeHandle } from "@/components/ui/resize-handle";
-import { BrowserProvider, useSidePanel, useTab, useTabShape } from "@/state/browser";
+import { BrowserProvider, useSidePanel, useTabShape } from "@/state/browser";
 import { DownloadsProvider } from "@/state/downloads";
 import { PinsProvider } from "@/state/pins";
 import { lockTabInput } from "@/state/tab-input-lock";
@@ -90,14 +90,12 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   // panel make way for it, and come back as they were.
   const fullScreen = fullScreenTab !== null;
   const panelShown = browser !== null && sidePanel !== null && !fullScreen;
-  const shown = useTab(fullScreenTab ?? active);
-  const split = splits.find((split) => split.id === shown?.split);
-  const first = useTab(split?.first);
-  const second = useTab(split?.second);
+  const shown = fullScreenTab ?? active;
+  const split = shown === null ? undefined : splits.find((split) => split.first === shown || split.second === shown);
   // The page at the window's top right has its address bar atop it, which
   // the toast keeps below.
   const addressBar = useAddressBar();
-  const pageBar = shown !== undefined && !fullScreen && addressBar === "top";
+  const pageBar = shown !== null && !fullScreen && addressBar === "top";
   const address = useRef<HTMLDivElement>(null);
   const omnibox = useShownOmnibox(address, browser !== null);
   useOpenWithoutActiveTab(omnibox, ready);
@@ -122,7 +120,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           With no margins, the page covers it but for the gaps between cards
           while the sidebar is away, which show the window's blur bare. It
           fades as the docked sidebar goes, which is drawn on it. */}
-      <motion.div style={{ opacity: !margins && shown ? sidebar.motion.docked : 1 }} className="fixed inset-0">
+      <motion.div style={{ opacity: !margins && shown !== null ? sidebar.motion.docked : 1 }} className="fixed inset-0">
         <SpaceBackground space={space} toward={toward} className="absolute inset-0" />
       </motion.div>
       <div inert={blocked} className="drag relative flex h-full">
@@ -140,20 +138,15 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
               : ({ paddingRight: inset, paddingBlock: inset, "--page-inset": `${inset}px` } as CSSProperties)
           }
         >
-          {shown ? (
-            <TabView
-              tab={shown}
-              split={split}
-              first={first}
-              second={second}
-              fullScreen={fullScreen}
-              besidePanel={panelShown}
-              // In the middle of the window, as if there were no address bar.
-              onOpenLocation={() => omnibox.toggle("current", true)}
-            />
-          ) : (
-            <div className="card empty no-drag min-w-0 flex-1" />
-          )}
+          <TabView
+            active={shown}
+            split={split}
+            fullScreen={fullScreen}
+            besidePanel={panelShown}
+            omniboxOpen={omnibox.shown !== null}
+            // In the middle of the window, as if there were no address bar.
+            onOpenLocation={() => omnibox.toggle("current", true)}
+          />
           {panelShown && <SidePanel browser={browser} panel={sidePanel} />}
         </main>
 

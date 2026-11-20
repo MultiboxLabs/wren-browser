@@ -283,6 +283,26 @@ export function useWindowLinks() {
 }
 
 /**
+ * Every open tab's ID across the window's Browsers, sorted by ID
+ * (`TabsStore.tabIds`), drawn again only as tabs open or close.
+ */
+export function useWindowTabIds() {
+  const store = useContext(TabsContext);
+  if (!store) throw new Error("useWindowTabIds is used outside a BrowserProvider");
+  return useSyncExternalStore(store.subscribe, store.tabIds);
+}
+
+/**
+ * Every split across the window's Browsers (`TabsStore.splits`), drawn
+ * again only as one changes.
+ */
+export function useWindowSplits() {
+  const store = useContext(TabsContext);
+  if (!store) throw new Error("useWindowSplits is used outside a BrowserProvider");
+  return useSyncExternalStore(store.subscribe, store.splits);
+}
+
+/**
  * Whether a row is marked, by the IDs it is held by (`markIds` in
  * items.ts). What reads it is drawn again only as that changes.
  */

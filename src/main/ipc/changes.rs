@@ -25,8 +25,9 @@ pub fn apply(window: &BrowserWindow, changes: &[Change]) -> bool {
 }
 
 fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
-    apply_behind(window, changes);
+    let mut behind = collect_behind(window, changes);
     let Some(browser) = window.browser() else {
+        send_tab_changes(window, behind);
         return false;
     };
     let mut tab_changes = ipc::TabChanges::default();
@@ -92,7 +93,8 @@ fn apply_batch(window: &BrowserWindow, changes: &[Change]) -> bool {
             _ => {}
         }
     }
-    tab_changes.send(window, &browser);
+    behind.push((browser.clone(), tab_changes));
+    send_tab_changes(window, behind);
     if site_changed {
         ipc::send_site(window, &browser);
     }
@@ -129,9 +131,9 @@ pub fn forget_changed(window: &BrowserWindow, changes: &[Change]) {
     }
 }
 
-/// Tells `window`'s page of the changes to the tabs of its Browsers behind
-/// the one in front.
-fn apply_behind(window: &BrowserWindow, changes: &[Change]) {
+// Collects the changes to the tabs of `window`'s Browsers behind the one in
+// front.
+fn collect_behind(window: &BrowserWindow, changes: &[Change]) -> Vec<(Browser, ipc::TabChanges)> {
     let front = window.browser();
     let mut behind: Vec<(Browser, ipc::TabChanges)> = Vec::new();
     for change in changes {
@@ -150,7 +152,17 @@ fn apply_behind(window: &BrowserWindow, changes: &[Change]) {
         };
         behind[at].1.hear(change);
     }
-    for (browser, tab_changes) in behind {
+    behind
+}
+
+// Sends each Browser's tab changes, those that gained a tab before those
+// that lost one, so a tab moved between two spaces in one window never drops
+// out of the page's set of open tabs and keeps its <wren-view>.
+fn send_tab_changes(window: &BrowserWindow, batch: Vec<(Browser, ipc::TabChanges)>) {
+    let (gained, rest): (Vec<_>, Vec<_>) = batch
+        .into_iter()
+        .partition(|(browser, _)| window.told.tabs.has_new_tab(browser));
+    for (browser, tab_changes) in gained.into_iter().chain(rest) {
         tab_changes.send(window, &browser);
     }
 }

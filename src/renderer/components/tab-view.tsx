@@ -1,9 +1,12 @@
-// The page of the active tab, or of both tabs of its split, side by side or
-// one above the other, with a divider between them. A page in full screen
-// has the window to itself, without its card. A Mini Wren's page has no
-// card either (`bare`): it is edge to edge, under the window's toolbar.
+// The window's tabs: every open tab of the window keeps its <wren-view>
+// element, and tabs not shown are hidden with `hidden`, so switching tabs or
+// spaces shows a page as it last drew instead of detaching and re-attaching
+// it. A split's two tabs sit side by side or one above the other, with a
+// divider between them, and keep their halves while hidden. A page in full
+// screen has the window to itself, without its card. A Mini Wren's page has
+// no card either (`bare`): it is edge to edge, under the window's toolbar.
 
-import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, memo, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PageAddressBar } from "./address/page-bar";
 import { FindBar } from "./find-bar";
 import { LinkStatus } from "./link-status";
@@ -11,13 +14,18 @@ import { LoadingBar } from "./loading-bar";
 import { LoadingLine } from "./loading-line";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
-import { browser, type BrowserTab, splits, type TabSplit } from "@/ipc";
+import { appWindow, browser, type BrowserTab, hasApp, splits, type TabSplit } from "@/ipc";
 import { useAddressBar } from "@/state/address-bar";
+import { useTab, useWindowSplits, useWindowTabIds } from "@/state/browser";
 import { useWindowMargins } from "@/state/margins";
 import { cn } from "@/utils/cn";
 
 /** An edge of a card that meets another card, whose corners are square (card.css). */
 type Edge = "left" | "right" | "top" | "bottom";
+/** A tab's place in its split. */
+type SplitPlace = { split: TabSplit; side: "first" | "second" };
+/** How a visible slot frames its page. */
+type Surface = "card" | "fullScreen" | "bare";
 
 // The divider's thickness, as the gap beside the side panel.
 const DIVIDER = 10;
@@ -25,77 +33,170 @@ const DIVIDER = 10;
 const SIDE_MIN = 160;
 
 export function TabView({
-  tab,
+  active,
   split,
-  first,
-  second,
   fullScreen = false,
   bare = false,
   besidePanel = false,
+  omniboxOpen = false,
   onOpenLocation
 }: {
-  tab: BrowserTab;
-  /** The split `tab` is in, if any, and its two tabs. */
+  /** The active tab's ID, or the tab in full screen; null while the space has none. */
+  active: number | null;
+  /** The active tab's split, if it is in one. */
   split?: TabSplit;
-  first?: BrowserTab;
-  second?: BrowserTab;
   fullScreen?: boolean;
   /** Edge to edge, with no card round it, and the line along its top to show its loading: a Mini Wren's. */
   bare?: boolean;
   /** The side panel is at the page's right, which its cards meet. */
   besidePanel?: boolean;
+  /** The omnibox is open over the window, so switching tabs does not take the keyboard from it. */
+  omniboxOpen?: boolean;
   /** What a click on the address atop a page opens; with none, no page has an address bar atop it. */
   onOpenLocation?: () => void;
 }) {
-  // The address bar atop each page, while the setting puts it there.
+  const tabIds = useWindowTabIds();
+  const windowSplits = useWindowSplits();
   const setting = useAddressBar();
-  const bar = !fullScreen && !bare && setting === "top";
-  if (fullScreen || bare || !split || !first || !second) {
-    return (
-      <TabPane
-        tab={tab}
-        active
-        fullScreen={fullScreen}
-        bare={bare}
-        joins={besidePanel ? ["right"] : []}
-        onOpenLocation={bar ? onOpenLocation : undefined}
-        className="flex-1"
-      />
-    );
+  const margins = useWindowMargins();
+  const box = useRef<HTMLDivElement>(null);
+  // The user's drag of the shown split's divider, ahead of Chromium's word on it.
+  const [dragged, setDragged] = useState<{ split: string; ratio: number } | null>(null);
+  const shownSplit = !fullScreen && !bare ? split : undefined;
+  const shownRatio = shownSplit && dragged?.split === shownSplit.id ? dragged.ratio : shownSplit?.ratio;
+
+  useFocusActiveTab(active, !bare && !omniboxOpen);
+
+  // Every tab in a split across the window's spaces, so hidden splits keep
+  // their halves too.
+  const splitByTab = new Map<number, SplitPlace>();
+  for (const each of windowSplits) {
+    splitByTab.set(each.first, { split: each, side: "first" });
+    splitByTab.set(each.second, { split: each, side: "second" });
   }
+
   return (
-    <SplitPanes
-      split={split}
-      first={first}
-      second={second}
-      active={tab.id}
-      besidePanel={besidePanel}
-      onOpenLocation={bar ? onOpenLocation : undefined}
-    />
+    <div ref={box} className="relative flex min-h-0 min-w-0 flex-1">
+      {tabIds.map((id) => {
+        const visible = fullScreen
+          ? id === active
+          : shownSplit
+            ? id === shownSplit.first || id === shownSplit.second
+            : id === active;
+        const tabSplit = fullScreen && visible ? undefined : splitByTab.get(id);
+        const ratio = tabSplit
+          ? dragged?.split === tabSplit.split.id
+            ? dragged.ratio
+            : tabSplit.split.ratio
+          : undefined;
+        const surface: Surface = fullScreen && visible ? "fullScreen" : bare ? "bare" : "card";
+        const bar = surface === "card" && setting === "top";
+        const join = visible && surface === "card" && !margins ? joinEdges(tabSplit, besidePanel) : undefined;
+        return (
+          <TabSlot
+            key={id}
+            id={id}
+            hidden={!visible}
+            active={visible && id === active}
+            surface={surface}
+            bar={bar}
+            join={join}
+            splitSide={tabSplit?.side}
+            splitStacked={tabSplit?.split.stacked ?? false}
+            splitRatio={ratio}
+            onOpenLocation={visible && bar ? onOpenLocation : undefined}
+          />
+        );
+      })}
+      {shownSplit && shownRatio !== undefined && (
+        <SplitDivider
+          box={box}
+          split={shownSplit}
+          ratio={shownRatio}
+          onDrag={(ratio) => setDragged({ split: shownSplit.id, ratio })}
+          onEnd={() => {
+            if (dragged?.split === shownSplit.id) splits.setRatio(shownSplit.id, dragged.ratio, false);
+            setDragged(null);
+          }}
+        />
+      )}
+      {active === null && <div className={cn("no-drag absolute inset-0", bare ? "bg-card" : "card empty")} />}
+    </div>
   );
 }
 
-function SplitPanes({
+// A tab kept in a hidden <wren-view> is already `in_element`, so Chromium
+// sends no IN_ELEMENT change when it becomes active. Gives it the keyboard
+// once React has removed `hidden`; a brand-new tab gets it on IN_ELEMENT
+// (ipc/changes.rs).
+function useFocusActiveTab(active: number | null, enabled: boolean) {
+  const lastActive = useRef<number | null>(active);
+  useEffect(() => {
+    const previous = lastActive.current;
+    lastActive.current = active;
+    if (hasApp && enabled && active !== null && active !== previous) {
+      void appWindow.giveBackKeyboard().catch(() => {});
+    }
+  }, [active, enabled]);
+}
+
+// The card edges that meet another card (split neighbour or side panel),
+// square only when Window Margins is off (card.css).
+function joinEdges(tabSplit: SplitPlace | undefined, besidePanel: boolean): string | undefined {
+  const edges: Edge[] = [];
+  if (tabSplit) {
+    if (tabSplit.split.stacked) {
+      edges.push(tabSplit.side === "first" ? "bottom" : "top");
+      if (besidePanel) edges.push("right");
+    } else if (tabSplit.side === "first") {
+      edges.push("right");
+    } else {
+      edges.push("left");
+      if (besidePanel) edges.push("right");
+    }
+  } else if (besidePanel) {
+    edges.push("right");
+  }
+  return edges.length > 0 ? edges.join(" ") : undefined;
+}
+
+// Whole-pixel placement for a side of a split; non-split tabs fill `inset-0`.
+function splitExtent(ratio: number) {
+  return `round(nearest, calc((100% - ${DIVIDER}px) * ${ratio}), 1px)`;
+}
+
+function slotStyle(
+  side: "first" | "second" | undefined,
+  stacked: boolean,
+  ratio: number | undefined
+): CSSProperties | undefined {
+  if (!side || ratio === undefined) return undefined;
+  const first = splitExtent(ratio);
+  const second = `calc(100% - ${DIVIDER}px - ${first})`;
+  if (stacked) {
+    return side === "first"
+      ? { left: 0, right: 0, top: 0, height: first }
+      : { left: 0, right: 0, bottom: 0, height: second };
+  }
+  return side === "first"
+    ? { top: 0, bottom: 0, left: 0, width: first }
+    : { top: 0, bottom: 0, right: 0, width: second };
+}
+
+function SplitDivider({
+  box,
   split,
-  first,
-  second,
-  active,
-  besidePanel,
-  onOpenLocation
+  ratio,
+  onDrag,
+  onEnd
 }: {
+  box: RefObject<HTMLDivElement | null>;
   split: TabSplit;
-  first: BrowserTab;
-  second: BrowserTab;
-  /** The active tab's ID: the find bar is on its side. */
-  active: number;
-  besidePanel: boolean;
-  onOpenLocation?: () => void;
+  ratio: number;
+  onDrag: (ratio: number) => void;
+  onEnd: () => void;
 }) {
-  const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(0);
-  // The user's drag, ahead of Chromium's word on it.
-  const [dragged, setDragged] = useState<number | null>(null);
-  const ratio = dragged ?? split.ratio;
 
   useLayoutEffect(() => {
     const element = box.current!;
@@ -104,100 +205,138 @@ function SplitPanes({
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [split.stacked]);
+  }, [box, split.stacked]);
 
   const room = Math.max(0, size - DIVIDER);
-  // The sides at the right meet the side panel too.
-  const panel: Edge[] = besidePanel ? ["right"] : [];
+  const offset = splitExtent(ratio);
+  const style: CSSProperties = split.stacked
+    ? { left: 0, right: 0, top: offset, height: DIVIDER }
+    : { top: 0, bottom: 0, left: offset, width: DIVIDER };
+
   return (
-    <div ref={box} className={cn("flex min-h-0 min-w-0 flex-1", split.stacked && "flex-col")}>
-      <TabPane
-        tab={first}
-        active={first.id === active}
-        joins={split.stacked ? ["bottom", ...panel] : ["right"]}
-        split
-        onOpenLocation={onOpenLocation}
-        style={{ flex: `0 0 calc((100% - ${DIVIDER}px) * ${ratio})` }}
-      />
-      <ResizeHandle
-        width={Math.round(room * ratio)}
-        range={{ min: SIDE_MIN, max: Math.max(SIDE_MIN, room - SIDE_MIN) }}
-        edge={split.stacked ? "bottom" : "right"}
-        grip
-        style={split.stacked ? { height: DIVIDER } : { width: DIVIDER }}
-        onResize={(pixels) => {
-          if (!room) return;
-          const next = pixels / room;
-          setDragged(next);
-          splits.setRatio(split.id, next, true);
-        }}
-        onEnd={() => {
-          if (dragged !== null) splits.setRatio(split.id, dragged, false);
-          setDragged(null);
-        }}
-      />
-      <TabPane
-        tab={second}
-        active={second.id === active}
-        joins={split.stacked ? ["top", ...panel] : ["left", ...panel]}
-        split
-        onOpenLocation={onOpenLocation}
-        className="flex-1"
-      />
-    </div>
+    <ResizeHandle
+      width={Math.round(room * ratio)}
+      range={{ min: SIDE_MIN, max: Math.max(SIDE_MIN, room - SIDE_MIN) }}
+      edge={split.stacked ? "bottom" : "right"}
+      grip
+      className="absolute"
+      style={style}
+      onResize={(pixels) => {
+        if (!room) return;
+        const next = pixels / room;
+        onDrag(next);
+        splits.setRatio(split.id, next, true);
+      }}
+      onEnd={onEnd}
+    />
   );
 }
 
-function TabPane({
-  tab,
+// One tab's persistent slot. Keeps the exact same wrapper hierarchy around
+// <wren-view> whether visible or hidden so React never unmounts the element,
+// and mounts no tab subscriptions or chrome while hidden.
+const TabSlot = memo(function TabSlot({
+  id,
+  hidden,
   active,
-  fullScreen = false,
-  bare = false,
-  joins = [],
-  split = false,
-  onOpenLocation,
-  className,
-  style
+  surface,
+  bar,
+  join,
+  splitSide,
+  splitStacked,
+  splitRatio,
+  onOpenLocation
 }: {
-  tab: BrowserTab;
+  id: number;
+  hidden: boolean;
   /** The active tab's, which the find bar is on. */
   active: boolean;
-  fullScreen?: boolean;
-  bare?: boolean;
+  surface: Surface;
+  /** The address bar sits atop the page (reserves its height while hidden too). */
+  bar: boolean;
   /** The card's edges that meet another card: the split's other side, or the side panel. */
-  joins?: Edge[];
-  /** It is a side of a split, whose address bar can close it. */
-  split?: boolean;
+  join?: string;
+  splitSide?: "first" | "second";
+  splitStacked: boolean;
+  splitRatio?: number;
   /** With it, the page has its address bar atop it, whose address opens this. */
   onOpenLocation?: () => void;
-  className?: string;
-  style?: CSSProperties;
 }) {
-  const margins = useWindowMargins();
+  const style = slotStyle(splitSide, splitStacked, splitRatio);
+  const frameClass = hidden ? "" : surface === "fullScreen" ? "bg-black" : surface === "bare" ? "bg-card" : "card";
   return (
-    <div style={style} className={cn("relative flex min-h-0 min-w-0", className)}>
+    <div
+      style={style}
+      className={cn("absolute flex min-h-0 min-w-0", !style && "inset-0", hidden && "pointer-events-none invisible")}
+    >
       {/* With no margins, there is no gap above the card for it, and a
           line along the top of the page shows the loading instead, as it
           does on a Mini Wren's page. */}
-      {!fullScreen && !bare && margins && <LoadingBar loading={tab.loading} />}
+      {!hidden && surface === "card" && <TabLoadingBar id={id} />}
       <div
         // Square where it meets another card only without margins (card.css).
-        data-join={margins || joins.length === 0 ? undefined : joins.join(" ")}
-        className={cn(
-          fullScreen ? "bg-black" : bare ? "bg-card" : "card",
-          "no-drag relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-        )}
+        data-join={join}
+        className={cn(frameClass, "no-drag relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden")}
       >
-        {onOpenLocation && <PageAddressBar tab={tab} active={active} split={split} onOpenLocation={onOpenLocation} />}
+        {bar &&
+          (hidden ? (
+            <div className="h-9 shrink-0" />
+          ) : (
+            onOpenLocation && (
+              <TabAddressBar id={id} active={active} split={splitSide !== undefined} onOpenLocation={onOpenLocation} />
+            )
+          ))}
         {/* The page, with the card's corners below the bar, and all four without one. */}
-        <div className={cn("relative min-h-0 flex-1", onOpenLocation ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
-          <wren-view data-id={`tab-${tab.id}`} className="absolute inset-0 block rounded-[inherit] bg-black" />
-          {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={tab.id} />}
-          {!fullScreen && (bare || !margins) && <LoadingLine loading={tab.loading} progress={tab.progress} />}
+        <div className={cn("relative min-h-0 flex-1", bar ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
+          <wren-view
+            data-id={`tab-${id}`}
+            hidden={hidden}
+            className="absolute inset-0 block rounded-[inherit] bg-black"
+          />
+          {!hidden && <TabOverlays id={id} surface={surface} />}
         </div>
       </div>
-      {active && <FindBar tab={tab.id} belowBar={onOpenLocation !== undefined} />}
+      {!hidden && active && <FindBar tab={id} belowBar={bar} />}
     </div>
+  );
+});
+
+function TabLoadingBar({ id }: { id: number }) {
+  const margins = useWindowMargins();
+  const tab = useTab(id);
+  return margins && tab ? <LoadingBar loading={tab.loading} /> : null;
+}
+
+function TabAddressBar({
+  id,
+  active,
+  split,
+  onOpenLocation
+}: {
+  id: number;
+  active: boolean;
+  split: boolean;
+  onOpenLocation: () => void;
+}) {
+  const tab = useTab(id);
+  return tab ? (
+    <PageAddressBar tab={tab} active={active} split={split} onOpenLocation={onOpenLocation} />
+  ) : (
+    <div className="h-9 shrink-0" />
+  );
+}
+
+function TabOverlays({ id, surface }: { id: number; surface: Surface }) {
+  const margins = useWindowMargins();
+  const tab = useTab(id);
+  if (!tab) return null;
+  return (
+    <>
+      {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={id} />}
+      {surface !== "fullScreen" && (surface === "bare" || !margins) && (
+        <LoadingLine loading={tab.loading} progress={tab.progress} />
+      )}
+    </>
   );
 }
 

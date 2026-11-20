@@ -99,11 +99,7 @@ function PageWithToolbar({ miniWren }: { miniWren: WindowMiniWren }) {
         />
       )}
       <main className="flex min-h-0 flex-1">
-        {shown ? (
-          <TabView tab={shown} fullScreen={fullScreen !== undefined} bare />
-        ) : (
-          <div className="no-drag min-w-0 flex-1 bg-card" />
-        )}
+        <TabView active={shown?.id ?? null} fullScreen={fullScreen !== undefined} bare />
       </main>
       <BrowserToast />
       <QuitDialog />

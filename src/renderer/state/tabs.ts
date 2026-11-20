@@ -137,6 +137,33 @@ export type SpaceLink = { space: Key; link: PinLink };
 const sameSpaceLinks = (a: SpaceLink[], b: SpaceLink[]) =>
   a.length === b.length && a.every((each, at) => each.space === b[at].space && each.link === b[at].link);
 
+/** Each the same element. */
+const sameItems = <T>(a: readonly T[], b: readonly T[]) =>
+  a.length === b.length && a.every((each, at) => each === b[at]);
+
+/** Every open tab's ID across `spaces`, deduplicated and sorted ascending. */
+function windowTabIds(spaces: Map<Key, SpaceTabs>): number[] {
+  const ids = new Set<number>();
+  for (const each of spaces.values()) {
+    for (const tab of each.tabs) ids.add(tab.id);
+  }
+  return [...ids].sort((a, b) => a - b);
+}
+
+/** Every split across `spaces`, deduplicated by ID. */
+function windowSplits(spaces: Map<Key, SpaceTabs>): TabSplit[] {
+  const seen = new Set<string>();
+  const splits: TabSplit[] = [];
+  for (const each of spaces.values()) {
+    for (const split of each.said.splits) {
+      if (seen.has(split.id)) continue;
+      seen.add(split.id);
+      splits.push(split);
+    }
+  }
+  return splits;
+}
+
 /**
  * Every Browser's tabs, by space. Each said again as it was is kept as the
  * object it was (utils/settle.ts), and each space's tabs are a new object
@@ -147,6 +174,11 @@ export class TabsStore {
   private spaces = new Map<Key, SpaceTabs>();
   // The pins open in every space's Browser, the same array while they are.
   private everyLink: SpaceLink[] = [];
+  // Every open tab's ID across the window's Browsers, sorted by ID so moving
+  // a tab never moves its <wren-view>.
+  private everyTabId: number[] = [];
+  // Every split across the window's Browsers, so a hidden split keeps its halves.
+  private everySplit: TabSplit[] = [];
   // The space the window's tabs are under; undefined until any are said so.
   private front: Key | undefined = undefined;
   private listeners = new Set<() => void>();
@@ -168,6 +200,12 @@ export class TabsStore {
    * (state/items.ts). The same array until one changes.
    */
   links = () => this.everyLink;
+
+  /** Every open tab's ID across the window's Browsers, sorted ascending; the same array until a tab opens or closes. */
+  tabIds = () => this.everyTabId;
+
+  /** Every split across the window's Browsers; the same array until one changes. */
+  splits = () => this.everySplit;
 
   /** The window's tabs; undefined until the app has said them. */
   window = () => (this.front === undefined ? undefined : this.spaces.get(this.front));
@@ -291,6 +329,10 @@ export class TabsStore {
     this.spaces.set(space, next);
     const links = [...this.spaces].flatMap(([space, tabs]) => tabs.said.links.map((link) => ({ space, link })));
     if (!sameSpaceLinks(this.everyLink, links)) this.everyLink = links;
+    const ids = windowTabIds(this.spaces);
+    if (!sameItems(this.everyTabId, ids)) this.everyTabId = ids;
+    const splits = windowSplits(this.spaces);
+    if (!sameItems(this.everySplit, splits)) this.everySplit = splits;
     const changed = new Set<number>();
     for (const [id, tab] of next.byId) if (kept?.byId.get(id) !== tab) changed.add(id);
     for (const id of kept?.byId.keys() ?? []) if (!next.byId.has(id)) changed.add(id);

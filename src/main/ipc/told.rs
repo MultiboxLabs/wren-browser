@@ -149,6 +149,19 @@ impl PageTabs {
             .is_some_and(|kept| kept == ids)
     }
 
+    /// Whether `browser` now holds a tab it did not when its list was last
+    /// sent.
+    pub fn has_new_tab(&self, browser: &Browser) -> bool {
+        let orders = self.orders.borrow();
+        let Some(kept) = orders.get(&browser.id()) else {
+            return true;
+        };
+        browser
+            .tabs()
+            .into_iter()
+            .any(|tab| !kept.contains(&tab.id()))
+    }
+
     /// Forgets the tabs in none of `browsers`, the window's, and the
     /// Browsers that aren't among them.
     pub fn forget_closed(&self, browsers: &[Browser]) {
