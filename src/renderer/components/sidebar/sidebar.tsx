@@ -57,15 +57,31 @@ type Page = number;
 const FADED = 0.85;
 
 /**
+ * How far from showing, in spaces, a space's content has faded out by as the
+ * strip glides to a space chosen: the space left is mostly gone by the time
+ * the one chosen shows, so the two are seldom seen over each other.
+ */
+const CROSSFADE = 0.6;
+
+/**
+ * How near to showing, in spaces, it is whole again: the one chosen is in
+ * full before the glide's long tail, which moves it too little to be seen.
+ */
+const WHOLE = 0.075;
+
+/**
  * A space's content at `page`, a sidebar's width and a gap from the
- * window's for each page. One beside the window's takes no pointer, focus
- * or VoiceOver. The window's fades only as it slides the short way a press
- * makes, with nothing beside it; beside another, each stays whole.
+ * window's for each page, drawn at the strip's `travel`. One beside the
+ * window's takes no pointer, focus or VoiceOver. As the strip glides to a
+ * space chosen, each fades by how far it is from showing. Otherwise the
+ * window's fades only as it slides the short way a press makes, with
+ * nothing beside it; beside another, each stays whole, as fingers move them.
  */
 function SpacePage({
   page,
   x,
   pitch,
+  travel,
   fades,
   children
 }: {
@@ -73,11 +89,12 @@ function SpacePage({
   x: MotionValue<number>;
   /** How far apart the pages are, in points. */
   pitch: MotionValue<number>;
+  /** How much of `x` and `pitch` the pages are drawn at (state/space-slide.ts). */
+  travel: MotionValue<number>;
   /** Whether it fades as it moves, read as it moves. */
   fades: () => boolean;
   children: ReactNode;
 }) {
-  const opacity = useTransform(x, (at) => (fades() ? 1 - Math.min(Math.abs(at) / SLIDE, 1) * FADED : 1));
   // Set once the page has changed, not as it is drawn: Motion measures its
   // tiles and rows before the change, taking out the offset it has then,
   // which must still be the one on the page.
@@ -87,6 +104,16 @@ function SpacePage({
     place();
     return pitch.on("change", place);
   }, [page]);
+  const shifted = useTransform(() => offset.get() * travel.get());
+  const opacity = useTransform(() => {
+    const at = x.get();
+    const apart = pitch.get();
+    if (travel.get() < 1 && apart > 0) {
+      const away = Math.abs(at + offset.get()) / apart;
+      return Math.min(1, Math.max(0, (CROSSFADE - away) / (CROSSFADE - WHOLE)));
+    }
+    return fades() ? 1 - Math.min(Math.abs(at) / SLIDE, 1) * FADED : 1;
+  });
   return (
     // Every page is laid out in the same place, and moved beside by a
     // transform in points, which Motion takes out as it measures (it can't
@@ -96,7 +123,7 @@ function SpacePage({
     <motion.div
       inert={page !== 0}
       aria-hidden={page !== 0 || undefined}
-      style={{ opacity, x: offset }}
+      style={{ opacity, x: shifted }}
       className="absolute inset-0 flex min-h-0 flex-col"
     >
       {children}
@@ -147,6 +174,9 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
     }
   );
   const swipe = slide.x;
+  const { travel } = slide;
+  // Where the strip is drawn: as far as it has moved, at its `travel`.
+  const stripX = useTransform(() => swipe.get() * travel.get());
   // Read as the content moves, not as it was drawn.
   const fades = () => !slide.besideNow();
   const content = (drawn: Space, page: Page) => (
@@ -221,13 +251,20 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
       >
         {/* Keyed by space, so a space's content drawn beside stays as it
             is as the window switches to it, and only moves to the middle. */}
-        <motion.div style={{ x: swipe }} className="relative flex min-h-0 flex-1 flex-col">
+        <motion.div style={{ x: stripX }} className="relative flex min-h-0 flex-1 flex-col">
           {[
-            <SpacePage key={newSpace ? "new-space" : space.id} page={0} x={swipe} pitch={pitch} fades={fades}>
+            <SpacePage
+              key={newSpace ? "new-space" : space.id}
+              page={0}
+              x={swipe}
+              pitch={pitch}
+              travel={travel}
+              fades={fades}
+            >
               {newSpace ? <NewSpaceForm state={newSpace} /> : content(space, 0)}
             </SpacePage>,
             ...drawnBeside.map(({ slot: page, space: drawn }) => (
-              <SpacePage key={drawn.id} page={page} x={swipe} pitch={pitch} fades={fades}>
+              <SpacePage key={drawn.id} page={page} x={swipe} pitch={pitch} travel={travel} fades={fades}>
                 {content(drawn, page)}
               </SpacePage>
             ))

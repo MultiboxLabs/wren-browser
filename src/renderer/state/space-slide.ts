@@ -8,9 +8,13 @@
 // (sidebar/space-swipe.ts); as they lift it glides on to the slot it chose.
 // A space chosen, by a press on the switcher, a shortcut or a mouse's wheel,
 // is drawn in a slot beside the space showing, on the side its order puts
-// it, and the strip glides there, quicker than a swipe's. One chosen while
+// it, and the strip glides there, a little quicker than a swipe's. Chosen
+// from still, the strip is drawn closer, at `CLOSE` of its spacing
+// (`travel`), and each space fades by how far it is from showing, so the
+// space chosen comes in a shorter way as the one left goes. One chosen while
 // another glide is under way is drawn beside wherever the strip has got to,
-// and the glide turns to it from there.
+// and the glide turns to it from there. Fingers that take the strip draw it
+// as far apart as ever.
 //
 // The window switches as a glide starts, and once it has, the strip is
 // drawn again around the space it is on, moved by as many slots as that
@@ -37,6 +41,9 @@ import { prefersReducedMotion } from "@/utils/motion";
 /** How far the content is from its place as it starts to slide in, or once it has slid out, in points. */
 export const SLIDE = 96;
 
+/** How much of their spacing the spaces are drawn at as the strip glides to a space chosen (`travel`). */
+const CLOSE = 0.475;
+
 /** The room between two spaces' content side by side, in points. */
 const SPACE_GAP = 24;
 
@@ -45,8 +52,9 @@ export const spacing = (sidebar: HTMLElement) => sidebar.clientWidth + SPACE_GAP
 
 const out = { duration: 0.068, ease: "easeIn" } as const;
 // A space chosen glides to it as a press wants: from still, critically
-// damped, with a response of 0.2125s, so it never goes past.
-const PRESS_RESPONSE = 0.2125;
+// damped, with a response of 0.23s, so it never goes past, and starts
+// gently enough not to jolt.
+const PRESS_RESPONSE = 0.23;
 const spring = {
   type: "spring",
   stiffness: ((2 * Math.PI) / PRESS_RESPONSE) ** 2,
@@ -78,6 +86,11 @@ export type SpaceSlide = {
   x: MotionValue<number>;
   /** How far apart the spaces' content is side by side, in points, which the sidebar keeps as it is wide. */
   pitch: MotionValue<number>;
+  /**
+   * How much of `x` and `pitch` the strip is drawn at: 1 as fingers move it,
+   * `CLOSE` as it glides to a space chosen, for its spaces to come a shorter way.
+   */
+  travel: MotionValue<number>;
   /** The content moves between spaces, and isn't back in place yet. */
   beside: boolean;
   /** `beside` as it is now, for what reads it as the content moves rather than as it was drawn. */
@@ -122,6 +135,7 @@ export type SpaceSlide = {
 export function useSpaceSlide(current: number | null, ids: number[], order: (id: number) => number): SpaceSlide {
   const x = useMotionValue(0);
   const pitch = useMotionValue(0);
+  const travel = useMotionValue(1);
   const turn = useRef(0);
   const staying = useRef(false);
   // Fingers hold the strip: nothing else moves it.
@@ -172,6 +186,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
     if (held.current || x.isAnimating() || Math.abs(x.get()) >= 0.5) return;
     target.current = null;
     asked.current.clear();
+    travel.set(1);
     setBeside(false);
     setStrip([]);
   };
@@ -232,11 +247,13 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       // Glides from the space left, drawn beside, as a press glides.
       setStrip([{ slot: -way, id: from }]);
       setBeside(true);
+      travel.set(CLOSE);
       x.jump(way * pitch.get());
       return glideToSlot(0, spring, 0);
     }
     setStrip([]);
     // The New Space form, or a space it leaves: it slides in the short way.
+    travel.set(1);
     x.jump(way * SLIDE);
     void animate(x, 0, { ...spring, velocity: 0 }).then(rest);
   }, [current]);
@@ -244,6 +261,7 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
   return {
     x,
     pitch,
+    travel,
     beside,
     besideNow: () => besideNow.current,
     strip,
@@ -268,6 +286,8 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       staying.current = false;
       if (still()) return then();
       const { current: window, order } = latest.current;
+      // From still; one chosen as another glides is drawn as that one is.
+      if (stripNow.current.length === 0 && Math.abs(x.get()) < 0.5) travel.set(CLOSE);
       // Drawn next to the space showing most, on the side its order puts
       // it, in place of a space drawn there that is out of sight (one just
       // left, as its glide settles), but past one in sight. Where it is
@@ -308,6 +328,15 @@ export function useSpaceSlide(current: number | null, ids: number[], order: (id:
       setBeside(true);
       const moving = x.isAnimating();
       x.stop();
+      // Drawn close for a glide, the strip is drawn as far apart again, from
+      // where the space showing most is.
+      const close = travel.get();
+      if (close < 1) {
+        const apart = pitch.get();
+        const showing = apart > 0 ? Math.round(-x.get() / apart) : 0;
+        x.jump(close * (x.get() + showing * apart) - showing * apart);
+        travel.set(1);
+      }
       // The spaces before and after the window's, for the fingers to take
       // the strip to; but what shows now stays drawn as it is.
       const { current: window, ids, order } = latest.current;
