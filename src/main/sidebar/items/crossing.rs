@@ -39,8 +39,9 @@ enum Crossed {
 }
 
 /// What of `items` a move to `to` in window `window` makes again in another
-/// profile, if any of it. Pins stay with their profile, and an item that has
-/// gone is left to the move, which says so.
+/// profile, if any of it. A pin is never made again, as the pin itself goes
+/// there, unopened (pins/), and an item that has gone is left to the move,
+/// which says so.
 pub fn crossing(
     state: &State,
     mt: MainThread,

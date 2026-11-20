@@ -30,6 +30,8 @@ use crate::tabs;
 use crate::tabs::roles;
 use crate::windows::{self, BrowserWindow, Place};
 
+const FOLDER_IS_NO_TAB: &str = "A folder can't be a tab.";
+
 /// Where a pin goes, as the page and the menus name it: the favourites of
 /// the place's profile, or the place's space's pins.
 #[derive(Clone, Copy, Debug)]
@@ -269,8 +271,9 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
 /// Makes tab pin `id` a split of its page and `tab`'s, `tab` on `side` (0:
 /// first), side by side, as a tab of the list dropped on half of the pin's
 /// row does, or the pin on half of the tab's: `tab` leaves the list, and the
-/// two open as the pin's split, where the pin is kept. An unopened pin opens
-/// first.
+/// two open as the pin's split, where the pin is kept. A pin the window
+/// doesn't show comes to the top of its space's pins first (`come_here`).
+/// An unopened pin opens first.
 pub fn split_with(
     state: &State,
     browser: &Browser,
@@ -279,12 +282,13 @@ pub fn split_with(
     tab: BrowserTab,
     side: usize,
 ) -> Result<(), String> {
-    if !matches!(pin_for(state, place, id)?.kind, PinKind::Tab(_)) {
+    if !matches!(pin_row(state, id)?.kind, PinKind::Tab(_)) {
         return Err("Only a tab pin makes a split with a tab.".into());
     }
     if roles::pin_of(tab).is_some() {
         return Err("That tab is a pin's.".into());
     }
+    come_here(state, place, id)?;
     open(state, browser, place, id)?;
     let own = open::opening(browser, id)
         .and_then(|opening| opening.tabs().first().copied())
@@ -508,10 +512,11 @@ fn remove(state: &State, id: PinId) -> Result<(), String> {
 
 /// Moves pin `id` to `target` of the window on `place`, at `index` (None:
 /// last), with all in it if it is a folder. Each pin that goes to a space's
-/// pins, from the favourites or another space, keeps its tab in each window
-/// that has that space's Browser, moved there from another space if it is
-/// in one, and is closed in the Browsers of the other spaces, which no
-/// longer show it.
+/// pins of its profile, from the favourites or another space, keeps its tab
+/// in each window that has that space's Browser, moved there from another
+/// space if it is in one, and is closed in the Browsers of the other spaces,
+/// which no longer show it. One that goes to another profile has its tabs
+/// closed everywhere, and arrives unopened.
 pub fn move_pin(
     state: &State,
     place: &Place,
@@ -520,11 +525,15 @@ pub fn move_pin(
     index: Option<usize>,
 ) -> Result<(), String> {
     let to = target.resolve(state, place)?;
+    let crosses = goes_to_another_profile(state, place, id)?;
     let moved = state.db.move_pin(id, &to, index)?;
     for pin in &moved {
         open::moved(state, *pin);
     }
-    if let PinPlace::Space { space, .. } = to {
+    if crosses {
+        // No tab can go to another profile.
+        close_where(state, &moved, |_, _| true);
+    } else if let PinPlace::Space { space, .. } = to {
         for window in state.windows.all() {
             let Some(target) = window.browser_of(&Place::Space(space)) else {
                 continue;
@@ -543,11 +552,19 @@ pub fn move_pin(
     Ok(())
 }
 
-/// Makes pin `id`, a favourite of `place`'s profile or a pin of any of its
-/// spaces, an ordinary tab at `index` of the list, in `group`, and removes
-/// the pin: its tab in `browser`'s window, moved here from another space if
-/// it is in one, stays, unpinned (a split's two still a split), or,
-/// unopened, opens here. Its tabs in other windows close with it.
+/// Whether pin `id` goes to another profile as it moves to the window on
+/// `place`, which its tabs can't follow it to.
+pub fn goes_to_another_profile(state: &State, place: &Place, id: PinId) -> Result<bool, String> {
+    let (profile, _, _) = state.db.pin(id)?.ok_or("That pin is gone.")?;
+    Ok(profile_of(state, place)?.as_deref() != Some(profile.as_str()))
+}
+
+/// Makes pin `id` an ordinary tab at `index` of the list, in `group`, and
+/// removes the pin. A pin the window doesn't show comes to the top of its
+/// space's pins first (`come_here`). Its tab in `browser`'s window, moved
+/// here from another space if it is in one, stays, unpinned (a split's two
+/// still a split), or, unopened, opens here. Its tabs in other windows
+/// close with it.
 pub fn to_list(
     state: &State,
     mt: MainThread,
@@ -557,7 +574,12 @@ pub fn to_list(
     index: usize,
     group: Option<TabGroup>,
 ) -> Result<(), String> {
-    let pin = pin_of_profile(state, place, id)?;
+    let pin = pin_row(state, id)?;
+    // A folder stays where it is, rather than come here and then fail.
+    if matches!(pin.kind, PinKind::Folder { .. }) {
+        return Err(FOLDER_IS_NO_TAB.into());
+    }
+    come_here(state, place, id)?;
     bring(state, browser, id, false)?;
     let open = open::opening(browser, id).map_or_else(Vec::new, |opening| opening.tabs());
     match (pin.kind, open.as_slice()) {
@@ -594,7 +616,7 @@ pub fn to_list(
                 .and_then(|split| split.set_ratio(ratio, false))
                 .map_err(failed)?;
         }
-        (PinKind::Folder { .. }, _) => return Err("A folder can't be a tab.".into()),
+        (PinKind::Folder { .. }, _) => return Err(FOLDER_IS_NO_TAB.into()),
     }
     // Its tabs here are the list's now, and those elsewhere close with it.
     remove(state, id)
@@ -698,26 +720,41 @@ fn profile_of(state: &State, place: &Place) -> Result<Option<String>, String> {
     }
 }
 
-// Pin `id`, if it is of `place`'s profile: one of its favourites, or a pin
-// of any of its spaces, as a pin may move to any of them.
-fn pin_of_profile(state: &State, place: &Place, id: PinId) -> Result<PinRow, String> {
-    let (profile, _, pin) = state.db.pin(id)?.ok_or("That pin is gone.")?;
-    if profile_of(state, place)?.as_ref() == Some(&profile) {
-        Ok(pin)
-    } else {
-        Err("That pin is another profile's.".into())
+// Brings pin `id` to the top of the pins of `place`'s space if the window
+// doesn't show it, from another space of any profile, so that it lands in
+// the list or makes a split there as one of the space's own.
+fn come_here(state: &State, place: &Place, id: PinId) -> Result<(), String> {
+    let (profile, space, _) = state.db.pin(id)?.ok_or("That pin is gone.")?;
+    if shows(state, place, &profile, space)? {
+        return Ok(());
     }
+    move_pin(state, place, id, PinTarget::Space { parent: None }, Some(0))
+}
+
+// Pin `id`'s row, wherever it is kept.
+fn pin_row(state: &State, id: PinId) -> Result<PinRow, String> {
+    Ok(state.db.pin(id)?.ok_or("That pin is gone.")?.2)
+}
+
+// Whether the window on `place` shows a pin of `profile`, kept in `space`
+// or, with none, among the favourites.
+fn shows(
+    state: &State,
+    place: &Place,
+    profile: &str,
+    space: Option<SpaceId>,
+) -> Result<bool, String> {
+    Ok(match space {
+        Some(space) => place.space() == Some(space),
+        None => profile_of(state, place)?.as_deref() == Some(profile),
+    })
 }
 
 // Pin `id`, as the window on `place` may open it: a favourite of the place's
 // profile, or a pin of its space.
 fn pin_for(state: &State, place: &Place, id: PinId) -> Result<PinRow, String> {
     let (profile, space, pin) = state.db.pin(id)?.ok_or("That pin is gone.")?;
-    let fits = match space {
-        Some(space) => place.space() == Some(space),
-        None => profile_of(state, place)?.as_ref() == Some(&profile),
-    };
-    if fits {
+    if shows(state, place, &profile, space)? {
         Ok(pin)
     } else {
         Err("That pin is not this window's.".into())

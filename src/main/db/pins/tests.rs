@@ -342,9 +342,9 @@ fn a_pin_moves_between_places_and_both_close_up() {
 }
 
 #[test]
-fn a_folder_stays_among_its_profiles_pins_and_out_of_itself() {
+fn a_folder_stays_out_of_the_favourites_and_itself() {
     let db = db();
-    let (space, other) = (space(&db, "a"), space(&db, "b"));
+    let space = space(&db, "a");
     let folder = db
         .create_pin(&top(space), None, NewPin::Folder { name: "F".into() })
         .unwrap();
@@ -364,7 +364,6 @@ fn a_folder_stays_among_its_profiles_pins_and_out_of_itself() {
         parent: Some(deep),
     };
     assert!(db.move_pin(folder, &into_deep, None).is_err());
-    assert!(db.move_pin(folder, &top(other), None).is_err());
     db.move_pin(deep, &top(space), Some(0)).unwrap();
     assert_eq!(ids(&db.space_pins(space).unwrap()), vec![deep, folder]);
 }
@@ -410,6 +409,49 @@ fn a_folder_takes_all_in_it_to_another_space() {
         .unwrap();
     let pins = db.space_pins(other).unwrap();
     assert_eq!(ids(items_of(&pins[0])), vec![inner, deep, added]);
+}
+
+#[test]
+fn a_pin_goes_to_another_profile_with_all_in_it() {
+    let db = db();
+    let (space, other) = (space(&db, "a"), space(&db, "b"));
+    let folder = db
+        .create_pin(&top(space), None, NewPin::Folder { name: "F".into() })
+        .unwrap();
+    let inside = PinPlace::Space {
+        space,
+        parent: Some(folder),
+    };
+    let inner = db.create_pin(&inside, None, tab("https://a/")).unwrap();
+    let there = db.create_pin(&top(other), None, tab("https://b/")).unwrap();
+
+    let mut moved = db.move_pin(folder, &top(other), Some(0)).unwrap();
+    moved.sort();
+    assert_eq!(moved, vec![folder, inner]);
+    assert!(db.space_pins(space).unwrap().is_empty());
+    let pins = db.space_pins(other).unwrap();
+    assert_eq!(ids(&pins), vec![folder, there]);
+    assert_eq!(ids(items_of(&pins[0])), vec![inner]);
+    assert_eq!(db.pin(inner).unwrap().unwrap().0, "b");
+
+    // A pin goes to another profile's favourites too, which close up after it.
+    let favorite = db
+        .create_pin(
+            &PinPlace::Favorites {
+                profile: "a".into(),
+            },
+            None,
+            tab("https://c/"),
+        )
+        .unwrap();
+    let theirs = PinPlace::Favorites {
+        profile: "b".into(),
+    };
+    db.move_pin(favorite, &theirs, None).unwrap();
+    db.move_pin(inner, &theirs, Some(0)).unwrap();
+    assert!(db.favorites("a").unwrap().is_empty());
+    assert_eq!(ids(&db.favorites("b").unwrap()), vec![inner, favorite]);
+    assert!(items_of(&db.space_pins(other).unwrap()[0]).is_empty());
 }
 
 #[test]

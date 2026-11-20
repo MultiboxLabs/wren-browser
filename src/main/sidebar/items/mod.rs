@@ -219,10 +219,12 @@ pub fn add_address(
 }
 
 // A pin goes among the pins or the favourites as it is, and to the list as
-// an ordinary tab, in any space of its profile. The database refuses a
-// folder in the favourites, and a pin in another profile. A tab pin dropped
-// on half of a tab of the list takes that tab as its split's other side,
-// and stays where it is kept, so only a pin the window's space shows does.
+// an ordinary tab, from any space of any profile. The database refuses a
+// folder in the favourites. A tab pin dropped on half of a tab of the list
+// takes that tab as its split's other side, and stays where it is kept. A
+// pin of another space comes to this one's pins first, for the list or a
+// split (pins/). One that goes to another profile brings the window to the
+// space it went to, as tabs do.
 fn move_pin(
     state: &Rc<State>,
     mt: MainThread,
@@ -232,6 +234,19 @@ fn move_pin(
     target: Target,
     done: impl FnOnce(Result<Moved, String>) + 'static,
 ) {
+    let crosses = match pins::goes_to_another_profile(state, &place, id) {
+        Ok(crosses) => crosses,
+        Err(error) => return done(Err(error)),
+    };
+    let done = {
+        let (state, place) = (state.clone(), place.clone());
+        move |moved: Result<Moved, String>| {
+            if crosses && moved.is_ok() {
+                windows::show_brought(&state, window, &place);
+            }
+            done(moved);
+        }
+    };
     let among =
         |target, index| pins::move_pin(state, &place, id, target, index).map(|()| Moved::Placed);
     match target {

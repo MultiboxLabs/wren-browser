@@ -108,9 +108,9 @@ fn moving_from(state: &State, moving: &[BrowserTab], place: &Place) -> Result<Br
     Ok(source)
 }
 
-// Shows `place` in window `id`, which tabs have been brought to, if it
-// is a space the window is not on.
-pub(super) fn show_brought(state: &State, id: WindowId, place: &Place) {
+/// Shows `place` in window `id`, which tabs or pins have been brought to
+/// from another profile, if it is a space the window is not on.
+pub fn show_brought(state: &State, id: WindowId, place: &Place) {
     if let Some(space) = place.space()
         && let Err(error) = windows::show_space(state, id, space)
     {

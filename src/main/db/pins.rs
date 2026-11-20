@@ -350,10 +350,10 @@ impl Db {
     }
 
     /// Moves a pin to `index` (None, or one past the last: last) among the
-    /// pins of `to`, the pins of both places closing up, and returns its ID
-    /// and those of everything in it. A folder takes all in it to the space
-    /// it goes to. A pin stays with its profile, and a folder never goes to
-    /// the favourites or into itself.
+    /// pins of `to`, of its profile or another, the pins of both places
+    /// closing up, and returns its ID and those of everything in it. A
+    /// folder takes all in it to the profile and space it goes to, and never
+    /// goes to the favourites or into itself.
     pub fn move_pin(
         &self,
         id: PinId,
@@ -363,9 +363,6 @@ impl Db {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
         let from = kept_spot(&transaction, id)?;
         let (to_profile, to_space, to_parent) = resolve(&transaction, to)?;
-        if to_profile != from.profile {
-            return Err("A pin stays with its profile.".into());
-        }
         if from.kind == "folder" && to_space.is_none() {
             return Err("A folder can only be among a space's pins.".into());
         }
@@ -374,25 +371,26 @@ impl Db {
             return Err("A folder can't go into itself.".into());
         }
         close_gap(&transaction, &from)?;
-        let count = siblings(&transaction, &from.profile, to_space, to_parent)?
+        let count = siblings(&transaction, &to_profile, to_space, to_parent)?
             .into_iter()
             .filter(|each| *each != id)
             .count();
         let position = position_at(index, count);
-        let place = (from.profile.as_str(), to_space, to_parent);
+        let place = (to_profile.as_str(), to_space, to_parent);
         make_room(&transaction, place, position, Some(id))?;
         transaction
             .execute(
-                "UPDATE pins SET space_id = ?2, parent_id = ?3, position = ?4 WHERE id = ?1",
-                params![id, to_space, to_parent, position],
+                "UPDATE pins SET profile_id = ?2, space_id = ?3, parent_id = ?4, position = ?5
+                 WHERE id = ?1",
+                params![id, to_profile, to_space, to_parent, position],
             )
             .map_err(sql)?;
-        // What is in a folder goes to its space with it.
+        // What is in a folder goes to its profile and space with it.
         for each in moving.iter().filter(|each| **each != id) {
             transaction
                 .execute(
-                    "UPDATE pins SET space_id = ?2 WHERE id = ?1",
-                    params![each, to_space],
+                    "UPDATE pins SET profile_id = ?2, space_id = ?3 WHERE id = ?1",
+                    params![each, to_profile, to_space],
                 )
                 .map_err(sql)?;
         }
