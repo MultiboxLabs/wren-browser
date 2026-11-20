@@ -57,7 +57,7 @@ export function TabList({
   // its rows slide to their new places as their order changes.
   const listDrop = useItemDrop({
     takes: "tabs",
-    landingAt: (zone, dragged, x, y) => listLandingAt(zone, "tabs", items, dragged, x, y),
+    landingAt: (zone, dragged, x, y) => listLandingAt(zone, "tabs", space.id, items, dragged, x, y),
     order: tabs.map((tab) => `${tab.id}:${tab.group}:${tab.split}`).join()
   });
   const scroller = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export function TabList({
   const headingDrop = useItemDrop({ takes: "pinned", landingAt: pinnedFirst, enabled: !profile });
   const pinDrop = useItemDrop({
     takes: "pinned",
-    landingAt: (zone, dragged, x, y) => listLandingAt(zone, "pinned", pinned, dragged, x, y),
+    landingAt: (zone, dragged, x, y) => listLandingAt(zone, "pinned", space.id, pinned, dragged, x, y),
     enabled: !profile
   });
   const selected = newTabOpen || active === null ? undefined : active;

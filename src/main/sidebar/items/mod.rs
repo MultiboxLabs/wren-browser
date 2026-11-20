@@ -219,9 +219,10 @@ pub fn add_address(
 }
 
 // A pin goes among the pins or the favourites as it is, and to the list as
-// an ordinary tab. The database refuses a folder in the favourites. A tab
-// pin dropped on half of a tab of the list takes that tab as its split's
-// other side, and stays where it is kept.
+// an ordinary tab, in any space of its profile. The database refuses a
+// folder in the favourites, and a pin in another profile. A tab pin dropped
+// on half of a tab of the list takes that tab as its split's other side,
+// and stays where it is kept, so only a pin the window's space shows does.
 fn move_pin(
     state: &Rc<State>,
     mt: MainThread,

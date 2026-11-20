@@ -51,15 +51,10 @@ impl PinTarget {
                     ..
                 },
             ) => Err("An incognito window keeps no pins.".into()),
-            (PinTarget::Favorites, Place::Space(space)) => {
-                let space = state.db.space(*space)?.ok_or("That space is gone.")?;
-                Ok(PinPlace::Favorites {
-                    profile: space.profile,
-                })
+            (PinTarget::Favorites, _) => {
+                let profile = profile_of(state, place)?.ok_or("That space is gone.")?;
+                Ok(PinPlace::Favorites { profile })
             }
-            (PinTarget::Favorites, Place::Profile { id, .. }) => Ok(PinPlace::Favorites {
-                profile: id.clone(),
-            }),
             (PinTarget::Space { parent }, Place::Space(space)) => Ok(PinPlace::Space {
                 space: *space,
                 parent,
@@ -543,10 +538,11 @@ pub fn move_pin(
     Ok(())
 }
 
-/// Makes pin `id` an ordinary tab at `index` of the list, in `group`, and
-/// removes the pin: its tab in `browser`'s window, moved here from another
-/// space if it is in one, stays, unpinned (a split's two still a split),
-/// or, unopened, opens here. Its tabs in other windows close with it.
+/// Makes pin `id`, a favourite of `place`'s profile or a pin of any of its
+/// spaces, an ordinary tab at `index` of the list, in `group`, and removes
+/// the pin: its tab in `browser`'s window, moved here from another space if
+/// it is in one, stays, unpinned (a split's two still a split), or,
+/// unopened, opens here. Its tabs in other windows close with it.
 pub fn to_list(
     state: &State,
     mt: MainThread,
@@ -556,7 +552,7 @@ pub fn to_list(
     index: usize,
     group: Option<TabGroup>,
 ) -> Result<(), String> {
-    let pin = pin_for(state, place, id)?;
+    let pin = pin_of_profile(state, place, id)?;
     bring(state, browser, id, false)?;
     let open = open::opening(browser, id).map_or_else(Vec::new, |opening| opening.tabs());
     match (pin.kind, open.as_slice()) {
@@ -683,24 +679,38 @@ fn unsplit(tab: BrowserTab) -> Result<(SplitLayout, f64), String> {
     Ok((state.layout, state.ratio))
 }
 
+// The profile whose favourites and pins a window on `place` shows: its
+// space's, or its own. None for an off-the-record side, which keeps none,
+// or a space that has gone.
+fn profile_of(state: &State, place: &Place) -> Result<Option<String>, String> {
+    match place {
+        Place::Space(space) => Ok(state.db.space(*space)?.map(|row| row.profile)),
+        Place::Profile {
+            id,
+            off_the_record: false,
+        } => Ok(Some(id.clone())),
+        Place::Profile { .. } => Ok(None),
+    }
+}
+
+// Pin `id`, if it is of `place`'s profile: one of its favourites, or a pin
+// of any of its spaces, as a pin may move to any of them.
+fn pin_of_profile(state: &State, place: &Place, id: PinId) -> Result<PinRow, String> {
+    let (profile, _, pin) = state.db.pin(id)?.ok_or("That pin is gone.")?;
+    if profile_of(state, place)?.as_ref() == Some(&profile) {
+        Ok(pin)
+    } else {
+        Err("That pin is another profile's.".into())
+    }
+}
+
 // Pin `id`, as the window on `place` may open it: a favourite of the place's
 // profile, or a pin of its space.
 fn pin_for(state: &State, place: &Place, id: PinId) -> Result<PinRow, String> {
     let (profile, space, pin) = state.db.pin(id)?.ok_or("That pin is gone.")?;
-    let fits = match (space, place) {
-        (Some(space), Place::Space(shown)) => space == *shown,
-        (None, Place::Space(shown)) => state
-            .db
-            .space(*shown)?
-            .is_some_and(|row| row.profile == profile),
-        (
-            None,
-            Place::Profile {
-                id,
-                off_the_record: false,
-            },
-        ) => *id == profile,
-        _ => false,
+    let fits = match space {
+        Some(space) => place.space() == Some(space),
+        None => profile_of(state, place)?.as_ref() == Some(&profile),
     };
     if fits {
         Ok(pin)

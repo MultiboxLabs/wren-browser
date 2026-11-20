@@ -775,9 +775,22 @@ export const scenes = (url: string): Scene[] => [
         does: dragged(tab(0), heading),
         shows: "nothing / pins 0 | tabs {2 3} 1"
       },
+      keepsTabs(pin(0), 0, {
+        name: "an open pinned tab onto another space's button, which takes it to the top of that space's pins with its tab",
+        does: dragged(pin(0), spaceButton(0)),
+        shows: "pins 0 / tabs {2 3} 1"
+      }),
       {
-        name: "a pinned tab onto another space's button, which takes none",
-        does: refused(pin(0), spaceButton(0)),
+        name: "the pinned tab held over the second space's button, then to a place in that space's list, which unpins it there",
+        does: async () => {
+          await shownSpace(0)();
+          await draggedThroughButton(pin(0), 1, after(tab(1)));
+        },
+        shows: "nothing / tabs {2 3} 1 0"
+      },
+      {
+        name: "the tab onto that space's heading again",
+        does: dragged(tab(0), heading),
         shows: "nothing / pins 0 | tabs {2 3} 1"
       },
       {
@@ -954,7 +967,17 @@ export const scenes = (url: string): Scene[] => [
           does: dragged(tab(5), spaceButton(0)),
           shows: "tabs 5 / nothing / tabs {3 4} (2|1) 0"
         })
-      )
+      ),
+      {
+        name: "a tab onto the space's heading",
+        does: dragged(tab(5), heading),
+        shows: "pins 5 / nothing / tabs {3 4} (2|1) 0"
+      },
+      {
+        name: "a pinned tab onto the other profile's space's button, which takes none",
+        does: refused(pin(5), spaceButton(2)),
+        shows: "pins 5 / nothing / tabs {3 4} (2|1) 0"
+      }
     ]
   }
 ];
