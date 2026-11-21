@@ -43,12 +43,10 @@
 /* The peek's colour under its page (`.page-under`, card.css), until the
    page draws, which the card is drawn in as it comes (motion.ts): white, or
    an elevated dark grey while the system is dark, so the card stands apart
-   from the darkened dark page behind it. */
+   from the darkened dark page behind it. Its buttons share it (`--overlay`,
+   index.css). */
 .page-under.peek-under {
-  background: white;
-}
-:root[data-system-scheme="dark"] .page-under.peek-under {
-  background: rgb(32 32 36);
+  background: var(--overlay);
 }
 
 /* The peek's edge: a hairline of light, stronger in dark mode, drawn over

@@ -19,11 +19,11 @@ export type Icon = ComponentType<{ size?: number; strokeWidth?: number; classNam
  * for the default button of a dialog; `bright`, white, for what a card on
  * the window asks to be done; `solid`, near black (near white in dark), for
  * the one thing a page in a tab asks, where colour is the page's own;
- * `overlay`, white in light and black in dark with the system, for a control
- * over a darkened page, such as a peek's, which grows under the pointer;
- * `bare`,
- * no fill at all, its text dim and brightening under the pointer,
- * for a small action set in a line, such as the one on the list's separator.
+ * `overlay`, a peek's colour under its page, white in light and a dark grey
+ * in dark with the system, for a control over a darkened page, such as a
+ * peek's, which grows under the pointer; `bare`, no fill at all, its text
+ * dim and brightening under the pointer, for a small action set in a line,
+ * such as the one on the list's separator.
  */
 export type ButtonVariant =
   "plain" | "filled" | "faint" | "raised" | "prominent" | "bright" | "solid" | "overlay" | "bare";
@@ -109,8 +109,8 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
     off: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] enabled:active:brightness-90 disabled:opacity-45",
     on: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] brightness-90"
   },
-  // White in light and black in dark with the system (`--overlay*` in
-  // index.css), with edges that match a peek's card so it stands out of the
+  // A peek's colour under its page, with the system (`--overlay*` in
+  // index.css), and edges that match a peek's card so it stands out of the
   // darkened page behind it.
   overlay: {
     off: "bg-overlay text-overlay-fg shadow-overlay transition-[scale] duration-120 ease-out enabled:active:bg-overlay-pressed motion-safe:enabled:hover:scale-110",

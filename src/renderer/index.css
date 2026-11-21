@@ -281,9 +281,10 @@ body,
 }
 
 /* An overlay button (`Button`'s `overlay`) sits over a darkened page, so its
-   fill and edge follow the system's scheme rather than the space's. In light
-   mode it is white with a dark glyph. In dark mode it is black with a white
-   glyph and the same edges as a peek's card (peek/peek.css). */
+   fill and edge follow the system's scheme rather than the space's. Its fill
+   is a peek's colour under its page (peek/peek.css), so a peek's buttons
+   match its card. In light mode it is white with a dark glyph. In dark mode
+   it is a dark grey with a white glyph and the same edges as a peek's card. */
 :root {
   --overlay: rgb(255 255 255);
   --overlay-fg: rgb(22 23 28);
@@ -291,9 +292,9 @@ body,
   --overlay-edge: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 2px 8px rgb(0 0 0 / 0.18);
 }
 :root[data-system-scheme="dark"] {
-  --overlay: rgb(0 0 0);
+  --overlay: rgb(32 32 36);
   --overlay-fg: rgb(255 255 255);
-  --overlay-pressed: rgb(40 40 42);
+  --overlay-pressed: rgb(46 46 51);
   --overlay-edge: inset 0 0 0 0.5px rgb(255 255 255 / 0.22), 0 0 0 0.5px rgb(0 0 0 / 0.5);
 }
 
