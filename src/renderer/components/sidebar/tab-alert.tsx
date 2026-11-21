@@ -14,9 +14,7 @@ import type { Tab } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { scaleTo } from "@/utils/motion";
 import { CONTROL_IN, CONTROL_OUT, TILE_IN, TILE_OUT } from "./row-motion";
-
-/** The row's gap (`gap-2.75`), which the slot's room takes as it opens. */
-const ROW_CONTENT_GAP = 11;
+import { ROW_CONTENT_GAP, ROW_END_MARK } from "./rows";
 
 /** The marks, most exposing first. A camera's mark is read as the microphone too; a microphone's is not read as the camera. */
 const MARKS = [
@@ -58,7 +56,8 @@ export function TabAlert({ tab, trailing = false }: { tab?: Tab; trailing?: bool
           initial={closed}
           animate={{ ...open, transition: CONTROL_IN }}
           exit={{ ...closed, transition: CONTROL_OUT }}
-          className={cn("flex shrink-0", trailing ? "w-5.5 [&+button]:-ml-2.75" : "w-2")}
+          {...(trailing ? ROW_END_MARK : {})}
+          className={cn("flex shrink-0", trailing ? "w-5.5" : "w-2")}
         >
           <span className={cn("grid size-5.5 shrink-0 *:[grid-area:1/1]", !trailing && "-mx-1.75")}>
             <AnimatePresence initial={false}>

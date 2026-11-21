@@ -18,6 +18,17 @@ export const NESTED_INDENT = 16;
 /** The gap each row of a list brings above it (`pt-1.25`). */
 export const ROW_GAP = 5;
 
+/** The gap between what a row holds (`gap-2.75`), which a control coming into it takes as it opens. */
+export const ROW_CONTENT_GAP = 11;
+
+/**
+ * Marks a control at a row's end, after its title, such as its sound or
+ * its peek's favicon. The row's close button sits right after one, with no
+ * gap of the row's between (`CloseButton`): its own box already leaves room
+ * round its cross, and the row's gap would set it apart from the row.
+ */
+export const ROW_END_MARK = { "data-row-end": "" };
+
 /** The attribute of a row that is marked to act with others (state/marks.ts). */
 export const MARKED_MARK = "data-marked";
 
@@ -275,8 +286,9 @@ export function CloseButton({
       propagate={{ tap: false }}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={onClose}
-      // Hovered, a fill of its own over the row's, and the cross full.
-      className="hidden size-5.5 place-items-center rounded-control group-hover:grid hover:[&>span]:glyph-1"
+      // Hovered, a fill of its own over the row's, and the cross full. After
+      // a control at the row's end, it takes back the row's gap (`ROW_END_MARK`).
+      className="hidden size-5.5 place-items-center rounded-control group-hover:grid hover:[&>span]:glyph-1 [[data-row-end]+&]:-ml-2.75"
     />
   );
 }

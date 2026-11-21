@@ -50,6 +50,18 @@ export const REORDER: Transition = { duration: 0.22, ease: EASE_OUT };
  */
 export const listOrder = (ids: (number | string)[]) => ids.join(" ");
 
+/**
+ * A badge travelling to its place and back, such as a peek's favicon on its
+ * tab (peek-mark.tsx): on the strong ease-out, so it is off at once and
+ * settles softly. Going back, all of it changes together on the one curve,
+ * so it never stops part of the way and then fades.
+ */
+export const BADGE_OUT_OF: Transition = {
+  default: { duration: 0.2, ease: EASE_OUT },
+  opacity: { duration: 0.08, ease: EASE_OUT }
+};
+export const BADGE_BACK_INTO: Transition = { duration: 0.14, ease: EASE_OUT };
+
 /** A tile, or the favourites' box, fading (and a tile scaling) in and out. */
 export const TILE_IN: Transition = { duration: 0.16, ease: EASE_OUT };
 export const TILE_OUT: Transition = { duration: 0.16, ease: FADE_OUT };

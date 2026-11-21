@@ -133,7 +133,7 @@ export function ItemRow({ item, indent, actions, holdout = false, strike }: Item
         ) : (
           label(side, 0, "row", title)
         )}
-        <PeekMark item={item} />
+        <PeekMark item={item} placement="row" />
         <ItemButton kept={kept} closes={closes} onDismiss={() => dismiss(0)} />
       </Row>
     );
@@ -179,7 +179,7 @@ export function ItemRow({ item, indent, actions, holdout = false, strike }: Item
           {!kept && <CloseButton onClose={() => dismiss(at)} />}
         </SplitHalf>
       ))}
-      <PeekMark item={item} className="mr-1.5 self-center" />
+      <PeekMark item={item} placement="split" />
       {kept && <ItemButton kept closes={closes} onDismiss={() => dismiss(0)} />}
     </SplitFrame>
   );

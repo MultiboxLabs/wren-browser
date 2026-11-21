@@ -132,7 +132,7 @@ export function Favorite({
           <span className="relative grid place-items-center">{icons}</span>
         )}
       </Button>
-      <PeekMark item={item} className="absolute -top-1.5 -right-1.5" />
+      <PeekMark item={item} placement="tile" />
     </div>
   );
   // The name as it is edited, once it is: a click elsewhere, which closes

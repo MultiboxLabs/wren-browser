@@ -95,6 +95,10 @@ body,
   --color-solid: var(--solid);
   --color-solid-fg: var(--solid-fg);
   --shadow-raised: var(--raised-edge);
+  /* A badge on a favourite's tile, such as its peek's favicon: near black
+     in every space, light or dark, so the favicon stands out of the tile
+     and the sidebar alike. */
+  --color-badge: rgb(14 14 16);
   --color-field: var(--field);
   --shadow-field: var(--field-edge);
   --color-inverse: var(--inverse);
