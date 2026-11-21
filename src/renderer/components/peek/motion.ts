@@ -31,7 +31,7 @@ type Rect = { left: number; top: number; width: number; height: number };
 
 // How long the card's springs take to get most of the way, as it comes and
 // as it goes.
-const OPEN_RESPONSE = 0.22;
+const OPEN_RESPONSE = 0.26;
 const CLOSE_RESPONSE = 0.21;
 // How far apart the rows' springs are, for a pointer at the box's top or
 // bottom edge. A pointer below the middle spreads them further, so the
@@ -185,7 +185,7 @@ export async function expandPeek(parts: PeekParts, picture: HTMLImageElement | n
     };
     const resting: Place = (u, v) => [shown.left + u * shown.width, shown.top + v * shown.height];
     genie.show(picture, colourOf(card));
-    genie.draw({ width, height }, shown, resting, { corner: cornerOf(face), opacity: 1 });
+    genie.draw({ width, height }, shown, resting, { corner: cornerOf(face), opacity: 1, edge: edgeOf() });
   }
   const px = (value: number) => `${value}px`;
   const laidOut = {
@@ -283,6 +283,7 @@ function travel(parts: PeekParts, genie: Genie, from: [number, number] | null, o
   };
   const duration = Math.max(settling(row(0)), settling(row(1)), settling(row(0.5)));
   const corner = cornerOf(faceOf(card) ?? card);
+  const edge = edgeOf();
 
   // How far from resting the row `along` the card is at `t`, from 0 to 1.
   const away = (t: number, along: number) => (opening ? remaining(t, row(along)) : 1 - remaining(t, row(along)));
@@ -303,7 +304,7 @@ function travel(parts: PeekParts, genie: Genie, from: [number, number] | null, o
     );
     const left = 1 - Math.min(away(t, 0), away(t, 0.5), away(t, 1));
     const opacity = opening ? 1 : smoothstep(clamp(left / FADE_AT, 0, 1));
-    genie.draw(box, rest, place, { corner: mix(corner, LINK.corner, middle) / scale, opacity });
+    genie.draw(box, rest, place, { corner: mix(corner, LINK.corner, middle) / scale, opacity, edge });
   };
 
   card.style.opacity = "0";
@@ -343,6 +344,11 @@ function faceOf(card: HTMLElement): HTMLElement | null {
 // How round `face`'s corners are, in points.
 function cornerOf(face: HTMLElement): number {
   return parseFloat(getComputedStyle(face).borderTopLeftRadius) || 0;
+}
+
+// How opaque the peek's inner edge is (`--peek-edge` in peek.css).
+function edgeOf(): number {
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--peek-edge")) || 0.12;
 }
 
 // The colour of the card under its page (`.peek-under`), for a page that has

@@ -9,14 +9,12 @@
 /** Where a point of the card is drawn, in points from the box's top left: `u` across it and `v` down it, each from 0 to 1. */
 export type Place = (u: number, v: number) => [x: number, y: number];
 
-/** How the card looks in a frame: its corners' radius, in points of the card as it rests, and how opaque it is. */
-export type Look = { corner: number; opacity: number };
+/** How the card looks in a frame: its corners' radius, in points of the card as it rests, its opacity, and its inner edge's opacity. */
+export type Look = { corner: number; opacity: number; edge: number };
 
 // The mesh: rows down the card, which bend it smoothly, and a few columns.
 const ROWS = 48;
 const COLUMNS = 4;
-// The card's edge, a hairline of light as its frame has (peek.css).
-const EDGE = 0.12;
 
 const VERTEX = `#version 300 es
 in vec2 place;
@@ -160,7 +158,7 @@ export class Genie {
     gl.uniform2f(uniform("size"), card.width, card.height);
     gl.uniform1f(uniform("corner"), Math.min(look.corner, card.width / 2, card.height / 2));
     gl.uniform1f(uniform("opacity"), look.opacity);
-    gl.uniform1f(uniform("edge"), EDGE);
+    gl.uniform1f(uniform("edge"), look.edge);
     gl.drawElements(gl.TRIANGLES, this.count, gl.UNSIGNED_SHORT, 0);
   }
 
