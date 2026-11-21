@@ -32,7 +32,7 @@ type Rect = { left: number; top: number; width: number; height: number };
 // How long the card's springs take to get most of the way, as it comes and
 // as it goes.
 const OPEN_RESPONSE = 0.22;
-const CLOSE_RESPONSE = 0.18;
+const CLOSE_RESPONSE = 0.21;
 // How far apart the rows' springs are, for a pointer at the box's top or
 // bottom edge: the same both ways, as more for a pointer below sent the
 // card's far rows up too fast.

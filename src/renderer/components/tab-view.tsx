@@ -150,7 +150,7 @@ export function TabView({
         />
       )}
       {/* Over the peek's card, under its buttons (peek/peek.css). */}
-      <canvas ref={peekCanvas} aria-hidden className="pointer-events-none absolute inset-0 z-2 size-full" />
+      <canvas ref={peekCanvas} aria-hidden className="no-drag pointer-events-none absolute inset-0 z-2 size-full" />
       {shownPeek && (
         <PeekCover
           key={shownPeek.tab}
