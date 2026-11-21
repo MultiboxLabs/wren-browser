@@ -1,29 +1,29 @@
 // Keeping the peeks right as Chromium changes a Browser's tabs (mod.rs): a
 // tab that opens peeks opens a tab in front, or a peek or the tab behind it
-// closes, moves or becomes active.
+// closes, moves or becomes active. Each step is its own function, run in
+// the order below, as each depends on the roles the one before left.
 
 use wren::{Browser, BrowserTab, Change, ChangeKind, TabFields, TabOpenedAs};
 
-use super::{Hold, Peeks, let_go, opens_peeks, to_list};
+use super::{Peeks, hold, navigation, opens_peeks, to_list};
 use crate::app::State;
-use crate::tabs::input::{self, InputLock};
-use crate::tabs::{self, roles};
+use crate::tabs::roles;
 
 /// Settles the Browser's peeks after `change`, one of its tabs' changes,
 /// and answers whether any tab's role changed with it, so that the page is
 /// told its tabs again. A change of one tab that leaves its pinning and its
 /// split as they were leaves them as they are. Any other settles them all:
-/// - a tab that opens peeks or is behind one watches its navigations, and
-///   no other tab does (navigation.rs);
-/// - a tab that comes opened in front by a tab of the Browser that opens
-///   peeks is a peek, unless that tab has one already;
-/// - a peek whose tab behind has closed or is in another Browser, or that
-///   Chromium has unpinned, is a tab of the list;
-/// - a peek's tab behind, and the other of its split, ignore input;
-/// - a peek that has closed lets them take it again, and the tab behind it
-///   is made active if the peek was;
-/// - when the tab behind a peek is made active, the peek is made active
-///   instead.
+/// 1. a tab that comes opened in front by a tab of the Browser that opens
+///    peeks is a peek, unless that tab has one already;
+/// 2. a peek whose tab behind has closed or is in another Browser, or that
+///    Chromium has unpinned, is a tab of the list;
+/// 3. a peek that has closed or gone to the list lets go its hold on the
+///    tabs behind it, and the tab behind is made active if the peek was;
+/// 4. when the tab behind a peek is made active, the peek is made active
+///    instead;
+/// 5. the tabs behind each peek ignore input;
+/// 6. a tab that opens peeks or is behind one watches its navigations, and
+///    no other tab does (navigation.rs).
 pub fn settle(state: &State, browser: &Browser, change: &Change) -> bool {
     let structure = TabFields::PINNED | TabFields::SPLIT;
     if change.kind == ChangeKind::Tab && !change.tab_fields.intersects(structure) {
@@ -33,26 +33,11 @@ pub fn settle(state: &State, browser: &Browser, change: &Change) -> bool {
     let all = browser.tabs();
     let mut changed = judge_new(peeks, browser, &all);
     changed |= release_stranded(peeks, browser);
-    end_holds(peeks);
-    hold_behind(peeks, browser);
-    // Once the peeks have settled, as a tab behind one watches too.
-    watch(&all);
+    hold::end_released(peeks);
+    hold::keep_in_front(browser);
+    hold::hold_behind(peeks, browser);
+    navigation::watch(&all);
     changed
-}
-
-// Makes each of `tabs` that opens peeks or is behind one watch its
-// navigations, and every other stop.
-fn watch(tabs: &[BrowserTab]) {
-    for tab in tabs {
-        let watches = opens_peeks(*tab) || roles::peek_of(*tab).is_some();
-        if tab
-            .state()
-            .is_ok_and(|state| state.watches_navigations != watches)
-        {
-            // It fails only for a tab that has closed.
-            let _ = tab.set_watches_navigations(watches);
-        }
-    }
 }
 
 // Judges each of `tabs` the first time it comes, and makes one that a tab of
@@ -106,52 +91,4 @@ fn release_stranded(peeks: &Peeks, browser: &Browser) -> bool {
         }
     }
     changed
-}
-
-// Lets go the hold of each peek that has closed, or is no longer a peek.
-// The tab behind one that closed while it was active is made active.
-fn end_holds(peeks: &Peeks) {
-    let ended: Vec<BrowserTab> = peeks
-        .holds
-        .borrow()
-        .keys()
-        .filter(|tab| tab.browser().is_none() || roles::behind(**tab).is_none())
-        .copied()
-        .collect();
-    for tab in ended {
-        let closed = tab.browser().is_none();
-        if let Some(hold) = let_go(peeks, tab)
-            && closed
-            && hold.active
-        {
-            // It fails only for a tab that has closed too.
-            let _ = hold.behind.activate();
-        }
-    }
-}
-
-// Locks the input of the tabs behind each of `browser`'s peeks, and makes
-// the peek active in place of them.
-fn hold_behind(peeks: &Peeks, browser: &Browser) {
-    for (tab, behind) in roles::peeks(browser) {
-        let locked = tabs::with_split(behind);
-        let mut active = browser.active_tab();
-        if active.is_some_and(|active| locked.contains(&active)) && tab.activate().is_ok() {
-            active = Some(tab);
-        }
-        let mut holds = peeks.holds.borrow_mut();
-        let hold = holds.entry(tab).or_insert_with(|| Hold {
-            behind,
-            locked: Vec::new(),
-            active: false,
-        });
-        for gone in hold.locked.iter().filter(|each| !locked.contains(each)) {
-            input::set_on_tab(*gone, InputLock::Peek, false);
-        }
-        for each in &locked {
-            input::set_on_tab(*each, InputLock::Peek, true);
-        }
-        hold.locked = locked;
-        hold.active = active == Some(tab);
-    }
 }

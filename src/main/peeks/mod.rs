@@ -12,8 +12,11 @@
 //
 // Which tab is a peek, and which tab it is in front of, is its role
 // (tabs/roles.rs). What the part keeps beside it (`Peeks`) is the tabs
-// already judged, and each peek's hold on the input of the tabs behind it.
+// already judged, and each peek's hold on the tabs behind it (hold.rs).
+// settle.rs follows Chromium's changes with them, and navigation.rs says
+// which tabs watch their navigations and what Wren answers each.
 
+mod hold;
 mod navigation;
 mod settle;
 
@@ -27,7 +30,6 @@ use wren::{Browser, BrowserTab, MainThread, SplitLayout};
 
 use crate::app::State;
 use crate::pins;
-use crate::tabs::input::{self, InputLock};
 use crate::tabs::{self, roles};
 
 /// What the part keeps between Chromium's changes.
@@ -37,19 +39,7 @@ pub struct Peeks {
     // and a peek that became a tab of the list never becomes one again.
     judged: RefCell<HashSet<BrowserTab>>,
     // Each open peek's hold on the tabs behind it, by the peek.
-    holds: RefCell<HashMap<BrowserTab, Hold>>,
-}
-
-// An open peek's hold on the tabs behind it.
-struct Hold {
-    // The tab it is in front of.
-    behind: BrowserTab,
-    // The tabs whose input it locks: the tab behind, and the other of its
-    // split.
-    locked: Vec<BrowserTab>,
-    // It was its Browser's active tab at the last change, so the tab behind
-    // it is made active if it closes.
-    active: bool,
+    holds: RefCell<HashMap<BrowserTab, hold::Hold>>,
 }
 
 /// Whether `tab` opens peeks. Only a pin's tab does for now: nothing yet
@@ -131,18 +121,8 @@ fn behind(tab: BrowserTab) -> Result<BrowserTab, String> {
 // Makes peek `tab` a tab of the list, its hold let go. Unpinned, Chromium
 // puts it first among the tabs of the list.
 fn to_list(peeks: &Peeks, tab: BrowserTab) {
-    let_go(peeks, tab);
+    hold::let_go(peeks, tab);
     roles::release(tab);
-}
-
-// Lets go peek `tab`'s hold on the tabs behind it, as it closes or is no
-// longer a peek, and answers the hold it had.
-fn let_go(peeks: &Peeks, tab: BrowserTab) -> Option<Hold> {
-    let hold = peeks.holds.borrow_mut().remove(&tab)?;
-    for locked in &hold.locked {
-        input::set_on_tab(*locked, InputLock::Peek, false);
-    }
-    Some(hold)
 }
 
 fn failed(error: wren::Error) -> String {

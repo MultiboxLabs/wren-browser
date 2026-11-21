@@ -1,31 +1,53 @@
-// Which navigations go to a new tab. A tab that opens peeks, a pin's for
-// now, and a tab behind a peek watch their navigations (settle.rs). Each one
-// their page starts to another origin goes to a new tab in front instead,
-// whether a click started it or a script did. From a tab that opens peeks,
-// that tab becomes a peek as it first comes, as every tab such a tab opens
-// in front does. From a tab behind a peek, which has one already, it is a
-// tab of the list (settle.rs), and the tab behind keeps its page.
+// Which tabs keep to their page's origin, and what Wren answers their
+// navigations. A tab keeps to it if it opens peeks, a pin's for now, or is
+// behind a peek. It watches its navigations, and each one its page starts to
+// another origin, by a click or by a script, goes to a new tab in front
+// instead. From a tab that opens peeks, that tab becomes a peek as it first
+// comes (settle.rs). From a tab behind a peek, which has one already, it is
+// a tab of the list, and the tab behind keeps its page under the overlay.
+// This file is the one place that says which tabs watch, so the tabs that
+// watch and the navigations sent to a new tab never disagree.
 
-use wren::{NavigationAnswer, NavigationRequest};
+use wren::{BrowserTab, NavigationAnswer, NavigationRequest};
 
 use super::opens_peeks;
 use crate::tabs::roles;
 
+/// Makes each of `tabs` that keeps to its origin watch its navigations,
+/// and every other stop.
+pub(super) fn watch(tabs: &[BrowserTab]) {
+    for tab in tabs {
+        let keeps = keeps_to_origin(*tab);
+        if tab
+            .state()
+            .is_ok_and(|state| state.watches_navigations != keeps)
+        {
+            // It fails only for a tab that has closed.
+            let _ = tab.set_watches_navigations(keeps);
+        }
+    }
+}
+
 /// Wren's answer to a watched tab's navigation: a new tab in front for one
-/// its page starts to another origin, from a tab that opens peeks or is
-/// behind one; the rest go ahead. A navigation the person or Wren starts,
-/// such as from the omnibox, a reload or going back, is not the page's, and
-/// stays in the tab. Runs inside Chromium's call, so it only answers.
+/// its page starts to another origin, from a tab that keeps to its origin;
+/// the rest go ahead. A navigation the person or Wren starts, such as from
+/// the omnibox, a reload or going back, is not the page's, and stays in the
+/// tab. Runs inside Chromium's call, so it only answers.
 pub fn answer(request: &NavigationRequest) -> NavigationAnswer {
     let tab = request.tab;
-    let leaves = request.by_page
-        && (opens_peeks(tab) || roles::peek_of(tab).is_some())
-        && is_other_origin(&tab.url(), &request.url);
+    let leaves =
+        request.by_page && keeps_to_origin(tab) && is_other_origin(&tab.url(), &request.url);
     if leaves {
         NavigationAnswer::OpenInNewTab
     } else {
         NavigationAnswer::Allow
     }
+}
+
+// Whether `tab` keeps to its page's origin: it opens peeks, or is behind
+// one.
+fn keeps_to_origin(tab: BrowserTab) -> bool {
+    opens_peeks(tab) || roles::peek_of(tab).is_some()
 }
 
 // Whether `to`, a web address, is on another origin than `from`: another
