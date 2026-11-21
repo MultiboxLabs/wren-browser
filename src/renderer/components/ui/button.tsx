@@ -19,8 +19,9 @@ export type Icon = ComponentType<{ size?: number; strokeWidth?: number; classNam
  * for the default button of a dialog; `bright`, white, for what a card on
  * the window asks to be done; `solid`, near black (near white in dark), for
  * the one thing a page in a tab asks, where colour is the page's own;
- * `overlay`, black in light and dark, its glyph white, for a control over
- * a darkened page, such as a peek's, which grows under the pointer; `bare`,
+ * `overlay`, white in light and black in dark with the system, for a control
+ * over a darkened page, such as a peek's, which grows under the pointer;
+ * `bare`,
  * no fill at all, its text dim and brightening under the pointer,
  * for a small action set in a line, such as the one on the list's separator.
  */
@@ -108,13 +109,12 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
     off: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] enabled:active:brightness-90 disabled:opacity-45",
     on: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] brightness-90"
   },
-  // With a hairline of light inside its edge, and a stronger one with a dark
-  // outer edge in dark mode (`--overlay-edge` in index.css), as a peek's card
-  // has, so it stands out of a dark page. Pressed, it lightens a little, as
-  // black can't darken.
+  // White in light and black in dark with the system (`--overlay*` in
+  // index.css), with edges that match a peek's card so it stands out of the
+  // darkened page behind it.
   overlay: {
-    off: "bg-black text-white shadow-overlay transition-[scale] duration-120 ease-out enabled:active:bg-[rgb(40_40_42)] motion-safe:enabled:hover:scale-110",
-    on: "bg-[rgb(40_40_42)] text-white shadow-overlay"
+    off: "bg-overlay text-overlay-fg shadow-overlay transition-[scale] duration-120 ease-out enabled:active:bg-overlay-pressed motion-safe:enabled:hover:scale-110",
+    on: "bg-overlay-pressed text-overlay-fg shadow-overlay"
   },
   // Brightening to the glyphs' colour, solid: white (black in light).
   bare: {
