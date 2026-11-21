@@ -197,19 +197,16 @@ function OpenButton({ disabled, target }: { disabled: boolean; target: string })
   );
 }
 
-// Back and forward, as plain chevrons, which suit a bar this small. They
-// show only once the page has somewhere to go, as most popups never do.
+// Back and forward, as plain chevrons, which suit a bar this small. Back
+// shows once the page has somewhere to go back or forward, and forward only
+// while it can go forward, to save room in the toolbar.
 function History({ tab }: { tab: BrowserTab }) {
   return (
     <div className="flex shrink-0">
       <Button icon={ChevronLeft} iconSize={18} label="Back" disabled={!tab.canGoBack} onClick={() => browser.back()} />
-      <Button
-        icon={ChevronRight}
-        iconSize={18}
-        label="Forward"
-        disabled={!tab.canGoForward}
-        onClick={() => browser.forward()}
-      />
+      {tab.canGoForward && (
+        <Button icon={ChevronRight} iconSize={18} label="Forward" onClick={() => browser.forward()} />
+      )}
     </div>
   );
 }
