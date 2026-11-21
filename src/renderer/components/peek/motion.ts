@@ -34,9 +34,9 @@ type Rect = { left: number; top: number; width: number; height: number };
 const OPEN_RESPONSE = 0.22;
 const CLOSE_RESPONSE = 0.21;
 // How far apart the rows' springs are, for a pointer at the box's top or
-// bottom edge: the same both ways, as more for a pointer below sent the
-// card's far rows up too fast.
-const GENIE = 0.75;
+// bottom edge. A pointer below the middle spreads them further, so the
+// card's bottom trails slower.
+const GENIE = { above: 0.75, below: 1 };
 // What the card grows out of: a link's size round the pointer, and how
 // round its corners are there.
 const LINK = { width: 80, height: 20, corner: 4 };
@@ -274,7 +274,7 @@ function travel(parts: PeekParts, genie: Genie, from: [number, number] | null, o
   // How far below the box's middle the link is, from -1 to 1, and so how far
   // apart the rows' springs are. Closing, the other way round.
   const below = 2 * clamp(y / Math.max(1, box.height), 0, 1) - 1;
-  const spread = GENIE * below * (opening ? 1 : -1);
+  const spread = (below > 0 ? GENIE.below : GENIE.above) * below * (opening ? 1 : -1);
   const response = opening ? OPEN_RESPONSE : CLOSE_RESPONSE;
   // The spring of the row `along` the card, from its top at 0 to its bottom at 1.
   const row = (along: number) => {
