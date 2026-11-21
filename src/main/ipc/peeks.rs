@@ -1,14 +1,16 @@
 // What the page asks of a peek in front of another tab (peeks/): its three
 // buttons, a click on the tab behind it, which closes it as Close does, and
-// a picture of its page, which it is drawn by as it goes.
+// a picture of its page, which it is drawn by as it goes. The app tells the
+// page when the main menu's Open as Tab asks for the peek to expand.
 // src/renderer/ipc/peeks.ts is the page's side. What the page is told of the
 // peeks comes with its tabs (tabs.rs).
 
-use wren::{MainThread, WebView};
+use wren::{BrowserTab, MainThread, WebView};
 
 use super::browser::tab;
 use super::{WindowRef, with_browser};
 use crate::peeks;
+use crate::windows::BrowserWindow;
 
 pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     // The peek closes, and the tab behind it is shown again.
@@ -54,4 +56,10 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
             peeks::split(&state, mt, browser, tab(mt, browser, id)?)
         })
     });
+}
+
+/// Tells the page to expand peek `tab` as its Open as Tab button does, for
+/// the main menu's Open as Tab.
+pub fn send_expand_peek(window: &BrowserWindow, tab: BrowserTab) {
+    let _ = window.page.web_view.send("peeks.expandAsked", &tab.id());
 }

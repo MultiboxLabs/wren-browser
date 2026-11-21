@@ -145,12 +145,16 @@ impl App for Wren {
             // it.
             windows::mini_wren::follow_new_tab_page(state, mt, &window);
         }
-        // A dialog opened or closed, or another Browser came in front, as
-        // a switch makes one active and another not.
-        if changes
-            .iter()
-            .any(|change| matches!(change.kind, ChangeKind::ModalDialog | ChangeKind::Active))
-        {
+        // A dialog opened or closed, another Browser came in front, as a
+        // switch makes one active and another not, or a Browser's tabs
+        // changed, which can make a peek active, or make it a peek no
+        // longer.
+        if changes.iter().any(|change| {
+            matches!(
+                change.kind,
+                ChangeKind::ModalDialog | ChangeKind::Active | ChangeKind::Tabs | ChangeKind::Tab
+            )
+        }) {
             menus::update_front_menu(state, mt);
         }
     }

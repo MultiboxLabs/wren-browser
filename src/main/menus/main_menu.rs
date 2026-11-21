@@ -11,6 +11,7 @@ use wren::{
 use super::{enabled, set_icon_menu};
 use crate::app::State;
 use crate::db::SpaceId;
+use crate::peeks;
 use crate::spaces;
 
 pub const NEW_WINDOW: &str = "new-window";
@@ -58,6 +59,8 @@ pub struct Front {
     /// The window in use is a Mini Wren, whose page Open as Tab moves; not
     /// one on the New Tab page, which is no page to move.
     pub mini_wren: bool,
+    /// The window in use shows a peek, which Open as Tab expands.
+    pub peek: bool,
 }
 
 // The app's items a dialog over the window in front greys out, as Chrome
@@ -115,6 +118,12 @@ fn front_menu(state: &State) -> Front {
             .windows
             .in_use()
             .is_some_and(|window| window.is_mini_wren() && !window.is_on_new_tab_page()),
+        peek: state
+            .windows
+            .active()
+            .and_then(|window| window.browser())
+            .and_then(|browser| peeks::active(&browser))
+            .is_some(),
     }
 }
 
@@ -201,7 +210,8 @@ fn main_menu(
                 keyed(NEW_TAB, "New Tab", "t", MenuModifiers::PRIMARY),
                 keyed(OPEN_LOCATION, "Open Location…", "l", MenuModifiers::PRIMARY),
                 // A Mini Wren's page to a tab, as its toolbar's Open button
-                // does; greyed out in a browser window (`allowed`).
+                // does, or the peek shown to a tab of the list, as its
+                // Open as Tab button does; greyed out otherwise (`allowed`).
                 keyed(OPEN_AS_TAB, "Open as Tab", "o", MenuModifiers::PRIMARY),
                 MenuItem::chromium(Command::NewSplitTab),
                 MenuItem::Separator,
@@ -444,11 +454,11 @@ fn acts_on_front(id: &str) -> bool {
 }
 
 // Whether `front` allows item `id`, one that acts on it. A window on a
-// profile never switches spaces, and only a Mini Wren's page opens as a
-// tab.
+// profile never switches spaces, and only a Mini Wren's page or a peek
+// opens as a tab.
 fn allowed(id: &str, front: Front) -> bool {
     if id == OPEN_AS_TAB {
-        return front.mini_wren;
+        return front.mini_wren || front.peek;
     }
     !front.blocked && (front.switching || !id.starts_with(SPACE))
 }

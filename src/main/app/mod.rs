@@ -107,6 +107,7 @@ impl State {
                 switching: true,
                 blocked: false,
                 mini_wren: false,
+                peek: false,
             }),
             mini_wrens: MiniWrens::default(),
             updates,

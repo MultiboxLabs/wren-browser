@@ -29,8 +29,10 @@ use std::collections::{HashMap, HashSet};
 use wren::{Browser, BrowserTab, MainThread, SplitLayout};
 
 use crate::app::State;
+use crate::ipc;
 use crate::pins;
 use crate::tabs::{self, roles};
+use crate::windows::BrowserWindow;
 
 /// What the part keeps between Chromium's changes.
 #[derive(Default)]
@@ -47,6 +49,14 @@ pub struct Peeks {
 /// behaves as it does in front of a pin's.
 pub fn opens_peeks(tab: BrowserTab) -> bool {
     roles::pin_of(tab).is_some()
+}
+
+/// `browser`'s active tab, if it is a peek, which the main menu's Open as
+/// Tab expands (`expand_active`).
+pub fn active(browser: &Browser) -> Option<BrowserTab> {
+    browser
+        .active_tab()
+        .filter(|tab| roles::behind(*tab).is_some())
 }
 
 /// Opens `url` in a peek in front of `behind`, one of `browser`'s tabs, as
@@ -92,6 +102,16 @@ pub fn expand(
     to_list(&state.peeks, tab);
     tabs::move_tab(mt, browser, tab, 0, None).map_err(failed)?;
     tab.activate().map_err(failed)
+}
+
+/// Expands `browser`'s active tab if it is a peek, as the main menu's Open
+/// as Tab asks. `window`'s page does it as it does for the peek's own Open
+/// as Tab button, so the peek grows to fill the tab before `expand` makes
+/// it one.
+pub fn expand_active(window: &BrowserWindow, browser: &Browser) {
+    if let Some(tab) = active(browser) {
+        ipc::send_expand_peek(window, tab);
+    }
 }
 
 /// Sets peek `tab` down in a split beside the page behind it, as its Split

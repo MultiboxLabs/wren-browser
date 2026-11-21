@@ -69,6 +69,7 @@ pub use omnibox::{
     stop_omnibox,
 };
 pub use onboarding::handle_onboarding;
+pub use peeks::send_expand_peek;
 pub use permission::{send_permission, show_permission_prompt};
 pub use pins::broadcast_pins;
 pub use profile_move::{ask_before_profile_move, forget_move_question};

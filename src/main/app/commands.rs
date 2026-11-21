@@ -149,6 +149,9 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
         }
         return;
     }
+    if id == menus::OPEN_AS_TAB {
+        return peeks::expand_active(&window, &browser);
+    }
     if id == menus::OPEN_PEEK_TAB {
         let opened = browser
             .active_tab()

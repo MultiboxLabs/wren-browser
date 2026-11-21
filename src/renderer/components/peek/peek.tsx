@@ -7,10 +7,18 @@
 // the peek comes and goes, drawing the card in a canvas on its way.
 
 import { Columns2, Maximize2, X } from "lucide-react";
-import { type CSSProperties, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type RefObject,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState
+} from "react";
 import { closePeek, enterPeek, expandPeek, type PeekParts, stop } from "./motion";
 import { Button, type Icon } from "@/components/ui/button";
-import { type Peek, peeks, previewUrl } from "@/ipc";
+import { hasApp, type Peek, peeks, previewUrl } from "@/ipc";
 import { useTab } from "@/state/browser";
 import { cn } from "@/utils/cn";
 
@@ -145,6 +153,11 @@ export function PeekCover({
       .then(() => peeks.expand(peek.tab))
       .catch(() => {});
   };
+  // The main menu's Open as Tab expands it as its button does.
+  const expandAsked = useEffectEvent((tab: number) => {
+    if (tab === peek.tab) expand();
+  });
+  useEffect(() => (hasApp ? peeks.onExpandAsked(expandAsked) : undefined), []);
   const split = () => {
     if (!leaving) void peeks.split(peek.tab).catch(() => {});
   };
