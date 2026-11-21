@@ -17,9 +17,9 @@ import { cn } from "@/utils/cn";
 import { DropMarkView } from "./drop-mark";
 import { FoldingRows } from "./folding";
 import type { ItemActions } from "./item-actions";
-import { KeptRows, keptPeek, ListRows } from "./item-rows";
+import { KeptRows, keptHoldout, ListRows } from "./item-rows";
 import { useListEdges } from "./list-edge";
-import { PeeksContext, SECTION, usePeeks } from "./peeks";
+import { PinHoldoutsContext, SECTION, usePinHoldouts } from "./pin-holdouts";
 import { useItemDrop } from "./item-drop";
 import { listLandingAt, pinnedFirst } from "./item-landing";
 import { useRevealActive } from "./reveal";
@@ -182,19 +182,22 @@ function PinnedSection({
   open: boolean;
   drop: ReturnType<typeof useItemDrop>;
 }) {
-  const peeks = usePeeks(pinned, open, selected);
-  const sectionPeek = peeks.get(SECTION);
+  const holdouts = usePinHoldouts(pinned, open, selected);
+  const sectionHoldout = holdouts.get(SECTION);
   return (
     // An empty first item, for the gap after it that `FoldingRows` takes
     // back: the pins' first row brings its own, under the heading.
     <div {...drop.handlers} className="relative flex flex-col gap-1.25">
       <div />
       {/* With no pins, nothing: not even its gap under the heading. */}
-      <PeeksContext value={peeks}>
-        <FoldingRows open={open && pinned.length > 0} peek={sectionPeek && keptPeek(sectionPeek, { actions })}>
+      <PinHoldoutsContext value={holdouts}>
+        <FoldingRows
+          open={open && pinned.length > 0}
+          holdout={sectionHoldout && keptHoldout(sectionHoldout, { actions })}
+        >
           <KeptRows items={pinned} actions={actions} />
         </FoldingRows>
-      </PeeksContext>
+      </PinHoldoutsContext>
       {drop.landing?.mark && <DropMarkView mark={drop.landing.mark} />}
     </div>
   );

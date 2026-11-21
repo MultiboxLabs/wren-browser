@@ -2,7 +2,7 @@
 // every corner, its back a light tint of the space's colour, and its front
 // white in light, a deep shade in dark. Closed, its front is square across the
 // top, a line under its tab, with three dots on it while it still shows one of
-// its pins (peeks.ts); open, it leans out over the back. Between them each
+// its pins (pin-holdouts.ts); open, it leans out over the back. Between them each
 // shape morphs, in step with the rows folding under it, and the dots pop in
 // and out. Drawn in 100 units.
 
@@ -70,17 +70,17 @@ const STILL = { duration: 0 };
 
 export function FolderIcon({
   open,
-  peeking = false,
+  holdsOut = false,
   className
 }: {
   open: boolean;
   /** Closed, it still shows one of its pins. */
-  peeking?: boolean;
+  holdsOut?: boolean;
   className?: string;
 }) {
   const still = useReducedMotion();
   const state = open ? "open" : "closed";
-  const dotted = peeking && !open;
+  const dotted = holdsOut && !open;
   const shape = still ? STILL : FOLD;
   return (
     <svg width={SIZE} height={SIZE} viewBox={VIEW} aria-hidden className={cn("shrink-0 overflow-visible", className)}>

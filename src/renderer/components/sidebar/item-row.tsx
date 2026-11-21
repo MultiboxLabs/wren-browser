@@ -64,12 +64,12 @@ export type ItemRowProps = {
   indent?: number;
   actions: ItemActions;
   /** It is drawn out of its folded section or folder (folding.tsx), where it stays only while its tab is open. */
-  peek?: boolean;
+  holdout?: boolean;
   /** Strikes its row, as a press closes a kept tab's Chromium tabs (row-motion.ts). */
   strike?: () => void;
 };
 
-export function ItemRow({ item, indent, actions, peek = false, strike }: ItemRowProps) {
+export function ItemRow({ item, indent, actions, holdout = false, strike }: ItemRowProps) {
   const sides = useSides(item);
   // The selected tab, if it is one of the row's; none while the New Tab
   // omnibox is open.
@@ -81,10 +81,10 @@ export function ItemRow({ item, indent, actions, peek = false, strike }: ItemRow
   const open = sides.some((side) => side.tab);
   const active = sides.some((side) => side.tab && side.tab.id === selected);
   // What a kept tab's button and a middle click on it do. The active one's
-  // Chromium tabs close, struck as they do, and so do a peek's, as a peek
-  // stays out only while its tab is open. Any other is unpinned. A peek
+  // Chromium tabs close, struck as they do, and so do a holdout's, as a holdout
+  // stays out only while its tab is open. Any other is unpinned. A holdout
   // going as its tab closes has no tab left, so it shows the cross.
-  const closes = active || (peek && open);
+  const closes = active || (holdout && open);
   // A normal tab's side closes.
   const dismiss = (side: number) => {
     if (!kept) return actions.onClose(item, side);

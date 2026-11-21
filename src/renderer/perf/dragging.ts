@@ -23,7 +23,7 @@ import {
   type TabGroup,
   type TabSplit
 } from "@/ipc";
-import { PEEK_MARK } from "@/components/sidebar/folding";
+import { HOLDOUT_MARK } from "@/components/sidebar/folding";
 import { ITEM_MARK, rowBox } from "@/components/sidebar/item-drag";
 import { ZONE_MARK } from "@/components/sidebar/item-landing";
 import { MARKED_MARK, NESTED_INDENT } from "@/components/sidebar/rows";
@@ -215,16 +215,16 @@ export const drawnOpenEverywhere = (pin: number) => spaces.every((space) => hear
  * An item of the sidebar, as a check names it: a tab of a list by its
  * page's number, or the split it is in; the group that tab is in; a pinned
  * tab or a favourite by its page's number, or one of a split's two; the
- * row a folded folder or section shows of that pinned tab (its peek,
+ * row a folded folder or section shows of that pinned tab (its holdout,
  * folding.tsx); or the first folder.
  */
-export type What = { tab: number } | { group: number } | { pin: number } | { peek: number } | "folder";
+export type What = { tab: number } | { group: number } | { pin: number } | { holdout: number } | "folder";
 
 export const tab = (number: number): What => ({ tab: number });
 export const group = (number: number): What => ({ group: number });
 export const pin = (number: number): What => ({ pin: number });
-export const peek = (number: number): What => ({ peek: number });
-const isPeek = (what: What): what is { peek: number } => what !== "folder" && "peek" in what;
+export const holdout = (number: number): What => ({ holdout: number });
+const isHoldout = (what: What): what is { holdout: number } => what !== "folder" && "holdout" in what;
 export const folder: What = "folder";
 
 const allPins = (pins: Pin[]): Pin[] =>
@@ -267,7 +267,7 @@ export async function groupOf(number: number) {
  * a kept tab that has the page.
  */
 export async function menuRef(what: What): Promise<{ item: ItemRef; side: number }> {
-  if (isPeek(what)) return menuRef(pin(what.peek));
+  if (isHoldout(what)) return menuRef(pin(what.holdout));
   if (what !== "folder" && "tab" in what) return { item: { tab: await tabId(what.tab) }, side: 0 };
   if (what !== "folder" && "group" in what) {
     const id = await groupId(what.group);
@@ -289,7 +289,7 @@ export async function menuRef(what: What): Promise<{ item: ItemRef; side: number
 
 /** The key an item's element is marked with (`itemKey` in state/items.ts). */
 function keyOf(said: Said, what: What): string {
-  if (isPeek(what)) return keyOf(said, pin(what.peek));
+  if (isHoldout(what)) return keyOf(said, pin(what.holdout));
   if (what === "folder" || "pin" in what) {
     const kept = allPins(said.kept.flatMap(({ favorites, pinned }) => [...favorites, ...pinned]));
     const found =
@@ -317,15 +317,15 @@ function keyOf(said: Said, what: What): string {
   throw new Error(`No tab of a list is on page ${number}.`);
 }
 
-/** The element that draws an item, and is dragged: its own, or for a peek the one that draws it out of its folder. */
+/** The element that draws an item, and is dragged: its own, or for a holdout the one that draws it out of its folder. */
 function drawnOf(said: Said, what: What) {
   const key = keyOf(said, what);
-  const selector = isPeek(what) ? `[${PEEK_MARK}="${key}"] [draggable="true"]` : `[${ITEM_MARK}="${key}"]`;
+  const selector = isHoldout(what) ? `[${HOLDOUT_MARK}="${key}"] [draggable="true"]` : `[${ITEM_MARK}="${key}"]`;
   return document.querySelector<HTMLElement>(selector);
 }
 
 const notDrawn = (said: Said, what: What) =>
-  `Nothing is drawn of ${keyOf(said, what)}${isPeek(what) ? " as a peek" : ""}.`;
+  `Nothing is drawn of ${keyOf(said, what)}${isHoldout(what) ? " as a holdout" : ""}.`;
 
 function elementOf(said: Said, what: What) {
   const found = drawnOf(said, what);
@@ -333,7 +333,7 @@ function elementOf(said: Said, what: What) {
   return found;
 }
 
-/** Waits for an item to be drawn, as a peek is once its folder has folded. */
+/** Waits for an item to be drawn, as a holdout is once its folder has folded. */
 export async function isDrawn(what: What) {
   const said = await read();
   await until(

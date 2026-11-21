@@ -32,7 +32,7 @@ import {
   menuRef,
   openingsOf,
   over,
-  peek,
+  holdout,
   pickUp,
   picture,
   press,
@@ -323,12 +323,12 @@ export const folded = (number: number) => async () => {
   await groups.toggle(id);
 };
 
-/** Folds the first folder, which then shows the pinned tab on a page in it, open and selected, as its peek. */
-export const folderFoldedWithPeek = (number: number) => async () => {
+/** Folds the first folder, which then shows the pinned tab on a page in it, open and selected, as its holdout. */
+export const folderFoldedWithHoldout = (number: number) => async () => {
   const { item } = await menuRef(folder);
   if (!("pin" in item)) throw new Error("The folder is no pin.");
   await pins.setOpen(item.pin, false);
-  await isDrawn(peek(number));
+  await isDrawn(holdout(number));
 };
 
 const foldersIn = (kept: Pin[]): Extract<Pin, { kind: "folder" }>[] =>

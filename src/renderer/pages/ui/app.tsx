@@ -165,7 +165,10 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           onPointerEnter={sidebar.enter}
           onPointerLeave={sidebar.leave}
         >
-          <motion.div style={sidebar.motion.panel} className="peek pointer-events-none absolute inset-0 rounded-panel">
+          <motion.div
+            style={sidebar.motion.panel}
+            className="floating-panel pointer-events-none absolute inset-0 rounded-panel"
+          >
             <SpaceBackground space={space} toward={toward} material className="absolute inset-0 rounded-[inherit]" />
           </motion.div>
           {/* What the sidebar opens holds it out while it floats. */}

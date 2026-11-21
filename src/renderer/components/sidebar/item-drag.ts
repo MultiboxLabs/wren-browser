@@ -43,7 +43,7 @@ export type Carried = {
   type: ItemType;
   /** The tokens of the tabs and groups of the list it carries, which its drag's data says. */
   tokens: string[];
-  /** The key (`itemKey`) of the item held, by which its element is marked, unless it is a peek. */
+  /** The key (`itemKey`) of the item held, by which its element is marked, unless it is a holdout. */
   key: string;
   /** The keys of all it carries: the item held alone, or each marked row. */
   keys: string[];
@@ -53,8 +53,8 @@ export type Carried = {
   grab: number;
   /** Its element, as it was picked up. */
   element: HTMLElement;
-  /** Its element is a peek, a row drawn out of its folded section or folder (folding.tsx), not where it is. */
-  peek: boolean;
+  /** Its element is a holdout, a row drawn out of its folded section or folder (folding.tsx), not where it is. */
+  holdout: boolean;
 };
 
 /**
@@ -204,7 +204,7 @@ function showCount(row: Element, count: number) {
 /**
  * Gives what lets an item be dragged, in the sidebar of the space drawn
  * around what calls it: the props that mark an element as the item's
- * (`data-item`) and let it be picked up. Not a `peek`'s, a row drawn out of
+ * (`data-item`) and let it be picked up. Not a `holdout`'s, a row drawn out of
  * its folded section or folder (folding.tsx), which is not where the item
  * is, though it is dragged as it; nor while it is `renaming`, which a drag
  * would take.
@@ -226,14 +226,14 @@ export function useItemDrag() {
     });
     return tokens.every((token) => !!token) ? (tokens as string[]) : null;
   };
-  return (item: Item, { renaming = false, peek = false } = {}) => {
+  return (item: Item, { renaming = false, holdout = false } = {}) => {
     const kind = kindOf(item);
     const type = typeOf(item);
     const key = itemKey(item);
     return {
       draggable: !renaming || undefined,
-      [ITEM_MARK]: peek ? undefined : key,
-      [MARKS_MARK]: !peek && item.kind === "tab" && type !== "favorite" ? "" : undefined,
+      [ITEM_MARK]: holdout ? undefined : key,
+      [MARKS_MARK]: !holdout && item.kind === "tab" && type !== "favorite" ? "" : undefined,
       // Chromium draws the drag's image from the nearest stacking context,
       // over the box of the dragged element and all within it, however
       // clipped (as a selected favourite's glow is): as its own, it shows
@@ -265,7 +265,7 @@ export function useItemDrag() {
           space,
           grab: event.clientX - box.left,
           element,
-          peek
+          holdout
         };
         const data = event.dataTransfer;
         data.effectAllowed = "move";

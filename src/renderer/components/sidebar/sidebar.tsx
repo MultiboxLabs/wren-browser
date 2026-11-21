@@ -211,7 +211,7 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
   // at its bottom edge, or where the card reaches. Edge to edge: past the
   // content's padding on the left, and on the right, the floating sidebar's
   // padding or, docked, the gap to the page, as wide; but inside the
-  // floating sidebar's 1px edge (`.peek`), which it would otherwise cross.
+  // floating sidebar's 1px edge (`.floating-panel`), which it would otherwise cross.
   const below = useMotionValue(0);
   const edge = useTransform(update, (height) => -height);
   const [cutOff, setCutOff] = useState(false);

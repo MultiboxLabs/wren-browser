@@ -10,7 +10,7 @@ import {
   deleted,
   dragged,
   folded,
-  folderFoldedWithPeek,
+  folderFoldedWithHoldout,
   grouped,
   linked,
   makesFolder,
@@ -43,7 +43,7 @@ import {
   half,
   heading,
   onto,
-  peek,
+  holdout,
   pin,
   press,
   pressEscape,
@@ -263,7 +263,7 @@ export const scenes = (url: string): Scene[] => [
     ]
   },
   {
-    name: "A folder's peek",
+    name: "A folder's holdout",
     tabs: 3,
     steps: [
       { name: "a tab onto the space's heading", does: dragged(tab(0), heading), shows: "pins 0 | tabs 1 2" },
@@ -275,18 +275,18 @@ export const scenes = (url: string): Scene[] => [
       { name: "the pinned tab onto the folder", does: dragged(pin(0), onto(folder)), shows: "pins [0] | tabs 1 2" },
       { name: "the pinned tab opened", does: opened(pin(0)), shows: "pins [0] | tabs 1 2" },
       {
-        name: "the folder folded, which shows the pinned tab as its peek",
-        does: folderFoldedWithPeek(0),
+        name: "the folder folded, which shows the pinned tab as its holdout",
+        does: folderFoldedWithHoldout(0),
         shows: "pins [0] | tabs 1 2"
       },
       {
-        name: "the peek let go on itself, which leaves it in its folder",
-        does: stays(peek(0), onto(peek(0))),
+        name: "the holdout let go on itself, which leaves it in its folder",
+        does: stays(holdout(0), onto(holdout(0))),
         shows: "pins [0] | tabs 1 2"
       },
       {
-        name: "the peek onto the space's heading, which takes it out of its folder",
-        does: dragged(peek(0), heading),
+        name: "the holdout onto the space's heading, which takes it out of its folder",
+        does: dragged(holdout(0), heading),
         shows: "pins 0 [] | tabs 1 2"
       }
     ]

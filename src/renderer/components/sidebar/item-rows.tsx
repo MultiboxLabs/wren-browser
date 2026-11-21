@@ -21,7 +21,7 @@ import { FoldingRows, foldRow } from "./folding";
 import type { ItemActions } from "./item-actions";
 import { identitiesOf, ItemRow } from "./item-row";
 import { useRowKeys } from "./keys";
-import { usePeek } from "./peeks";
+import { usePinHoldout } from "./pin-holdouts";
 import { useItemDrag } from "./item-drag";
 import { BODY_MARK } from "./item-landing";
 import { listOrder, useStrike } from "./row-motion";
@@ -65,17 +65,17 @@ export function KeptRows({ items, ...props }: RowsProps & { items: Item[] }) {
 
 /**
  * A kept item's row and the gap above it, marked as its pin's (`foldRow`);
- * `peek`: drawn out of its folded section or folder (`keptPeek`).
+ * `holdout`: drawn out of its folded section or folder (`keptHoldout`).
  */
-function KeptBody({ item, peek = false, ...props }: RowsProps & { item: KeptItem; peek?: boolean }) {
+function KeptBody({ item, holdout = false, ...props }: RowsProps & { item: KeptItem; holdout?: boolean }) {
   const { ref: struck, strike } = useStrike<HTMLDivElement>();
   const drag = useItemDrag();
   const id = pinOf(item);
   return (
     // Each brings the gap above it, which grows and shrinks with it. It
     // holds all that is drawn of the item: for a folder, what is in it, or
-    // its peek while it is folded. Not a peek's, which is not where it is.
-    <div {...{ [BODY_MARK]: peek ? undefined : itemKey(item) }} className="flex flex-col gap-1.25 pt-1.25">
+    // its holdout while it is folded. Not a holdout's, which is not where it is.
+    <div {...{ [BODY_MARK]: holdout ? undefined : itemKey(item) }} className="flex flex-col gap-1.25 pt-1.25">
       {item.kind === "folder" ? (
         <FolderRows folder={item} {...props} />
       ) : (
@@ -83,10 +83,10 @@ function KeptBody({ item, peek = false, ...props }: RowsProps & { item: KeptItem
         <div
           ref={struck}
           {...foldRow(pinIdentity(id))}
-          {...drag(item, { renaming: props.actions.renaming === itemKey(item), peek })}
+          {...drag(item, { renaming: props.actions.renaming === itemKey(item), holdout })}
           className="flex flex-col"
         >
-          <ItemRow item={item} peek={peek} strike={strike} {...props} />
+          <ItemRow item={item} holdout={holdout} strike={strike} {...props} />
         </div>
       )}
     </div>
@@ -97,20 +97,20 @@ function KeptBody({ item, peek = false, ...props }: RowsProps & { item: KeptItem
  * What a folded section or folder shows of kept tab `item` (folding.tsx):
  * its row as drawn out of the container, as far in as `indent`.
  */
-export const keptPeek = (item: TabItem, props: RowsProps) => ({
+export const keptHoldout = (item: TabItem, props: RowsProps) => ({
   key: pinIdentity(pinOf(item)),
-  row: <KeptBody key={pinOf(item)} item={item} peek {...props} />
+  row: <KeptBody key={pinOf(item)} item={item} holdout {...props} />
 });
 
 /**
  * A folder and, while it is open, what is in it; folded, the pinned tab it
- * still shows, if any (peeks.ts), its icon holding dots as it does.
+ * still shows, if any (pin-holdouts.ts), its icon holding dots as it does.
  */
 function FolderRows({ folder, ...props }: RowsProps & { folder: FolderItem }) {
   const { indent = 0, actions } = props;
   const inner = indent + NESTED_INDENT;
   const renaming = actions.renaming === itemKey(folder);
-  const peek = usePeek(folder.pin);
+  const holdout = usePinHoldout(folder.pin);
   const renameClick = useRenameClick(() => actions.onStartRename(folder));
   const drag = useItemDrag();
   return (
@@ -129,7 +129,7 @@ function FolderRows({ folder, ...props }: RowsProps & { folder: FolderItem }) {
             identities={[pinIdentity(folder.pin)]}
           >
             <IconSlot>
-              <FolderIcon open={folder.open} peeking={peek !== undefined} className="text-fg" />
+              <FolderIcon open={folder.open} holdsOut={holdout !== undefined} className="text-fg" />
             </IconSlot>
             {renaming ? (
               <TitleField
@@ -146,7 +146,11 @@ function FolderRows({ folder, ...props }: RowsProps & { folder: FolderItem }) {
           </Row>
         </div>
       </FolderMenu>
-      <FoldingRows open={folder.open} peek={peek && keptPeek(peek, { ...props, indent: inner })} indent={inner}>
+      <FoldingRows
+        open={folder.open}
+        holdout={holdout && keptHoldout(holdout, { ...props, indent: inner })}
+        indent={inner}
+      >
         <KeptRows items={folder.items} {...props} indent={inner} />
       </FoldingRows>
     </>

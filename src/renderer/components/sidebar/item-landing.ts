@@ -141,7 +141,7 @@ function placedIn(
     const box = rowBox(el, kind);
     const inside = isOpen(item) && key !== held;
     // One whose rows are not places of their own goes down past them, or
-    // past the row it shows folded (its peek, folding.tsx), so no place is
+    // past the row it shows folded (its holdout, folding.tsx), so no place is
     // drawn across them.
     const body = inside ? undefined : bodies.get(key);
     const end = Math.max(box.bottom, body?.getBoundingClientRect().bottom ?? 0);
@@ -205,9 +205,9 @@ export function listLandingAt(
   const rows = placedIn(marked(zone, ITEM_MARK), marked(zone, BODY_MARK), items, mine?.key);
   // The row held, if it is one of this list's.
   const own = mine ? rows.find((row) => row.el === mine.element) : undefined;
-  // A peek held is none of the rows, as its item is in its folded section
+  // A holdout held is none of the rows, as its item is in its folded section
   // or folder: over itself, it stays where it is.
-  if (mine?.peek) {
+  if (mine?.holdout) {
     const box = rowBox(mine.element, mine.kind);
     if (y >= box.top && y < box.bottom) return null;
   }

@@ -23,7 +23,7 @@ import { EASE_SLIDE } from "@/utils/motion";
 export type Presentation = "anchored" | "floating" | "hidden";
 
 /** How far in from the window's edges the sidebar floats. */
-export const PEEK_INSET = 5;
+export const FLOATING_INSET = 5;
 
 /**
  * The gap round the page, between it and the window's edges, and left of it
@@ -45,7 +45,7 @@ const transition = { duration: 0.15, ease: EASE_SLIDE } as const;
 
 /** The floating sidebar's right edge, from the window's left, for its width (its padding not in it). */
 export function floatingRight(width: number) {
-  return PEEK_INSET + width + PADDING;
+  return FLOATING_INSET + width + PADDING;
 }
 
 /**
@@ -95,11 +95,11 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
 
   // As wide as it is shown: the docked width, and the Library's rail.
   const shownWidth = useTransform(() => sidebarWidth.get() + LIBRARY_RAIL * rail.get());
-  const peekInset = useTransform(() => PEEK_INSET * floating.get());
+  const floatingInset = useTransform(() => FLOATING_INSET * floating.get());
   // Floating, it is as wide again as its left padding, to pad its right:
   // as its fill is, at once, over the gap the page takes as it floats.
   const padding = useTransform(() => PADDING * fill.get());
-  const hiddenLeft = useTransform(() => -(shownWidth.get() + PADDING + PEEK_INSET + SHADOW_REACH));
+  const hiddenLeft = useTransform(() => -(shownWidth.get() + PADDING + FLOATING_INSET + SHADOW_REACH));
   return {
     /** How docked it is, from 0 (floating or hidden) to 1. */
     docked,
@@ -111,9 +111,9 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
      * bubbles hanging off its buttons until the page next laid out.
      */
     box: {
-      left: useTransform(() => hiddenLeft.get() + (peekInset.get() - hiddenLeft.get()) * shown.get()),
-      top: peekInset,
-      bottom: peekInset,
+      left: useTransform(() => hiddenLeft.get() + (floatingInset.get() - hiddenLeft.get()) * shown.get()),
+      top: floatingInset,
+      bottom: floatingInset,
       width: useTransform(() => shownWidth.get() + padding.get()),
       paddingRight: padding
     },
@@ -121,8 +121,8 @@ export function useSidebarMotion(presentation: Presentation, width: number, rail
       opacity: fill,
       // Off, it is hidden rather than transparent: its blur costs either way.
       visibility: useTransform(() => (fill.get() === 0 ? "hidden" : "visible")),
-      // Its shadow and edge (`.peek`) ease in as it eases onto it.
-      "--peek": floating
+      // Its shadow and edge (`.floating-panel`) ease in as it eases onto it.
+      "--floating": floating
     }
   };
 }
