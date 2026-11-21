@@ -40,7 +40,9 @@ export function TabList({
 }) {
   const { profile } = useSpace();
   const space = useDrawnSpace();
-  const { listed: tabs, active } = useTabShape();
+  // The tab drawn selected: the active one, or the tab behind it while that
+  // is a peek, whose row it is drawn on.
+  const { listed: tabs, selected: drawnSelected } = useTabShape();
   // The spaces whose pinned tabs are folded up, as long as the window is open.
   const [folded, setFolded] = useState<ReadonlySet<number>>(new Set());
   const pinnedOpen = !folded.has(space.id);
@@ -63,7 +65,7 @@ export function TabList({
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const room = useRef<HTMLDivElement>(null);
-  useRevealActive(scroller, active ?? undefined);
+  useRevealActive(scroller, drawnSelected ?? undefined);
   const { above } = useListEdges(scroller, content, room);
   // What is dropped on the space's heading is pinned first; on the pins, it
   // lands among them, first as well with none drawn, as the heading lights
@@ -74,7 +76,7 @@ export function TabList({
     landingAt: (zone, dragged, x, y) => listLandingAt(zone, "pinned", pinned, dragged, x, y),
     enabled: !profile
   });
-  const selected = newTabOpen || active === null ? undefined : active;
+  const selected = newTabOpen || drawnSelected === null ? undefined : drawnSelected;
 
   return (
     // The space's name, which stays as the list under it scrolls.

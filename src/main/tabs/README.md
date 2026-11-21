@@ -5,7 +5,7 @@ A part. It is what Wren does to a Browser's tabs, whoever asks, and what each ta
 ## What belongs here
 
 - Opening, closing, moving, duplicating and grouping tabs, and copying a tab's link.
-- What each tab is, which is a tab of the sidebar's list, a pin's, the placeholder, or one closing for a pin.
+- What each tab is, which is a tab of the sidebar's list, a pin's, a peek, the placeholder, or one closing for a pin.
 - Archiving tabs, the pictures of tabs, and making tabs again in another profile.
 - What follows a change Chromium makes to a Browser's tabs.
 - The locks on each tab's input, such as one a window holds on all its tabs while Wren's own UI covers them.
@@ -13,6 +13,7 @@ A part. It is what Wren does to a Browser's tabs, whoever asks, and what each ta
 ## What goes elsewhere
 
 - Favourites and pins, in `pins/`.
+- What a peek does, in `peeks/`.
 - What a drop or an item's menu means, in `sidebar/`.
 - What a page is told of its tabs, in `ipc/`.
 

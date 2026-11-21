@@ -16,6 +16,7 @@ import {
   appWindow,
   type BrowserTab,
   type ItemRef,
+  type Peek,
   type Pin,
   perf,
   type PinLink,
@@ -62,7 +63,14 @@ export async function until<A>(ready: () => A | Promise<A>, otherwise: () => str
  * A space's tabs, as the page has them (`useBrowser`, state/browser.tsx),
  * and the pins its sidebar draws open (`useItems`, state/items.ts).
  */
-export type Heard = { tabs: BrowserTab[]; groups: TabGroup[]; splits: TabSplit[]; links: PinLink[]; open: number[] };
+export type Heard = {
+  tabs: BrowserTab[];
+  groups: TabGroup[];
+  splits: TabSplit[];
+  links: PinLink[];
+  peeks: Peek[];
+  open: number[];
+};
 
 const heard = new Map<number, Heard>();
 
@@ -154,8 +162,9 @@ const SPACE_NAMES = ["window's", "second", "third"];
  * A tab of the run's spaces that is open and that no sidebar has a row for,
  * as "the tab on page 3 of the second space", or null if every tab has one.
  * A listed tab has its row in the list, and a pin's on the pin it is open
- * for, if that is a favourite or a pin its space shows. A tab closing for a
- * pin that has gone is hidden, and counts until it has closed
+ * for, if that is a favourite or a pin its space shows. A peek is drawn on
+ * the row of the tab behind it, so it has a row while that tab does. A tab
+ * closing for a pin that has gone is hidden, and counts until it has closed
  * (`perf.leaving`). Read from what the app says, as `picture` is, so it
  * holds for a space the window does not show too.
  */
@@ -164,10 +173,17 @@ export async function tabWithoutRow() {
   for (const [at, space] of spaces.entries()) {
     const browser = said.browsers.get(space);
     const kept = new Set(allPins([...said.kept[at].favorites, ...said.kept[at].pinned]).map((pin) => pin.id));
-    const rowless = (browser?.tabs ?? []).find((tab) => {
-      if (tab.role !== "pin") return false;
-      const link = browser?.links.find((link) => link.tabs.includes(tab.id));
+    const pinRowless = (tab: number) => {
+      const link = browser?.links.find((link) => link.tabs.includes(tab));
       return !link || !kept.has(link.pin);
+    };
+    const rowless = (browser?.tabs ?? []).find((tab) => {
+      if (tab.role === "pin") return pinRowless(tab.id);
+      if (tab.role !== "peek") return false;
+      const peek = browser?.peeks.find((peek) => peek.tab === tab.id);
+      const behind = peek && browser?.tabs.find((each) => each.id === peek.behind);
+      if (!behind) return true;
+      return behind.role === "pin" ? pinRowless(behind.id) : behind.role !== "listed";
     });
     if (rowless) return `the tab on page ${numberOf(rowless.url)} of the ${SPACE_NAMES[at] ?? `${at + 1}th`} space`;
   }

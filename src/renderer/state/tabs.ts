@@ -16,6 +16,7 @@ import {
   type BrowserTab,
   type BrowserTabs,
   hasApp,
+  type Peek,
   type PinLink,
   type TabGroup,
   tabs,
@@ -54,8 +55,15 @@ export type BrowserShape = {
   splits: TabSplit[];
   /** The pins open in the Browser, each with its tabs. */
   links: PinLink[];
+  /** The peeks in front of its tabs. */
+  peeks: Peek[];
   /** The active tab's ID, unless it is the New Tab page standing in: the window then shows no tab. */
   active: number | null;
+  /**
+   * The ID of the tab its sidebar draws selected: the active one, or, while
+   * that is a peek, the tab behind it, whose row the peek's favicon is on.
+   */
+  selected: number | null;
   /** The ID of the tab whose page has the whole window, if one has. */
   fullScreen: number | null;
 };
@@ -102,7 +110,9 @@ function spaceTabs(said: BrowserTabs, kept: SpaceTabs | undefined): SpaceTabs {
     groups: said.groups,
     splits: said.splits,
     links: said.links,
+    peeks: said.peeks,
     active: current?.id ?? null,
+    selected: said.peeks.find((peek) => peek.tab === current?.id)?.behind ?? current?.id ?? null,
     fullScreen: fullScreen?.id ?? null
   };
   return {
@@ -126,6 +136,12 @@ function settleLinks(kept: PinLink[], next: PinLink[]) {
   const sameLink = (a: PinLink, b: PinLink) => a.pin === b.pin && same(a.tabs, b.tabs) && same(a.away, b.away);
   return kept.length === next.length && kept.every((link, index) => sameLink(link, next[index])) ? kept : next;
 }
+
+/** `next`, or `kept` if it says the same. */
+const settlePeeks = (kept: Peek[], next: Peek[]) =>
+  kept.length === next.length && kept.every((peek, at) => peek.tab === next[at].tab && peek.behind === next[at].behind)
+    ? kept
+    : next;
 
 /** Whose tabs: a space's ID, or null for the window while it shows no space. */
 export type Key = number | null;
@@ -229,10 +245,11 @@ export class TabsStore {
 
   /**
    * The tab a space's sidebar draws selected, of the space's tabs as `get`
-   * or `window` gives them: its active tab, or none while none is drawn
+   * or `window` gives them: its active tab, or the tab behind it while that
+   * is a peek (`BrowserShape.selected`), or none while none is drawn
    * selected (`setNoneSelected`).
    */
-  selected = (tabs: SpaceTabs | undefined) => (this.noneSelected ? null : (tabs?.shape.active ?? null));
+  selected = (tabs: SpaceTabs | undefined) => (this.noneSelected ? null : (tabs?.shape.selected ?? null));
 
   /** Hears as any of the tabs `ids` becomes the one drawn selected, or stops being it. */
   subscribeSelected = (ids: readonly number[], listener: () => void) => {
@@ -254,7 +271,7 @@ export class TabsStore {
   setNoneSelected(none: boolean) {
     if (none === this.noneSelected) return;
     this.noneSelected = none;
-    for (const { shape } of this.spaces.values()) this.tellSelection(shape.active);
+    for (const { shape } of this.spaces.values()) this.tellSelection(shape.selected);
   }
 
   private tellSelection(...ids: (number | null)[]) {
@@ -296,7 +313,8 @@ export class TabsStore {
         tabs: settle(kept?.tabs, said.tabs),
         groups: settle(kept?.groups, said.groups),
         splits: settle(kept?.splits, said.splits),
-        links: settleLinks(kept?.links ?? [], said.links)
+        links: settleLinks(kept?.links ?? [], said.links),
+        peeks: settlePeeks(kept?.peeks ?? [], said.peeks)
       });
     }
   }
@@ -337,8 +355,8 @@ export class TabsStore {
     for (const [id, tab] of next.byId) if (kept?.byId.get(id) !== tab) changed.add(id);
     for (const id of kept?.byId.keys() ?? []) if (!next.byId.has(id)) changed.add(id);
     for (const id of changed) this.tabListeners.get(id)?.forEach((listener) => listener());
-    const was = kept?.shape.active ?? null;
-    if (was !== next.shape.active) this.tellSelection(was, next.shape.active);
+    const was = kept?.shape.selected ?? null;
+    if (was !== next.shape.selected) this.tellSelection(was, next.shape.selected);
     for (const listener of this.listeners) listener();
   }
 }

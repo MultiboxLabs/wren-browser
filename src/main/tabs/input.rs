@@ -2,6 +2,9 @@
 // input while any is on it. Each lock has an ID of its own (`InputLock`), so
 // letting one go never lifts another held for another reason.
 //
+// A tab holds some locks of its own, as one behind a peek does (peeks/), and
+// they stay with it wherever it goes.
+//
 // A window holds some locks on all its tabs at once, as a dialog does with
 // its scrim over the window. Its tabs have the lock while it holds it,
 // those that come to the window too, and a tab that moves to another
@@ -30,6 +33,11 @@ pub enum InputLock {
     /// One of Wren's dialogs is up, its scrim over the window
     /// (components/ui/dialog.tsx).
     Dialog,
+    /// A peek is open in front of the tab, its overlay over it (peeks/).
+    /// The app holds it, and a page can't name it, as the locks a page
+    /// names are its window's.
+    #[serde(skip_deserializing)]
+    Peek,
 }
 
 impl InputLock {
@@ -38,6 +46,7 @@ impl InputLock {
     fn is_window_wide(self) -> bool {
         match self {
             InputLock::Dialog => true,
+            InputLock::Peek => false,
         }
     }
 }
@@ -86,6 +95,12 @@ pub fn set_on_window(window: &BrowserWindow, lock: InputLock, held: bool) {
     if let Some(tab) = waiting.filter(|tab| !is_locked(*tab)) {
         let _ = tab.focus();
     }
+}
+
+/// Holds `lock`, one of a tab's own, on `tab`, or lets it go.
+pub fn set_on_tab(tab: BrowserTab, lock: InputLock, held: bool) {
+    debug_assert!(!lock.is_window_wide(), "a window holds {lock:?}");
+    change(tab, |on_tab| toggle(on_tab, lock, held));
 }
 
 /// Lets go every lock `window`'s page held, as the page has gone.

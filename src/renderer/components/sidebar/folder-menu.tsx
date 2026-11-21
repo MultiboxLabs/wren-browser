@@ -96,11 +96,11 @@ export function FolderMenu({
 // The menu, made as it opens, so each opening starts with no search.
 function FolderMenuBody({ folder, onOpen: open }: { folder: FolderItem; onOpen: (pin: TabItem) => void }) {
   const now = useNow();
-  // The pin whose tab the window shows is in use now, whenever its last
-  // use was kept.
-  const { active } = useTabShape();
+  // The pin whose tab the window shows, or whose tab is behind the peek it
+  // shows, is in use now, whenever its last use was kept.
+  const { selected } = useTabShape();
   const usedAt = (pin: TabItem) =>
-    active !== null && pin.sides.some((side) => side.tab === active) ? now : (pin.lastActive ?? 0);
+    selected !== null && pin.sides.some((side) => side.tab === selected) ? now : (pin.lastActive ?? 0);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const list = useRef<HTMLDivElement>(null);

@@ -127,7 +127,7 @@ fn is_going(tab: BrowserTab) -> bool {
     match roles::of(tab) {
         Role::Leaving => true,
         Role::Pin(claim) => claim.closing,
-        Role::Listed | Role::Placeholder => false,
+        Role::Listed | Role::Placeholder | Role::Peek { .. } => false,
     }
 }
 

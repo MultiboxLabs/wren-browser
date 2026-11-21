@@ -24,6 +24,7 @@ use crate::db::SidebarStore;
 use crate::ipc::{self, TabSwitcher};
 use crate::menus;
 use crate::onboarding;
+use crate::peeks::Peeks;
 use crate::perf::Perf;
 use crate::platform::PageWindow;
 use crate::profiles::filling;
@@ -45,6 +46,8 @@ pub struct State {
     /// What the app keeps of its own, spaces for now.
     pub db: Db,
     pub analytics: Analytics,
+    /// The peeks in front of pins' tabs (peeks/).
+    pub peeks: Peeks,
     /// Profiles whose last session is being restored (windows/session.rs).
     pub(crate) restoring: Cell<u32>,
     /// The sidebar's performance run, if this is one.
@@ -94,6 +97,7 @@ impl State {
             sidebar: SidebarStore::new(&data),
             db,
             analytics,
+            peeks: Peeks::default(),
             restoring: Cell::new(0),
             perf,
             quit_prompt: RefCell::default(),

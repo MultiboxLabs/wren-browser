@@ -22,6 +22,7 @@ import { useArrival, useMoving } from "./arrival";
 import type { ItemActions } from "./item-actions";
 import { useItemDrag } from "./item-drag";
 import { identitiesOf, SideIcon } from "./item-row";
+import { PeekMark } from "./peek-mark";
 import { REORDER, TILE_IN, TILE_OUT, useStrike } from "./row-motion";
 import { pressHandlers } from "./rows";
 
@@ -71,7 +72,7 @@ export function Favorite({
   const drag = useItemDrag();
   const tile = (
     // Dragged out, it is a pin, or an ordinary tab (item-drop.ts).
-    <div ref={arrival} {...drag(item, { renaming })} className="grid">
+    <div ref={arrival} {...drag(item, { renaming })} className="relative grid">
       <Button
         ref={struck}
         variant="filled"
@@ -131,6 +132,7 @@ export function Favorite({
           <span className="relative grid place-items-center">{icons}</span>
         )}
       </Button>
+      <PeekMark item={item} className="absolute -top-1.5 -right-1.5" />
     </div>
   );
   // The name as it is edited, once it is: a click elsewhere, which closes

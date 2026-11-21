@@ -22,6 +22,7 @@ mod menu;
 mod migrate;
 mod omnibox;
 mod onboarding;
+mod peeks;
 mod perf;
 mod permission;
 mod pins;
@@ -134,6 +135,7 @@ pub fn handle_ui(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     default_browser::handle(web_view, mt);
     spaces::handle(web_view, window, mt);
     pins::handle(web_view, window, mt);
+    peeks::handle(web_view, window, mt);
     items::handle(web_view, window, mt);
     profile_move::handle(web_view, window);
     tab_switcher::handle(web_view, window);

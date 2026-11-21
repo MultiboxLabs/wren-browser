@@ -84,14 +84,19 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
   const margins = useWindowMargins();
   const inset = pageInset(margins);
 
-  const { id: browser, ready, splits, active, fullScreen: fullScreenTab } = useTabShape();
+  const { id: browser, ready, splits, peeks, active, fullScreen: fullScreenTab } = useTabShape();
   const sidePanel = useSidePanel();
   // A page in full screen has the whole window: the sidebar and the side
   // panel make way for it, and come back as they were.
   const fullScreen = fullScreenTab !== null;
   const panelShown = browser !== null && sidePanel !== null && !fullScreen;
   const shown = fullScreenTab ?? active;
-  const split = shown === null ? undefined : splits.find((split) => split.first === shown || split.second === shown);
+  // While a peek is active, the tab behind it is laid out as if it were,
+  // and the peek goes in front of it.
+  const peek = fullScreen ? undefined : peeks.find((peek) => peek.tab === shown);
+  const laidOut = peek?.behind ?? shown;
+  const split =
+    laidOut === null ? undefined : splits.find((split) => split.first === laidOut || split.second === laidOut);
   // The page at the window's top right has its address bar atop it, which
   // the toast keeps below.
   const addressBar = useAddressBar();
@@ -141,6 +146,7 @@ function BrowserWindow({ saved }: { saved: SidebarState | null }) {
           <TabView
             active={shown}
             split={split}
+            peek={peek}
             fullScreen={fullScreen}
             besidePanel={panelShown}
             omniboxOpen={omnibox.shown !== null}

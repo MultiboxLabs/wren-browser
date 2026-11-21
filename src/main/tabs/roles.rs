@@ -1,15 +1,16 @@
 // What each tab is: a tab of the sidebar's list, its Browser's placeholder
-// (placeholder.rs), a pin's (pins/), or one that is leaving, closing for a
-// pin that has gone from its Browser. This table is the one place that says
+// (placeholder.rs), a pin's (pins/), a peek in front of another tab
+// (peeks/), or one that is leaving, closing for a pin that has gone from its
+// Browser. This table is the one place that says
 // so, and a tab it does not hold is a tab of the list. So the list shows
 // every tab but those the table names, and no tab is open and drawn nowhere
 // because two places disagreed about it.
 //
 // A pin's tab holds a claim, its one reference to the pin: nothing else
 // says which tabs are open for which pin. Chromium's own pinning follows
-// the role, as a claim is made or given up: a pin's tab and a leaving one
-// are pinned, which keeps them out of the list's order, and the rest are
-// not. Nothing reads Chromium's pinning to tell what a tab is.
+// the role, as a claim is made or given up: a pin's tab, a peek and a
+// leaving one are pinned, which keeps them out of the list's order, and the
+// rest are not. Nothing reads Chromium's pinning to tell what a tab is.
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -27,6 +28,10 @@ pub enum Role {
     Placeholder,
     /// Open for one side of a pin, and drawn on the pin's row.
     Pin(Claim),
+    /// A peek: opened by `behind`, and drawn in front of it, its favicon on
+    /// `behind`'s row, until it closes or becomes a tab of the list
+    /// (peeks/).
+    Peek { behind: BrowserTab },
     /// Closing for a pin that has gone from its Browser, and drawn nowhere
     /// until it has closed. A close that a page refuses ends it
     /// (`let_go` in pins/mod.rs), so it never lasts.
@@ -105,6 +110,44 @@ pub fn claim(tab: BrowserTab, pin: PinId, side: usize) -> Result<(), Error> {
     };
     set(tab, Role::Pin(claim), persistent);
     Ok(())
+}
+
+/// Makes `tab` the peek in front of `behind`: Chromium pins it, and keeps
+/// it out of the session, as a peek never lasts.
+pub fn peek(tab: BrowserTab, behind: BrowserTab) -> Result<(), Error> {
+    set_pinned(tab, true)?;
+    set(tab, Role::Peek { behind }, String::new());
+    Ok(())
+}
+
+/// The tab `tab` is in front of, if it is a peek.
+pub fn behind(tab: BrowserTab) -> Option<BrowserTab> {
+    match of(tab) {
+        Role::Peek { behind } => Some(behind),
+        _ => None,
+    }
+}
+
+/// The peek in front of `behind`, if it has one.
+pub fn peek_of(behind: BrowserTab) -> Option<BrowserTab> {
+    ROLES.with(|roles| {
+        roles
+            .borrow()
+            .iter()
+            .find_map(|(tab, held)| match held.role {
+                Role::Peek { behind: of } if of == behind => Some(*tab),
+                _ => None,
+            })
+    })
+}
+
+/// The Browser's peeks, in its order, each with the tab it is in front of.
+pub fn peeks(browser: &Browser) -> Vec<(BrowserTab, BrowserTab)> {
+    browser
+        .tabs()
+        .into_iter()
+        .filter_map(|tab| Some((tab, behind(tab)?)))
+        .collect()
 }
 
 /// Makes `tab` a tab of the list: it has no role, and Chromium unpins it,

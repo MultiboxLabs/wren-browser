@@ -31,6 +31,7 @@ import {
 import { cn } from "@/utils/cn";
 import { pinIdentity, tabIdentity } from "./arrival";
 import { heldIn, type ItemActions } from "./item-actions";
+import { PeekMark } from "./peek-mark";
 import { CloseButton, Row, SplitFrame, SplitHalf, TitleField, useRenameClick } from "./rows";
 import { TabAlert } from "./tab-alert";
 
@@ -132,6 +133,7 @@ export function ItemRow({ item, indent, actions, holdout = false, strike }: Item
         ) : (
           label(side, 0, "row", title)
         )}
+        <PeekMark item={item} />
         <ItemButton kept={kept} closes={closes} onDismiss={() => dismiss(0)} />
       </Row>
     );
@@ -177,6 +179,7 @@ export function ItemRow({ item, indent, actions, holdout = false, strike }: Item
           {!kept && <CloseButton onClose={() => dismiss(at)} />}
         </SplitHalf>
       ))}
+      <PeekMark item={item} className="mr-1.5 self-center" />
       {kept && <ItemButton kept closes={closes} onDismiss={() => dismiss(0)} />}
     </SplitFrame>
   );

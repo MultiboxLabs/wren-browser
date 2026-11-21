@@ -28,6 +28,7 @@ import {
   type ExtensionAction,
   extensions,
   follow,
+  type Peek,
   type PinLink,
   hasApp,
   permission,
@@ -70,6 +71,8 @@ type BrowserState = {
   splits: TabSplit[];
   /** The pins open in the Browser, each with its tabs. */
   links: PinLink[];
+  /** The peeks in front of its tabs. */
+  peeks: Peek[];
   /** The active tab, and its ID. */
   current?: BrowserTab;
   active: number | null;
@@ -103,6 +106,7 @@ function ofTabs(space: number | null, tabs: SpaceTabs | undefined): BrowserState
     groups: said?.groups ?? none,
     splits: said?.splits ?? none,
     links: said?.links ?? none,
+    peeks: said?.peeks ?? none,
     current: tabs?.current,
     active: tabs?.shape.active ?? null,
     fullScreen: tabs?.fullScreen
@@ -118,7 +122,9 @@ const noShape = (space: Key): BrowserShape => ({
   groups: none,
   splits: none,
   links: none,
+  peeks: none,
   active: null,
+  selected: null,
   fullScreen: null
 });
 
@@ -240,6 +246,21 @@ export function useTab(id: number | null | undefined, space?: number | null) {
   const [last, setLast] = useState({ id, tab });
   if (tab && tab !== last.tab) setLast({ id, tab });
   return tab ?? (last.id === id ? last.tab : undefined);
+}
+
+/**
+ * The peek in front of one of `tabs`, a row's, as `useTab` reads the tab of
+ * a Browser; drawn again only as that changes.
+ */
+export function usePeekOf(tabs: readonly number[], space?: number | null) {
+  const source = useContext(SourceContext);
+  if (!source) throw new Error("usePeekOf is used outside a BrowserProvider");
+  const { store } = source;
+  const read = space == null ? source.read : () => store.get(space);
+  return useSyncExternalStore(
+    store.subscribe,
+    () => read()?.shape.peeks.find((peek) => tabs.includes(peek.behind))?.tab
+  );
 }
 
 /**

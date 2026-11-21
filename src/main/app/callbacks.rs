@@ -6,9 +6,9 @@
 use std::rc::Rc;
 
 use wren::{
-    App, Browser, BrowserType, Change, ChangeKind, ContextMenuRequest, MainThread, OpenURLsRequest,
-    PopoverAnswer, PopoverKind, PopoverRequest, ProfileExtensionsRequest, QuitPrompt,
-    WindowRequest,
+    App, Browser, BrowserType, Change, ChangeKind, ContextMenuRequest, MainThread,
+    NavigationAnswer, NavigationRequest, OpenURLsRequest, PopoverAnswer, PopoverKind,
+    PopoverRequest, ProfileExtensionsRequest, QuitPrompt, WindowRequest,
 };
 
 use super::{State, commands};
@@ -18,6 +18,7 @@ use crate::ipc::{self, changes};
 use crate::menus;
 use crate::onboarding;
 use crate::pages::{SCHEME, Source, serve_page};
+use crate::peeks;
 use crate::profiles::{self, filling};
 use crate::settings;
 use crate::sidebar::items;
@@ -176,6 +177,12 @@ impl App for Wren {
             PopoverKind::Find => ipc::show_find_bar(state, mt, request),
             _ => PopoverAnswer::Chromium,
         }
+    }
+
+    // A pin's tab watches its navigations, and one that leaves for another
+    // origin opens in a peek (peeks/navigation.rs).
+    fn navigation(&self, _: MainThread, request: &NavigationRequest) -> NavigationAnswer {
+        peeks::answer(request)
     }
 
     // A page's context menu (menus/page.rs): a link's replaces Open Link as

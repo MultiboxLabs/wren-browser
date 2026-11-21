@@ -9,6 +9,7 @@ mod ipc;
 mod menus;
 mod onboarding;
 mod pages;
+mod peeks;
 mod perf;
 mod pins;
 mod platform;

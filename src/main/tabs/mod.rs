@@ -1,11 +1,11 @@
 // What the app does to a Browser's tabs, whether the page, the main menu or
 // a context menu asks.
 //
-// What each tab is, a tab of the sidebar's list, a pin's or the placeholder,
-// is its role (roles.rs). The list shows the tabs whose role is to be
-// listed. So every index the list, its moves and its menu use is among
-// those (`listed`), and is turned into the Browser's own only where a tab
-// is put in place (`at_list`).
+// What each tab is, a tab of the sidebar's list, a pin's, a peek or the
+// placeholder, is its role (roles.rs). The list shows the tabs whose role is
+// to be listed. So every index the list, its moves and its menu use is
+// among those (`listed`), and is turned into the Browser's own only where a
+// tab is put in place (`at_list`).
 //
 // Tabs brought from another Browser move there if it is of their profile,
 // and close and are made again if it is of another (recreate.rs).
@@ -35,16 +35,17 @@ use crate::analytics::{Crash, Event, TabFrom};
 use crate::app::State;
 use crate::clipboard;
 use crate::ipc::{self, OwnToast};
+use crate::peeks;
 use crate::pins;
 use crate::sidebar::items;
 use crate::windows::Place;
 
 /// What follows a change to `browser`'s tabs, to one of them, or to a split
 /// (`change`). A placeholder goes, or stays, as the tabs change, and the
-/// pins' links follow them. A tab left for another has its picture taken,
-/// and one whose page changes has it go stale. The page is told of the tabs
-/// when a pin settled. Tabs that come to a Browser take on its window's
-/// locks on their input.
+/// pins' links follow them, then the peeks in front of the pins' tabs. A tab
+/// left for another has its picture taken, and one whose page changes has it
+/// go stale. The page is told of the tabs when a pin or a peek settled. Tabs
+/// that come to a Browser take on its window's locks on their input.
 pub fn changed(state: &Rc<State>, browser: &Browser, change: &Change) {
     closes::settle(&state.analytics);
     roles::forget_closed();
@@ -59,7 +60,11 @@ pub fn changed(state: &Rc<State>, browser: &Browser, change: &Change) {
     {
         previews::page_changed(tab);
     }
-    if pins::settle(state, browser, change)
+    // A peek depends on the role of the tab behind it, which the pins
+    // settle first.
+    let pins_changed = pins::settle(state, browser, change);
+    let peeks_changed = peeks::settle(state, browser, change);
+    if (pins_changed || peeks_changed)
         && let Some(window) = state.windows.of(browser)
     {
         ipc::send_tabs(&window, browser);
@@ -194,14 +199,25 @@ pub fn is_new_tab(url: &str) -> bool {
     url.is_empty() || url.starts_with("chrome://newtab")
 }
 
-/// Closes `tabs`. When they are all the Browser has, a placeholder stands
-/// in for them, and the Browser stays (`placeholder`).
+/// Closes `tabs`, and the peek in front of each (`with_peeks`). When they
+/// are all the Browser has, a placeholder stands in for them, and the
+/// Browser stays (`placeholder`).
 pub fn close(browser: &Browser, tabs: &[BrowserTab]) -> Result<(), Error> {
-    placeholder::stand_in(browser, tabs)?;
+    let tabs = with_peeks(tabs);
+    placeholder::stand_in(browser, &tabs)?;
     for tab in tabs {
         tab.close()?;
     }
     Ok(())
+}
+
+/// `tabs`, then the peek in front of each that has one (roles.rs): what
+/// closes when the person closes `tabs`, as a peek has no row of its own to
+/// be closed from. A peek whose tab behind closes some other way, such as
+/// its page closing itself, becomes a tab of the list instead (peeks/).
+pub fn with_peeks(tabs: &[BrowserTab]) -> Vec<BrowserTab> {
+    let peeks = tabs.iter().filter_map(|tab| roles::peek_of(*tab));
+    tabs.iter().copied().chain(peeks).collect()
 }
 
 /// Clears the list: closes its tabs but the active one, or the active one
@@ -419,11 +435,11 @@ pub fn move_in(browser: &Browser, moving: &[BrowserTab], to: usize) -> Result<()
     browser.move_tabs(moving, Some(at_list(browser, to)), true)
 }
 
-/// Moves `moving`, a pin's tabs in another Browser of the same profile, to
-/// `browser`, the first of them shown there if `activate`. They are pinned,
-/// so Chromium puts them among the pinned tabs, and a split stays one. When
-/// they are all their Browser has, a placeholder stands in for them, as
-/// `move_in` does.
+/// Moves `moving`, a pin's tabs in another Browser of the same profile, and
+/// any peek in front of them, to `browser`, the first of them shown there if
+/// `activate`. They are pinned, so Chromium puts them among the pinned tabs,
+/// and a split stays one. When they are all their Browser has, a placeholder
+/// stands in for them, as `move_in` does.
 pub fn move_here(browser: &Browser, moving: &[BrowserTab], activate: bool) -> Result<(), Error> {
     let Some(from) = moving.first().and_then(|tab| tab.browser()) else {
         return Err(Error::TabUnavailable);

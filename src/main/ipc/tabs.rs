@@ -1,10 +1,10 @@
 // The page's tabs: each of the window's Browsers' tabs, in order, with their
-// groups, splits and open pins, which the page asks for once ("browser.tabs").
-// As Chromium changes them (changes.rs), each batch of changes tells the page
-// what it changed of each Browser (`TabChanges`): the tabs that changed, or
-// which tab is active, or the whole list again when its structure or order
-// changed. src/renderer/ipc/tabs.ts is the page's side. The calls that act on
-// tabs are in browser.rs.
+// groups, splits, open pins and peeks, which the page asks for once
+// ("browser.tabs"). As Chromium changes them (changes.rs), each batch of
+// changes tells the page what it changed of each Browser (`TabChanges`): the
+// tabs that changed, or which tab is active, or the whole list again when
+// its structure or order changed. src/renderer/ipc/tabs.ts is the page's
+// side. The calls that act on tabs are in browser.rs.
 
 use serde::Serialize;
 use wren::{
@@ -73,6 +73,8 @@ enum PageRole {
     Listed,
     /// On the row of the pin it is open for (`Link`).
     Pin,
+    /// In front of another tab, its favicon on that tab's row (`Peek`).
+    Peek,
     /// Nowhere: the placeholder, which stands in while the Browser has no
     /// tabs, or a tab closing for a pin that has gone.
     Hidden,
@@ -83,6 +85,7 @@ impl PageRole {
         match roles::of(tab) {
             Role::Listed => PageRole::Listed,
             Role::Pin(_) => PageRole::Pin,
+            Role::Peek { .. } => PageRole::Peek,
             Role::Placeholder | Role::Leaving => PageRole::Hidden,
         }
     }
@@ -113,6 +116,8 @@ pub struct Tabs {
     splits: Vec<Split>,
     /// The pins open in the Browser, each with its tabs.
     links: Vec<Link>,
+    /// The peeks of `tabs`, in their order.
+    peeks: Vec<Peek>,
 }
 
 /// What "browser.tabsChanged" says: tabs of one of the window's Browsers
@@ -142,6 +147,13 @@ struct Link {
     pin: PinId,
     tabs: Vec<i32>,
     away: Vec<bool>,
+}
+
+/// A peek, and the tab it is in front of.
+#[derive(Serialize)]
+struct Peek {
+    tab: i32,
+    behind: i32,
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
@@ -302,6 +314,7 @@ fn no_tabs(space: Option<SpaceId>, front: bool) -> Tabs {
         groups: Vec::new(),
         splits: Vec::new(),
         links: Vec::new(),
+        peeks: Vec::new(),
     }
 }
 
@@ -357,6 +370,13 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
         groups: groups.into_iter().map(Group::new).collect(),
         splits: splits.into_iter().filter_map(Split::new).collect(),
         links: links(browser),
+        peeks: roles::peeks(browser)
+            .into_iter()
+            .map(|(tab, behind)| Peek {
+                tab: tab.id(),
+                behind: behind.id(),
+            })
+            .collect(),
     }
 }
 
@@ -396,7 +416,10 @@ fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> T
 // what gives the roles.
 fn role_for_page(tab: BrowserTab, state: Option<TabState>) -> PageRole {
     let role = PageRole::of(tab);
-    let pinned = matches!(roles::of(tab), Role::Pin(_) | Role::Leaving);
+    let pinned = matches!(
+        roles::of(tab),
+        Role::Pin(_) | Role::Peek { .. } | Role::Leaving
+    );
     if cfg!(debug_assertions) && state.is_some_and(|state| state.pinned != pinned) {
         eprintln!(
             "Wren has a tab whose role and pinning disagree: {:?}, pinned {}.",

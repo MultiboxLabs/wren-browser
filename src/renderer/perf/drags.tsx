@@ -59,11 +59,11 @@ const NO_PINS: Pins = { favorites: [], pinned: [] };
  * sidebar's PinsProvider, so it reads the space's pins itself.
  */
 function Hears({ space }: { space: number }) {
-  const { tabs, groups, splits, links } = useBrowser();
+  const { tabs, groups, splits, links, peeks } = useBrowser();
   const kept = useSpacePins(space);
   const items = useItems(kept.favorites, kept.pinned);
   const open = [...items.favorites, ...items.pinned].flatMap(openPins);
-  useLayoutEffect(() => hear(space, { tabs, groups, splits, links, open }));
+  useLayoutEffect(() => hear(space, { tabs, groups, splits, links, peeks, open }));
   return null;
 }
 

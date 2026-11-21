@@ -22,17 +22,19 @@ pub fn close(browser: &Browser, tab: BrowserTab, from: TabFrom) -> Result<(), Er
     Ok(())
 }
 
-/// Closes `tabs` together as the user asked from `from`, all or none: if
-/// one's page keeps its tab, they all stay, as a split's two do.
+/// Closes `tabs` together as the user asked from `from`, and the peek in
+/// front of each, all or none: if one's page keeps its tab, they all stay,
+/// as a split's two do. Only `tabs` count as closed by the user.
 pub fn close_together(browser: &Browser, tabs: &[BrowserTab], from: TabFrom) -> Result<(), Error> {
-    super::placeholder::stand_in(browser, tabs)?;
+    let closing = super::with_peeks(tabs);
+    super::placeholder::stand_in(browser, &closing)?;
     ASKED.with(|asked| {
         let mut asked = asked.borrow_mut();
         for tab in tabs {
             asked.insert(*tab, from);
         }
     });
-    BrowserTab::close_all(tabs, |result| match result {
+    BrowserTab::close_all(&closing, |result| match result {
         Ok(()) | Err(Error::Cancelled) => {}
         Err(error) => eprintln!("Wren could not close tabs: {error:?}"),
     });

@@ -23,6 +23,7 @@ This page says where code in `src/main/` goes. Read it before you add a file, a 
 | [`sidebar/`](sidebar/README.md)       | The sidebar. Its saved state, the pointer over it, and what a drop or an item's menu does                                      |
 | [`tabs/`](tabs/README.md)             | What Wren does to a Browser's tabs, and what each tab is                                                                       |
 | [`pins/`](pins/README.md)             | Favourites and pins, and the tabs open for them                                                                                |
+| [`peeks/`](peeks/README.md)           | The peeks, the tabs another tab opens in front of it until they are closed, expanded or split                                  |
 | [`profiles/`](profiles/README.md)     | Making, renaming and deleting a profile, and what every profile follows                                                        |
 | [`downloads/`](downloads/README.md)   | The downloads the shelf and the Library list                                                                                   |
 | `settings.rs`                         | What follows a change to the settings, and whether Wren is the default browser, which the Library shows beside them            |

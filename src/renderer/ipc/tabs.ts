@@ -1,7 +1,7 @@
 // The window's tabs, as the page draws them: each of its Browsers' tabs, in
-// order, with their groups, splits and open pins. The page asks once, and
-// hears what changed of each Browser's (src/main/ipc/tabs.rs): the tabs that
-// changed, or which tab is active, or the whole list again when its
+// order, with their groups, splits, open pins and peeks. The page asks once,
+// and hears what changed of each Browser's (src/main/ipc/tabs.rs): the tabs
+// that changed, or which tab is active, or the whole list again when its
 // structure or order changed. The calls that act on tabs are in browser.ts.
 
 import type { TabGroup } from "./groups";
@@ -43,12 +43,13 @@ export type BrowserTab = {
   split: string | null;
   /**
    * Where it is drawn: in the sidebar's list, on the row of the pin it is
-   * open for (`PinLink`), or nowhere. A hidden one is the New Tab page that
-   * stands in while the Browser has no tabs, or a tab closing for a pin
-   * that has gone. The app says "listed" for every tab but those it knows
-   * to be one of the others.
+   * open for (`PinLink`), in front of another tab, its favicon on that
+   * tab's row (`Peek`), or nowhere. A hidden one is the New Tab page that stands
+   * in while the Browser has no tabs, or a tab closing for a pin that has
+   * gone. The app says "listed" for every tab but those it knows to be one
+   * of the others.
    */
-  role: "listed" | "pin" | "hidden";
+  role: "listed" | "pin" | "peek" | "hidden";
   /** What a drag of it to another window names it by; the app renews it as each drag ends. */
   carry: string | null;
 };
@@ -71,6 +72,8 @@ export type BrowserTabs = {
   splits: TabSplit[];
   /** The pins open in the Browser. */
   links: PinLink[];
+  /** The peeks of `tabs`, in their order. */
+  peeks: Peek[];
 };
 
 /** Tabs of one of the window's Browsers whose fields changed, each whole, and its open pins, which a tab's address changes (`PinLink.away`). */
@@ -90,6 +93,9 @@ export type ActiveChanged = {
 
 /** A pin open in the Browser: its tab, or a split pin's two, and whether each is away from the pin's page. */
 export type PinLink = { pin: number; tabs: number[]; away: boolean[] };
+
+/** A peek, drawn in front of `behind`, the tab that opened it, until it is closed, expanded or split (peeks.ts). */
+export type Peek = { tab: number; behind: number };
 
 export const tabs = {
   /** The tabs of each of the window's Browsers; `onList` hears each one's again as its structure or order changes. */

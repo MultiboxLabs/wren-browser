@@ -5,6 +5,8 @@
 // divider between them, and keep their halves while hidden. A page in full
 // screen has the window to itself, without its card. A Mini Wren's page has
 // no card either (`bare`): it is edge to edge, under the window's toolbar.
+// A peek is drawn in front of the tab behind it, which is laid out as if it
+// were active, with the peek's overlay and buttons (peek.tsx).
 
 import { type CSSProperties, memo, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PageAddressBar } from "./address/page-bar";
@@ -12,9 +14,10 @@ import { FindBar } from "./find-bar";
 import { LinkStatus } from "./link-status";
 import { LoadingBar } from "./loading-bar";
 import { LoadingLine } from "./loading-line";
+import { PeekCover } from "./peek";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
-import { appWindow, browser, type BrowserTab, hasApp, splits, type TabSplit } from "@/ipc";
+import { appWindow, browser, type BrowserTab, hasApp, type Peek, splits, type TabSplit } from "@/ipc";
 import { useAddressBar } from "@/state/address-bar";
 import { useTab, useWindowSplits, useWindowTabIds } from "@/state/browser";
 import { useWindowMargins } from "@/state/margins";
@@ -35,6 +38,7 @@ const SIDE_MIN = 160;
 export function TabView({
   active,
   split,
+  peek,
   fullScreen = false,
   bare = false,
   besidePanel = false,
@@ -43,8 +47,10 @@ export function TabView({
 }: {
   /** The active tab's ID, or the tab in full screen; null while the space has none. */
   active: number | null;
-  /** The active tab's split, if it is in one. */
+  /** The split of the tab laid out, the active one or the tab behind its peek, if it is in one. */
   split?: TabSplit;
+  /** The active tab's peek, if it is one: the tab behind it is laid out, and it goes in front. */
+  peek?: Peek;
   fullScreen?: boolean;
   /** Edge to edge, with no card round it, and the line along its top to show its loading: a Mini Wren's. */
   bare?: boolean;
@@ -63,6 +69,9 @@ export function TabView({
   // The user's drag of the shown split's divider, ahead of Chromium's word on it.
   const [dragged, setDragged] = useState<{ split: string; ratio: number } | null>(null);
   const shownSplit = !fullScreen && !bare ? split : undefined;
+  const shownPeek = !fullScreen && !bare ? peek : undefined;
+  // The tab laid out as the window's: the active one, or the one behind its peek.
+  const laidOut = shownPeek?.behind ?? active;
   const shownRatio = shownSplit && dragged?.split === shownSplit.id ? dragged.ratio : shownSplit?.ratio;
 
   useFocusActiveTab(active, !bare && !omniboxOpen);
@@ -78,12 +87,11 @@ export function TabView({
   return (
     <div ref={box} className="relative flex min-h-0 min-w-0 flex-1">
       {tabIds.map((id) => {
+        const inFront = id === shownPeek?.tab;
         const visible = fullScreen
           ? id === active
-          : shownSplit
-            ? id === shownSplit.first || id === shownSplit.second
-            : id === active;
-        const tabSplit = fullScreen && visible ? undefined : splitByTab.get(id);
+          : inFront || (shownSplit ? id === shownSplit.first || id === shownSplit.second : id === laidOut);
+        const tabSplit = (fullScreen && visible) || inFront ? undefined : splitByTab.get(id);
         const ratio = tabSplit
           ? dragged?.split === tabSplit.split.id
             ? dragged.ratio
@@ -97,6 +105,7 @@ export function TabView({
             key={id}
             id={id}
             hidden={!visible}
+            inFront={inFront}
             active={visible && id === active}
             surface={surface}
             bar={bar}
@@ -108,7 +117,7 @@ export function TabView({
           />
         );
       })}
-      {shownSplit && shownRatio !== undefined && (
+      {shownSplit && shownRatio !== undefined && !shownPeek && (
         <SplitDivider
           box={box}
           split={shownSplit}
@@ -120,6 +129,7 @@ export function TabView({
           }}
         />
       )}
+      {shownPeek && <PeekCover peek={shownPeek} canSplit={!shownSplit} />}
       {active === null && <div className={cn("no-drag absolute inset-0", bare ? "bg-card" : "card empty")} />}
     </div>
   );
@@ -238,6 +248,7 @@ function SplitDivider({
 const TabSlot = memo(function TabSlot({
   id,
   hidden,
+  inFront,
   active,
   surface,
   bar,
@@ -249,6 +260,8 @@ const TabSlot = memo(function TabSlot({
 }: {
   id: number;
   hidden: boolean;
+  /** A peek's, in front of the tab behind it and its overlay. */
+  inFront: boolean;
   /** The active tab's, which the find bar is on. */
   active: boolean;
   surface: Surface;
@@ -267,7 +280,12 @@ const TabSlot = memo(function TabSlot({
   return (
     <div
       style={style}
-      className={cn("absolute flex min-h-0 min-w-0", !style && "inset-0", hidden && "pointer-events-none invisible")}
+      className={cn(
+        "absolute flex min-h-0 min-w-0",
+        !style && "inset-0",
+        inFront && "z-2",
+        hidden && "pointer-events-none invisible"
+      )}
     >
       {/* With no margins, there is no gap above the card for it, and a
           line along the top of the page shows the loading instead, as it

@@ -364,7 +364,8 @@ pub fn open_favorite(state: &Rc<State>, mt: MainThread, window: &BrowserWindow, 
 /// Moves the pin's tabs to `browser` from another Browser of its window
 /// that has them, shown there if `activate`, and answers its first tab;
 /// None if the window has the pin open nowhere. A favourite has one tab in
-/// a window, which moves to the space that opens it.
+/// a window, which moves to the space that opens it. A peek in front of one
+/// of the tabs goes with it (peeks/).
 fn bring(
     state: &State,
     browser: &Browser,
@@ -376,9 +377,23 @@ fn bring(
     };
     let tabs = opening.tabs();
     if from != *browser {
-        tabs::move_here(browser, &tabs, activate).map_err(failed)?;
+        tabs::move_here(browser, &tabs::with_peeks(&tabs), activate).map_err(failed)?;
     }
     Ok(tabs.first().copied())
+}
+
+/// Makes the open tab pin's tab in `browser` a tab of the list, and answers
+/// it, as Split does with the tab behind a peek. The pin stays where it is,
+/// unopened in `browser`, as it is when its tab closes, and opens a new tab
+/// when next clicked. Chromium unpins the tab, which puts it first in the
+/// list.
+pub fn unlink(browser: &Browser, id: PinId) -> Result<BrowserTab, String> {
+    let opening = open::opening(browser, id).ok_or("That pin is not open.")?;
+    let [tab] = opening.tabs()[..] else {
+        return Err("Only a tab pin's tab leaves it alone.".into());
+    };
+    roles::release(tab);
+    Ok(tab)
 }
 
 /// Takes the open pin's tab on `side` back to the pin's page, and selects
@@ -461,8 +476,8 @@ pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), Str
     Ok(())
 }
 
-/// Closes the open pin's tabs in `browser`'s window, all or none, wherever
-/// in it they are, leaving the pin unopened. Each page may ask first, and
+/// Closes the open pin's tabs in `browser`'s window, and the peek in front
+/// of them, all or none, wherever in it they are, leaving the pin unopened. Each page may ask first, and
 /// if one keeps its tab, every tab stays open and the pin stays as it was.
 /// The tabs keep their claims until they have gone (`end_broken` in
 /// settle.rs), marked as closing.
@@ -474,7 +489,7 @@ pub fn close(state: &State, browser: &Browser, id: PinId) -> Result<(), String> 
     if opening.closing {
         return Ok(());
     }
-    let open = opening.tabs();
+    let open = tabs::with_peeks(&opening.tabs());
     tabs::placeholder::stand_in(browser, &open).map_err(failed)?;
     open::set_closing(browser, id, true);
     let kept = browser.clone();

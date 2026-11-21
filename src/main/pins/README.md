@@ -5,7 +5,7 @@ A part. It is favourites and pins, and the tabs open for them. [The main process
 ## What belongs here
 
 - Making, naming, moving and deleting a pin or a folder.
-- Opening a pin in a window, and closing its tabs.
+- Opening a pin in a window, and closing its tabs or letting them go to the list.
 - Settling the pins as Chromium changes their tabs.
 
 ## What goes elsewhere

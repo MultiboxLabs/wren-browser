@@ -18,6 +18,7 @@ export * from "./menu";
 export * from "./migrate";
 export * from "./omnibox";
 export * from "./onboarding";
+export * from "./peeks";
 export * from "./perf";
 export * from "./permission";
 export * from "./pins";
