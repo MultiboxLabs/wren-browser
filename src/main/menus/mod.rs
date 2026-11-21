@@ -1,13 +1,15 @@
 // The native menus, one file for each: the main menu (main_menu.rs), the app
-// icon's (icon.rs), and the menus a page asks for, an item's of the sidebar
-// (item.rs), the page info popover's (site.rs) and a download's
-// (download.rs). Each lists its menu. What is chosen is done by the part
-// the menu is about, or by app/commands.rs for the main menu.
+// icon's (icon.rs), Chromium's page context menu (page.rs), and the menus
+// Wren's own pages ask for, an item's of the sidebar (item.rs), the page
+// info popover's (site.rs) and a download's (download.rs). Each lists its
+// menu. What is chosen is done by the part the menu is about, or by app/
+// for the main menu and a page's context menu.
 
 pub mod download;
 mod icon;
 pub mod item;
 mod main_menu;
+pub mod page;
 pub mod site;
 
 use wren::{Error, MainThread, MenuItem, NativeView};
@@ -16,6 +18,7 @@ pub use download::show_download_menu;
 pub use icon::set_icon_menu;
 pub use item::item_menu;
 pub use main_menu::*;
+pub use page::show_page_menu;
 pub use site::{show_permission_menu, show_site_menu};
 
 /// Shows `items` as a context menu at `point` in `view`, and hands the ID

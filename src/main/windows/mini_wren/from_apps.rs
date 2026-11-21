@@ -1,10 +1,12 @@
 // The Mini Wren that Wren opens itself, with no page to open it: one for
-// each link from another app (open_urls.rs), and an empty one from New
-// Mini Wren, whose key works in any app, on the New Tab page, where it is
-// the omnibox alone (mod.rs). Each is in front and centred on the pointer,
-// where the user is looking. It opens from the space of the window the user
-// browses in, or else the space used last, so it never adds to a space's
-// tabs unless the user opens it as a tab.
+// each link from another app (open_urls.rs), one for a link from a page's
+// context menu (`open_link`), and an empty one from New Mini Wren, whose
+// key works in any app, on the New Tab page, where it is the omnibox alone
+// (mod.rs). Each is in front and centred on the pointer, where the user is
+// looking. One from another app or New Mini Wren opens from the space of
+// the window the user browses in, or else the space used last. One from a
+// page's context menu opens on that page's profile and from its space. None
+// adds to a space's tabs unless the user opens it as a tab.
 //
 // One asked for before its profile has opened, as a link that launches the
 // app is, or while a profile's last session is being restored, which brings
@@ -26,10 +28,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use wren::{MainThread, RequestedBounds};
+use wren::{Browser, MainThread, Profile, RequestedBounds};
 
 use super::{MiniWrenPosition, PAGE_SIZE, TOOLBAR};
 use crate::app::State;
+use crate::db::SpaceId;
 use crate::menus;
 use crate::platform::{self, GlobalShortcut, RunningApp};
 use crate::windows::{self, BrowserWindow, Place, WindowId};
@@ -85,6 +88,31 @@ pub fn open_empty(state: &Rc<State>, mt: MainThread) {
         return_to: platform::frontmost_other_app(),
     };
     hold(state, mt, [held]);
+}
+
+/// Opens `url` in a Mini Wren, on `opener`'s profile and from its space,
+/// or else where a Mini Wren from another app opens.
+pub fn open_link(state: &Rc<State>, mt: MainThread, url: String, opener: Option<Browser>) {
+    let origin = opener.as_ref().and_then(|browser| {
+        let profile = browser.profile()?;
+        let space = state
+            .windows
+            .of(browser)
+            .and_then(|window| window.space_opened_from(browser));
+        Some((profile, space))
+    });
+    if let Some((profile, space)) = origin {
+        open_on(state, mt, &profile, &url, space, None);
+    } else {
+        hold(
+            state,
+            mt,
+            [HeldMiniWren {
+                url,
+                return_to: None,
+            }],
+        );
+    }
 }
 
 /// Opens a Mini Wren for each of `held`, now or once the app can.
@@ -143,28 +171,41 @@ fn open(state: &Rc<State>, mt: MainThread, held: HeldMiniWren, place: Place) {
                 Ok(profile) => profile,
                 Err(error) => return eprintln!("Wren could not open a Mini Wren: {error}"),
             };
-            // No page asks for a size, so it gets the one the user last
-            // gave.
-            let (width, height) = kept_page_size(&state);
-            let size = RequestedBounds {
-                origin: None,
-                width,
-                height,
-            };
-            profile.create_popup_browser(&url, Some(size), move |browser| match browser {
-                Ok(browser) => {
-                    let position = MiniWrenPosition::AtPointer;
-                    let Some(window) = super::show(&state, mt, browser, space, position) else {
-                        return;
-                    };
-                    keep_page_size(&state, window);
-                    if let Some(app) = return_to {
-                        state.mini_wrens.returns_to.borrow_mut().insert(window, app);
-                    }
-                }
-                Err(error) => eprintln!("Wren could not open a Mini Wren: {error:?}"),
-            });
+            open_on(&state, mt, &profile, &url, space, return_to);
         }
+    });
+}
+
+// Opens `url` in a Mini Wren on `profile`, from `space`, at the user's
+// kept size and centred on the pointer.
+fn open_on(
+    state: &Rc<State>,
+    mt: MainThread,
+    profile: &Profile,
+    url: &str,
+    space: Option<SpaceId>,
+    return_to: Option<RunningApp>,
+) {
+    // No page asks for a size, so it gets the one the user last gave.
+    let (width, height) = kept_page_size(state);
+    let size = RequestedBounds {
+        origin: None,
+        width,
+        height,
+    };
+    let state = state.clone();
+    profile.create_popup_browser(url, Some(size), move |browser| match browser {
+        Ok(browser) => {
+            let Some(window) = super::show(&state, mt, browser, space, MiniWrenPosition::AtPointer)
+            else {
+                return;
+            };
+            keep_page_size(&state, window);
+            if let Some(app) = return_to {
+                state.mini_wrens.returns_to.borrow_mut().insert(window, app);
+            }
+        }
+        Err(error) => eprintln!("Wren could not open a Mini Wren: {error:?}"),
     });
 }
 

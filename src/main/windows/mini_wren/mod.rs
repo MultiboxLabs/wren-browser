@@ -2,19 +2,18 @@
 // Browser Chromium opens that is not a tabbed window gets one: a page's
 // popup (`window.open` with features, as a sign-in opens), an extension's
 // popup window, or an installed app's window. Wren opens one itself too,
-// for a link from another app, or empty from New Mini Wren
-// (from_apps.rs). It is a panel: it takes the keyboard with Wren left in
-// the background and its other windows where they are, as Spotlight does,
-// and using it never brings Wren forward. Its page draws a toolbar, whose
-// address opens the omnibox for its page, above the page
+// for a link from another app, a link from a page's context menu, or empty
+// from New Mini Wren (from_apps.rs). It is a panel: it takes the keyboard
+// with Wren left in the background and its other windows where they are, as
+// Spotlight does, and using it never brings Wren forward. Its page draws a
+// toolbar, whose address opens the omnibox for its page, above the page
 // (pages/ui/mini-wren.tsx). On the New Tab page, as an empty one opens, it
 // is the omnibox alone instead, which is never full screen
-// (`follow_new_tab_page`). It is on its
-// profile's place, and never kept: its Browser closing takes it
-// (close.rs). Its page can move to a tab of a window the user browses in
-// (as_tab.rs). What the main menu's commands do in one is commands.rs's.
-// Document Picture-in-Picture is none of these: Chromium shows it in a
-// window of its own, with no Browser.
+// (`follow_new_tab_page`). It is on its profile's place, and never kept:
+// its Browser closing takes it (close.rs). Its page can move to a tab of a
+// window the user browses in (as_tab.rs). What the main menu's commands do
+// in one is commands.rs's. Document Picture-in-Picture is none of these:
+// Chromium shows it in a window of its own, with no Browser.
 
 mod as_tab;
 mod commands;
@@ -25,7 +24,7 @@ pub use commands::command;
 use from_apps::moved_to_tab;
 pub(crate) use from_apps::take_key;
 pub(crate) use from_apps::{HeldMiniWren, MiniWrens};
-pub use from_apps::{closed, open_empty};
+pub use from_apps::{closed, open_empty, open_link};
 pub(in crate::windows) use from_apps::{hold, open_held, window_used};
 
 use std::rc::Rc;

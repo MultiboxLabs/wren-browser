@@ -6,8 +6,9 @@
 use std::rc::Rc;
 
 use wren::{
-    App, Browser, BrowserType, Change, ChangeKind, MainThread, OpenURLsRequest, PopoverAnswer,
-    PopoverKind, PopoverRequest, ProfileExtensionsRequest, QuitPrompt, WindowRequest,
+    App, Browser, BrowserType, Change, ChangeKind, ContextMenuRequest, MainThread, OpenURLsRequest,
+    PopoverAnswer, PopoverKind, PopoverRequest, ProfileExtensionsRequest, QuitPrompt,
+    WindowRequest,
 };
 
 use super::{State, commands};
@@ -175,6 +176,21 @@ impl App for Wren {
             PopoverKind::Find => ipc::show_find_bar(state, mt, request),
             _ => PopoverAnswer::Chromium,
         }
+    }
+
+    // A page's context menu (menus/page.rs): a link's replaces Open Link as
+    // with Open Link in Mini Wren, and every other stays Chromium's.
+    fn context_menu(&self, mt: MainThread, request: &ContextMenuRequest) -> PopoverAnswer {
+        let state = self.state.clone();
+        let link = request.link_url.clone();
+        let browser = request.browser.clone();
+        menus::show_page_menu(mt, request, move |chosen| {
+            if chosen == menus::page::OPEN_LINK_IN_MINI_WREN
+                && let Some(link) = link
+            {
+                windows::mini_wren::open_link(&state, mt, link, browser);
+            }
+        })
     }
 
     // Chromium wants the address field, as a New Tab page given the
