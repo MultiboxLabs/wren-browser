@@ -5,7 +5,7 @@
 
 use wren::{Browser, BrowserTab, Change, ChangeKind, TabFields, TabOpenedAs};
 
-use super::{Peeks, hold, navigation, opens_peeks, to_list};
+use super::{Peeks, hold, navigation, opens_peeks, pointer_over, to_list};
 use crate::app::State;
 use crate::tabs::roles;
 
@@ -31,7 +31,7 @@ pub fn settle(state: &State, browser: &Browser, change: &Change) -> bool {
     }
     let peeks = &state.peeks;
     let all = browser.tabs();
-    let mut changed = judge_new(peeks, browser, &all);
+    let mut changed = judge_new(state, browser, &all);
     changed |= release_stranded(peeks, browser);
     hold::end_released(peeks);
     hold::keep_in_front(browser);
@@ -41,10 +41,10 @@ pub fn settle(state: &State, browser: &Browser, change: &Change) -> bool {
 }
 
 // Judges each of `tabs` the first time it comes, and makes one that a tab of
-// `browser` that opens peeks opened in front a peek, unless that tab has one.
-// Whether any became one.
-fn judge_new(peeks: &Peeks, browser: &Browser, tabs: &[BrowserTab]) -> bool {
-    let mut judged = peeks.judged.borrow_mut();
+// `browser` that opens peeks opened in front a peek, unless that tab has one,
+// come from where the pointer is. Whether any became one.
+fn judge_new(state: &State, browser: &Browser, tabs: &[BrowserTab]) -> bool {
+    let mut judged = state.peeks.judged.borrow_mut();
     judged.retain(|tab| tab.browser().is_some());
     let mut changed = false;
     for tab in tabs {
@@ -60,7 +60,7 @@ fn judge_new(peeks: &Peeks, browser: &Browser, tabs: &[BrowserTab]) -> bool {
         if !opens {
             continue;
         }
-        match roles::peek(*tab, behind) {
+        match roles::peek(*tab, behind, pointer_over(state, browser)) {
             Ok(()) => changed = true,
             Err(error) => eprintln!("Wren could not make a peek: {error:?}"),
         }

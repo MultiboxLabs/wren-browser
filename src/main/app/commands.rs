@@ -153,7 +153,7 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
         let opened = browser
             .active_tab()
             .ok_or_else(|| "There is no tab.".to_string())
-            .and_then(|tab| peeks::open(&browser, tab, PEEK_TAB_URL));
+            .and_then(|tab| peeks::open(state, &browser, tab, PEEK_TAB_URL));
         if let Err(error) = opened {
             eprintln!("Wren opened no peek: {error}");
         }

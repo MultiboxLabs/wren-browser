@@ -6,15 +6,25 @@
 // screen has the window to itself, without its card. A Mini Wren's page has
 // no card either (`bare`): it is edge to edge, under the window's toolbar.
 // A peek is drawn in front of the tab behind it, which is laid out as if it
-// were active, with the peek's overlay and buttons (peek.tsx).
+// were active and darkened, as a card inset in its box, with its buttons
+// beside it (peek/peek.tsx).
 
-import { type CSSProperties, memo, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  memo,
+  type Ref,
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from "react";
 import { PageAddressBar } from "./address/page-bar";
 import { FindBar } from "./find-bar";
 import { LinkStatus } from "./link-status";
 import { LoadingBar } from "./loading-bar";
 import { LoadingLine } from "./loading-line";
-import { PeekCover } from "./peek";
+import { PEEK_FRAME, PeekCover } from "./peek/peek";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { appWindow, browser, type BrowserTab, hasApp, type Peek, splits, type TabSplit } from "@/ipc";
@@ -68,11 +78,18 @@ export function TabView({
   const box = useRef<HTMLDivElement>(null);
   // The user's drag of the shown split's divider, ahead of Chromium's word on it.
   const [dragged, setDragged] = useState<{ split: string; ratio: number } | null>(null);
+  // The peek's card, which its cover moves, and the canvas it is drawn in
+  // on its way, kept here so it draws the peek going after it has closed.
+  const peekCard = useRef<HTMLDivElement>(null);
+  const peekCanvas = useRef<HTMLCanvasElement>(null);
   const shownSplit = !fullScreen && !bare ? split : undefined;
   const shownPeek = !fullScreen && !bare ? peek : undefined;
   // The tab laid out as the window's: the active one, or the one behind its peek.
   const laidOut = shownPeek?.behind ?? active;
   const shownRatio = shownSplit && dragged?.split === shownSplit.id ? dragged.ratio : shownSplit?.ratio;
+  // The edges of the whole box that meet another card, as a lone tab's
+  // card's would: the peek's card, opening out to fill it, takes its look.
+  const boxJoin = !margins ? joinEdges(undefined, besidePanel) : undefined;
 
   useFocusActiveTab(active, !bare && !omniboxOpen);
 
@@ -106,6 +123,9 @@ export function TabView({
             id={id}
             hidden={!visible}
             inFront={inFront}
+            behindPeek={visible && !inFront && shownPeek !== undefined}
+            frame={inFront ? PEEK_FRAME : undefined}
+            slotRef={inFront ? peekCard : undefined}
             active={visible && id === active}
             surface={surface}
             bar={bar}
@@ -129,7 +149,18 @@ export function TabView({
           }}
         />
       )}
-      {shownPeek && <PeekCover peek={shownPeek} canSplit={!shownSplit} />}
+      {/* Over the peek's card, under its buttons (peek/peek.css). */}
+      <canvas ref={peekCanvas} aria-hidden className="pointer-events-none absolute inset-0 z-2 size-full" />
+      {shownPeek && (
+        <PeekCover
+          key={shownPeek.tab}
+          peek={shownPeek}
+          canSplit={!shownSplit}
+          join={boxJoin}
+          card={peekCard}
+          canvas={peekCanvas}
+        />
+      )}
       {active === null && <div className={cn("no-drag absolute inset-0", bare ? "bg-card" : "card empty")} />}
     </div>
   );
@@ -249,6 +280,9 @@ const TabSlot = memo(function TabSlot({
   id,
   hidden,
   inFront,
+  behindPeek,
+  frame,
+  slotRef,
   active,
   surface,
   bar,
@@ -260,8 +294,14 @@ const TabSlot = memo(function TabSlot({
 }: {
   id: number;
   hidden: boolean;
-  /** A peek's, in front of the tab behind it and its overlay. */
+  /** A peek's, in front of the tab behind it. */
   inFront: boolean;
+  /** Behind a peek, and darkened (peek/peek.css). */
+  behindPeek: boolean;
+  /** Where it sits in the box when not in a split, if not filling it: a peek's card. */
+  frame?: CSSProperties;
+  /** The slot's element: a peek's, which its cover moves. */
+  slotRef?: Ref<HTMLDivElement>;
   /** The active tab's, which the find bar is on. */
   active: boolean;
   surface: Surface;
@@ -275,13 +315,15 @@ const TabSlot = memo(function TabSlot({
   /** With it, the page has its address bar atop it, whose address opens this. */
   onOpenLocation?: () => void;
 }) {
-  const style = slotStyle(splitSide, splitStacked, splitRatio);
+  const style = slotStyle(splitSide, splitStacked, splitRatio) ?? frame;
   const frameClass = hidden ? "" : surface === "fullScreen" ? "bg-black" : surface === "bare" ? "bg-card" : "card";
   return (
     <div
+      ref={slotRef}
       style={style}
+      data-behind-peek={behindPeek ? "" : undefined}
       className={cn(
-        "absolute flex min-h-0 min-w-0",
+        "tab-slot absolute flex min-h-0 min-w-0",
         !style && "inset-0",
         inFront && "z-2",
         hidden && "pointer-events-none invisible"
@@ -289,11 +331,16 @@ const TabSlot = memo(function TabSlot({
     >
       {/* With no margins, there is no gap above the card for it, and a
           line along the top of the page shows the loading instead, as it
-          does on a Mini Wren's page. */}
-      {!hidden && surface === "card" && <TabLoadingBar id={id} />}
+          does on a Mini Wren's page. A peek's card stands over the page
+          behind, with no gap of its own, and always has the line. */}
+      {!hidden && surface === "card" && !inFront && <TabLoadingBar id={id} />}
       <div
         // Square where it meets another card only without margins (card.css).
         data-join={join}
+        // No fill of its own under its page's corners (card.css).
+        data-page={surface === "card" ? "" : undefined}
+        // A peek's card, which stands over the tabs behind (peek/peek.css).
+        data-peek={inFront ? "" : undefined}
         className={cn(frameClass, "no-drag relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden")}
       >
         {bar &&
@@ -305,14 +352,18 @@ const TabSlot = memo(function TabSlot({
             )
           ))}
         {/* The page, with the card's corners below the bar, and all four without one. */}
-        <div className={cn("relative min-h-0 flex-1", bar ? "rounded-b-[inherit]" : "rounded-[inherit]")}>
-          <wren-view
-            data-id={`tab-${id}`}
-            hidden={hidden}
-            className="absolute inset-0 block rounded-[inherit] bg-black"
-          />
-          {!hidden && <TabOverlays id={id} surface={surface} />}
+        <div
+          // A peek's, which keeps its size as its frame grows round it (peek/motion.ts).
+          data-peek-page={inFront ? "" : undefined}
+          className={cn("relative min-h-0 flex-1", bar ? "rounded-b-[inherit]" : "rounded-[inherit]")}
+        >
+          {/* Its colour until it draws (card.css), a peek's its own (peek/peek.css). */}
+          <div className={cn("page-under", inFront && "peek-under")} />
+          <wren-view data-id={`tab-${id}`} hidden={hidden} className="absolute inset-0 block rounded-[inherit]" />
+          {!hidden && <TabOverlays id={id} surface={surface} line={inFront} />}
         </div>
+        {/* A peek's edge, over its page and its bar (peek/peek.css). */}
+        {inFront && <div className="peek-edge" />}
       </div>
       {!hidden && active && <FindBar tab={id} belowBar={bar} />}
     </div>
@@ -344,14 +395,16 @@ function TabAddressBar({
   );
 }
 
-function TabOverlays({ id, surface }: { id: number; surface: Surface }) {
+// `line` shows the loading as a line along the page's top whatever the
+// margins, as a peek's does.
+function TabOverlays({ id, surface, line }: { id: number; surface: Surface; line: boolean }) {
   const margins = useWindowMargins();
   const tab = useTab(id);
   if (!tab) return null;
   return (
     <>
       {tab.crashed ? <Crashed tab={tab} /> : <LinkStatus tab={id} />}
-      {surface !== "fullScreen" && (surface === "bare" || !margins) && (
+      {surface !== "fullScreen" && (line || surface === "bare" || !margins) && (
         <LoadingLine loading={tab.loading} progress={tab.progress} />
       )}
     </>

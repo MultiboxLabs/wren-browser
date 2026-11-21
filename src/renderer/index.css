@@ -435,6 +435,7 @@ body,
 @import "./components/tab-switcher/tab-switcher.css";
 @import "./components/link-status.css";
 @import "./components/card.css";
+@import "./components/peek/peek.css";
 @import "./components/loading-bar.css";
 @import "./components/loading-line.css";
 @import "./components/ui/toast.css";

@@ -60,6 +60,11 @@ pub fn of(tab: i32) -> Option<(String, bool)> {
     })
 }
 
+/// Forgets tab `tab`'s picture.
+pub fn forget(tab: i32) {
+    PREVIEWS.with_borrow_mut(|previews| previews.retain(|preview| preview.tab != tab));
+}
+
 /// Notes that tab `tab`'s page has changed since its picture was taken.
 pub fn mark_stale(tab: i32) {
     PREVIEWS.with_borrow_mut(|previews| {

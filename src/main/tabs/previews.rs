@@ -5,10 +5,13 @@
 // asks for one (`request`): a tab with none, a stale one, or the one shown
 // has its picture taken then, in the background too, and the old one stands
 // in until it comes. A discarded, crashed or unloaded tab has no page
-// shown, so none is taken. What draws a tab with none shows its icon.
+// shown, so none is taken. What draws a tab with none shows its icon. A
+// peek takes one at its page's own size as it goes (`take_whole`), which it
+// is drawn by on its way. Such a picture is large, so it is forgotten once
+// its tab has closed (`forget_closed`).
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use wren::{Browser, BrowserTab, CaptureOptions, ImageFormat, TabCrash};
 
@@ -18,15 +21,20 @@ use crate::pages::previews;
 /// The largest a picture is, in pixels, wide or high: for a card of 160
 /// points at 2x, such as the tab switcher's, which a split's halves share.
 const SIZE: u32 = 320;
+// A picture as large as the page's own pixels.
+const WHOLE: u32 = 0;
 
 type Taken = Box<dyn FnOnce(Option<String>)>;
 
 thread_local! {
     // Each Browser's active tab, as it was last seen.
     static ACTIVE: RefCell<HashMap<Browser, BrowserTab>> = RefCell::default();
-    // The tabs whose picture is being taken, each with what waits for it:
-    // one picture at a time for a tab, which all who asked get.
-    static TAKING: RefCell<HashMap<BrowserTab, Vec<Taken>>> = RefCell::default();
+    // The tabs whose picture is being taken, at each size, with what waits
+    // for it: one picture at a time for a tab and size, which all who asked
+    // get.
+    static TAKING: RefCell<HashMap<(BrowserTab, u32), Vec<Taken>>> = RefCell::default();
+    // The tabs whose picture is as large as their page (`take_whole`).
+    static WHOLE_KEPT: RefCell<HashSet<BrowserTab>> = RefCell::default();
 }
 
 /// Takes a picture of the tabs `browser` stopped showing, if its active tab
@@ -46,7 +54,7 @@ pub fn follow_active(browser: &Browser) {
     }
     for tab in left {
         if !is_shown(tab) && tab.browser().as_ref() == Some(browser) {
-            take(tab, Box::new(drop));
+            take(tab, SIZE, Box::new(drop));
         }
     }
 }
@@ -65,9 +73,31 @@ pub fn request(tab: BrowserTab, then: impl FnOnce(Option<String>) + 'static) -> 
     let kept = previews::of(tab.id());
     let fresh = kept.as_ref().is_some_and(|(_, fresh)| *fresh) && !is_shown(tab);
     if !fresh {
-        take(tab, Box::new(then));
+        take(tab, SIZE, Box::new(then));
     }
     kept.map(|(name, _)| name)
+}
+
+/// Takes a picture of the tab's page as it is, as large as its own pixels,
+/// in place of the one it had, and gives `then` its ID; or None if the tab
+/// gave none.
+pub fn take_whole(tab: BrowserTab, then: impl FnOnce(Option<String>) + 'static) {
+    WHOLE_KEPT.with_borrow_mut(|kept| kept.insert(tab));
+    take(tab, WHOLE, Box::new(then));
+}
+
+/// Forgets the pictures as large as their page of the tabs that have
+/// closed: the rest are small, and go as more are kept.
+pub fn forget_closed() {
+    WHOLE_KEPT.with_borrow_mut(|kept| {
+        kept.retain(|tab| {
+            let open = tab.browser().is_some();
+            if !open {
+                previews::forget(tab.id());
+            }
+            open
+        });
+    });
 }
 
 /// Forgets a Browser's active tab, as it closes.
@@ -97,21 +127,22 @@ fn is_shown(tab: BrowserTab) -> bool {
             .is_some_and(|split| split.first == Some(tab) || split.second == Some(tab))
 }
 
-// Takes a picture of the tab's page and keeps it, in place of the one it
-// had, and gives `then` its ID. One being taken already gives `then` that
-// one's. One that may not be taken (`can_take`), or gives none, keeps the
-// one it had.
-fn take(tab: BrowserTab, then: Taken) {
+// Takes a picture of the tab's page, no more than `size` pixels wide or
+// high (`WHOLE` for no limit), and keeps it, in place of the one it had, and
+// gives `then` its ID. One being taken at that size already gives `then`
+// that one's. One that may not be taken (`can_take`), or gives none, keeps
+// the one it had.
+fn take(tab: BrowserTab, size: u32, then: Taken) {
     if !can_take(tab) {
         return then(None);
     }
-    let taking = TAKING.with_borrow_mut(|taking| match taking.get_mut(&tab) {
+    let taking = TAKING.with_borrow_mut(|taking| match taking.get_mut(&(tab, size)) {
         Some(waiting) => {
             waiting.push(then);
             true
         }
         None => {
-            taking.insert(tab, vec![then]);
+            taking.insert((tab, size), vec![then]);
             false
         }
     });
@@ -119,8 +150,8 @@ fn take(tab: BrowserTab, then: Taken) {
         return;
     }
     let options = CaptureOptions {
-        max_width: SIZE,
-        max_height: SIZE,
+        max_width: size,
+        max_height: size,
         format: ImageFormat::Jpeg,
         // It stays in the app's own UI.
         ignore_policy: true,
@@ -128,7 +159,7 @@ fn take(tab: BrowserTab, then: Taken) {
     };
     tab.capture(&options, move |image| {
         let name = image.ok().map(|image| previews::keep(tab.id(), image.data));
-        let waiting = TAKING.with_borrow_mut(|taking| taking.remove(&tab));
+        let waiting = TAKING.with_borrow_mut(|taking| taking.remove(&(tab, size)));
         for then in waiting.unwrap_or_default() {
             then(name.clone());
         }

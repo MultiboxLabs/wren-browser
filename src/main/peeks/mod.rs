@@ -53,12 +53,12 @@ pub fn opens_peeks(tab: BrowserTab) -> bool {
 /// Development's Open Peek Tab does. `behind` needn't open peeks, as this
 /// is how a peek is tried in front of any tab. A peek can't have one, and a
 /// tab has one at most.
-pub fn open(browser: &Browser, behind: BrowserTab, url: &str) -> Result<(), String> {
+pub fn open(state: &State, browser: &Browser, behind: BrowserTab, url: &str) -> Result<(), String> {
     if roles::behind(behind).is_some() || roles::peek_of(behind).is_some() {
         return Err("That tab is a peek, or has one already.".into());
     }
     let tab = browser.add_tab(url, None, true).map_err(failed)?;
-    roles::peek(tab, behind).map_err(failed)
+    roles::peek(tab, behind, pointer_over(state, browser)).map_err(failed)
 }
 
 /// Closes peek `tab`, as its Close button or a click on its overlay asks.
@@ -67,6 +67,17 @@ pub fn open(browser: &Browser, behind: BrowserTab, url: &str) -> Result<(), Stri
 pub fn close(tab: BrowserTab) -> Result<(), String> {
     behind(tab)?;
     tab.close().map_err(failed)
+}
+
+/// Takes a picture of peek `tab`'s page as it is, at its own size, which the
+/// page draws the peek by as it goes back into where it came from, and
+/// gives `then` the ID it is served at (tabs/previews.rs). A tab that is no
+/// peek, or gives none, gives `then` None.
+pub fn picture(tab: BrowserTab, then: impl FnOnce(Option<String>) + 'static) {
+    match roles::behind(tab) {
+        Some(_) => tabs::previews::take_whole(tab, then),
+        None => then(None),
+    }
 }
 
 /// Makes peek `tab` a tab of the list, at its top, and still active, as its
@@ -111,6 +122,14 @@ pub fn split(
         tabs::move_split(mt, browser, split, 0, None).map_err(failed)?;
     }
     tab.activate().map_err(failed)
+}
+
+// Where the pointer is over the page of `browser`'s window, in whole points,
+// for a peek coming now to grow out of: the link it was opened from, most
+// often. None while it is beyond the page, as it is on the menu bar.
+fn pointer_over(state: &State, browser: &Browser) -> Option<(i32, i32)> {
+    let (x, y) = state.windows.of(browser)?.page.pointer()?;
+    Some((x.round() as i32, y.round() as i32))
 }
 
 // The tab peek `tab` is in front of, or why there is none.

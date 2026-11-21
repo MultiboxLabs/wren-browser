@@ -53,6 +53,7 @@ pub fn changed(state: &Rc<State>, browser: &Browser, change: &Change) {
     items::carry::forget_gone();
     placeholder::settle(browser);
     previews::follow_active(browser);
+    previews::forget_closed();
     if let Some(tab) = change.tab
         && change
             .tab_fields

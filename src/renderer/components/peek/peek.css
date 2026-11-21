@@ -1,0 +1,56 @@
+/* A peek in front of the tab behind it (peek.tsx). */
+
+/* How round the peek's card is: far less than a tab's card, whose corners
+   follow the window's. */
+:root {
+  --peek-corner: 6px;
+}
+
+/* The tabs behind a peek, its tab and the other of its split, darkened
+   whole, page and frame together (tab-view.tsx), coming on as the peek
+   comes and lifting as it goes, after it has closed too. An overlay over
+   them never quite matched the page's corners, which are drawn apart from
+   this page: of the same shape, their light showed through its edge as an
+   arc, and of a tighter one, its own corner showed. */
+.tab-slot {
+  transition: filter 0.2s var(--ease-out-strong);
+}
+.tab-slot[data-behind-peek] {
+  filter: brightness(0.55);
+  transition-duration: 0.3s;
+}
+
+/* The peek's card, standing over the tabs behind: a deeper shadow, and no
+   edge round it, as `.peek-edge` draws its edge inside. Selected past the card's
+   own rules (card.css), one of which sets the edge for a dark window with
+   margins. */
+:root .card[data-peek],
+:root [data-window-margins] .card[data-peek] {
+  --card-edge: transparent;
+  --card-lift: 0 6px 24px rgb(0 0 0 / 0.35);
+  border-radius: var(--peek-corner);
+}
+
+/* The peek's colour under its page (`.page-under`, card.css), until the
+   page draws, which the card is drawn in as it comes (motion.ts): white, or
+   black while the system is dark, as a page that has drawn nothing is more
+   likely to be. */
+.page-under.peek-under {
+  background: white;
+}
+:root[data-system-scheme="dark"] .page-under.peek-under {
+  background: black;
+}
+
+/* The peek's edge: a hairline of light, as a dark one is lost against the
+   darkened tabs behind, drawn over the edge of its page, inside the card.
+   Drawn round the card, under the page, it showed as a bright arc where
+   the page's corners are cut, so it is drawn as the canvas draws it on the
+   card's way (genie.ts). */
+.peek-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.12);
+  pointer-events: none;
+}

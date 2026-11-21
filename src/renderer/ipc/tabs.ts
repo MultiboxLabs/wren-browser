@@ -94,8 +94,13 @@ export type ActiveChanged = {
 /** A pin open in the Browser: its tab, or a split pin's two, and whether each is away from the pin's page. */
 export type PinLink = { pin: number; tabs: number[]; away: boolean[] };
 
-/** A peek, drawn in front of `behind`, the tab that opened it, until it is closed, expanded or split (peeks.ts). */
-export type Peek = { tab: number; behind: number };
+/**
+ * A peek, drawn in front of `behind`, the tab that opened it, until it is
+ * closed, expanded or split (peeks.ts); and `from`, where the pointer was
+ * over the window's page as it came, in points from its top left (null if
+ * beyond it), which it grows out of.
+ */
+export type Peek = { tab: number; behind: number; from: [x: number, y: number] | null };
 
 export const tabs = {
   /** The tabs of each of the window's Browsers; `onList` hears each one's again as its structure or order changes. */

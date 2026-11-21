@@ -1,11 +1,14 @@
 // Hover labels, as a native tooltip: they appear after a pause, in the
 // system's neutral colours, light or dark as the system is (not the space),
-// below what they label.
+// below what they label, or beside it.
 
 const TOOLTIPS_ENABLED = true;
 
 import { Tooltip as Radix, Slot } from "radix-ui";
 import { type ReactNode, useState } from "react";
+
+/** Where a tooltip shows: below what it labels, or to its right. */
+export type TooltipSide = "bottom" | "right";
 
 /**
  * Once around the page: tooltips after the first appear without the pause.
@@ -30,7 +33,17 @@ export function TooltipProvider({ children }: { children: ReactNode }) {
  * then kept. As it comes, React makes `children` anew, which drops its
  * focus, so it is only for what can't take focus, such as a row's title.
  */
-export function Tooltip({ label, lazy = false, children }: { label?: string; lazy?: boolean; children: ReactNode }) {
+export function Tooltip({
+  label,
+  lazy = false,
+  side = "bottom",
+  children
+}: {
+  label?: string;
+  lazy?: boolean;
+  side?: TooltipSide;
+  children: ReactNode;
+}) {
   if (!TOOLTIPS_ENABLED) return children;
   const [entered, setEntered] = useState(false);
   if (!label) return children;
@@ -40,7 +53,7 @@ export function Tooltip({ label, lazy = false, children }: { label?: string; laz
       <Radix.Trigger asChild>{children}</Radix.Trigger>
       <Radix.Portal>
         <Radix.Content
-          side="bottom"
+          side={side}
           sideOffset={6}
           collisionPadding={6}
           data-scheme="system"

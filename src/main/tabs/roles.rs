@@ -30,8 +30,13 @@ pub enum Role {
     Pin(Claim),
     /// A peek: opened by `behind`, and drawn in front of it, its favicon on
     /// `behind`'s row, until it closes or becomes a tab of the list
-    /// (peeks/).
-    Peek { behind: BrowserTab },
+    /// (peeks/). `from` is where the pointer was over its window's page as
+    /// it came, in points from the page's top left, which the page grows it
+    /// out of and shrinks it back into.
+    Peek {
+        behind: BrowserTab,
+        from: Option<(i32, i32)>,
+    },
     /// Closing for a pin that has gone from its Browser, and drawn nowhere
     /// until it has closed. A close that a page refuses ends it
     /// (`let_go` in pins/mod.rs), so it never lasts.
@@ -112,18 +117,27 @@ pub fn claim(tab: BrowserTab, pin: PinId, side: usize) -> Result<(), Error> {
     Ok(())
 }
 
-/// Makes `tab` the peek in front of `behind`: Chromium pins it, and keeps
-/// it out of the session, as a peek never lasts.
-pub fn peek(tab: BrowserTab, behind: BrowserTab) -> Result<(), Error> {
+/// Makes `tab` the peek in front of `behind`, come from `from` (`Role::Peek`):
+/// Chromium pins it, and keeps it out of the session, as a peek never lasts.
+pub fn peek(tab: BrowserTab, behind: BrowserTab, from: Option<(i32, i32)>) -> Result<(), Error> {
     set_pinned(tab, true)?;
-    set(tab, Role::Peek { behind }, String::new());
+    set(tab, Role::Peek { behind, from }, String::new());
     Ok(())
 }
 
 /// The tab `tab` is in front of, if it is a peek.
 pub fn behind(tab: BrowserTab) -> Option<BrowserTab> {
     match of(tab) {
-        Role::Peek { behind } => Some(behind),
+        Role::Peek { behind, .. } => Some(behind),
+        _ => None,
+    }
+}
+
+/// Where peek `tab` came from over its window's page (`Role::Peek`), if it
+/// is a peek and the pointer was over the page.
+pub fn peek_from(tab: BrowserTab) -> Option<(i32, i32)> {
+    match of(tab) {
+        Role::Peek { from, .. } => from,
         _ => None,
     }
 }
@@ -135,7 +149,7 @@ pub fn peek_of(behind: BrowserTab) -> Option<BrowserTab> {
             .borrow()
             .iter()
             .find_map(|(tab, held)| match held.role {
-                Role::Peek { behind: of } if of == behind => Some(*tab),
+                Role::Peek { behind: of, .. } if of == behind => Some(*tab),
                 _ => None,
             })
     })

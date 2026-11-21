@@ -149,11 +149,12 @@ struct Link {
     away: Vec<bool>,
 }
 
-/// A peek, and the tab it is in front of.
+/// A peek, the tab it is in front of, and where over the page it came from.
 #[derive(Serialize)]
 struct Peek {
     tab: i32,
     behind: i32,
+    from: Option<(i32, i32)>,
 }
 
 pub fn handle(web_view: &WebView, window: &WindowRef) {
@@ -375,6 +376,7 @@ fn tab_list(window: &BrowserWindow, browser: &Browser) -> Tabs {
             .map(|(tab, behind)| Peek {
                 tab: tab.id(),
                 behind: behind.id(),
+                from: roles::peek_from(tab),
             })
             .collect(),
     }

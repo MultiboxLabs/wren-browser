@@ -5,7 +5,7 @@
 import { type HTMLMotionProps, motion } from "motion/react";
 import { type ComponentType, isValidElement, type ReactElement, type ReactNode, type Ref } from "react";
 import { press, restingBox } from "./press";
-import { Tooltip } from "./tooltip";
+import { Tooltip, type TooltipSide } from "./tooltip";
 import { cn } from "@/utils/cn";
 
 /** A Lucide icon, or one drawn the same way (in currentColor, sized by `size`). */
@@ -19,10 +19,13 @@ export type Icon = ComponentType<{ size?: number; strokeWidth?: number; classNam
  * for the default button of a dialog; `bright`, white, for what a card on
  * the window asks to be done; `solid`, near black (near white in dark), for
  * the one thing a page in a tab asks, where colour is the page's own;
- * `bare`, no fill at all, its text dim and brightening under the pointer,
+ * `overlay`, black in light and dark, its glyph white, for a control over
+ * a darkened page, such as a peek's, which grows under the pointer; `bare`,
+ * no fill at all, its text dim and brightening under the pointer,
  * for a small action set in a line, such as the one on the list's separator.
  */
-export type ButtonVariant = "plain" | "filled" | "faint" | "raised" | "prominent" | "bright" | "solid" | "bare";
+export type ButtonVariant =
+  "plain" | "filled" | "faint" | "raised" | "prominent" | "bright" | "solid" | "overlay" | "bare";
 
 /**
  * Its size and corners: `square`, a toolbar's 28 points; `text`, as tall,
@@ -42,7 +45,7 @@ type ButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
   iconSize?: number;
   /**
    * The icon's tone: the variant's (`plain` dim, as a toolbar's;
-   * `prominent`, `bright`, `solid` and `bare` their text's; the rest full), or the text's
+   * `prominent`, `bright`, `solid`, `overlay` and `bare` their text's; the rest full), or the text's
    * colour, for a coloured button.
    */
   iconTone?: "dim" | "full" | "inherit";
@@ -50,6 +53,8 @@ type ButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
   label?: string;
   /** False keeps `label` as its name only, with no tooltip: for what shows its name beside it. */
   tooltip?: boolean;
+  /** The side its tooltip shows on: below it, or to its right, for one in a column. */
+  tooltipSide?: TooltipSide;
   /**
    * What it opens is open, or it is on. A Radix trigger (a menu's, a
    * popover's) shows as pressed while open by itself.
@@ -103,6 +108,13 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
     off: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] enabled:active:brightness-90 disabled:opacity-45",
     on: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] brightness-90"
   },
+  // With a hairline of light inside its edge, as a peek's card has, so it
+  // stands out of a dark page. Pressed, it lightens a little, as black
+  // can't darken.
+  overlay: {
+    off: "bg-black text-white shadow-[inset_0_0_0_0.5px_rgb(255_255_255/0.12)] transition-[scale] duration-120 ease-out enabled:active:bg-[rgb(40_40_42)] motion-safe:enabled:hover:scale-110",
+    on: "bg-[rgb(40_40_42)] text-white shadow-[inset_0_0_0_0.5px_rgb(255_255_255/0.12)]"
+  },
   // Brightening to the glyphs' colour, solid: white (black in light).
   bare: {
     off: "text-fg-3 enabled:hover:text-(--glyph) data-[state=open]:text-(--glyph)",
@@ -132,6 +144,7 @@ export function Button({
   iconTone,
   label,
   tooltip = true,
+  tooltipSide,
   pressed = false,
   scale,
   className,
@@ -144,10 +157,15 @@ export function Button({
   // scales, but reports the box it rests in: what hangs off it must not move
   // as it scales.
   const opens = rest["aria-haspopup"] !== undefined;
-  const coloured = variant === "prominent" || variant === "bright" || variant === "solid" || variant === "bare";
+  const coloured =
+    variant === "prominent" ||
+    variant === "bright" ||
+    variant === "solid" ||
+    variant === "overlay" ||
+    variant === "bare";
   const tone = tones[iconTone ?? (variant === "plain" ? "dim" : coloured ? "inherit" : "full")];
   return (
-    <Tooltip label={tooltip ? label : undefined}>
+    <Tooltip label={tooltip ? label : undefined} side={tooltipSide}>
       <motion.button
         {...press(scale ?? shapes[form].scale)}
         ref={(node) => {

@@ -1,5 +1,6 @@
 // What the page asks of a peek in front of another tab (peeks/): its three
-// buttons, and a click on its overlay, which closes it as Close does.
+// buttons, a click on the tab behind it, which closes it as Close does, and
+// a picture of its page, which it is drawn by as it goes.
 // src/renderer/ipc/peeks.ts is the page's side. What the page is told of the
 // peeks comes with its tabs (tabs.rs).
 
@@ -14,6 +15,26 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     let weak = window.clone();
     let _ = web_view.handle("peeks.close", move |id: i32| {
         with_browser(&weak, |_, browser| peeks::close(tab(mt, browser, id)?))
+    });
+
+    // A picture of the peek's page as it is: the ID it is served at
+    // (`previewUrl`), once it is taken, or null for none.
+    let weak = window.clone();
+    let _ = web_view.handle_call("peeks.picture", move |call| {
+        let peek = call
+            .value::<i32>()
+            .map_err(|error| error.to_string())
+            .and_then(|id| with_browser(&weak, |_, browser| tab(mt, browser, id)));
+        let peek = match peek {
+            Ok(peek) => peek,
+            Err(error) => {
+                let _ = call.fail(&error);
+                return;
+            }
+        };
+        peeks::picture(peek, move |picture| {
+            let _ = call.answer(&picture);
+        });
     });
 
     // The peek becomes a tab of the list.

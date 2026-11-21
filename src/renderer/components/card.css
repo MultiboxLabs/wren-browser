@@ -102,3 +102,18 @@
 .card.empty {
   background: color-mix(in srgb, white 7%, transparent);
 }
+
+/* A tab's card draws no fill of its own: the page in it is drawn apart from
+   this page, and where its rounded corners are smoothed, a fill under them
+   of the same shape shows through, as a light arc round the corner. Its
+   colour, until its page draws, is `.page-under`'s, a point short of the
+   card's edge, under the page alone. */
+.card[data-page] {
+  background: transparent;
+}
+.page-under {
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: black;
+}
