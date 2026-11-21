@@ -104,16 +104,15 @@
 }
 
 /* A tab's card draws no fill of its own: the page in it is drawn apart from
-   this page, and where its rounded corners are smoothed, a fill under them
-   of the same shape shows through, as a light arc round the corner. Its
-   colour, until its page draws, is `.page-under`'s, a point short of the
-   card's edge, under the page alone. */
+   this page, and where its rounded corners are smoothed, a light card fill
+   under them shows through as a bright arc round the corner. Its colour,
+   until its page draws, is `.page-under`'s, under the page alone. */
 .card[data-page] {
   background: transparent;
 }
 .page-under {
   position: absolute;
-  inset: 1px;
+  inset: 0;
   border-radius: inherit;
   background: black;
 }
