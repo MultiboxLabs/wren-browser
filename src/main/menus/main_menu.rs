@@ -36,6 +36,7 @@ pub const RELOAD_UI: &str = "reload-ui";
 pub const TOGGLE_QUIT_WARNING: &str = "toggle-quit-warning";
 pub const CHECK_FOR_UPDATES: &str = "check-for-updates";
 pub const RESET_ONBOARDING: &str = "reset-onboarding";
+pub const OPEN_PEEK_TAB: &str = "open-peek-tab";
 /// A space's item is this and the space's ID.
 pub const SPACE: &str = "space:";
 /// The items for ⌘1 to ⌘9 are this and the favourite's number, from 1.
@@ -529,6 +530,9 @@ fn development_menu() -> MenuItem {
         vec![
             development_item(TOGGLE_UI_DEVTOOLS, "Toggle UI Devtools"),
             development_item(RELOAD_UI, "Reload UI"),
+            // A peek in front of the active tab, whatever it is
+            // (`peeks::open`).
+            development_item(OPEN_PEEK_TAB, "Open Peek Tab"),
             // Quits, so the next run starts with onboarding
             // (`onboarding::reset`).
             development_item(RESET_ONBOARDING, "Reset Onboarding"),

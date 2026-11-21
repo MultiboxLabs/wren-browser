@@ -11,11 +11,15 @@ use crate::ipc::{self, OmniboxTarget};
 use crate::menus;
 use crate::onboarding;
 use crate::pages;
+use crate::peeks;
 use crate::pins;
 use crate::platform::{PageWindow, close_other_key_window};
 use crate::settings;
 use crate::tabs;
 use crate::windows;
+
+// What Development's Open Peek Tab opens.
+const PEEK_TAB_URL: &str = "https://wrenbrowser.com";
 
 // The window is the one of the Browser in the key window, or the key
 // window, or else the one the user was in last. A Mini Wren has
@@ -142,6 +146,16 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
         let by = if id == menus::MOVE_TAB_UP { -1 } else { 1 };
         if let (Some(tab), Some(place)) = (browser.active_tab(), window.place_of(&browser)) {
             let _ = tabs::move_by(state, mt, &place, &browser, tab, by);
+        }
+        return;
+    }
+    if id == menus::OPEN_PEEK_TAB {
+        let opened = browser
+            .active_tab()
+            .ok_or_else(|| "There is no tab.".to_string())
+            .and_then(|tab| peeks::open(&browser, tab, PEEK_TAB_URL));
+        if let Err(error) = opened {
+            eprintln!("Wren opened no peek: {error}");
         }
         return;
     }

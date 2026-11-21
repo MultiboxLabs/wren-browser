@@ -7,7 +7,8 @@
 // (settle.rs). Or it starts going to another origin, by a click or a script,
 // and Wren sends that to a new tab in front instead (navigation.rs), which
 // then becomes a peek the same way. The rest of the part takes any tab as
-// the tab behind, a pin's or one of the list.
+// the tab behind, a pin's or one of the list, as Development's Open Peek Tab
+// shows (`open`).
 //
 // Which tab is a peek, and which tab it is in front of, is its role
 // (tabs/roles.rs). What the part keeps beside it (`Peeks`) is the tabs
@@ -56,6 +57,18 @@ struct Hold {
 /// behaves as it does in front of a pin's.
 pub fn opens_peeks(tab: BrowserTab) -> bool {
     roles::pin_of(tab).is_some()
+}
+
+/// Opens `url` in a peek in front of `behind`, one of `browser`'s tabs, as
+/// Development's Open Peek Tab does. `behind` needn't open peeks, as this
+/// is how a peek is tried in front of any tab. A peek can't have one, and a
+/// tab has one at most.
+pub fn open(browser: &Browser, behind: BrowserTab, url: &str) -> Result<(), String> {
+    if roles::behind(behind).is_some() || roles::peek_of(behind).is_some() {
+        return Err("That tab is a peek, or has one already.".into());
+    }
+    let tab = browser.add_tab(url, None, true).map_err(failed)?;
+    roles::peek(tab, behind).map_err(failed)
 }
 
 /// Closes peek `tab`, as its Close button or a click on its overlay asks.
