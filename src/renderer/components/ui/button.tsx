@@ -108,12 +108,13 @@ const variants: Record<ButtonVariant, { off: string; on: string }> = {
     off: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] enabled:active:brightness-90 disabled:opacity-45",
     on: "bg-solid text-solid-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.12)] brightness-90"
   },
-  // With a hairline of light inside its edge, as a peek's card has, so it
-  // stands out of a dark page. Pressed, it lightens a little, as black
-  // can't darken.
+  // With a hairline of light inside its edge, and a stronger one with a dark
+  // outer edge in dark mode (`--overlay-edge` in index.css), as a peek's card
+  // has, so it stands out of a dark page. Pressed, it lightens a little, as
+  // black can't darken.
   overlay: {
-    off: "bg-black text-white shadow-[inset_0_0_0_0.5px_rgb(255_255_255/0.12)] transition-[scale] duration-120 ease-out enabled:active:bg-[rgb(40_40_42)] motion-safe:enabled:hover:scale-110",
-    on: "bg-[rgb(40_40_42)] text-white shadow-[inset_0_0_0_0.5px_rgb(255_255_255/0.12)]"
+    off: "bg-black text-white shadow-overlay transition-[scale] duration-120 ease-out enabled:active:bg-[rgb(40_40_42)] motion-safe:enabled:hover:scale-110",
+    on: "bg-[rgb(40_40_42)] text-white shadow-overlay"
   },
   // Brightening to the glyphs' colour, solid: white (black in light).
   bare: {

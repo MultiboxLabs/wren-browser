@@ -31,7 +31,7 @@ export default {
           ]
         }
       ],
-      shadow: [{ shadow: ["tooltip", "menu", "omnibox-chip", "raised", "field"] }],
+      shadow: [{ shadow: ["tooltip", "menu", "omnibox-chip", "raised", "overlay", "field"] }],
       // Liquid Glass (index.css): one kind of glass, and one tint, wins.
       glass: ["glass", "glass-clear"],
       "glass-tint": [{ "glass-tint": [validators.isAny] }]
