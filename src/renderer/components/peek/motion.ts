@@ -2,12 +2,9 @@
 //
 // Its card grows out of where the pointer was as the peek came, most often
 // the link it was opened from, as a genie does, and goes back into it as it
-// closes. Each row of the card, from its top to its bottom, moves on its own
-// critically damped spring. Opening from a point below the box's middle, the
-// rows furthest from it arrive first and the nearest last, so the card pours
-// out of the point. Closing, the nearest go first, so it is drawn back into
-// it. Its corners shrink toward the point and stay round, and it fades only
-// over the last of its way back. The buttons pop in beside the card once it
+// closes, its sides bending in toward the link on the way (bend.ts). Its
+// corners shrink toward the link's and stay round, and it fades only over
+// the last of its way back. The buttons pop in beside the card once it
 // has landed. Expanding, the page takes the whole box's place and size at
 // once, and the card's frame grows round it to fill the box, taking on a
 // tab's look. With Reduced Motion, everything fades only. The tabs behind
@@ -20,26 +17,20 @@
 // tab-view.tsx, which this page doesn't render, so it is hidden and moved by
 // hand, as are the buttons, so they keep time with it.
 
-import { Genie, type Place } from "./genie";
+import { Genie, type Place, type Shadow } from "./genie";
 import { clamp, mix, remaining, sample, settling, smoothstep } from "./spring";
+import { bendOf, type Rect } from "./bend";
 import { cssEase, EASE_OUT, prefersReducedMotion } from "@/utils/motion";
 
 /** A peek's parts that move: its card (the slot), the canvas it is drawn in on its way, which shares its box, and the buttons. */
 export type PeekParts = { card: HTMLElement; canvas: HTMLCanvasElement; buttons: HTMLElement[] };
 
-type Rect = { left: number; top: number; width: number; height: number };
-
-// How long the card's springs take to get most of the way, as it comes and
-// as it goes.
-const OPEN_RESPONSE = 0.26;
-const CLOSE_RESPONSE = 0.21;
-// How far apart the rows' springs are, for a pointer at the box's top or
-// bottom edge. A pointer below the middle spreads them further, so the
-// card's bottom trails slower.
-const GENIE = { above: 0.75, below: 1 };
 // What the card grows out of: a link's size round the pointer, and how
 // round its corners are there.
 const LINK = { width: 80, height: 20, corner: 4 };
+// The longest a frame of the card's way may take, in seconds, before the way
+// waits for it.
+const LONGEST_FRAME = 1 / 30;
 // Closing, the card fades out over the last of its way back.
 const FADE_AT = 0.4;
 // Opening, how long the card's colour takes to give way to its page once
@@ -185,7 +176,12 @@ export async function expandPeek(parts: PeekParts, picture: HTMLImageElement | n
     };
     const resting: Place = (u, v) => [shown.left + u * shown.width, shown.top + v * shown.height];
     genie.show(picture, colourOf(card));
-    genie.draw({ width, height }, shown, resting, { corner: cornerOf(face), opacity: 1, edge: edgeOf() });
+    const corner = cornerOf(face);
+    genie.draw({ width, height }, shown, resting, {
+      corner: { top: corner, bottom: corner },
+      opacity: 1,
+      edge: edgeOf()
+    });
   }
   const px = (value: number) => `${value}px`;
   const laidOut = {
@@ -271,63 +267,55 @@ function travel(parts: PeekParts, genie: Genie, from: [number, number] | null, o
   const y = from ? from[1] - box.top : rest.top + rest.height / 2;
   const link: Rect = { left: x - LINK.width / 2, top: y - LINK.height / 2, width: LINK.width, height: LINK.height };
 
-  // How far below the box's middle the link is, from -1 to 1, and so how far
-  // apart the rows' springs are. Closing, the other way round.
-  const below = 2 * clamp(y / Math.max(1, box.height), 0, 1) - 1;
-  const spread = (below > 0 ? GENIE.below : GENIE.above) * below * (opening ? 1 : -1);
-  const response = opening ? OPEN_RESPONSE : CLOSE_RESPONSE;
-  // The spring of the row `along` the card, from its top at 0 to its bottom at 1.
-  const row = (along: number) => {
-    const share = spread < 0 ? 1 - Math.sqrt(1 - along) : Math.sqrt(along);
-    return response * (1 - 0.5 * spread + spread * share);
-  };
-  const duration = Math.max(settling(row(0)), settling(row(1)), settling(row(0.5)));
-  const corner = cornerOf(faceOf(card) ?? card);
+  const bend = bendOf(rest, link, box.height, opening);
+  const { duration } = bend;
+  const face = faceOf(card) ?? card;
+  const corner = cornerOf(face);
   const edge = edgeOf();
+  const shadow = shadowOf(face);
 
-  // How far from resting the row `along` the card is at `t`, from 0 to 1.
-  const away = (t: number, along: number) => (opening ? remaining(t, row(along)) : 1 - remaining(t, row(along)));
-  const frame = (t: number) => {
-    const place: Place = (u, v) => {
-      const amount = away(t, v);
-      return [
-        mix(rest.left + u * rest.width, link.left + u * link.width, amount),
-        mix(rest.top + v * rest.height, link.top + v * link.height, amount)
-      ];
-    };
-    // How small the card is drawn at its middle row, which its corners keep
-    // to, so they look the same size on the way.
-    const middle = away(t, 0.5);
-    const scale = Math.max(
-      0.01,
-      Math.min(mix(1, link.width / rest.width, middle), mix(1, link.height / rest.height, middle))
-    );
-    const left = 1 - Math.min(away(t, 0), away(t, 0.5), away(t, 1));
+  // A frame, its shadow drawn with it unless `shadowed` is false.
+  const frame = (t: number, shadowed = true) => {
+    const { place, scale, away, left } = bend.at(t);
+    // Each edge's corners turn into the link's as that edge nears it, and
+    // are drawn larger in the card as it is drawn smaller, so they look the
+    // same size on the way.
+    const cornerAt = (amount: number, small: number) => mix(corner, LINK.corner, amount) / small;
     const opacity = opening ? 1 : smoothstep(clamp(left / FADE_AT, 0, 1));
-    genie.draw(box, rest, place, { corner: mix(corner, LINK.corner, middle) / scale, opacity, edge });
+    genie.draw(box, rest, place, {
+      corner: { top: cornerAt(away.top, scale.top), bottom: cornerAt(away.bottom, scale.bottom) },
+      opacity,
+      edge,
+      shadow: shadowed ? shadow : undefined
+    });
   };
 
   card.style.opacity = "0";
   frame(0);
   return new Promise((resolve) => {
-    let start: number | null = null;
+    let last: number | null = null;
+    let elapsed = 0;
     let request = 0;
     const end = (landed: boolean) => {
       cancelAnimationFrame(request);
       drawing.delete(canvas);
       // Landed, its page shows under the card as it rests, which then
-      // gives way to it (`enterPeek`).
-      if (opening && landed) frame(duration);
+      // gives way to it (`enterPeek`); and its shadow, which the card's own
+      // then draws.
+      if (opening && landed) frame(duration, false);
       else genie.clear();
       if (opening || !landed) card.style.opacity = "";
       resolve(landed);
     };
     drawing.set(canvas, { stop: () => end(false), closing: !opening });
     // Timed from the first frame drawn, so none of the way is lost while the
-    // page is busy bringing the peek in.
+    // page is busy bringing the peek in; and a frame late, as Chromium makes
+    // the peek's page, moves it on by `LONGEST_FRAME` at most, so the card
+    // slows rather than jumps.
     const step = (now: number) => {
-      start ??= now;
-      const t = (now - start) / 1000;
+      elapsed += Math.min(now - (last ?? now), LONGEST_FRAME * 1000);
+      last = now;
+      const t = elapsed / 1000;
       if (t >= duration) return end(true);
       frame(t);
       request = requestAnimationFrame(step);
@@ -344,6 +332,20 @@ function faceOf(card: HTMLElement): HTMLElement | null {
 // How round `face`'s corners are, in points.
 function cornerOf(face: HTMLElement): number {
   return parseFloat(getComputedStyle(face).borderTopLeftRadius) || 0;
+}
+
+// The widest of `face`'s shadows (`--card-lift` in peek.css), to draw under
+// the card on its way, or none.
+function shadowOf(face: HTMLElement): Shadow | undefined {
+  let widest: Shadow | undefined;
+  // As Chromium gives a shadow: its colour first, then its offsets and blur.
+  for (const [, colour, drop, blur] of getComputedStyle(face).boxShadow.matchAll(
+    /rgba?\(([^)]*)\)\s+-?[\d.]+px\s+(-?[\d.]+)px\s+([\d.]+)px/g
+  )) {
+    const alpha = Number(colour.split(/[\s,/]+/)[3] ?? 1);
+    if (!widest || Number(blur) > widest.blur) widest = { drop: Number(drop), blur: Number(blur), alpha };
+  }
+  return widest && widest.blur > 0 ? widest : undefined;
 }
 
 // How opaque the peek's inner edge is (`--peek-edge` in peek.css).

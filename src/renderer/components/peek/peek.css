@@ -27,7 +27,8 @@
 /* The peek's card, standing over the tabs behind: a deeper shadow, and no
    edge round it, as `.peek-edge` draws its edge inside. Selected past the card's
    own rules (card.css), one of which sets the edge for a dark window with
-   margins. */
+   margins. The canvas draws the shadow, its widest if it has more than one,
+   under the card on its way (motion.ts). */
 :root .card[data-peek],
 :root [data-window-margins] .card[data-peek] {
   --card-edge: transparent;
