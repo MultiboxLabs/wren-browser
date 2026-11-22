@@ -390,6 +390,17 @@ body,
   }
 }
 
+/* A hidden <wren-view> keeps its place and size, and Wren Runtime hides it
+   (tab-view.tsx). Preflight's `display: none !important` for `[hidden]`
+   would take it out of the layout, and its tab's page out of it, so this
+   overrides it in the same layer: an `!important` outside the layers loses
+   to one inside them. */
+@layer base {
+  wren-view[hidden] {
+    display: block !important;
+  }
+}
+
 /* The page is the title bar: a press that moves on its background moves the
    window, and a click there is still the page's (the app's web view lets it
    through). What a press that moves must not take, a field, a button, a row
