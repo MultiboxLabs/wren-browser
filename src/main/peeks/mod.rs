@@ -29,7 +29,7 @@ use std::collections::{HashMap, HashSet};
 use wren::{Browser, BrowserTab, MainThread, SplitLayout};
 
 use crate::app::State;
-use crate::ipc;
+use crate::ipc::{self, PeekLeaving};
 use crate::pins;
 use crate::tabs::{self, roles};
 use crate::windows::BrowserWindow;
@@ -79,6 +79,13 @@ pub fn close(tab: BrowserTab) -> Result<(), String> {
     tab.close().map_err(failed)
 }
 
+/// Closes peek `tab` as its Close button does, as the main menu's Close
+/// Tab asks: `window`'s page takes it back into where it came from, and
+/// asks for `close` as it starts to go.
+pub fn close_animated(window: &BrowserWindow, tab: BrowserTab) {
+    ipc::send_leave_peek(window, tab, PeekLeaving::Close);
+}
+
 /// Takes a picture of peek `tab`'s page as it is, at its own size, which the
 /// page draws the peek by as it goes back into where it came from, and
 /// gives `then` the ID it is served at (tabs/previews.rs). A tab that is no
@@ -110,7 +117,7 @@ pub fn expand(
 /// it one.
 pub fn expand_active(window: &BrowserWindow, browser: &Browser) {
     if let Some(tab) = active(browser) {
-        ipc::send_expand_peek(window, tab);
+        ipc::send_leave_peek(window, tab, PeekLeaving::Expand);
     }
 }
 

@@ -9,6 +9,7 @@ use wren::{Browser, MainThread};
 use crate::analytics::TabFrom;
 use crate::app::State;
 use crate::ipc;
+use crate::peeks;
 use crate::pins;
 use crate::platform::QUITS_WITH_LAST_WINDOW;
 use crate::tabs;
@@ -67,6 +68,9 @@ pub fn close_tab(state: &Rc<State>, mt: MainThread, window: &BrowserWindow) {
         .browser_with_tabs()
         .and_then(|browser| Some((browser.active_tab()?, browser)));
     match active {
+        // A peek goes back into where it came from, as its Close button
+        // takes it.
+        Some((tab, _)) if tabs::roles::behind(tab).is_some() => peeks::close_animated(window, tab),
         // A pin's tab closes with the rest of the pin's, if it is a
         // split's, and leaves the pin unopened.
         Some((tab, browser)) => match tabs::roles::pin_of(tab) {

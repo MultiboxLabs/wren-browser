@@ -1,9 +1,15 @@
 // What the page asks of a peek in front of another tab: its three buttons,
 // a click on the tab behind it, which closes it as Close does, and a
 // picture of its page, which it is drawn by as it goes. The app tells the
-// page when the main menu's Open as Tab asks for the peek to expand. The
-// peeks come with the tabs (tabs.ts). src/main/ipc/peeks.rs is the app's
-// side.
+// page when the main menu's Close Tab or Open as Tab asks the peek to leave.
+// The peeks come with the tabs (tabs.ts). src/main/ipc/peeks.rs is the
+// app's side.
+
+/** How a peek leaves, as the button for it takes it: back into where it came from and closed, or grown to fill the box and made a tab of the list. */
+export type PeekLeaving = "close" | "expand";
+
+/** A peek the main menu asks to leave, and how. */
+export type PeekLeaveAsked = { tab: number; leaving: PeekLeaving };
 
 export const peeks = {
   /** Closes the peek, and shows the tab behind it again. */
@@ -14,6 +20,6 @@ export const peeks = {
   split: (tab: number) => wren.invoke<null>("peeks.split", tab),
   /** A picture of the peek's page as it is, at its own size: the ID it is served at (`previewUrl`) once it is taken, or null for none. */
   picture: (tab: number) => wren.invoke<string | null>("peeks.picture", tab),
-  /** Calls `listener` with the peek the main menu's Open as Tab asks to expand, as its button does. */
-  onExpandAsked: (listener: (tab: number) => void) => wren.on<number>("peeks.expandAsked", listener)
+  /** Calls `listener` with each peek the main menu asks to leave, as Close Tab and Open as Tab do. */
+  onLeaveAsked: (listener: (asked: PeekLeaveAsked) => void) => wren.on<PeekLeaveAsked>("peeks.leaveAsked", listener)
 };

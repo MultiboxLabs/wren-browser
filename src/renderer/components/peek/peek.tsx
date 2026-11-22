@@ -18,7 +18,7 @@ import {
 } from "react";
 import { closePeek, enterPeek, expandPeek, type PeekParts, stop } from "./motion";
 import { Button, type Icon } from "@/components/ui/button";
-import { hasApp, type Peek, peeks, previewUrl } from "@/ipc";
+import { hasApp, type Peek, type PeekLeaveAsked, type PeekLeaving, peeks, previewUrl } from "@/ipc";
 import { useTab } from "@/state/browser";
 import { cn } from "@/utils/cn";
 
@@ -43,9 +43,6 @@ const PICTURE_WAIT = 150;
 // to close the tab, which tells the page it has gone only later, the later
 // the busier the Mac.
 const KEPT_AFTER = 1000;
-
-/** How a peek is leaving, as it moves before the app is asked. */
-type Leaving = "close" | "expand";
 
 // The peeks this page has brought in. One shown again, as its tab is
 // selected again, is there at once, as a tab switched to is.
@@ -77,7 +74,7 @@ export function PeekCover({
   const buttons = useRef<HTMLDivElement>(null);
   // It is still shown, for what answers after it may have gone.
   const shown = useRef(true);
-  const [leaving, setLeaving] = useState<Leaving | null>(null);
+  const [leaving, setLeaving] = useState<PeekLeaving | null>(null);
   // Whether it comes in now, decided once: React may run the effect below
   // twice as it mounts, stopping the first entrance between, and the second
   // must play it again.
@@ -160,11 +157,13 @@ export function PeekCover({
       .then(() => peeks.expand(peek.tab))
       .catch(() => {});
   };
-  // The main menu's Open as Tab expands it as its button does.
-  const expandAsked = useEffectEvent((tab: number) => {
-    if (tab === peek.tab) expand();
+  // The main menu's Close Tab and Open as Tab take it as its buttons do.
+  const leaveAsked = useEffectEvent(({ tab, leaving }: PeekLeaveAsked) => {
+    if (tab !== peek.tab) return;
+    if (leaving === "close") close();
+    else expand();
   });
-  useEffect(() => (hasApp ? peeks.onExpandAsked(expandAsked) : undefined), []);
+  useEffect(() => (hasApp ? peeks.onLeaveAsked(leaveAsked) : undefined), []);
   const split = () => {
     if (!leaving) void peeks.split(peek.tab).catch(() => {});
   };

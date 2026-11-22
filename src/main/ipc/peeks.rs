@@ -1,10 +1,11 @@
 // What the page asks of a peek in front of another tab (peeks/): its three
 // buttons, a click on the tab behind it, which closes it as Close does, and
 // a picture of its page, which it is drawn by as it goes. The app tells the
-// page when the main menu's Open as Tab asks for the peek to expand.
+// page when the main menu's Close Tab or Open as Tab asks the peek to leave.
 // src/renderer/ipc/peeks.ts is the page's side. What the page is told of the
 // peeks comes with its tabs (tabs.rs).
 
+use serde::Serialize;
 use wren::{BrowserTab, MainThread, WebView};
 
 use super::browser::tab;
@@ -58,8 +59,29 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
     });
 }
 
-/// Tells the page to expand peek `tab` as its Open as Tab button does, for
-/// the main menu's Open as Tab.
-pub fn send_expand_peek(window: &BrowserWindow, tab: BrowserTab) {
-    let _ = window.page.web_view.send("peeks.expandAsked", &tab.id());
+/// How a peek leaves, as the button for it takes it.
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PeekLeaving {
+    /// Back into where it came from, then closed, as Close Tab asks.
+    Close,
+    /// Grown to fill the box, then a tab of the list, as Open as Tab asks.
+    Expand,
+}
+
+/// Tells the page that the main menu asks peek `tab` to leave as
+/// `leaving` says, which it moves as the peek's button for it does.
+pub fn send_leave_peek(window: &BrowserWindow, tab: BrowserTab, leaving: PeekLeaving) {
+    #[derive(Serialize)]
+    struct Asked {
+        tab: i32,
+        leaving: PeekLeaving,
+    }
+    let _ = window.page.web_view.send(
+        "peeks.leaveAsked",
+        &Asked {
+            tab: tab.id(),
+            leaving,
+        },
+    );
 }
