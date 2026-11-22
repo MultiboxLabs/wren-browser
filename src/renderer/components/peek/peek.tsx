@@ -73,6 +73,7 @@ export function PeekCover({
   card: RefObject<HTMLDivElement | null>;
   canvas: RefObject<HTMLCanvasElement | null>;
 }) {
+  const layer = useRef<HTMLDivElement>(null);
   const buttons = useRef<HTMLDivElement>(null);
   // It is still shown, for what answers after it may have gone.
   const shown = useRef(true);
@@ -83,19 +84,24 @@ export function PeekCover({
   const [entering] = useState(() => !entered.has(peek.tab));
   // Its card has landed, and its page shows.
   const landed = useRef(!entering);
-  // A picture of the page, taken as the pointer leaves it for the layer
-  // behind or the buttons, which it must to close or expand the peek, so it
-  // is mostly ready by the click. Not before the card has landed: the
-  // pointer is often over the layer already as the peek comes, before its
-  // page has drawn. One taken before the page last loaded or moved is no
-  // longer it.
+  // A picture of the page, taken as the pointer comes onto the layer behind
+  // or the buttons, which it must to close or expand the peek, so it is
+  // mostly ready by the click. Not before the card has landed, as its page
+  // hasn't drawn till then. One taken before the page last loaded or moved
+  // is no longer it.
   const picture = useRef<Promise<HTMLImageElement | null> | null>(null);
   const takePicture = () => {
     if (!leaving && landed.current) picture.current = pictureOf(peek.tab);
   };
+  // The pointer is often on the layer already as the card lands, or as the
+  // page changes, and needn't move to click, so it takes one then too.
+  const takePictureIfHovered = useEffectEvent(() => {
+    if ([layer.current, buttons.current].some((part) => part?.matches(":hover"))) takePicture();
+  });
   const tab = useTab(peek.tab);
   useEffect(() => {
     picture.current = null;
+    takePictureIfHovered();
   }, [tab?.url, tab?.loading]);
 
   // The parts that move, once they are all drawn.
@@ -111,6 +117,7 @@ export function PeekCover({
     if (drawn && entering) {
       void enterPeek(drawn, peek.from).then(() => {
         landed.current = true;
+        takePictureIfHovered();
       });
     }
     // Whatever is still moving, or held, such as the frame of a card that
@@ -170,7 +177,13 @@ export function PeekCover({
 
   return (
     <>
-      <div aria-hidden className="no-drag absolute inset-0 z-1" onPointerEnter={takePicture} onClick={close} />
+      <div
+        ref={layer}
+        aria-hidden
+        className="no-drag absolute inset-0 z-1"
+        onPointerEnter={takePicture}
+        onClick={close}
+      />
       <div
         ref={buttons}
         style={BUTTONS}
