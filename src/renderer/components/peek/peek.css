@@ -21,7 +21,7 @@
 }
 .tab-slot[data-behind-peek] {
   filter: brightness(0.55);
-  transition-duration: 0.3s;
+  transition-duration: 0.25s;
 }
 
 /* The peek's card, standing over the tabs behind: a deeper shadow, and no

@@ -31,8 +31,9 @@ const LINK = { width: 80, height: 20, corner: 4 };
 // The longest a frame of the card's way may take, in seconds, before the way
 // waits for it.
 const LONGEST_FRAME = 1 / 30;
-// Closing, the card fades out over the last of its way back.
-const FADE_AT = 0.4;
+// Closing, the card fades out over the last of its way back, once it is
+// nearly in the link, so it is seen going all the way into it.
+const FADE_AT = 0.25;
 // Opening, how long the card's colour takes to give way to its page once
 // it has landed.
 const REVEAL = 0.1;
@@ -348,9 +349,10 @@ function shadowOf(face: HTMLElement): Shadow | undefined {
   return widest && widest.blur > 0 ? widest : undefined;
 }
 
-// How opaque the peek's inner edge is (`--peek-edge` in peek.css).
+// How opaque the peek's inner edge is (`--peek-edge` in peek.css), or not
+// at all without it.
 function edgeOf(): number {
-  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--peek-edge")) || 0.12;
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--peek-edge")) || 0;
 }
 
 // The colour of the card under its page (`.peek-under`), for a page that has
