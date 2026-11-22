@@ -214,9 +214,9 @@ export function useTabShape() {
 }
 
 /**
- * Reads the Browser's space and tabs, as `useBrowser`'s Browser, as they
- * are when it is called: for a handler, as what calls it doesn't draw
- * again as they change.
+ * Reads the Browser's space, tabs, groups and peeks, as `useBrowser`'s
+ * Browser, as they are when it is called: for a handler, as what calls it
+ * doesn't draw again as they change.
  */
 export function useReadTabs() {
   const source = useContext(SourceContext);
@@ -224,7 +224,12 @@ export function useReadTabs() {
   const { read } = source;
   return () => {
     const tabs = read();
-    return { space: tabs?.said.space ?? null, tabs: tabs?.tabs ?? none, groups: tabs?.said.groups ?? none };
+    return {
+      space: tabs?.said.space ?? null,
+      tabs: tabs?.tabs ?? none,
+      groups: tabs?.said.groups ?? none,
+      peeks: tabs?.said.peeks ?? none
+    };
   };
 }
 

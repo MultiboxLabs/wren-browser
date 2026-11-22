@@ -65,6 +65,20 @@
   outline-color: var(--tab-switcher-selected);
 }
 
+/* A tab with a peek in front, as the window draws them (peek/peek.css): the
+   tab darkened, and the peek a card inset over it, at the sides as the
+   window's is and a little further from the ends, as the window's is a few
+   points from them, which would be none here. */
+.tab-switcher-behind-peek {
+  filter: brightness(0.55);
+}
+.tab-switcher-peek {
+  position: absolute;
+  inset: 6% 9%;
+  border-radius: 3px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+}
+
 /* A site's favicon under a title is a picture, which the title's colour
    doesn't reach, as it does Wren's glyphs, so it dims by its opacity. */
 [aria-selected="false"] > .tab-switcher-label img {

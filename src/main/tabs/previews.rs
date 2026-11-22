@@ -15,7 +15,7 @@ use std::collections::{HashMap, HashSet};
 
 use wren::{Browser, BrowserTab, CaptureOptions, ImageFormat, TabCrash};
 
-use super::{placeholder, split_of};
+use super::{placeholder, roles, split_of};
 use crate::pages::previews;
 
 /// The largest a picture is, in pixels, wide or high: for a card of 160
@@ -37,9 +37,9 @@ thread_local! {
     static WHOLE_KEPT: RefCell<HashSet<BrowserTab>> = RefCell::default();
 }
 
-/// Takes a picture of the tabs `browser` stopped showing, if its active tab
-/// changed since it was last seen: the one that was active, and the other
-/// half of its split.
+/// Takes a picture of each tab `browser` stopped showing, if its active tab
+/// changed since it was last seen: those shown with the one that was
+/// active (`shown_with`) and no longer.
 pub fn follow_active(browser: &Browser) {
     let Some(now) = browser.active_tab() else {
         return;
@@ -48,11 +48,7 @@ pub fn follow_active(browser: &Browser) {
     let Some(before) = before.filter(|before| *before != now) else {
         return;
     };
-    let mut left = vec![before];
-    if let Some(split) = split_of(before).and_then(|split| split.state().ok()) {
-        left.extend([split.first, split.second].into_iter().flatten());
-    }
-    for tab in left {
+    for tab in shown_with(before) {
         if !is_shown(tab) && tab.browser().as_ref() == Some(browser) {
             take(tab, SIZE, Box::new(drop));
         }
@@ -115,16 +111,23 @@ fn can_take(tab: BrowserTab) -> bool {
             .is_ok_and(|state| !state.discarded && !state.unloaded && state.crash == TabCrash::None)
 }
 
-// Whether the tab is on show in its Browser: its active tab, or the other
-// half of its split.
+// Whether the tab is on show in its Browser (`shown_with` its active tab).
 fn is_shown(tab: BrowserTab) -> bool {
-    let Some(active) = tab.browser().and_then(|browser| browser.active_tab()) else {
-        return false;
-    };
-    tab == active
-        || split_of(active)
-            .and_then(|split| split.state().ok())
-            .is_some_and(|split| split.first == Some(tab) || split.second == Some(tab))
+    tab.browser()
+        .and_then(|browser| browser.active_tab())
+        .is_some_and(|active| shown_with(active).contains(&tab))
+}
+
+// The tabs on show while `active` is its Browser's active tab: it, the
+// halves of its split, and the tab behind it if it is a peek, darkened
+// round it.
+fn shown_with(active: BrowserTab) -> Vec<BrowserTab> {
+    let mut shown = vec![active];
+    if let Some(split) = split_of(active).and_then(|split| split.state().ok()) {
+        shown.extend([split.first, split.second].into_iter().flatten());
+    }
+    shown.extend(roles::behind(active));
+    shown
 }
 
 // Takes a picture of the tab's page, no more than `size` pixels wide or

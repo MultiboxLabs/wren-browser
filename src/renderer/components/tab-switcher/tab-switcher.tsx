@@ -2,11 +2,13 @@
 // five tabs used last in a row over the window, the last used first, with
 // the one used before the active tab selected. A split's two tabs are one
 // card, as they are one row in the sidebar, and choosing it shows the one
-// of them used last. ⌃Tab again selects the next, ⌃⇧Tab the one before,
-// and letting go of Control shows the tab selected. A quick ⌃Tab goes back
-// to the last tab without the switcher showing at all, as a quick ⌘Tab
-// does. Escape, leaving the window or switching spaces closes it, and the
-// active tab stays.
+// of them used last. A peek and the tab behind it are one card too, drawn
+// as the window draws them and named as the tab behind's row in the
+// sidebar is, and choosing it shows the peek. ⌃Tab again selects the next,
+// ⌃⇧Tab the one before, and letting go of Control shows the tab selected.
+// A quick ⌃Tab goes back to the last tab without the switcher showing at
+// all, as a quick ⌘Tab does. Escape, leaving the window or switching spaces
+// closes it, and the active tab stays.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { browser, hasApp, previewUrl, tabSwitcher } from "@/ipc";
@@ -22,7 +24,7 @@ import { useRecentTabs } from "./recent";
 const SHOW_AFTER = 150;
 
 type Switching = {
-  /** The tabs' IDs, last used first, as they were when it opened: a split's by the one of its two used last. */
+  /** The tabs' IDs, last used first, as they were when it opened: a split's by the one of its two used last, and a peek's by the tab behind it. */
   tabs: number[];
   /** An index into `tabs`. */
   selected: number;
@@ -114,10 +116,20 @@ export function TabSwitcher() {
   );
 }
 
+/** A tab a card shows, and the peek in front of it, if it has one. */
+type Pane = { tab: BrowserTab; peek?: BrowserTab };
+
 /** A card for each of tabs `ids`, but those closed since it opened. */
 function Cards({ ids, selected, onChoose }: { ids: number[]; selected?: number; onChoose: (id: number) => void }) {
-  const { tabs, splits } = useBrowser();
+  const { tabs, splits, peeks } = useBrowser();
   const byId = new Map(tabs.map((tab) => [tab.id, tab]));
+  // Each peek, by the tab behind it.
+  const peekOf = new Map(
+    peeks.flatMap((peek) => {
+      const tab = byId.get(peek.tab);
+      return tab ? [[peek.behind, tab] as const] : [];
+    })
+  );
   return ids.map((id) => {
     const tab = byId.get(id);
     if (!tab) return null;
@@ -125,7 +137,7 @@ function Cards({ ids, selected, onChoose }: { ids: number[]; selected?: number; 
     return (
       <Card
         key={id}
-        tabs={cardTabs(tab, split, byId)}
+        panes={panesOf(tab, split, byId, peekOf)}
         stacked={split?.stacked ?? false}
         selected={id === selected}
         onChoose={() => onChoose(id)}
@@ -134,23 +146,31 @@ function Cards({ ids, selected, onChoose }: { ids: number[]; selected?: number; 
   });
 }
 
-// The tabs a card shows: its tab's split's two, in their order, or its one.
-function cardTabs(tab: BrowserTab, split: TabSplit | undefined, byId: Map<number, BrowserTab>) {
+// What a card shows: its tab's split's two, in their order, or its one,
+// each with the peek in front of it, if it has one.
+function panesOf(
+  tab: BrowserTab,
+  split: TabSplit | undefined,
+  byId: Map<number, BrowserTab>,
+  peekOf: Map<number, BrowserTab>
+): Pane[] {
   const first = split && byId.get(split.first);
   const second = split && byId.get(split.second);
-  return first && second ? [first, second] : [tab];
+  return (first && second ? [first, second] : [tab]).map((tab) => ({ tab, peek: peekOf.get(tab.id) }));
 }
 
 // A tab, or a split's two: what each shows, and its favicon and title
-// under it, the split's side by side as in the sidebar. Selected, its
-// picture has a ring round it (tab-switcher.css).
+// under it, the split's side by side as in the sidebar. A tab with a peek
+// in front has the peek's favicon at the end, after its title, as its row
+// in the sidebar has (sidebar/peek-mark.tsx). Selected, its picture has a
+// ring round it (tab-switcher.css).
 function Card({
-  tabs,
+  panes,
   stacked,
   selected,
   onChoose
 }: {
-  tabs: BrowserTab[];
+  panes: Pane[];
   stacked: boolean;
   selected: boolean;
   onChoose: () => void;
@@ -178,15 +198,20 @@ function Card({
       <span
         className={cn("tab-switcher-preview flex aspect-10/7 w-full gap-0.5 overflow-hidden", stacked && "flex-col")}
       >
-        {tabs.map((tab) => (
-          <TabPreview key={tab.id} tab={tab} iconSize={tabs.length > 1 ? 24 : 32} />
+        {panes.map((pane) => (
+          <PanePreview key={pane.tab.id} pane={pane} iconSize={panes.length > 1 ? 24 : 32} />
         ))}
       </span>
       <span className="tab-switcher-label flex min-w-0 items-center gap-2 px-1">
-        {tabs.map((tab) => (
+        {panes.map(({ tab, peek }) => (
           <span key={tab.id} className="flex min-w-0 flex-1 items-center gap-2">
             <Favicon url={tab.url} icon={tab.favicon} />
             <span className="truncate text-omnibox-row font-medium">{tab.title || host(tab.url)}</span>
+            {peek && (
+              <span className="ml-auto flex shrink-0">
+                <Favicon url={peek.url} icon={peek.favicon} />
+              </span>
+            )}
           </span>
         ))}
       </span>
@@ -195,11 +220,25 @@ function Card({
 }
 
 /**
+ * A tab's picture, and the peek's in front of it as the window draws them:
+ * the tab's darkened, and the peek's a card inset over it (tab-switcher.css).
+ */
+function PanePreview({ pane: { tab, peek }, iconSize }: { pane: Pane; iconSize: number }) {
+  if (!peek) return <TabPreview tab={tab} iconSize={iconSize} />;
+  return (
+    <span className="relative grid min-h-0 min-w-0 flex-1">
+      <TabPreview tab={tab} iconSize={iconSize} className="tab-switcher-behind-peek" />
+      <TabPreview tab={peek} iconSize={iconSize} className="tab-switcher-peek" />
+    </span>
+  );
+}
+
+/**
  * A picture of the tab's page: the one the app has, until a new one it takes
  * comes, as it does for one out of date or the tab shown. Its icon while
  * there is none, or if it fails to load.
  */
-function TabPreview({ tab, iconSize }: { tab: BrowserTab; iconSize: number }) {
+function TabPreview({ tab, iconSize, className }: { tab: BrowserTab; iconSize: number; className?: string }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!hasApp) return;
@@ -221,7 +260,7 @@ function TabPreview({ tab, iconSize }: { tab: BrowserTab; iconSize: number }) {
     };
   }, [tab.id]);
   return (
-    <span className="grid min-h-0 min-w-0 flex-1 place-items-center overflow-hidden bg-omnibox-tile">
+    <span className={cn("grid min-h-0 min-w-0 flex-1 place-items-center overflow-hidden bg-omnibox-tile", className)}>
       {url ? (
         <img aria-hidden src={url} onError={() => setUrl(null)} className="size-full object-cover object-top" />
       ) : (
