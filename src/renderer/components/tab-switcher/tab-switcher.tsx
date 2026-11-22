@@ -1,14 +1,15 @@
 // The tab switcher (ipc/tab_switcher.rs hears its keys): ⌃Tab shows the
 // five tabs used last in a row over the window, the last used first, with
-// the one used before the active tab selected. A split's two tabs are one
-// card, as they are one row in the sidebar, and choosing it shows the one
-// of them used last. A peek and the tab behind it are one card too, drawn
-// as the window draws them and named as the tab behind's row in the
-// sidebar is, and choosing it shows the peek. ⌃Tab again selects the next,
-// ⌃⇧Tab the one before, and letting go of Control shows the tab selected.
-// A quick ⌃Tab goes back to the last tab without the switcher showing at
-// all, as a quick ⌘Tab does. Escape, leaving the window or switching spaces
-// closes it, and the active tab stays.
+// the one used before the active tab selected, or the active tab while it
+// is the only one. A split's two tabs are one card, as they are one row in
+// the sidebar, and choosing it shows the one of them used last. A peek and
+// the tab behind it are one card too, drawn as the window draws them and
+// named as the tab behind's row in the sidebar is, and choosing it shows
+// the peek. ⌃Tab again selects the next, ⌃⇧Tab the one before, and letting
+// go of Control shows the tab selected. A quick ⌃Tab goes back to the last
+// tab without the switcher showing at all, as a quick ⌘Tab does. Escape,
+// leaving the window or switching spaces closes it, and the active tab
+// stays.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { browser, hasApp, previewUrl, tabSwitcher } from "@/ipc";
@@ -67,7 +68,7 @@ export function TabSwitcher() {
         const now = switching.current;
         if (now) return set({ ...now, selected: wrap(now.selected + by, now.tabs.length) });
         const order = recent();
-        if (order.length < 2) return;
+        if (order.length === 0) return;
         set({ tabs: order, selected: wrap(by, order.length), key: ++opened.current });
       }),
       tabSwitcher.onRelease(() => {
