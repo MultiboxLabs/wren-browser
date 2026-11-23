@@ -50,6 +50,8 @@ pub struct Settings {
     /// Wren asks before tabs go to another profile's space, where they are
     /// made again without their history (sidebar/items/crossing.rs).
     pub ask_before_profile_move: bool,
+    /// Where a link from another app opens (windows/open_urls.rs).
+    pub links_from_apps: LinksFromApps,
 }
 
 impl Default for Settings {
@@ -67,6 +69,7 @@ impl Default for Settings {
             window_margins: true,
             address_bar: AddressBar::default(),
             ask_before_profile_move: true,
+            links_from_apps: LinksFromApps::default(),
         }
     }
 }
@@ -86,6 +89,7 @@ pub struct SettingsChange {
     pub window_margins: Option<bool>,
     pub address_bar: Option<AddressBar>,
     pub ask_before_profile_move: Option<bool>,
+    pub links_from_apps: Option<LinksFromApps>,
 }
 
 /// Where the page's address shows, and Chromium's bubbles hang off: atop the
@@ -96,6 +100,16 @@ pub enum AddressBar {
     #[default]
     Sidebar,
     Top,
+}
+
+/// Where a link from another app opens: in a Mini Wren of its own, or in a
+/// new tab of the window the user browses in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LinksFromApps {
+    #[default]
+    MiniWren,
+    Tab,
 }
 
 /// How long a tab goes unused before it is archived.
@@ -158,6 +172,9 @@ impl Db {
             ask_before_profile_move: self
                 .setting("askBeforeProfileMove")?
                 .unwrap_or(defaults.ask_before_profile_move),
+            links_from_apps: self
+                .setting("linksFromApps")?
+                .unwrap_or(defaults.links_from_apps),
         })
     }
 
@@ -196,6 +213,9 @@ impl Db {
         }
         if let Some(asks) = change.ask_before_profile_move {
             set(&transaction, "askBeforeProfileMove", &asks)?;
+        }
+        if let Some(opens_in) = change.links_from_apps {
+            set(&transaction, "linksFromApps", &opens_in)?;
         }
         transaction.commit().map_err(sql)?;
         self.settings()
@@ -333,6 +353,16 @@ mod tests {
         assert_eq!(
             db.update_settings(change).unwrap().address_bar,
             AddressBar::Top
+        );
+        // Links from other apps open in Mini Wren until changed.
+        assert_eq!(settings.links_from_apps, LinksFromApps::MiniWren);
+        let change = SettingsChange {
+            links_from_apps: Some(LinksFromApps::Tab),
+            ..SettingsChange::default()
+        };
+        assert_eq!(
+            db.update_settings(change).unwrap().links_from_apps,
+            LinksFromApps::Tab
         );
         // A change that sets nothing changes nothing.
         let settings = db.update_settings(SettingsChange::default()).unwrap();

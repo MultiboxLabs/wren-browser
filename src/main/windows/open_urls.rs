@@ -1,20 +1,33 @@
 // What macOS asks the app to open: a link clicked in another app while Wren
-// is the default browser, or a page opened with it. Each opens in a Mini
-// Wren of its own (mini_wren/from_apps.rs), which goes back to the app that sent it as
-// it closes.
+// is the default browser, or a page opened with it. Each opens where
+// Settings says: in a Mini Wren of its own (mini_wren/from_apps.rs), which
+// goes back to the app that sent it as it closes, or in a new tab of the
+// window the user browses in (held_tabs.rs).
 
 use std::rc::Rc;
 
 use wren::{MainThread, OpenURLsRequest, OpenURLsSource};
 
+use super::held_tabs;
 use super::mini_wren::HeldMiniWren;
 use crate::app::State;
+use crate::db::LinksFromApps;
 use crate::platform::RunningApp;
 use crate::windows;
 
-/// Opens `request`'s URLs in Mini Wren, now or once the app can, going back
-/// to the app that sent them as each closes if it is known.
+/// Opens `request`'s URLs where Settings says, now or once the app can: in
+/// Mini Wren, going back to the app that sent them as each closes if it is
+/// known, or in new tabs. Settings that can't be read open them in Mini
+/// Wren, as they do by default.
 pub fn open_urls(state: &Rc<State>, mt: MainThread, request: &OpenURLsRequest) {
+    let opens_in = state
+        .db
+        .settings()
+        .map(|settings| settings.links_from_apps)
+        .unwrap_or_default();
+    if opens_in == LinksFromApps::Tab {
+        return held_tabs::hold(state, mt, request.urls.iter().cloned());
+    }
     let return_to = sender(request);
     let pages = request.urls.iter().map(|url| HeldMiniWren {
         url: url.clone(),

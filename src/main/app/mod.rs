@@ -66,9 +66,9 @@ pub struct State {
     pub(crate) mini_wrens: MiniWrens,
     /// The app's own updates (updates.rs).
     pub updates: Updates,
-    /// The app's own pages to show in tabs, held until the window the user
-    /// browses in has its Browser (windows/show_page.rs).
-    pub(crate) held_pages: RefCell<Vec<String>>,
+    /// The pages to open in new tabs, held until the window the user
+    /// browses in has its Browser (windows/held_tabs.rs).
+    pub(crate) held_tabs: RefCell<Vec<String>>,
     /// Whether Wren is the default browser, as macOS said last; none before
     /// it says (settings.rs).
     pub(crate) default_browser: Cell<Option<DefaultBrowserState>>,
@@ -106,7 +106,7 @@ impl State {
             }),
             mini_wrens: MiniWrens::default(),
             updates,
-            held_pages: RefCell::default(),
+            held_tabs: RefCell::default(),
             default_browser: Cell::default(),
         }
     }

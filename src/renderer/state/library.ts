@@ -10,6 +10,7 @@ import {
   type DefaultBrowser,
   defaultBrowser,
   hasApp,
+  type LinksFromApps,
   type NewSpace,
   type ProfileEntry,
   profiles,
@@ -162,6 +163,9 @@ export const boosts: Boost[] = [
 /** The app's own (db/settings.rs). */
 export const DEFAULT_ARCHIVE_AFTER: ArchiveAfter = "12h";
 
+/** The app's own (db/settings.rs). */
+export const DEFAULT_LINKS_FROM_APPS: LinksFromApps = "miniWren";
+
 export const archiveAfterOptions: { id: ArchiveAfter; label: string }[] = [
   { id: "12h", label: "12 hours" },
   { id: "24h", label: "24 hours" },
@@ -191,7 +195,8 @@ export function useSettings(open: boolean) {
     autofill: true,
     windowMargins: true,
     addressBar: "sidebar",
-    askBeforeProfileMove: true
+    askBeforeProfileMove: true,
+    linksFromApps: DEFAULT_LINKS_FROM_APPS
   });
   const [read, setRead] = useState(false);
   const refresh = () =>

@@ -1,12 +1,13 @@
 // The Mini Wren that Wren opens itself, with no page to open it: one for
-// each link from another app (open_urls.rs), one for a link from a page's
-// context menu (`open_link`), and an empty one from New Mini Wren, whose
-// key works in any app, on the New Tab page, where it is the omnibox alone
-// (mod.rs). Each is in front and centred on the pointer, where the user is
-// looking. One from another app or New Mini Wren opens from the space of
-// the window the user browses in, or else the space used last. One from a
-// page's context menu opens on that page's profile and from its space. None
-// adds to a space's tabs unless the user opens it as a tab.
+// each link from another app, unless Settings opens them in tabs
+// (open_urls.rs), one for a link from a page's context menu (`open_link`),
+// and an empty one from New Mini Wren, whose key works in any app, on the
+// New Tab page, where it is the omnibox alone (mod.rs). Each is in front
+// and centred on the pointer, where the user is looking. One from another
+// app or New Mini Wren opens from the space of the window the user browses
+// in, or else the space used last. One from a page's context menu opens on
+// that page's profile and from its space. None adds to a space's tabs
+// unless the user opens it as a tab.
 //
 // One asked for before its profile has opened, as a link that launches the
 // app is, or while a profile's last session is being restored, which brings

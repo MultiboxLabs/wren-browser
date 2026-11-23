@@ -4,7 +4,7 @@
 // space they go to, on a tile of its colour badged with an arrow, says
 // where. Move, the default, moves them; Cancel, on Escape, leaves them.
 // "Don't ask again" turns the question off once Move is pressed, as
-// Settings' Ask Before Moving to Another Profile does.
+// Settings' Ask Before Moving Tabs does.
 
 import { useEffect, useRef, useState } from "react";
 import { SpaceIcon } from "./space-icon";

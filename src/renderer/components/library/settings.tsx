@@ -5,8 +5,13 @@
 
 import { ChevronsUpDown, Info } from "lucide-react";
 import type { ReactNode } from "react";
-import type { AddressBar } from "@/ipc";
-import { archiveAfterOptions, DEFAULT_ARCHIVE_AFTER, type LibrarySettings } from "@/state/library";
+import type { AddressBar, LinksFromApps } from "@/ipc";
+import {
+  archiveAfterOptions,
+  DEFAULT_ARCHIVE_AFTER,
+  DEFAULT_LINKS_FROM_APPS,
+  type LibrarySettings
+} from "@/state/library";
 import { Button } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +22,12 @@ import { Empty, matches } from "./rows";
 const addressBarOptions: { id: AddressBar; label: string }[] = [
   { id: "sidebar", label: "Sidebar" },
   { id: "top", label: "Above Page" }
+];
+
+/** Where a link from another app can open, as the menu names each place. */
+const linksFromAppsOptions: { id: LinksFromApps; label: string }[] = [
+  { id: "miniWren", label: "Mini Wren" },
+  { id: "tab", label: "New Tab" }
 ];
 
 type Setting = { name: string; about: string; control: ReactNode };
@@ -54,6 +65,18 @@ export function Settings({ query, settings }: { query: string; settings: Library
       name: "Tabs",
       settings: [
         {
+          name: "Open URLs in",
+          about: "Open links from Mail, Messages and your other apps in a Mini Wren, or in a new tab of your window.",
+          control: (
+            <ChoiceMenu
+              options={linksFromAppsOptions}
+              chosen={values.linksFromApps}
+              byDefault={DEFAULT_LINKS_FROM_APPS}
+              onChoose={(linksFromApps) => update({ linksFromApps })}
+            />
+          )
+        },
+        {
           name: "Archive Tabs After",
           about: "Close tabs you haven’t pinned once they’ve gone unused this long.",
           control: (
@@ -66,9 +89,9 @@ export function Settings({ query, settings }: { query: string; settings: Library
           )
         },
         {
-          name: "Ask Before Moving to Another Profile",
+          name: "Ask Before Moving Tabs",
           about: "Ask before you move tabs to a space in another profile, where they open again without their history.",
-          control: toggle("Ask Before Moving to Another Profile", values.askBeforeProfileMove, (askBeforeProfileMove) =>
+          control: toggle("Ask Before Moving Tabs", values.askBeforeProfileMove, (askBeforeProfileMove) =>
             update({ askBeforeProfileMove })
           )
         }

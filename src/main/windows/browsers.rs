@@ -80,7 +80,7 @@ pub fn open_browser(
                 };
                 host(&state, &window, place, &browser);
                 then();
-                // Pages held for want of a Browser open now (show_page.rs).
+                // Tabs held for want of a Browser open now (held_tabs.rs).
                 windows::open_held(&state, mt);
             });
         }

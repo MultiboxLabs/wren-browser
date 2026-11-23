@@ -234,6 +234,7 @@ pub enum Setting {
     ArchiveAfter,
     AutomaticUpdates,
     BetaUpdates,
+    LinksFromApps,
     ShareUsageData,
 }
 

@@ -68,6 +68,9 @@ fn changed(change: &SettingsChange) -> Vec<(Setting, Value)> {
             .beta_updates
             .map(|on| (Setting::BetaUpdates, value(on))),
         change
+            .links_from_apps
+            .map(|opens_in| (Setting::LinksFromApps, value(opens_in))),
+        change
             .share_usage_data
             .map(|on| (Setting::ShareUsageData, value(on))),
     ]

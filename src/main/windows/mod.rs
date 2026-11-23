@@ -6,9 +6,12 @@
 //
 // - open.rs: opening windows;
 // - browsers.rs: where each Browser goes, and getting it into its window;
-// - open_urls.rs: the links macOS asks the app to open, in Mini Wren;
+// - open_urls.rs: the links macOS asks the app to open, in Mini Wren or in
+//   tabs, as Settings says;
 // - mini_wren/: Mini Wren, the window of a popup, a link from another app,
 //   or New Mini Wren, and moving its page to a tab;
+// - held_tabs.rs: pages to open in new tabs of the window the user browses
+//   in, held until it can;
 // - show_page.rs: the app's own pages a menu item shows, in tabs;
 // - switch.rs: switching a window between its spaces;
 // - move_tabs.rs: moving tabs from one of its spaces to another;
@@ -26,6 +29,7 @@
 mod browsers;
 mod close;
 mod devtools;
+mod held_tabs;
 mod list;
 pub mod mini_wren;
 mod move_tabs;
@@ -52,7 +56,6 @@ pub use request::{answer_request, fullscreen};
 pub use session::{forget, is_restoring, open_saved, restore_sessions, save, save_frame};
 use session::{is_left_by_closed_window, new_key, place_tagged};
 pub(crate) use session::{restore_finished, restore_started};
-use show_page::open_held_pages;
 pub use show_page::show_page;
 pub use switch::{
     cancel_new_space, foreground_requested, leave_gone_profiles, leave_gone_spaces, new_space,
@@ -90,14 +93,14 @@ pub fn update_title(state: &State, window: &BrowserWindow) {
     window.page.set_title(title.as_deref().unwrap_or("Wren"));
 }
 
-/// Opens the Mini Wren and the app's own pages held, if the app can now:
-/// not before startup opens the windows, nor while restoring.
+/// Opens the Mini Wren and the tabs held, if the app can now: not before
+/// startup opens the windows, nor while restoring.
 pub(super) fn open_held(state: &Rc<State>, mt: MainThread) {
     if state.ui_profile.borrow().is_none() || is_restoring(state) {
         return;
     }
     mini_wren::open_held(state, mt);
-    open_held_pages(state, mt);
+    held_tabs::open_held(state, mt);
 }
 
 /// The window the user browses in, or else the newest other, that

@@ -4,6 +4,9 @@ export type ArchiveAfter = "12h" | "24h" | "7d" | "30d";
 /** Where the page's address shows: atop the sidebar, or atop the page. */
 export type AddressBar = "sidebar" | "top";
 
+/** Where a link from another app opens: in a Mini Wren of its own, or in a new tab of the window in front. */
+export type LinksFromApps = "miniWren" | "tab";
+
 /** The app's release channel, the build's own. */
 export type Channel = "stable" | "beta" | "dev";
 
@@ -32,6 +35,8 @@ export type Settings = {
   addressBar: AddressBar;
   /** Wren asks before tabs go to another profile's space, where they are made again without their history. */
   askBeforeProfileMove: boolean;
+  /** Where a link from another app opens. */
+  linksFromApps: LinksFromApps;
 };
 
 export const settings = {

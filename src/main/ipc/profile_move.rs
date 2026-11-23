@@ -4,7 +4,7 @@
 // (windows/mini_wren/as_tab.rs). The page of the window it happens in asks
 // ("profileMove.ask", components/profile-move-dialog.tsx), and the move
 // waits for its answer ("profileMove.answer"), unless the user said not to
-// ask, which Settings' Ask Before Moving to Another Profile turns back on.
+// ask, which Settings' Ask Before Moving Tabs turns back on.
 // src/renderer/ipc/profile-move.ts is the page's side.
 
 use std::cell::RefCell;
