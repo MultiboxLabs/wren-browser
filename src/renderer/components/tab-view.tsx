@@ -102,7 +102,9 @@ export function TabView({
   }
 
   return (
-    <div ref={box} className="relative flex min-h-0 min-w-0 flex-1">
+    // `isolate` keeps the peek's layers (`z-1` to `z-3`) ordered among the
+    // tabs alone, under what is over the window, such as a download's badge.
+    <div ref={box} className="relative isolate flex min-h-0 min-w-0 flex-1">
       {tabIds.map((id) => {
         const inFront = id === shownPeek?.tab;
         const visible = fullScreen
