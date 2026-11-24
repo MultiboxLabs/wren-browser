@@ -14,3 +14,16 @@
   background: rgb(255 255 255 / 0.12);
   box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.28);
 }
+
+/* The tab's card, drawn over the tabs in the middle of the half: solid black
+   with white text, or white with black text on a light window, with none of
+   the space's tint a page's card (card.css) and the window's text have, so it
+   reads as a card of its own over the half. */
+.split-drop-card {
+  background: black;
+  color: white;
+}
+:root[data-scheme="light"] .split-drop-card {
+  background: white;
+  color: black;
+}

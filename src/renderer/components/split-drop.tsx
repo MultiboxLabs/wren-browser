@@ -253,8 +253,8 @@ function HalfLayer({ preview, halfOf, layer }: { preview: SplitPreview; halfOf: 
       )}
     >
       {layer === "card" && (
-        <div className="flex w-32 flex-col items-center gap-2.5 rounded-xl bg-card px-3 py-10 text-center shadow-lg">
-          <Favicon url={preview.face.url} icon={preview.face.favicon} size={20} />
+        <div className="split-drop-card flex w-40 flex-col items-center gap-3 rounded-2xl px-3.5 py-12 text-center shadow-lg">
+          <Favicon url={preview.face.url} icon={preview.face.favicon} size={24} />
           <span className="line-clamp-2 w-full text-ui font-semibold wrap-break-word">{preview.face.title}</span>
         </div>
       )}
