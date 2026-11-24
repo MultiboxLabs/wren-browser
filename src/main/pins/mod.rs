@@ -268,18 +268,19 @@ pub fn open(state: &State, browser: &Browser, place: &Place, id: PinId) -> Resul
     Ok(())
 }
 
-/// Makes tab pin `id` a split of its page and `tab`'s, `tab` on `side` (0:
-/// first), side by side, as a tab of the list dropped on half of the pin's
-/// row does: `tab` leaves the list, and the two open as the pin's split,
-/// where the pin is kept. An unopened pin opens first. The pin dropped on
-/// half of the tab's row goes to the list instead (`split_in_list`).
+/// Makes tab pin `id` a split of its page and `tab`'s, `tab` in `half` of
+/// it, as a tab of the list dropped on half of the pin's row, or on an edge
+/// of its page, does: `tab` leaves the list, and the two open as the pin's
+/// split, where the pin is kept. An unopened pin opens first. The pin
+/// dropped on half of the tab's row goes to the list instead
+/// (`split_in_list`).
 pub fn split_with(
     state: &State,
     browser: &Browser,
     place: &Place,
     id: PinId,
     tab: BrowserTab,
-    side: usize,
+    half: tabs::SplitHalf,
 ) -> Result<(), String> {
     if !matches!(pin_for(state, place, id)?.kind, PinKind::Tab(_)) {
         return Err("Only a tab pin makes a split with a tab.".into());
@@ -297,14 +298,14 @@ pub fn split_with(
     if tab.state().is_ok_and(|state| state.split.is_some()) {
         unsplit(tab)?;
     }
-    state.db.tab_to_split(id, side, &page)?;
-    let sides = match side {
-        0 => vec![(tab, page), (own, own_page)],
-        _ => vec![(own, own_page), (tab, page)],
-    };
+    state
+        .db
+        .tab_to_split(id, half.index, pin_layout(half.layout), &page)?;
+    let (first, second) = half.order((tab, page), (own, own_page));
+    let sides = vec![first, second];
     // Should the two not make a split, the pin's tabs are no longer whole,
     // and it becomes a tab pin again as it is settled (settle.rs).
-    let split = Some((SplitLayout::SideBySide, 0.5));
+    let split = Some((half.layout, 0.5));
     let linked = open::link(state, browser, id, sides, split);
     crate::ipc::broadcast_pins(state);
     linked.map_err(failed)?;
@@ -671,9 +672,10 @@ pub fn to_list(
 }
 
 /// Makes tab pin `id` an ordinary tab of the list in a split with `tab`, a
-/// tab of the list alone, the pin's page on `side` (0: first), and removes
-/// the pin, as the pin dropped on half of the tab's row does: it goes where
-/// it is dropped. It lands as `to_list` puts it, beside `tab`.
+/// tab of the list alone, the pin's page in `half` of it, and removes the
+/// pin, as the pin dropped on half of the tab's row, or on an edge of its
+/// page, does: it goes where it is dropped. It lands as `to_list` puts it,
+/// beside `tab`.
 pub fn split_in_list(
     state: &State,
     mt: MainThread,
@@ -681,7 +683,7 @@ pub fn split_in_list(
     place: &Place,
     id: PinId,
     tab: BrowserTab,
-    side: usize,
+    half: tabs::SplitHalf,
 ) -> Result<(), String> {
     let now = tab.state().map_err(failed)?;
     if now.split.is_some() {
@@ -690,15 +692,16 @@ pub fn split_in_list(
     let index = tabs::listed(browser).iter().position(|each| *each == tab);
     let index = index.ok_or("That tab is not in the list.")?;
     let own = tab_pin_to_list(state, mt, browser, place, id, index, now.group)?;
-    let (first, second) = if side == 0 { (own, tab) } else { (tab, own) };
-    tabs::split(first, second).map_err(failed)
+    let (first, second) = half.order(own, tab);
+    tabs::split(first, second, half.layout).map_err(failed)
 }
 
-/// Makes tab pin `target` a split pin with the page of tab pin `id`, on
-/// `side` (0: first), and removes `id`, as `id` dropped on half of
-/// `target`'s row does: it goes where it is dropped, and `target` keeps its
-/// place and name. `id` comes to the list first, from any space (`to_list`),
-/// and `target` takes its tab from there (`split_with`).
+/// Makes tab pin `target` a split pin with the page of tab pin `id`, in
+/// `half` of it, and removes `id`, as `id` dropped on half of `target`'s
+/// row, or on an edge of its page, does: it goes where it is dropped, and
+/// `target` keeps its place and name. `id` comes to the list first, from
+/// any space (`to_list`), and `target` takes its tab from there
+/// (`split_with`).
 pub fn split_pins(
     state: &State,
     mt: MainThread,
@@ -706,7 +709,7 @@ pub fn split_pins(
     place: &Place,
     id: PinId,
     target: PinId,
-    side: usize,
+    half: tabs::SplitHalf,
 ) -> Result<(), String> {
     if id == target {
         return Err("A pin makes no split with itself.".into());
@@ -715,7 +718,7 @@ pub fn split_pins(
         return Err("Only a tab pin makes a split.".into());
     }
     let own = tab_pin_to_list(state, mt, browser, place, id, 0, None)?;
-    split_with(state, browser, place, target, own, side)
+    split_with(state, browser, place, target, own, half)
 }
 
 // Closes the tabs of `pins` in every Browser `closes` picks, each pin's

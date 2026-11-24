@@ -19,7 +19,7 @@
 // and favourites stay in their window. The app renews the tokens once the
 // drag ends, wherever it was dropped.
 
-import type { CSSProperties, DragEvent, PointerEvent } from "react";
+import { type CSSProperties, type DragEvent, type PointerEvent, useSyncExternalStore } from "react";
 import { hasApp, type ItemRef, items as itemCalls, type MovingRef } from "@/ipc";
 import { useReadTabs } from "@/state/browser";
 import { type Item, itemKey, type ItemType } from "@/state/items";
@@ -34,6 +34,9 @@ import { useMarking } from "./marking";
  * marked together, of the list or of the pins.
  */
 export type ItemKind = "tab" | "split" | "tabs" | "group" | "folder";
+
+/** What a lone tab shows of itself as it is dragged, as its row does. */
+export type TabFace = { title: string; url: string; favicon: string | null };
 
 /** What this window's page is dragging. */
 export type Carried = {
@@ -55,6 +58,8 @@ export type Carried = {
   element: HTMLElement;
   /** Its element is a holdout, a row drawn out of its folded section or folder (folding.tsx), not where it is. */
   holdout: boolean;
+  /** A lone tab's face, as it was picked up, for what draws it away from its row (split-drop.tsx); null for anything else. */
+  face: TabFace | null;
 };
 
 /**
@@ -89,17 +94,33 @@ const TYPES: ItemType[] = ["normal", "pinned", "favorite"];
 
 // The item this window's page is dragging, until the drag ends: a drag says
 // only what it carries once it is dropped, and where it would land depends
-// on it.
+// on it. What reads it with `useCarried` hears as it changes.
 let carried: Carried | null = null;
+const carriedListeners = new Set<() => void>();
+
+function setCarried(next: Carried | null) {
+  carried = next;
+  for (const listener of carriedListeners) listener();
+}
 
 // Keeps `mine` as what is carried until its drag ends (drag-hold.ts), then
 // has the app renew its tokens.
 function carry(mine: Carried) {
-  carried = mine;
+  setCarried(mine);
   whenDragEnds(() => {
-    if (carried === mine) carried = null;
+    if (carried === mine) setCarried(null);
     if (hasApp && mine.tokens.length) itemCalls.dragEnded(mine.tokens).catch(() => {});
   });
+}
+
+function subscribeCarried(listener: () => void) {
+  carriedListeners.add(listener);
+  return () => void carriedListeners.delete(listener);
+}
+
+/** What this window's page is dragging now, drawn again as a drag starts and ends. */
+export function useCarried() {
+  return useSyncExternalStore(subscribeCarried, () => carried);
 }
 
 /** The kind an item moves as. */
@@ -226,6 +247,18 @@ export function useItemDrag() {
     });
     return tokens.every((token) => !!token) ? (tokens as string[]) : null;
   };
+  // A lone tab's title and icon, as its row draws them: its Chromium tab's,
+  // or else its kept page's.
+  const faceOf = (item: Item): TabFace | null => {
+    if (item.kind !== "tab" || item.sides.length !== 1) return null;
+    const [{ tab: id, page }] = item.sides;
+    const tab = id === null ? undefined : readTabs().tabs.find((each) => each.id === id);
+    return {
+      title: item.name || tab?.title || page?.title || "",
+      url: tab?.url ?? page?.url ?? "",
+      favicon: tab?.favicon ?? page?.favicon ?? null
+    };
+  };
   return (item: Item, { renaming = false, holdout = false } = {}) => {
     const kind = kindOf(item);
     const type = typeOf(item);
@@ -265,7 +298,8 @@ export function useItemDrag() {
           space,
           grab: event.clientX - box.left,
           element,
-          holdout
+          holdout,
+          face: together.length ? null : faceOf(item)
         };
         const data = event.dataTransfer;
         data.effectAllowed = "move";

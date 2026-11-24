@@ -79,6 +79,14 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         })
     });
 
+    // The tab used last before another, or null for none (`tabs::used_before`).
+    let weak = window.clone();
+    let _ = web_view.handle("tabs.usedBefore", move |id: i32| {
+        with_browser(&weak, |_, browser| {
+            Ok(tabs::used_before(browser, tab(mt, browser, id)?).map(BrowserTab::id))
+        })
+    });
+
     let weak = window.clone();
     let _ = web_view.handle("tabs.activate", move |id: i32| {
         with_browser(&weak, |_, browser| {

@@ -28,13 +28,13 @@ pub use crossing::{Crossing, crossing, page_crossing};
 use std::rc::Rc;
 
 use serde::Deserialize;
-use wren::{Browser, BrowserTab, MainThread, TabGroup};
+use wren::{Browser, BrowserTab, MainThread, SplitLayout, TabGroup};
 
 use crate::analytics::{self, Event, SplitFrom, TabFrom};
 use crate::app::State;
 use crate::db::{PinId, SpaceId};
 use crate::pins::{self, PinTarget};
-use crate::tabs;
+use crate::tabs::{self, SplitHalf};
 use crate::windows::{self, Place, WindowId};
 
 /// An item, as the page names it: a tab of the list, which stands for its
@@ -98,26 +98,32 @@ pub enum Target {
     /// In the list, its first tab at `index` among the list's tabs
     /// (`tabs::listed`), in the group of the ID `group`, or in none.
     Tabs { group: Option<String>, index: usize },
-    /// On `side` of the row of another tab, to make a split with it.
+    /// On `side` of another tab, to make a split with it: of its row, or
+    /// of its page.
     Split { with: ItemRef, side: Side },
 }
 
-/// The half of a row a tab is dropped on.
+/// The side of another tab a tab is dropped on: a half of its row, or an
+/// edge of its page, which a split can stack it above or below.
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Side {
     Left,
     Right,
+    Top,
+    Bottom,
 }
 
 impl Side {
-    // The half of a split it makes the tab dropped on it, as pins/ counts
-    // them: 0 the first.
-    fn index(self) -> usize {
-        match self {
-            Side::Left => 0,
-            Side::Right => 1,
-        }
+    // The half of the split it makes that the tab dropped on it takes.
+    fn half(self) -> SplitHalf {
+        let (index, layout) = match self {
+            Side::Left => (0, SplitLayout::SideBySide),
+            Side::Right => (1, SplitLayout::SideBySide),
+            Side::Top => (0, SplitLayout::Stacked),
+            Side::Bottom => (1, SplitLayout::Stacked),
+        };
+        SplitHalf { index, layout }
     }
 }
 
@@ -281,7 +287,7 @@ fn move_pin(
             let found = state.windows.get(window).ok_or("The window is closing.")?;
             let browser = found.browser_of(&place).ok_or("There is no such tab.")?;
             let tab = tab_of(mt, &browser, with)?;
-            pins::split_in_list(state, mt, &browser, &place, id, tab, side.index())?;
+            pins::split_in_list(state, mt, &browser, &place, id, tab, side.half())?;
             Ok(Moved::Split { pin: true })
         })()),
         Target::Split {
@@ -291,7 +297,7 @@ fn move_pin(
             let (inner, to) = (state.clone(), place.clone());
             windows::with_browser_of(state, mt, window, place, move |browser| {
                 done(browser.and_then(|browser| {
-                    pins::split_pins(&inner, mt, &browser, &to, id, with, side.index())?;
+                    pins::split_pins(&inner, mt, &browser, &to, id, with, side.half())?;
                     Ok(Moved::Split { pin: true })
                 }));
             });
@@ -466,19 +472,16 @@ fn land(
             with: ItemRef::Tab(with),
             side,
         } => {
-            let with = tab_of(mt, browser, with)?;
-            let (first, second) = match side {
-                Side::Left => (tab, with),
-                Side::Right => (with, tab),
-            };
-            tabs::split(first, second).map_err(failed)?;
+            let half = side.half();
+            let (first, second) = half.order(tab, tab_of(mt, browser, with)?);
+            tabs::split(first, second, half.layout).map_err(failed)?;
             Ok(Moved::Split { pin: false })
         }
         Target::Split {
             with: ItemRef::Pin(with),
             side,
         } => {
-            pins::split_with(state, browser, place, with, tab, side.index())?;
+            pins::split_with(state, browser, place, with, tab, side.half())?;
             Ok(Moved::Split { pin: true })
         }
         Target::Split {

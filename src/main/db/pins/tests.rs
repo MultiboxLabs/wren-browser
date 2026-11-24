@@ -479,12 +479,13 @@ fn a_name_can_be_cleared_except_a_folders() {
 }
 
 #[test]
-fn a_tab_becomes_a_split_with_a_page_on_either_side() {
+fn a_tab_becomes_a_split_with_a_page_on_either_side_in_either_layout() {
     let db = db();
     let space = space(&db, "a");
-    for side in [0, 1] {
+    for (side, made) in [(0, PinLayout::SideBySide), (1, PinLayout::Stacked)] {
         let id = db.create_pin(&top(space), None, tab("https://a/")).unwrap();
-        db.tab_to_split(id, side, &page("https://b/")).unwrap();
+        db.tab_to_split(id, side, made, &page("https://b/"))
+            .unwrap();
         let (_, _, pin) = db.pin(id).unwrap().unwrap();
         let PinKind::Split {
             first,
@@ -498,7 +499,7 @@ fn a_tab_becomes_a_split_with_a_page_on_either_side() {
         let urls = [first.url, second.url];
         assert_eq!(urls[side], "https://b/");
         assert_eq!(urls[1 - side], "https://a/");
-        assert_eq!((layout, ratio), (PinLayout::SideBySide, 0.5));
-        assert!(db.tab_to_split(id, 0, &page("https://c/")).is_err());
+        assert_eq!((layout, ratio), (made, 0.5));
+        assert!(db.tab_to_split(id, 0, made, &page("https://c/")).is_err());
     }
 }

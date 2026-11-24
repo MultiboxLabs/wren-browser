@@ -180,7 +180,7 @@ pub enum PinKind {
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SplitFrom {
-    /// A tab dropped on another.
+    /// A tab dropped on another, on its row or on an edge of its page.
     Tabs,
     /// A tab of the list joined to a pin.
     Pin,

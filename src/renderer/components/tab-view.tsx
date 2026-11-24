@@ -9,23 +9,19 @@
 // were active and darkened, as a card inset in its box, with its buttons
 // beside it (peek/peek.tsx). A hidden peek keeps its card's size, and the
 // tabs behind it stay darkened, so a peek switched back to shows as it was.
+// A tab dragged from the sidebar to an edge of the page shows the split a
+// drop would make (split-drop.tsx): the page takes the other half, at its
+// own size, clipped, and the dragged tab's half is drawn beside it.
 
-import {
-  type CSSProperties,
-  memo,
-  type Ref,
-  type RefObject,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState
-} from "react";
+import { type CSSProperties, memo, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PageAddressBar } from "./address/page-bar";
 import { FindBar } from "./find-bar";
 import { LinkStatus } from "./link-status";
 import { LoadingBar } from "./loading-bar";
 import { LoadingLine } from "./loading-line";
 import { PEEK_FRAME, PeekCover } from "./peek/peek";
+import { DropHalf, type DropSide, type HalfOf, SplitDrop, useSplitPreview } from "./split-drop";
+import { keptPage, useDropFrame } from "./split-drop-frame";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { appWindow, browser, type BrowserTab, hasApp, type Peek, splits, type TabSplit } from "@/ipc";
@@ -36,8 +32,10 @@ import { cn } from "@/utils/cn";
 
 /** An edge of a card that meets another card, whose corners are square (card.css). */
 type Edge = "left" | "right" | "top" | "bottom";
+/** A side of a split: the first, left or top, or the second. */
+type Half = "first" | "second";
 /** A tab's place in its split. */
-type SplitPlace = { split: TabSplit; side: "first" | "second" };
+type SplitPlace = { split: TabSplit; side: Half };
 /** How a visible slot frames its page. */
 type Surface = "card" | "fullScreen" | "bare";
 
@@ -86,12 +84,21 @@ export function TabView({
   const peekCanvas = useRef<HTMLCanvasElement>(null);
   const shownSplit = !fullScreen && !bare ? split : undefined;
   const shownPeek = !fullScreen && !bare ? peek : undefined;
+  // The split a tab dragged over the page would make with it.
+  const splitPreview = useSplitPreview(shownSplit !== undefined);
+  const { preview } = splitPreview;
   // The tab laid out as the window's: the active one, or the one behind its peek.
   const laidOut = shownPeek?.behind ?? active;
   const shownRatio = shownSplit && dragged?.split === shownSplit.id ? dragged.ratio : shownSplit?.ratio;
   // The edges of the whole box that meet another card, as a lone tab's
   // card's would: the peek's card, opening out to fill it, takes its look.
-  const boxJoin = !margins ? joinEdges(undefined, besidePanel) : undefined;
+  const boxJoin = !margins ? joinEdges(undefined, false, besidePanel) : undefined;
+  // The dropped tab's half of a split, with the corners that meet the other
+  // square without margins.
+  const halfOf: HalfOf = (side) => {
+    const { half, stacked } = droppedHalf(side);
+    return { style: halfInsets(half, stacked), join: !margins ? joinEdges(half, stacked, besidePanel) : undefined };
+  };
 
   useFocusActiveTab(active, !bare && !omniboxOpen);
 
@@ -108,7 +115,10 @@ export function TabView({
   return (
     // `isolate` keeps the peek's layers (`z-1` to `z-3`) ordered among the
     // tabs alone, under what is over the window, such as a download's badge.
-    <div ref={box} className="relative isolate flex min-h-0 min-w-0 flex-1">
+    // A size container, whose size a page keeps in a half (split-drop-frame.ts).
+    <div ref={box} className="relative isolate flex min-h-0 min-w-0 flex-1 [container-type:size]">
+      {/* Under the tabs, as the page's frame slides over it. */}
+      <DropHalf preview={preview} halfOf={halfOf} layer="hole" />
       {tabIds.map((id) => {
         const inFront = id === shownPeek?.tab;
         const visible = fullScreen
@@ -118,6 +128,10 @@ export function TabView({
         // A peek's card, hidden too, but not a peek in full screen, which has the window.
         const asPeek = !inFullScreen && peekTabs.has(id);
         const tabSplit = inFullScreen || asPeek ? undefined : splitByTab.get(id);
+        // The page a dragged tab would split with, in the other half.
+        const dropped = preview?.tab === id && visible && !tabSplit ? droppedHalf(preview.side) : undefined;
+        const dropHalf: Half | undefined = dropped && (dropped.half === "first" ? "second" : "first");
+        const stacked = tabSplit?.split.stacked ?? dropped?.stacked ?? false;
         const ratio = tabSplit
           ? dragged?.split === tabSplit.split.id
             ? dragged.ratio
@@ -125,7 +139,10 @@ export function TabView({
           : undefined;
         const surface: Surface = inFullScreen ? "fullScreen" : bare ? "bare" : "card";
         const bar = surface === "card" && setting === "top";
-        const join = visible && surface === "card" && !margins ? joinEdges(tabSplit, besidePanel) : undefined;
+        const join =
+          visible && surface === "card" && !margins
+            ? joinEdges(tabSplit?.side ?? dropHalf, stacked, besidePanel)
+            : undefined;
         return (
           <TabSlot
             key={id}
@@ -140,8 +157,9 @@ export function TabView({
             bar={bar}
             join={join}
             splitSide={tabSplit?.side}
-            splitStacked={tabSplit?.split.stacked ?? false}
+            splitStacked={stacked}
             splitRatio={ratio}
+            dropHalf={dropHalf}
             onOpenLocation={visible && bar ? onOpenLocation : undefined}
           />
         );
@@ -170,6 +188,18 @@ export function TabView({
           canvas={peekCanvas}
         />
       )}
+      {/* While a tab is dragged from the sidebar, over the page it would
+          split with: not a page already in a split, which has no third
+          side, nor a peek, nor one in full screen or a Mini Wren's. */}
+      {active !== null && !fullScreen && !bare && !shownSplit && !shownPeek && (
+        <SplitDrop
+          tab={active}
+          shown={preview?.tab === active ? preview.side : null}
+          onPreview={splitPreview.show}
+          onLand={splitPreview.land}
+        />
+      )}
+      <DropHalf preview={preview} halfOf={halfOf} layer="card" />
       {active === null && <div className={cn("no-drag absolute inset-0", bare ? "bg-card" : "card empty")} />}
     </div>
   );
@@ -210,15 +240,25 @@ function peekPlaces(
   return { peekTabs, peekBehind };
 }
 
-// The card edges that meet another card (split neighbour or side panel),
-// square only when Window Margins is off (card.css).
-function joinEdges(tabSplit: SplitPlace | undefined, besidePanel: boolean): string | undefined {
+// The half of a split a tab dropped on `side` of a page takes, and whether
+// the split is stacked: the left or the top is the first.
+function droppedHalf(side: DropSide): { half: Half; stacked: boolean } {
+  return {
+    half: side === "left" || side === "top" ? "first" : "second",
+    stacked: side === "top" || side === "bottom"
+  };
+}
+
+// The card edges of a card on `half` of a split, or of a lone one, that meet
+// another card (the split's other half or the side panel), square only when
+// Window Margins is off (card.css).
+function joinEdges(half: Half | undefined, stacked: boolean, besidePanel: boolean): string | undefined {
   const edges: Edge[] = [];
-  if (tabSplit) {
-    if (tabSplit.split.stacked) {
-      edges.push(tabSplit.side === "first" ? "bottom" : "top");
+  if (half) {
+    if (stacked) {
+      edges.push(half === "first" ? "bottom" : "top");
       if (besidePanel) edges.push("right");
-    } else if (tabSplit.side === "first") {
+    } else if (half === "first") {
       edges.push("right");
     } else {
       edges.push("left");
@@ -235,11 +275,18 @@ function splitExtent(ratio: number) {
   return `round(nearest, calc((100% - ${DIVIDER}px) * ${ratio}), 1px)`;
 }
 
-function slotStyle(
-  side: "first" | "second" | undefined,
-  stacked: boolean,
-  ratio: number | undefined
-): CSSProperties | undefined {
+// An even split's half as insets from the box's sides, the same box as
+// `slotStyle`'s, which a frame slides between (split-drop-frame.ts).
+function halfInsets(half: Half, stacked: boolean): CSSProperties {
+  const first = splitExtent(0.5);
+  const [start, end] = stacked ? (["top", "bottom"] as const) : (["left", "right"] as const);
+  const across = stacked ? { left: 0, right: 0 } : { top: 0, bottom: 0 };
+  return half === "first"
+    ? { ...across, [start]: 0, [end]: `calc(100% - ${first})` }
+    : { ...across, [start]: `calc(${first} + ${DIVIDER}px)`, [end]: 0 };
+}
+
+function slotStyle(side: Half | undefined, stacked: boolean, ratio: number | undefined): CSSProperties | undefined {
   if (!side || ratio === undefined) return undefined;
   const first = splitExtent(ratio);
   const second = `calc(100% - ${DIVIDER}px - ${first})`;
@@ -319,6 +366,7 @@ const TabSlot = memo(function TabSlot({
   splitSide,
   splitStacked,
   splitRatio,
+  dropHalf,
   onOpenLocation
 }: {
   id: number;
@@ -330,7 +378,7 @@ const TabSlot = memo(function TabSlot({
   /** Where it sits in the box when not in a split, if not filling it: a peek's card, hidden or not. */
   frame?: CSSProperties;
   /** The slot's element: a peek's, which its cover moves. */
-  slotRef?: Ref<HTMLDivElement>;
+  slotRef?: RefObject<HTMLDivElement | null>;
   /** The active tab's, which the find bar is on. */
   active: boolean;
   surface: Surface;
@@ -338,17 +386,29 @@ const TabSlot = memo(function TabSlot({
   bar: boolean;
   /** The card's edges that meet another card: the split's other side, or the side panel. */
   join?: string;
-  splitSide?: "first" | "second";
+  splitSide?: Half;
   splitStacked: boolean;
   splitRatio?: number;
+  /** The half it takes in the split a dragged tab would make with it (split-drop.tsx), stacked as `splitStacked` says. */
+  dropHalf?: Half;
   /** With it, the page has its address bar atop it, whose address opens this. */
   onOpenLocation?: () => void;
 }) {
-  const style = slotStyle(splitSide, splitStacked, splitRatio) ?? frame;
+  const ownSlot = useRef<HTMLDivElement>(null);
+  const slot = slotRef ?? ownSlot;
+  // Its page keeps its size as its frame slides into its half and back,
+  // clipped there, so it is not laid out again.
+  const keepsSize = useDropFrame(
+    slot,
+    dropHalf && `${dropHalf}-${splitStacked ? "stacked" : "side-by-side"}`,
+    splitSide !== undefined
+  );
+  const style =
+    (dropHalf ? halfInsets(dropHalf, splitStacked) : slotStyle(splitSide, splitStacked, splitRatio)) ?? frame;
   const frameClass = hidden ? "" : surface === "fullScreen" ? "bg-black" : surface === "bare" ? "bg-card" : "card";
   return (
     <div
-      ref={slotRef}
+      ref={slot}
       style={style}
       data-behind-peek={behindPeek}
       className={cn(
@@ -384,6 +444,7 @@ const TabSlot = memo(function TabSlot({
         <div
           // A peek's, which keeps its size as its frame grows round it (peek/motion.ts).
           data-peek-page={inFront ? "" : undefined}
+          style={keepsSize ? keptPage(bar) : undefined}
           className={cn("relative min-h-0 flex-1", bar ? "rounded-b-[inherit]" : "rounded-[inherit]")}
         >
           {/* Its colour until it draws (card.css), a peek's its own (peek/peek.css). */}

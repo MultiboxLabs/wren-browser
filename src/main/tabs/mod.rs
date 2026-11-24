@@ -109,6 +109,19 @@ pub fn last_active_in(state: &TabState) -> SystemTime {
         .map_or_else(SystemTime::now, |ms| UNIX_EPOCH + Duration::from_millis(ms))
 }
 
+/// The tab of `browser` used last before `tab`, of those the window shows as
+/// tabs (of the list or a pin's, not a peek or the placeholder): what a
+/// drag of `tab` over the page goes back to, to split with (split-drop.tsx
+/// in the page). None if `tab` is the only one. By Chromium's own time, not
+/// `last_active`'s: one it has none for is the oldest here, not in use now.
+pub fn used_before(browser: &Browser, tab: BrowserTab) -> Option<BrowserTab> {
+    browser
+        .tabs()
+        .into_iter()
+        .filter(|each| *each != tab && (roles::is_listed(*each) || roles::pin_of(*each).is_some()))
+        .max_by_key(|each| each.state().map_or(0, |state| state.last_active_ms))
+}
+
 /// A tab on `url`, at the top of the list, as the sidebar shows new tabs.
 /// `from` says who asked, where a person did, and is counted.
 pub fn open(
@@ -357,10 +370,30 @@ pub fn add_at(
     Ok(tab)
 }
 
-/// Shows `first` and `second` side by side, in a split of their own. Chromium
-/// puts them next to each other, in `first`'s group.
-pub fn split(first: BrowserTab, second: BrowserTab) -> Result<(), Error> {
-    first.split_with(second, SplitLayout::SideBySide).map(drop)
+/// Which half of a split a tab takes, and how the split lays out its two.
+#[derive(Clone, Copy, Debug)]
+pub struct SplitHalf {
+    /// 0 the first, at the left or the top; 1 the second.
+    pub index: usize,
+    pub layout: SplitLayout,
+}
+
+impl SplitHalf {
+    /// `taking`, which takes this half, and `other`, in the split's order.
+    pub fn order<T>(self, taking: T, other: T) -> (T, T) {
+        if self.index == 0 {
+            (taking, other)
+        } else {
+            (other, taking)
+        }
+    }
+}
+
+/// Shows `first` and `second` in a split of their own, side by side or
+/// stacked, as `layout` says, `first` at the left or top. Chromium puts them
+/// next to each other, in `first`'s group.
+pub fn split(first: BrowserTab, second: BrowserTab, layout: SplitLayout) -> Result<(), Error> {
+    first.split_with(second, layout).map(drop)
 }
 
 /// Moves a tab to `to` among the listed tabs, into `group` (None: out of

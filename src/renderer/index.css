@@ -458,6 +458,7 @@ body,
 @import "./components/link-status.css";
 @import "./components/card.css";
 @import "./components/peek/peek.css";
+@import "./components/split-drop.css";
 @import "./components/loading-bar.css";
 @import "./components/loading-line.css";
 @import "./components/ui/toast.css";

@@ -19,6 +19,8 @@ export const browser = {
   /** Puts the active tab's address on the clipboard. */
   copyLink: () => wren.invoke<null>("tabs.copyLink"),
   activate: (id: number) => wren.invoke<null>("tabs.activate", id),
+  /** The tab used last before tab `id`, of those shown as tabs, not a peek; null if it is the only one. */
+  usedBefore: (id: number) => wren.invoke<number | null>("tabs.usedBefore", id),
   /** A picture of the tab's page as the app has it now: the ID it is served at (`previewUrl`), or null for none. One that may be out of date, or none, is taken again, and `onPreviewChanged` says once it is. */
   preview: (id: number) => wren.invoke<string | null>("tabs.preview", id),
   /** A new picture of a tab's page, taken as `preview` asked. */

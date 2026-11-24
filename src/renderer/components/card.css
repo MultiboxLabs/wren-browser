@@ -74,23 +74,24 @@
    side-panel.tsx), so they read as one page in parts, with an edge line but no
    shadow between them; with margins, each card stands apart, rounded, with its
    shadow all round. `data-join` lists the edges that meet another card, and
-   is set only without margins. */
-.card[data-join~="right"] {
+   is set only without margins. The half a dragged tab would take in a split
+   (split-drop.css) has a card's corners too. */
+:is(.card, .split-drop-half)[data-join~="right"] {
   --clip-right: calc(var(--card-edge-width) * -1);
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
-.card[data-join~="left"] {
+:is(.card, .split-drop-half)[data-join~="left"] {
   --clip-left: calc(var(--card-edge-width) * -1);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
-.card[data-join~="bottom"] {
+:is(.card, .split-drop-half)[data-join~="bottom"] {
   --clip-bottom: calc(var(--card-edge-width) * -1);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
-.card[data-join~="top"] {
+:is(.card, .split-drop-half)[data-join~="top"] {
   --clip-top: calc(var(--card-edge-width) * -1);
   border-top-left-radius: 0;
   border-top-right-radius: 0;

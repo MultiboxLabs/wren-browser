@@ -28,8 +28,12 @@ export type ItemPlace =
   | { to: "pinned"; folder: number | null; index: number | null }
   /** In the list, its first tab at `index` among the list's tabs, in the group of the ID `group`, or in none. */
   | { to: "tabs"; group: string | null; index: number }
-  /** On `side` of the row of another tab, to make a split with it: of a pinned tab's, or of a tab of the list's. */
-  | { to: "split"; with: ItemRef; side: "left" | "right" };
+  /**
+   * On `side` of another tab, a pinned tab or a tab of the list, to make a
+   * split with it: a half of its row, or an edge of its page, where it is
+   * stacked above or below it.
+   */
+  | { to: "split"; with: ItemRef; side: "left" | "right" | "top" | "bottom" };
 
 /** Where an item goes: a place in the sidebar of `space`, or of the window's own if it is null, as on a profile. */
 export type Destination = { space: number | null } & ItemPlace;

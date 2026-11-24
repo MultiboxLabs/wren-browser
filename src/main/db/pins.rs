@@ -425,14 +425,20 @@ impl Db {
     }
 
     /// Makes a tab pin a split of its page and `page`, on `side` of it (0:
-    /// first), side by side and even.
-    pub fn tab_to_split(&self, id: PinId, side: usize, page: &PinPage) -> Result<(), String> {
+    /// first), laid out as `layout` says, and even.
+    pub fn tab_to_split(
+        &self,
+        id: PinId,
+        side: usize,
+        layout: PinLayout,
+        page: &PinPage,
+    ) -> Result<(), String> {
         let transaction = self.conn.unchecked_transaction().map_err(sql)?;
         let changed = transaction
             .execute(
-                "UPDATE pins SET kind = 'split', layout = 'side-by-side', ratio = 0.5
+                "UPDATE pins SET kind = 'split', layout = ?2, ratio = 0.5
                  WHERE id = ?1 AND kind = 'tab'",
-                [id],
+                params![id, layout.text()],
             )
             .map_err(sql)?;
         if changed == 0 {
