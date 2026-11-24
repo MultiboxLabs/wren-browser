@@ -50,7 +50,7 @@ export function PageAddressBar({
       onPointerDownCapture={(event) => {
         if (!(event.target instanceof Node && close.current?.contains(event.target))) void activate().catch(() => {});
       }}
-      className="drag flex h-9 shrink-0 items-center gap-1 border-b border-page-bar-edge bg-page-bar px-1.5"
+      className="drag flex h-page-bar shrink-0 items-center gap-1 border-b border-page-bar-edge bg-page-bar px-1.5"
     >
       {/* Its two sides as wide, so the host is in the bar's middle while
           both have room. */}

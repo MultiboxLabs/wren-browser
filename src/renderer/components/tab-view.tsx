@@ -434,7 +434,7 @@ const TabSlot = memo(function TabSlot({
       >
         {bar &&
           (hidden ? (
-            <div className="h-9 shrink-0" />
+            <div className="h-page-bar shrink-0" />
           ) : (
             onOpenLocation && (
               <TabAddressBar id={id} active={active} split={splitSide !== undefined} onOpenLocation={onOpenLocation} />
@@ -481,7 +481,7 @@ function TabAddressBar({
   return tab ? (
     <PageAddressBar tab={tab} active={active} split={split} onOpenLocation={onOpenLocation} />
   ) : (
-    <div className="h-9 shrink-0" />
+    <div className="h-page-bar shrink-0" />
   );
 }
 

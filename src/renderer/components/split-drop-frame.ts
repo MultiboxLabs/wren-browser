@@ -28,10 +28,10 @@ const SLIDE: KeyframeAnimationOptions = { duration: SLIDE_MS, easing: cssEase(EA
 
 /**
  * The style of a page that keeps its size as its frame moves: the whole
- * box's, a size container, less the address bar atop it (`h-9`) if `bar`.
+ * box's, a size container, less the address bar atop it if `bar`.
  */
 export const keptPage = (bar: boolean) =>
-  ({ width: "100cqw", height: bar ? "calc(100cqh - var(--spacing) * 9)" : "100cqh", flex: "none" }) as const;
+  ({ width: "100cqw", height: bar ? "calc(100cqh - var(--spacing-page-bar))" : "100cqh", flex: "none" }) as const;
 
 /** How far in from each side of its box an element is, in points. */
 type Insets = { top: number; right: number; bottom: number; left: number };

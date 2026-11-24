@@ -16,6 +16,13 @@
   --color-page-bar-edge: var(--page-bar-edge);
 }
 
+/* The address bar's height (`h-page-bar`), which the room a hidden tab
+   keeps for it (tab-view.tsx) and the size a page keeps under it as it
+   slides into half of a split (split-drop-frame.ts) take too. */
+@theme {
+  --spacing-page-bar: 36px;
+}
+
 /* The address bar atop a page (address/page-bar.tsx) is the card's colour
    while light, with a separator below it; while dark, a grey a few steps
    lighter, which parts it from a dark page below it as a toolbar does, with
