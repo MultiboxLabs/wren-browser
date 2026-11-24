@@ -101,10 +101,19 @@ export function PeekCover({
     takePictureIfHovered();
   }, [tab?.url, tab?.loading]);
 
-  // The parts that move, once they are all drawn.
+  // The parts that move, once they are all drawn. The tabs behind are the
+  // card's siblings that tab-view.tsx marks with this peek's tab.
   const parts = (): PeekParts | null => {
     if (!card.current || !canvas.current || !buttons.current) return null;
-    return { card: card.current, canvas: canvas.current, buttons: [...buttons.current.children] as HTMLElement[] };
+    const behind = card.current.parentElement!.querySelectorAll<HTMLElement>(
+      `:scope > [data-behind-peek="${peek.tab}"]`
+    );
+    return {
+      card: card.current,
+      canvas: canvas.current,
+      buttons: [...buttons.current.children] as HTMLElement[],
+      behind: [...behind]
+    };
   };
 
   useLayoutEffect(() => {

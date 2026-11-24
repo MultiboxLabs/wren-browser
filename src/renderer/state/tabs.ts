@@ -166,18 +166,22 @@ function windowTabIds(spaces: Map<Key, SpaceTabs>): number[] {
   return [...ids].sort((a, b) => a - b);
 }
 
-/** Every split across `spaces`, deduplicated by ID. */
-function windowSplits(spaces: Map<Key, SpaceTabs>): TabSplit[] {
-  const seen = new Set<string>();
-  const splits: TabSplit[] = [];
+/**
+ * What `of` reads of each of `spaces`, such as its splits, in one list: an
+ * item the window's Browsers share, as they do a pin's tab and its peek,
+ * once only, by `key`.
+ */
+function windowItems<T, K>(spaces: Map<Key, SpaceTabs>, of: (said: BrowserTabs) => T[], key: (item: T) => K): T[] {
+  const seen = new Set<K>();
+  const items: T[] = [];
   for (const each of spaces.values()) {
-    for (const split of each.said.splits) {
-      if (seen.has(split.id)) continue;
-      seen.add(split.id);
-      splits.push(split);
+    for (const item of of(each.said)) {
+      if (seen.has(key(item))) continue;
+      seen.add(key(item));
+      items.push(item);
     }
   }
-  return splits;
+  return items;
 }
 
 /**
@@ -195,6 +199,8 @@ export class TabsStore {
   private everyTabId: number[] = [];
   // Every split across the window's Browsers, so a hidden split keeps its halves.
   private everySplit: TabSplit[] = [];
+  // Every peek across the window's Browsers, so a hidden peek keeps its card.
+  private everyPeek: Peek[] = [];
   // The space the window's tabs are under; undefined until any are said so.
   private front: Key | undefined = undefined;
   private listeners = new Set<() => void>();
@@ -222,6 +228,9 @@ export class TabsStore {
 
   /** Every split across the window's Browsers; the same array until one changes. */
   splits = () => this.everySplit;
+
+  /** Every peek across the window's Browsers; the same array until one changes. */
+  peeks = () => this.everyPeek;
 
   /** The window's tabs; undefined until the app has said them. */
   window = () => (this.front === undefined ? undefined : this.spaces.get(this.front));
@@ -349,8 +358,18 @@ export class TabsStore {
     if (!sameSpaceLinks(this.everyLink, links)) this.everyLink = links;
     const ids = windowTabIds(this.spaces);
     if (!sameItems(this.everyTabId, ids)) this.everyTabId = ids;
-    const splits = windowSplits(this.spaces);
+    const splits = windowItems(
+      this.spaces,
+      (said) => said.splits,
+      (split) => split.id
+    );
     if (!sameItems(this.everySplit, splits)) this.everySplit = splits;
+    const peeks = windowItems(
+      this.spaces,
+      (said) => said.peeks,
+      (peek) => peek.tab
+    );
+    if (!sameItems(this.everyPeek, peeks)) this.everyPeek = peeks;
     const changed = new Set<number>();
     for (const [id, tab] of next.byId) if (kept?.byId.get(id) !== tab) changed.add(id);
     for (const id of kept?.byId.keys() ?? []) if (!next.byId.has(id)) changed.add(id);

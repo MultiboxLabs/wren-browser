@@ -329,6 +329,16 @@ export function useWindowSplits() {
 }
 
 /**
+ * Every peek across the window's Browsers (`TabsStore.peeks`), drawn again
+ * only as one changes.
+ */
+export function useWindowPeeks() {
+  const store = useContext(TabsContext);
+  if (!store) throw new Error("useWindowPeeks is used outside a BrowserProvider");
+  return useSyncExternalStore(store.subscribe, store.peeks);
+}
+
+/**
  * Whether a row is marked, by the IDs it is held by (`markIds` in
  * items.ts). What reads it is drawn again only as that changes.
  */

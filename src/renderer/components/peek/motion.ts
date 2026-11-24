@@ -22,8 +22,12 @@ import { clamp, mix, remaining, sample, settling, smoothstep } from "./spring";
 import { bendOf, type Rect } from "./bend";
 import { cssEase, EASE_OUT, prefersReducedMotion } from "@/utils/motion";
 
-/** A peek's parts that move: its card (the slot), the canvas it is drawn in on its way, which shares its box, and the buttons. */
-export type PeekParts = { card: HTMLElement; canvas: HTMLCanvasElement; buttons: HTMLElement[] };
+/**
+ * A peek's parts that move: its card (the slot), the canvas it is drawn in on
+ * its way, which shares its box, the buttons, and the tabs behind it, whose
+ * darkening lifts as it expands.
+ */
+export type PeekParts = { card: HTMLElement; canvas: HTMLCanvasElement; buttons: HTMLElement[]; behind: HTMLElement[] };
 
 // What the card grows out of: a link's size round the pointer, and how
 // round its corners are there.
@@ -130,10 +134,9 @@ export async function closePeek(parts: PeekParts, from: [number, number] | null,
 export async function expandPeek(parts: PeekParts, picture: HTMLImageElement | null, join: string | undefined) {
   stop(parts);
   for (const button of parts.buttons) button.style.opacity = "0";
-  const { card, canvas } = parts;
+  const { card, canvas, behind } = parts;
   const box = card.offsetParent as HTMLElement;
   // The tabs behind brighten as it grows: the darkening is theirs (peek.css).
-  const behind = [...box.querySelectorAll<HTMLElement>(":scope > [data-behind-peek]")];
   const brighten = (duration: number, easing: string) =>
     behind.map((tab) =>
       tab.animate([{ filter: getComputedStyle(tab).filter }, { filter: "brightness(1)" }], {

@@ -7,7 +7,8 @@
 // no card either (`bare`): it is edge to edge, under the window's toolbar.
 // A peek is drawn in front of the tab behind it, which is laid out as if it
 // were active and darkened, as a card inset in its box, with its buttons
-// beside it (peek/peek.tsx).
+// beside it (peek/peek.tsx). A hidden peek keeps its card's size, and the
+// tabs behind it stay darkened, so a peek switched back to shows as it was.
 
 import {
   type CSSProperties,
@@ -29,7 +30,7 @@ import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
 import { appWindow, browser, type BrowserTab, hasApp, type Peek, splits, type TabSplit } from "@/ipc";
 import { useAddressBar } from "@/state/address-bar";
-import { useTab, useWindowSplits, useWindowTabIds } from "@/state/browser";
+import { useTab, useWindowPeeks, useWindowSplits, useWindowTabIds } from "@/state/browser";
 import { useWindowMargins } from "@/state/margins";
 import { cn } from "@/utils/cn";
 
@@ -73,6 +74,7 @@ export function TabView({
 }) {
   const tabIds = useWindowTabIds();
   const windowSplits = useWindowSplits();
+  const windowPeeks = useWindowPeeks();
   const setting = useAddressBar();
   const margins = useWindowMargins();
   const box = useRef<HTMLDivElement>(null);
@@ -100,6 +102,8 @@ export function TabView({
     splitByTab.set(each.first, { split: each, side: "first" });
     splitByTab.set(each.second, { split: each, side: "second" });
   }
+  // Every peek across the window's spaces, the hidden ones too.
+  const { peekTabs, peekBehind } = peekPlaces(bare ? [] : windowPeeks, splitByTab);
 
   return (
     // `isolate` keeps the peek's layers (`z-1` to `z-3`) ordered among the
@@ -110,13 +114,16 @@ export function TabView({
         const visible = fullScreen
           ? id === active
           : inFront || (shownSplit ? id === shownSplit.first || id === shownSplit.second : id === laidOut);
-        const tabSplit = (fullScreen && visible) || inFront ? undefined : splitByTab.get(id);
+        const inFullScreen = fullScreen && visible;
+        // A peek's card, hidden too, but not a peek in full screen, which has the window.
+        const asPeek = !inFullScreen && peekTabs.has(id);
+        const tabSplit = inFullScreen || asPeek ? undefined : splitByTab.get(id);
         const ratio = tabSplit
           ? dragged?.split === tabSplit.split.id
             ? dragged.ratio
             : tabSplit.split.ratio
           : undefined;
-        const surface: Surface = fullScreen && visible ? "fullScreen" : bare ? "bare" : "card";
+        const surface: Surface = inFullScreen ? "fullScreen" : bare ? "bare" : "card";
         const bar = surface === "card" && setting === "top";
         const join = visible && surface === "card" && !margins ? joinEdges(tabSplit, besidePanel) : undefined;
         return (
@@ -125,8 +132,8 @@ export function TabView({
             id={id}
             hidden={!visible}
             inFront={inFront}
-            behindPeek={visible && !inFront && shownPeek !== undefined}
-            frame={inFront ? PEEK_FRAME : undefined}
+            behindPeek={inFullScreen ? undefined : peekBehind.get(id)}
+            frame={asPeek ? PEEK_FRAME : undefined}
             slotRef={inFront ? peekCard : undefined}
             active={visible && id === active}
             surface={surface}
@@ -181,6 +188,26 @@ function useFocusActiveTab(active: number | null, enabled: boolean) {
       void appWindow.giveBackKeyboard().catch(() => {});
     }
   }, [active, enabled]);
+}
+
+// The tabs that are peeks, and which peek each tab behind one is behind:
+// the tab that opened it, and the other side of that tab's split, which the
+// peek covers too. A hidden peek counts as the shown one does. Its card keeps
+// its size, so its page never lays itself out again as it is switched back
+// to. The tabs behind it stay darkened, so they don't darken again then
+// (peek/peek.css).
+function peekPlaces(
+  peeks: readonly Peek[],
+  splitByTab: Map<number, SplitPlace>
+): { peekTabs: Set<number>; peekBehind: Map<number, number> } {
+  const peekTabs = new Set<number>();
+  const peekBehind = new Map<number, number>();
+  for (const peek of peeks) {
+    peekTabs.add(peek.tab);
+    const split = splitByTab.get(peek.behind)?.split;
+    for (const id of split ? [split.first, split.second] : [peek.behind]) peekBehind.set(id, peek.tab);
+  }
+  return { peekTabs, peekBehind };
 }
 
 // The card edges that meet another card (split neighbour or side panel),
@@ -298,9 +325,9 @@ const TabSlot = memo(function TabSlot({
   hidden: boolean;
   /** A peek's, in front of the tab behind it. */
   inFront: boolean;
-  /** Behind a peek, and darkened (peek/peek.css). */
-  behindPeek: boolean;
-  /** Where it sits in the box when not in a split, if not filling it: a peek's card. */
+  /** The tab of the peek it is behind, which darkens it (peek/peek.css), hidden or not. */
+  behindPeek?: number;
+  /** Where it sits in the box when not in a split, if not filling it: a peek's card, hidden or not. */
   frame?: CSSProperties;
   /** The slot's element: a peek's, which its cover moves. */
   slotRef?: Ref<HTMLDivElement>;
@@ -323,7 +350,7 @@ const TabSlot = memo(function TabSlot({
     <div
       ref={slotRef}
       style={style}
-      data-behind-peek={behindPeek ? "" : undefined}
+      data-behind-peek={behindPeek}
       className={cn(
         "tab-slot absolute flex min-h-0 min-w-0",
         !style && "inset-0",

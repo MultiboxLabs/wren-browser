@@ -12,10 +12,11 @@
 
 /* The tabs behind a peek, its tab and the other of its split, darkened
    whole, page and frame together (tab-view.tsx), coming on as the peek
-   comes and lifting as it goes, after it has closed too. An overlay over
-   them never quite matched the page's corners, which are drawn apart from
-   this page: of the same shape, their light showed through its edge as an
-   arc, and of a tighter one, its own corner showed. */
+   comes and lifting as it goes, after it has closed too. They stay darkened
+   while hidden, so switching back to the peek doesn't darken them again. An
+   overlay over them never quite matched the page's corners, which are drawn
+   apart from this page: of the same shape, their light showed through its
+   edge as an arc, and of a tighter one, its own corner showed. */
 .tab-slot {
   transition: filter 0.2s var(--ease-out-strong);
 }
