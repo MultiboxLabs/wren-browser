@@ -90,6 +90,7 @@ export function TabView({
   // The tab laid out as the window's: the active one, or the one behind its peek.
   const laidOut = shownPeek?.behind ?? active;
   const shownRatio = shownSplit && dragged?.split === shownSplit.id ? dragged.ratio : shownSplit?.ratio;
+  const boxExtent = useBoxExtent(box, shownSplit && !shownPeek ? shownSplit.stacked : undefined);
   // The edges of the whole box that meet another card, as a lone tab's
   // card's would: the peek's card, opening out to fill it, takes its look.
   const boxJoin = !margins ? joinEdges(undefined, false, besidePanel) : undefined;
@@ -166,7 +167,7 @@ export function TabView({
       })}
       {shownSplit && shownRatio !== undefined && !shownPeek && (
         <SplitDivider
-          box={box}
+          boxExtent={boxExtent}
           split={shownSplit}
           ratio={shownRatio}
           onDrag={(ratio) => setDragged({ split: shownSplit.id, ratio })}
@@ -203,6 +204,24 @@ export function TabView({
       {active === null && <div className={cn("no-drag absolute inset-0", bare ? "bg-card" : "card empty")} />}
     </div>
   );
+}
+
+// The width of `box`, or its height if `stacked`, as it changes, while a
+// split's divider is shown (`stacked` is set); 0 otherwise. Measured here, as
+// the box's own component: a child's layout effect runs as the box first
+// mounts, before React sets its ref.
+function useBoxExtent(box: RefObject<HTMLDivElement | null>, stacked: boolean | undefined) {
+  const [extent, setExtent] = useState(0);
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!element || stacked === undefined) return;
+    const measure = () => setExtent(stacked ? element.clientHeight : element.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [box, stacked]);
+  return extent;
 }
 
 // A tab kept in a hidden <wren-view> is already `in_element`, so Chromium
@@ -301,30 +320,20 @@ function slotStyle(side: Half | undefined, stacked: boolean, ratio: number | und
 }
 
 function SplitDivider({
-  box,
+  boxExtent,
   split,
   ratio,
   onDrag,
   onEnd
 }: {
-  box: RefObject<HTMLDivElement | null>;
+  /** The box's width, or its height if `split` is stacked. */
+  boxExtent: number;
   split: TabSplit;
   ratio: number;
   onDrag: (ratio: number) => void;
   onEnd: () => void;
 }) {
-  const [size, setSize] = useState(0);
-
-  useLayoutEffect(() => {
-    const element = box.current!;
-    const measure = () => setSize(split.stacked ? element.clientHeight : element.clientWidth);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [box, split.stacked]);
-
-  const room = Math.max(0, size - DIVIDER);
+  const room = Math.max(0, boxExtent - DIVIDER);
   const offset = splitExtent(ratio);
   const style: CSSProperties = split.stacked
     ? { left: 0, right: 0, top: offset, height: DIVIDER }
