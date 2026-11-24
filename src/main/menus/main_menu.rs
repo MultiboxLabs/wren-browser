@@ -13,6 +13,7 @@ use crate::app::State;
 use crate::db::SpaceId;
 use crate::peeks;
 use crate::spaces;
+use crate::tabs;
 
 pub const NEW_WINDOW: &str = "new-window";
 pub const NEW_INCOGNITO_WINDOW: &str = "new-incognito-window";
@@ -26,6 +27,7 @@ pub const COPY_URL: &str = "copy-url";
 pub const DUPLICATE_TAB: &str = "duplicate-tab";
 pub const MOVE_TAB_UP: &str = "move-tab-up";
 pub const MOVE_TAB_DOWN: &str = "move-tab-down";
+pub const BACK: &str = "back";
 pub const TOGGLE_SIDEBAR: &str = "toggle-sidebar";
 pub const TOGGLE_ADDRESS_BAR: &str = "toggle-address-bar";
 pub const SHOW_DOWNLOADS: &str = "show-downloads";
@@ -61,6 +63,9 @@ pub struct Front {
     pub mini_wren: bool,
     /// The window in use shows a peek, which Open as Tab expands.
     pub peek: bool,
+    /// Go Back does something in the active tab of the window it acts on
+    /// (`tabs::back::can_go_back`).
+    pub back: bool,
 }
 
 // The app's items a dialog over the window in front greys out, as Chrome
@@ -124,6 +129,17 @@ fn front_menu(state: &State) -> Front {
             .and_then(|window| window.browser())
             .and_then(|browser| peeks::active(&browser))
             .is_some(),
+        // The window a command acts on (app/commands.rs), a Mini Wren too.
+        back: state
+            .windows
+            .in_use()
+            .or_else(|| state.windows.front())
+            .is_some_and(|window| {
+                window
+                    .browser()
+                    .and_then(|browser| browser.active_tab())
+                    .is_some_and(|tab| tabs::back::can_go_back(&window, tab))
+            }),
     }
 }
 
@@ -276,7 +292,11 @@ fn main_menu(
         MenuItem::submenu(
             "History",
             vec![
-                MenuItem::chromium(Command::Back),
+                // The app's own: with nothing to go back to, it closes the
+                // active tab and returns to the tab that opened it
+                // (tabs/back.rs).
+                keyed(BACK, "Back", "[", MenuModifiers::PRIMARY),
+                back_by_arrow(),
                 MenuItem::chromium(Command::Forward),
                 MenuItem::chromium(Command::Home),
                 MenuItem::Separator,
@@ -450,15 +470,45 @@ fn take_front_items(items: Vec<MenuItem>, taken: &mut Vec<MenuItem>) {
 
 // Whether item `id` acts on the window in front, which allows it or not.
 fn acts_on_front(id: &str) -> bool {
-    id.starts_with(SPACE) || BLOCKED.contains(&id) || id == OPEN_AS_TAB
+    id.starts_with(SPACE) || BLOCKED.contains(&id) || id == OPEN_AS_TAB || is_back(id)
+}
+
+/// Whether item `id` is Back, by ⌘[ or by ⌘← (`back_by_arrow`).
+pub fn is_back(id: &str) -> bool {
+    id == BACK || id == BACK_BY_ARROW
+}
+
+// TODO: remove `BACK_BY_ARROW` and `back_by_arrow` once Wren Runtime hands
+// the app Chromium's Back command when a tab can't go back, so that ⌘←, the
+// mouse's back button, swiping and a page's own menu all reach
+// `tabs::back::go_back`. Until then, a hidden item of Wren's takes ⌘← from
+// Chromium, whose own Back can't return to the tab's opener, and the rest do
+// nothing in a tab with no history. It works only if Chromium looks for a
+// key in the main menu before its own keys, which nobody has checked.
+const BACK_BY_ARROW: &str = "back-by-arrow";
+
+// Back by ⌘←, hidden, as Back shows ⌘[. A page that uses the key, as a text
+// field does to move the cursor, keeps it.
+fn back_by_arrow() -> MenuItem {
+    MenuItem::Item {
+        id: BACK_BY_ARROW.into(),
+        label: "Back".into(),
+        enabled: true,
+        checked: false,
+        hidden: true,
+        key: Some(MenuKey::new("ArrowLeft", MenuModifiers::PRIMARY)),
+    }
 }
 
 // Whether `front` allows item `id`, one that acts on it. A window on a
-// profile never switches spaces, and only a Mini Wren's page or a peek
-// opens as a tab.
+// profile never switches spaces, only a Mini Wren's page or a peek opens as
+// a tab, and Back is greyed out where it would do nothing.
 fn allowed(id: &str, front: Front) -> bool {
     if id == OPEN_AS_TAB {
         return front.mini_wren || front.peek;
+    }
+    if is_back(id) {
+        return front.back && !front.blocked;
     }
     !front.blocked && (front.switching || !id.starts_with(SPACE))
 }

@@ -22,6 +22,7 @@ export type BrowserTab = {
   loading: boolean;
   /** How far its page's load has got, in whole percent from 1 to 100 while `loading`, and 0 otherwise. */
   progress: number;
+  /** Go Back does something: goes back in its history, or returns to the tab that opened it. */
   canGoBack: boolean;
   canGoForward: boolean;
   crashed: boolean;

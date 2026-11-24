@@ -14,6 +14,7 @@
 // dialog holds on all its tabs (input.rs).
 
 pub mod archive;
+pub mod back;
 pub mod closes;
 pub mod groups;
 pub mod input;
@@ -559,4 +560,8 @@ pub fn in_group(browser: &Browser, group: TabGroup) -> Vec<BrowserTab> {
         .into_iter()
         .filter(|tab| tab.state().is_ok_and(|state| state.group == Some(group)))
         .collect()
+}
+
+fn failed(error: Error) -> String {
+    format!("{error:?}")
 }

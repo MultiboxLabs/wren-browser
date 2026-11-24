@@ -120,10 +120,22 @@ pub fn handle(web_view: &WebView, window: &WindowRef, mt: MainThread) {
         with_browser(&weak, |_, browser| tabs::clear(browser).map_err(failed))
     });
 
-    // Back, forward, reload and stop, in the active tab.
+    // Go Back in the active tab, as the main menu's Back does: with nothing
+    // to go back to, it closes the tab and returns to the tab that opened it.
+    let weak = window.clone();
+    let _ = web_view.handle("tabs.back", move |()| {
+        with_window(&weak, |window| {
+            let state = weak.state()?;
+            tabs::back::go_back(&state, window)
+        })
+    });
+
+    // Forward, reload and stop, in the active tab.
     for (name, run) in [
-        ("tabs.back", BrowserTab::go_back as fn(BrowserTab) -> _),
-        ("tabs.forward", BrowserTab::go_forward),
+        (
+            "tabs.forward",
+            BrowserTab::go_forward as fn(BrowserTab) -> _,
+        ),
         ("tabs.reload", BrowserTab::reload),
         ("tabs.stop", BrowserTab::stop),
     ] {

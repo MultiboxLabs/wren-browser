@@ -158,6 +158,9 @@ pub enum TabFrom {
     Drop,
     /// The keyboard (⌘W) or the main menu.
     Command,
+    /// Go Back, on a tab with nothing to go back to, which closes it and
+    /// returns to the tab that opened it (tabs/back.rs).
+    Back,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]

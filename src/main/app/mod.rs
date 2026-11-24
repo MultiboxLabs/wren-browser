@@ -108,6 +108,7 @@ impl State {
                 blocked: false,
                 mini_wren: false,
                 peek: false,
+                back: false,
             }),
             mini_wrens: MiniWrens::default(),
             updates,

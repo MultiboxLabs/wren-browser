@@ -133,6 +133,12 @@ pub(super) fn menu_command(state: &Rc<State>, mt: MainThread, id: &str, browser:
     if id == menus::CLOSE_TAB {
         return windows::close_tab(state, mt, &window);
     }
+    if menus::is_back(id) {
+        if let Err(error) = tabs::back::go_back(state, &window) {
+            eprintln!("Wren could not go back: {error}");
+        }
+        return;
+    }
     if let Some(number) = id
         .strip_prefix(menus::FAVORITE)
         .and_then(|n| n.parse::<usize>().ok())

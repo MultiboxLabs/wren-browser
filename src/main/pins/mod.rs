@@ -482,6 +482,18 @@ pub fn update_url(state: &State, browser: &Browser, id: PinId) -> Result<(), Str
 /// The tabs keep their claims until they have gone (`end_broken` in
 /// settle.rs), marked as closing.
 pub fn close(state: &State, browser: &Browser, id: PinId) -> Result<(), String> {
+    close_then(state, browser, id, || {})
+}
+
+/// Closes the open pin's tabs as `close` does, and calls `gone` once they
+/// have all gone. It isn't called if a page keeps its tab, or if the pin
+/// has no tabs open or they are closing already.
+pub fn close_then(
+    state: &State,
+    browser: &Browser,
+    id: PinId,
+    gone: impl FnOnce() + 'static,
+) -> Result<(), String> {
     let Some((browser, opening)) = open::opening_near(state, browser, id) else {
         return Ok(());
     };
@@ -495,7 +507,7 @@ pub fn close(state: &State, browser: &Browser, id: PinId) -> Result<(), String> 
     let kept = browser.clone();
     BrowserTab::close_all(&open, move |result| {
         let Err(error) = result else {
-            return;
+            return gone();
         };
         open::set_closing(&kept, id, false);
         if error != Error::Cancelled {

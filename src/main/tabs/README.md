@@ -5,6 +5,7 @@ A part. It is what Wren does to a Browser's tabs, whoever asks, and what each ta
 ## What belongs here
 
 - Opening, closing, moving, duplicating and grouping tabs, and copying a tab's link.
+- Going back, which closes a tab with nothing to go back to and returns to the tab that opened it.
 - What each tab is, which is a tab of the sidebar's list, a pin's, a peek, the placeholder, or one closing for a pin.
 - Archiving tabs, the pictures of tabs, and making tabs again in another profile.
 - What follows a change Chromium makes to a Browser's tabs.

@@ -19,6 +19,7 @@ use super::{WindowRef, with_window};
 use crate::db::{PinId, SpaceId};
 use crate::pins;
 use crate::sidebar::items::carry;
+use crate::tabs::back;
 use crate::tabs::roles::{self, Role};
 use crate::windows::{BrowserWindow, Place};
 
@@ -38,6 +39,8 @@ pub struct Tab {
     /// How far its page's load has got, in whole percent from 1 to 100 while
     /// `loading`, and 0 otherwise.
     progress: i32,
+    /// Go Back does something: goes back in its history, or returns to the
+    /// tab that opened it (tabs/back.rs).
     can_go_back: bool,
     can_go_forward: bool,
     crashed: bool,
@@ -392,7 +395,7 @@ fn tab_of(window: &BrowserWindow, tab: BrowserTab, state: Option<TabState>) -> T
         favicon: window.told.tabs.favicon(tab),
         loading: state.is_some_and(|state| state.shows_loading),
         progress: state.map_or(0, |state| state.load_progress),
-        can_go_back: state.is_some_and(|state| state.can_go_back),
+        can_go_back: back::can_go_back(window, tab),
         can_go_forward: state.is_some_and(|state| state.can_go_forward),
         crashed: state.is_some_and(|state| state.crash != TabCrash::None),
         capturing_screen: alert(TabAlert::CAPTURING_SCREEN),

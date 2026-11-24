@@ -30,7 +30,10 @@ export const browser = {
   /** Closes the list's tabs but the active one, or the active one when it is the only one; the pins stay. */
   clear: () => wren.invoke<null>("tabs.clear"),
   setMuted: (id: number, muted: boolean) => wren.invoke<null>("tabs.setMuted", { id, muted }),
-  /** Back, forward, reload and stop act on the active tab. */
+  /**
+   * Back, forward, reload and stop act on the active tab. Back with nothing
+   * to go back to closes the tab and returns to the tab that opened it.
+   */
   back: () => wren.invoke<null>("tabs.back"),
   forward: () => wren.invoke<null>("tabs.forward"),
   reload: () => wren.invoke<null>("tabs.reload"),

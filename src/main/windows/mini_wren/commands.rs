@@ -11,7 +11,7 @@ use crate::menus;
 use crate::tabs;
 use crate::windows::{self, BrowserWindow};
 
-/// A main menu command in a Mini Wren. It closes, and copies its
+/// A main menu command in a Mini Wren. It closes, goes back, and copies its
 /// address, as any window does. New Tab and Open Location both open its
 /// own omnibox, for its page, if it shows an address: a Mini Wren has one
 /// page, so what is chosen opens there. On the New Tab page, its omnibox
@@ -24,6 +24,11 @@ pub fn command(state: &Rc<State>, mt: MainThread, id: &str, window: &BrowserWind
     let front = state.windows.front();
     match id {
         menus::CLOSE_TAB | menus::CLOSE_WINDOW => windows::close(state, mt, window.id),
+        _ if menus::is_back(id) => {
+            if let Err(error) = tabs::back::go_back(state, window) {
+                eprintln!("Wren could not go back: {error}");
+            }
+        }
         menus::COPY_URL => {
             if let Some(browser) = window.browser() {
                 let _ = tabs::copy_url(&browser);
