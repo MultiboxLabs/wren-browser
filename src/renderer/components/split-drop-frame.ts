@@ -21,7 +21,7 @@
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import { cssEase, EASE_SLIDE, prefersReducedMotion } from "@/utils/motion";
 
-/** How long the frame takes to slide to a half or back, which what moves with it keeps time with (split-drop.tsx). */
+/** How long the frame takes to slide into a half, or back. The dragged tab's half moves in the same time (split-drop.tsx). */
 export const SLIDE_MS = 160;
 
 const SLIDE: KeyframeAnimationOptions = { duration: SLIDE_MS, easing: cssEase(EASE_SLIDE) };
@@ -56,12 +56,12 @@ const inPoints = ({ top, right, bottom, left }: Insets) => ({
 });
 
 /**
- * Slides `slot`'s frame as `half`, the half its tab takes in the split a
- * dragged tab would make with it, comes, changes and goes: a name for it,
- * which differs for each half of each layout. A tab in a
- * split already (`split`) is laid out as the split's at once. Returns
- * whether its page keeps its size (`keptPage`): while it has a half, and
- * until its frame fills the box again.
+ * Slides `slot`'s frame as its tab takes a half of the split a dragged tab
+ * would make with it, moves to another, and leaves it. `half` names that
+ * half, with a different name for each half of each layout, or is undefined
+ * while it has none. A tab in a split already (`split`) takes the split's
+ * half at once. Returns whether its page keeps its size (`keptPage`): while
+ * it has a half, and until its frame fills the box again.
  */
 export function useDropFrame(slot: RefObject<HTMLElement | null>, half: string | undefined, split: boolean) {
   // It has had a half, and its frame is not back in the whole box yet.
@@ -82,7 +82,10 @@ export function useDropFrame(slot: RefObject<HTMLElement | null>, half: string |
     sliding.current = null;
     const to = insetsOf(element);
     was.current = { half, insets: to };
-    if (split) return setKeeping(false);
+    if (split) {
+      setKeeping(false);
+      return;
+    }
     if (half) setKeeping(true);
     if (sameInsets(from, to) || prefersReducedMotion()) {
       if (!half) setKeeping(false);

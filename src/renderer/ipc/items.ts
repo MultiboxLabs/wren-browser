@@ -20,6 +20,9 @@ export type ItemRef = { tab: number } | { group: string } | { pin: number };
  */
 export type MovingRef = ItemRef | { carried: string };
 
+/** The side of another tab a tab is dropped on, to make a split with it: a half of its row, or an edge of its page. At the top or bottom, the split stacks the two. */
+export type SplitSide = "left" | "right" | "top" | "bottom";
+
 /** A place in a sidebar. */
 export type ItemPlace =
   /** Among the favourites, at `index` (null: last). */
@@ -28,12 +31,8 @@ export type ItemPlace =
   | { to: "pinned"; folder: number | null; index: number | null }
   /** In the list, its first tab at `index` among the list's tabs, in the group of the ID `group`, or in none. */
   | { to: "tabs"; group: string | null; index: number }
-  /**
-   * On `side` of another tab, a pinned tab or a tab of the list, to make a
-   * split with it: a half of its row, or an edge of its page, where it is
-   * stacked above or below it.
-   */
-  | { to: "split"; with: ItemRef; side: "left" | "right" | "top" | "bottom" };
+  /** On `side` of another tab, a pinned tab or a tab of the list, to make a split with it. */
+  | { to: "split"; with: ItemRef; side: SplitSide };
 
 /** Where an item goes: a place in the sidebar of `space`, or of the window's own if it is null, as on a profile. */
 export type Destination = { space: number | null } & ItemPlace;

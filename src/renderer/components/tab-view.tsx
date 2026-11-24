@@ -20,11 +20,11 @@ import { LinkStatus } from "./link-status";
 import { LoadingBar } from "./loading-bar";
 import { LoadingLine } from "./loading-line";
 import { PEEK_FRAME, PeekCover } from "./peek/peek";
-import { DropHalf, type DropSide, type HalfOf, SplitDrop, useSplitPreview } from "./split-drop";
+import { DropHalf, type HalfOf, SplitDrop, useSplitPreview } from "./split-drop";
 import { keptPage, useDropFrame } from "./split-drop-frame";
 import { Button } from "./ui/button";
 import { ResizeHandle } from "./ui/resize-handle";
-import { appWindow, browser, type BrowserTab, hasApp, type Peek, splits, type TabSplit } from "@/ipc";
+import { appWindow, browser, type BrowserTab, hasApp, type Peek, type SplitSide, splits, type TabSplit } from "@/ipc";
 import { useAddressBar } from "@/state/address-bar";
 import { useTab, useWindowPeeks, useWindowSplits, useWindowTabIds } from "@/state/browser";
 import { useWindowMargins } from "@/state/margins";
@@ -128,9 +128,9 @@ export function TabView({
         // A peek's card, hidden too, but not a peek in full screen, which has the window.
         const asPeek = !inFullScreen && peekTabs.has(id);
         const tabSplit = inFullScreen || asPeek ? undefined : splitByTab.get(id);
-        // The page a dragged tab would split with, in the other half.
+        // The page a dragged tab would split with takes the half the tab doesn't.
         const dropped = preview?.tab === id && visible && !tabSplit ? droppedHalf(preview.side) : undefined;
-        const dropHalf: Half | undefined = dropped && (dropped.half === "first" ? "second" : "first");
+        const previewHalf: Half | undefined = dropped && (dropped.half === "first" ? "second" : "first");
         const stacked = tabSplit?.split.stacked ?? dropped?.stacked ?? false;
         const ratio = tabSplit
           ? dragged?.split === tabSplit.split.id
@@ -141,7 +141,7 @@ export function TabView({
         const bar = surface === "card" && setting === "top";
         const join =
           visible && surface === "card" && !margins
-            ? joinEdges(tabSplit?.side ?? dropHalf, stacked, besidePanel)
+            ? joinEdges(tabSplit?.side ?? previewHalf, stacked, besidePanel)
             : undefined;
         return (
           <TabSlot
@@ -159,7 +159,7 @@ export function TabView({
             splitSide={tabSplit?.side}
             splitStacked={stacked}
             splitRatio={ratio}
-            dropHalf={dropHalf}
+            previewHalf={previewHalf}
             onOpenLocation={visible && bar ? onOpenLocation : undefined}
           />
         );
@@ -242,7 +242,7 @@ function peekPlaces(
 
 // The half of a split a tab dropped on `side` of a page takes, and whether
 // the split is stacked: the left or the top is the first.
-function droppedHalf(side: DropSide): { half: Half; stacked: boolean } {
+function droppedHalf(side: SplitSide): { half: Half; stacked: boolean } {
   return {
     half: side === "left" || side === "top" ? "first" : "second",
     stacked: side === "top" || side === "bottom"
@@ -366,7 +366,7 @@ const TabSlot = memo(function TabSlot({
   splitSide,
   splitStacked,
   splitRatio,
-  dropHalf,
+  previewHalf,
   onOpenLocation
 }: {
   id: number;
@@ -390,7 +390,7 @@ const TabSlot = memo(function TabSlot({
   splitStacked: boolean;
   splitRatio?: number;
   /** The half it takes in the split a dragged tab would make with it (split-drop.tsx), stacked as `splitStacked` says. */
-  dropHalf?: Half;
+  previewHalf?: Half;
   /** With it, the page has its address bar atop it, whose address opens this. */
   onOpenLocation?: () => void;
 }) {
@@ -400,11 +400,11 @@ const TabSlot = memo(function TabSlot({
   // clipped there, so it is not laid out again.
   const keepsSize = useDropFrame(
     slot,
-    dropHalf && `${dropHalf}-${splitStacked ? "stacked" : "side-by-side"}`,
+    previewHalf && `${previewHalf}-${splitStacked ? "stacked" : "side-by-side"}`,
     splitSide !== undefined
   );
   const style =
-    (dropHalf ? halfInsets(dropHalf, splitStacked) : slotStyle(splitSide, splitStacked, splitRatio)) ?? frame;
+    (previewHalf ? halfInsets(previewHalf, splitStacked) : slotStyle(splitSide, splitStacked, splitRatio)) ?? frame;
   const frameClass = hidden ? "" : surface === "fullScreen" ? "bg-black" : surface === "bare" ? "bg-card" : "card";
   return (
     <div

@@ -26,20 +26,17 @@ import { Favicon } from "./favicon";
 import { dropSpace } from "./sidebar/item-drop";
 import { type Carried, type TabFace, useCarried } from "./sidebar/item-drag";
 import { SLIDE_MS } from "./split-drop-frame";
-import { browser, type ItemRef, items } from "@/ipc";
+import { browser, type ItemRef, items, type SplitSide } from "@/ipc";
 import { useBrowser, useTab } from "@/state/browser";
 import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { EASE_OUT, EASE_SLIDE, scaleTo } from "@/utils/motion";
 
-/** The side of the page a dropped tab takes. */
-export type DropSide = "left" | "right" | "top" | "bottom";
-
 /** The split a drop would make: of `tab`, the page shown, and the dragged tab, whose `face` it shows, on `side`. */
-export type SplitPreview = { tab: number; side: DropSide; face: TabFace };
+export type SplitPreview = { tab: number; side: SplitSide; face: TabFace };
 
 /** Where a split's half on a side is, and its corners that meet the other half (card.css). */
-export type HalfOf = (side: DropSide) => { style: CSSProperties; join: string | undefined };
+export type HalfOf = (side: SplitSide) => { style: CSSProperties; join: string | undefined };
 
 /** How long the split a drop makes may take to be drawn, before the page goes back to the whole box. */
 const LANDING_MS = 1000;
@@ -83,7 +80,7 @@ type CoverProps = {
   /** The tab shown, which a drop splits with. */
   tab: number;
   /** The side the split shown puts the dragged tab on, if one is shown. */
-  shown: DropSide | null;
+  shown: SplitSide | null;
   onPreview: (preview: SplitPreview | null) => void;
   /** A drop asked for the split shown. */
   onLand: () => void;
@@ -146,7 +143,7 @@ function Cover({ tab, shown, onPreview, onLand, carried, face }: CoverProps & { 
   // The side a drop makes the split on: the edge of the page the drag is
   // near, the nearest, by its share of the page's width or height; or past
   // the edges, the side shown while the drag is in its half.
-  const sideAt = (event: DragEvent<HTMLElement>): DropSide | null => {
+  const sideAt = (event: DragEvent<HTMLElement>): SplitSide | null => {
     const { left, top, width, height } = event.currentTarget.getBoundingClientRect();
     const [x, y] = [(event.clientX - left) / width, (event.clientY - top) / height];
     const near = (
