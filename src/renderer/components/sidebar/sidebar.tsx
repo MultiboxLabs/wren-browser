@@ -18,6 +18,7 @@ import { DownloadFlights } from "@/components/downloads/flight";
 import { Indicator } from "@/components/downloads/indicator";
 import { Shelf, useShelf } from "@/components/downloads/shelf";
 import { ArrivalScope } from "./arrival";
+import { useEdgeSwitch } from "./edge-switch";
 import { Favorites } from "./favorites";
 import { useItemActions } from "./item-actions";
 import { MARKS_MARK } from "./item-drag";
@@ -173,6 +174,8 @@ export function Sidebar({ open, onToggle, omnibox, address, onOpenLibrary, visib
       if (next) show(next.id);
     }
   );
+  // A drag held at either side of the sidebar goes to the space that way too.
+  useEdgeSwitch(area, neighbour);
   const swipe = slide.x;
   const { travel } = slide;
   // Where the strip is drawn: as far as it has moved, at its `travel`.

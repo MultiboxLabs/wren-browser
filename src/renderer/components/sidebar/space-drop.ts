@@ -11,13 +11,26 @@
 // button.
 
 import { type DragEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { type Destination, items } from "@/ipc";
+import { type Destination, items, type SpaceEntry } from "@/ipc";
 import { useSpace } from "@/state/space";
 import { whenDragEnds } from "./drag-hold";
 import { type Carried, carriedIn } from "./item-drag";
 
 /** How long a drag waits over a space's button before the window switches to it. */
 const SPRING_MS = 250;
+
+/**
+ * What the page is dragging, if `data` is its drag's and another space takes
+ * it: anything of the sidebar but a favourite, which every space of its
+ * profile shows, from one of `spaces`, not a space made up for a profile.
+ * A space's button takes it, and the sidebar's edges switch to another
+ * space for it (edge-switch.ts).
+ */
+export function carriedToSpaces(data: DataTransfer, spaces: SpaceEntry[]) {
+  const unit = carriedIn(data);
+  if (!unit || unit.type === "favorite") return null;
+  return spaces.some((entry) => entry.id === unit.space) ? unit : null;
+}
 
 /**
  * Returns the space whose button a drag it would take is over, which the
@@ -42,13 +55,7 @@ export function useSpaceDrop() {
   };
   useEffect(() => () => window.clearTimeout(spring.current), []);
 
-  // What the page is dragging, if a space's button takes it: anything of
-  // the sidebar but a favourite, from a space that is made.
-  const carriedOver = (event: DragEvent) => {
-    const unit = carriedIn(event.dataTransfer);
-    if (!unit || unit.type === "favorite") return null;
-    return spaces.some((entry) => entry.id === unit.space) ? unit : null;
-  };
+  const carriedOver = (event: DragEvent) => carriedToSpaces(event.dataTransfer, spaces);
 
   // The top of space `id`'s pins, for what is pinned, or else of its list.
   const topOf = (unit: Carried, id: number): Destination =>
