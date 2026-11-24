@@ -18,7 +18,9 @@
 // page is most often the tab's own, which it can't split with. The page then
 // goes back to the tab used last before it, to split with that: the one
 // shown before the press, or before the tab, if it was shown already. With
-// no other tab, there is nothing to split with, and no cover.
+// no other tab, there is nothing to split with, and no cover. Nor is there
+// if that tab is in a split or behind a peek, which a drop splits nothing
+// with: the page stays.
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, type DragEvent, useEffect, useRef, useState } from "react";
@@ -27,7 +29,7 @@ import { dropSpace } from "./sidebar/item-drop";
 import { type Carried, type TabFace, useCarried } from "./sidebar/item-drag";
 import { useHalfSlide } from "./split-drop-frame";
 import { browser, type ItemRef, items, type SplitSide } from "@/ipc";
-import { useBrowser, useTab } from "@/state/browser";
+import { useBrowser, useTab, useWindowPeeks, useWindowSplits } from "@/state/browser";
 import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
 import { EASE_OUT, scaleTo } from "@/utils/motion";
@@ -112,24 +114,38 @@ function useSplitTarget(tab: number): ItemRef | null {
   return link ? { pin: link.pin } : null;
 }
 
-function Cover({ tab, shown, onPreview, onLand, carried, face }: CoverProps & { carried: Carried; face: TabFace }) {
-  const { space } = useSpace();
-  const target = useSplitTarget(tab);
-  // A tab makes no split with itself: shown, the page goes back to the one
-  // used before it, once the app has said which, if there is one.
-  const showsDragged = target !== null && sameItem(carried.items[0], target);
-  const [back, setBack] = useState<number | null>(null);
+// The tab the page goes back to while it shows the dragged tab (`showing`),
+// once the app has said which: the one used before `tab`, if a drop on its
+// page would split with it. Not one in a split, which takes no third tab,
+// nor one behind a peek, which comes back as the tab is made active
+// (peeks/settle.rs in the app) and takes no drop.
+function useBack(tab: number, showing: boolean): number | null {
+  const [usedBefore, setUsedBefore] = useState<number | null>(null);
+  const windowSplits = useWindowSplits();
+  const windowPeeks = useWindowPeeks();
   useEffect(() => {
-    if (!showsDragged) return;
+    if (!showing) return;
     let live = true;
     browser.usedBefore(tab).then(
-      (id) => live && setBack(id),
+      (id) => live && setUsedBefore(id),
       () => {}
     );
     return () => {
       live = false;
     };
-  }, [showsDragged, tab]);
+  }, [showing, tab]);
+  if (usedBefore === null) return null;
+  const inSplit = windowSplits.some((split) => split.first === usedBefore || split.second === usedBefore);
+  const behindPeek = windowPeeks.some((peek) => peek.behind === usedBefore);
+  return inSplit || behindPeek ? null : usedBefore;
+}
+
+function Cover({ tab, shown, onPreview, onLand, carried, face }: CoverProps & { carried: Carried; face: TabFace }) {
+  const { space } = useSpace();
+  const target = useSplitTarget(tab);
+  // A tab makes no split with itself: shown, the page goes back.
+  const showsDragged = target !== null && sameItem(carried.items[0], target);
+  const back = useBack(tab, showsDragged);
   // Whether it has gone back, once a drag.
   const wentBack = useRef(false);
   const takes = target !== null && (!showsDragged || back !== null);
