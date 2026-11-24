@@ -2,7 +2,7 @@
   "name": "Wren",
   "displayName": "Wren (Beta)",
   "bundleId": "dev.multibox.wren",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "icon": "branding/beta.icon",
   "copyright": "Copyright © 2026 Multibox Labs.",
   "urlSchemes": [
@@ -27,5 +27,5 @@
     "SUFeedURL": "https://wrenbrowser.com/appcast.xml",
     "SUPublicEDKey": "kEZrQqbLLPVKtljsOUhqiv5nxePqryA63mGLClcYy10="
   },
-  "build": "90099"
+  "build": "90199"
 }
