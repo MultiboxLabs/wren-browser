@@ -25,12 +25,12 @@ import { type CSSProperties, type DragEvent, useEffect, useRef, useState } from 
 import { Favicon } from "./favicon";
 import { dropSpace } from "./sidebar/item-drop";
 import { type Carried, type TabFace, useCarried } from "./sidebar/item-drag";
-import { SLIDE_MS } from "./split-drop-frame";
+import { useHalfSlide } from "./split-drop-frame";
 import { browser, type ItemRef, items, type SplitSide } from "@/ipc";
 import { useBrowser, useTab } from "@/state/browser";
 import { useSpace } from "@/state/space";
 import { cn } from "@/utils/cn";
-import { EASE_OUT, EASE_SLIDE, scaleTo } from "@/utils/motion";
+import { EASE_OUT, scaleTo } from "@/utils/motion";
 
 /** The split a drop would make: of `tab`, the page shown, and the dragged tab, whose `face` it shows, on `side`. */
 export type SplitPreview = { tab: number; side: SplitSide; face: TabFace };
@@ -209,33 +209,39 @@ export function DropHalf({
   halfOf: HalfOf;
   layer: "hole" | "card";
 }) {
-  const still = useReducedMotion();
-  const half = preview && halfOf(preview.side);
   return (
     <AnimatePresence>
-      {preview && half && (
-        <motion.div
-          key={layer}
-          layout={!still}
-          style={half.style}
-          data-join={layer === "hole" ? half.join : undefined}
-          initial={{ opacity: 0, ...scaleTo(still, 0.97) }}
-          animate={{ opacity: 1, ...scaleTo(still, 1) }}
-          exit={{ opacity: 0, ...scaleTo(still, 0.97) }}
-          transition={{ duration: 0.15, ease: EASE_OUT, layout: { duration: SLIDE_MS / 1000, ease: EASE_SLIDE } }}
-          className={cn(
-            "pointer-events-none absolute",
-            layer === "hole" ? "split-drop-half" : "z-4 grid place-items-center"
-          )}
-        >
-          {layer === "card" && (
-            <div className="flex w-32 flex-col items-center gap-2.5 rounded-xl bg-card px-3 py-10 text-center shadow-lg">
-              <Favicon url={preview.face.url} icon={preview.face.favicon} size={20} />
-              <span className="line-clamp-2 text-ui font-semibold">{preview.face.title}</span>
-            </div>
-          )}
-        </motion.div>
-      )}
+      {preview && <HalfLayer key={layer} preview={preview} halfOf={halfOf} layer={layer} />}
     </AnimatePresence>
+  );
+}
+
+// A layer as long as it is shown, which slides from side to side.
+function HalfLayer({ preview, halfOf, layer }: { preview: SplitPreview; halfOf: HalfOf; layer: "hole" | "card" }) {
+  const still = useReducedMotion();
+  const element = useRef<HTMLDivElement>(null);
+  useHalfSlide(element, preview.side);
+  const half = halfOf(preview.side);
+  return (
+    <motion.div
+      ref={element}
+      style={half.style}
+      data-join={layer === "hole" ? half.join : undefined}
+      initial={{ opacity: 0, ...scaleTo(still, 0.97) }}
+      animate={{ opacity: 1, ...scaleTo(still, 1) }}
+      exit={{ opacity: 0, ...scaleTo(still, 0.97) }}
+      transition={{ duration: 0.18, ease: EASE_OUT }}
+      className={cn(
+        "pointer-events-none absolute",
+        layer === "hole" ? "split-drop-half" : "z-4 grid place-items-center"
+      )}
+    >
+      {layer === "card" && (
+        <div className="flex w-32 flex-col items-center gap-2.5 rounded-xl bg-card px-3 py-10 text-center shadow-lg">
+          <Favicon url={preview.face.url} icon={preview.face.favicon} size={20} />
+          <span className="line-clamp-2 w-full text-ui font-semibold wrap-break-word">{preview.face.title}</span>
+        </div>
+      )}
+    </motion.div>
   );
 }

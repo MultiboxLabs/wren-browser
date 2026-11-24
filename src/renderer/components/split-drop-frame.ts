@@ -1,30 +1,31 @@
 // How the page a dragged tab would split with (split-drop.tsx) moves into its
-// half of the split, from half to half, and back. Its slot's frame slides
-// from where it is to the half's insets (tab-view.tsx), and its page keeps the
-// size it had all the while, clipped by the frame, so Chromium never lays it
-// out again. The frame is moved by its insets, not a transform, as a tab's
-// page follows its element's box, as a peek's card is moved
-// (peek/motion.ts). Each slide starts from where the last has got, so a drag
-// that crosses from half to half turns the frame there. With Reduced Motion
-// it takes its place at once.
+// half of the split, from half to half, and back, and how the dragged tab's
+// half moves with it. The page's slot's frame slides from where it is to the
+// half's insets (tab-view.tsx), and its page keeps the size it had all the
+// while, clipped by the frame, so Chromium never lays it out again. The frame
+// is moved by its insets, not a transform, as a tab's page follows its
+// element's box, as a peek's card is moved (peek/motion.ts). The dragged
+// tab's half slides by its insets too, in time with the frame: a transform
+// would stretch its edge as its size changes. Each slide starts from where
+// the last has got, so a drag that crosses from half to half turns there.
+// With Reduced Motion each takes its place at once.
 //
 // The page must keep its size in the very commit that gives the frame a half,
-// before anything lays the page out: a layout read between, such as Motion
-// measuring what moves with it, has Wren Runtime draw the page at the half's
-// size for a frame. So that it keeps its size is known as it is drawn, and it
-// keeps it until its frame is back in the whole box. The size it keeps is the
+// before anything lays the page out: a layout read between, such as one
+// measuring where the dragged tab's half is, has Wren Runtime draw the page
+// at the half's size for a frame. So that it keeps its size is known as it is
+// drawn, and it keeps it until its frame is back in the whole box. The size it keeps is the
 // one it has in the whole box, which CSS works out in the same layout: the
 // box's, as a size container (tab-view.tsx), less the address bar atop the
 // page, if it has one. Measured instead, the size could be one the page no
 // longer has.
 
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
+import type { SplitSide } from "@/ipc";
 import { cssEase, EASE_SLIDE, prefersReducedMotion } from "@/utils/motion";
 
-/** How long the frame takes to slide into a half, or back. The dragged tab's half moves in the same time (split-drop.tsx). */
-export const SLIDE_MS = 160;
-
-const SLIDE: KeyframeAnimationOptions = { duration: SLIDE_MS, easing: cssEase(EASE_SLIDE) };
+/** How the frame and the dragged tab's half slide, in the same time. */
+const SLIDE: KeyframeAnimationOptions = { duration: 200, easing: cssEase(EASE_SLIDE) };
 
 /**
  * The style of a page that keeps its size as its frame moves: the whole
@@ -55,6 +56,40 @@ const inPoints = ({ top, right, bottom, left }: Insets) => ({
   left: `${left}px`
 });
 
+// Slides `element` from `from` to where it is laid out now, which it answers,
+// with the slide: none if it is there already, or with Reduced Motion.
+function slide(element: HTMLElement, from: Insets): { to: Insets; slide: Animation | null } {
+  const to = insetsOf(element);
+  if (sameInsets(from, to) || prefersReducedMotion()) return { to, slide: null };
+  return { to, slide: element.animate([inPoints(from), inPoints(to)], SLIDE) };
+}
+
+/**
+ * Slides the element of `layer`, the dragged tab's half of the split, as
+ * its place, `side`, changes, in time with the page's frame. Mounted, it
+ * takes its place at once, as it fades in there.
+ */
+export function useHalfSlide(layer: RefObject<HTMLElement | null>, side: SplitSide) {
+  // Where it was laid out, and its slide.
+  const was = useRef<Insets | null>(null);
+  const sliding = useRef<Animation | null>(null);
+  useLayoutEffect(() => {
+    const element = layer.current;
+    if (!element) return;
+    // Where it is now: partway, if it is sliding; else where it was laid
+    // out, if it was.
+    const from = sliding.current ? insetsOf(element) : was.current;
+    sliding.current?.cancel();
+    if (!from) {
+      was.current = insetsOf(element);
+      return;
+    }
+    const slid = slide(element, from);
+    was.current = slid.to;
+    sliding.current = slid.slide;
+  }, [side]);
+}
+
 /**
  * Slides `slot`'s frame as its tab takes a half of the split a dragged tab
  * would make with it, moves to another, and leaves it. `half` names that
@@ -80,22 +115,22 @@ export function useDropFrame(slot: RefObject<HTMLElement | null>, half: string |
     const from = sliding.current ? insetsOf(element) : was.current.half ? was.current.insets : WHOLE;
     sliding.current?.cancel();
     sliding.current = null;
-    const to = insetsOf(element);
-    was.current = { half, insets: to };
     if (split) {
+      was.current = { half, insets: insetsOf(element) };
       setKeeping(false);
       return;
     }
     if (half) setKeeping(true);
-    if (sameInsets(from, to) || prefersReducedMotion()) {
+    const { to, slide: slid } = slide(element, from);
+    was.current = { half, insets: to };
+    if (!slid) {
       if (!half) setKeeping(false);
       return;
     }
-    const slide = element.animate([inPoints(from), inPoints(to)], SLIDE);
-    sliding.current = slide;
-    slide.finished.then(
+    sliding.current = slid;
+    slid.finished.then(
       () => {
-        if (sliding.current !== slide) return;
+        if (sliding.current !== slid) return;
         sliding.current = null;
         if (!was.current.half) setKeeping(false);
       },
