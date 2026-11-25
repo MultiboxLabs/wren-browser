@@ -1,8 +1,7 @@
-// Springs worked out by hand, for the peek's motion (motion.ts), which plays
-// them as Web Animations of their frames or draws them frame by frame. A
-// spring is given by how long it takes to get most of the way (its
-// response, in seconds) and its damping: 1 settles without overshoot, and
-// less overshoots and comes back.
+// Springs worked out by hand, for motion that is played as a Web Animation
+// of its frames or drawn frame by frame. A spring is given by how long it
+// takes to get most of the way (its response, in seconds) and its damping:
+// 1 settles without overshoot, and less overshoots and comes back.
 
 // A spring is done once this much of its way is left.
 const SETTLED = 0.001;
@@ -34,6 +33,42 @@ export function settling(response: number, left = SETTLED, damping = 1): number 
     x -= value / (-x * Math.exp(-x));
   }
   return x / w;
+}
+
+/** A critically damped spring under way, which `criticalSpring` sets going. */
+export type CriticalSpring = {
+  /** How far from where it rests it is after `t` seconds. */
+  offsetAt: (t: number) => number;
+  /** How fast it is moving after `t` seconds, a second. */
+  velocityAt: (t: number) => number;
+  /**
+   * How long it takes to come within `within` of where it rests, and stay
+   * so, rounded up to a frame: 0 if it is there and still already.
+   */
+  settling: (within: number) => number;
+};
+
+/**
+ * A critically damped spring of `response`, set going `offset` from where it
+ * rests and moving at `velocity` a second, as a motion that takes over from
+ * another does, at the speed it had. Set going still, it has `remaining` of
+ * its offset left at each moment.
+ */
+export function criticalSpring(response: number, offset: number, velocity: number): CriticalSpring {
+  const w = (2 * Math.PI) / response;
+  const pace = velocity + w * offset;
+  const offsetAt = (t: number) => (offset + pace * t) * Math.exp(-w * t);
+  return {
+    offsetAt,
+    velocityAt: (t) => (velocity - w * pace * t) * Math.exp(-w * t),
+    settling: (within) => {
+      // It gets no further off after the moment it turns, if it turns at
+      // all, and only closes in from then.
+      let t = pace === 0 ? 0 : Math.max(0, velocity / (w * pace));
+      while (Math.abs(offsetAt(t)) > within) t += 1 / RATE;
+      return t;
+    }
+  };
 }
 
 /** `at` worked out over `duration` seconds as evenly spaced frames, at least 60, the last exactly at the end. */

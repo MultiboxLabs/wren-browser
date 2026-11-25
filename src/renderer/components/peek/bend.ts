@@ -11,7 +11,7 @@
 // springs are, so the card bends more.
 
 import type { Place, Point } from "./genie";
-import { clamp, mix, remaining, settling } from "./spring";
+import { clamp, mix, remaining, settling } from "@/utils/spring";
 
 export type Rect = { left: number; top: number; width: number; height: number };
 

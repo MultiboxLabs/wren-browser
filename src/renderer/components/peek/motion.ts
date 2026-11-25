@@ -18,9 +18,9 @@
 // hand, as are the buttons, so they keep time with it.
 
 import { Genie, type Place, type Shadow } from "./genie";
-import { clamp, mix, remaining, sample, settling, smoothstep } from "./spring";
 import { bendOf, type Rect } from "./bend";
 import { cssEase, EASE_OUT, prefersReducedMotion } from "@/utils/motion";
+import { clamp, mix, remaining, sample, settling, smoothstep } from "@/utils/spring";
 
 /**
  * A peek's parts that move: its card (the slot), the canvas it is drawn in on

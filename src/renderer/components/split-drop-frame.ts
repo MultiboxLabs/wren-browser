@@ -6,9 +6,11 @@
 // is moved by its insets, not a transform, as a tab's page follows its
 // element's box, as a peek's card is moved (peek/motion.ts). The dragged
 // tab's half slides by its insets too, in time with the frame: a transform
-// would stretch its edge as its size changes. Each slide starts from where
-// the last has got, so a drag that crosses from half to half turns there.
-// With Reduced Motion each takes its place at once.
+// would stretch its edge as its size changes. Each slide is a critically
+// damped spring, played as a Web Animation of its frames, and starts from
+// where the last has got, at the speed it had, so a drag that crosses from
+// half to half turns there without stopping dead. With Reduced Motion each
+// takes its place at once.
 //
 // The page must keep its size in the very commit that gives the frame a half,
 // before anything lays the page out: a layout read between, such as one
@@ -22,10 +24,14 @@
 
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import type { SplitSide } from "@/ipc";
-import { cssEase, EASE_SLIDE, prefersReducedMotion } from "@/utils/motion";
+import { prefersReducedMotion } from "@/utils/motion";
+import { type CriticalSpring, criticalSpring, sample } from "@/utils/spring";
 
-/** How the frame and the dragged tab's half slide, in the same time. */
-const SLIDE: KeyframeAnimationOptions = { duration: 200, easing: cssEase(EASE_SLIDE) };
+/** The response of the spring the frame and the dragged tab's half slide on, alike, in seconds. */
+const RESPONSE = 0.15;
+
+/** How close to its place, in points, a slide is when it ends there. */
+const SETTLED = 0.1;
 
 /**
  * The style of a page that keeps its size as its frame moves: the whole
@@ -34,10 +40,24 @@ const SLIDE: KeyframeAnimationOptions = { duration: 200, easing: cssEase(EASE_SL
 export const keptPage = (bar: boolean) =>
   ({ width: "100cqw", height: bar ? "calc(100cqh - var(--spacing-page-bar))" : "100cqh", flex: "none" }) as const;
 
+type Edge = "top" | "right" | "bottom" | "left";
+const EDGES: readonly Edge[] = ["top", "right", "bottom", "left"];
+
+/** A value for each edge of an element. */
+type Edges<T> = Record<Edge, T>;
+
 /** How far in from each side of its box an element is, in points. */
-type Insets = { top: number; right: number; bottom: number; left: number };
+type Insets = Edges<number>;
 
 const WHOLE: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+
+/** How fast each edge of an element is moving, in points a second: none. */
+const STILL: Edges<number> = { top: 0, right: 0, bottom: 0, left: 0 };
+
+const edgesBy = <T>(each: (edge: Edge) => T) => Object.fromEntries(EDGES.map((edge) => [edge, each(edge)])) as Edges<T>;
+
+/** A slide under way: its animation, and the spring each edge is on. */
+type Slide = { animation: Animation; springs: Edges<CriticalSpring> };
 
 function insetsOf(element: HTMLElement): Insets {
   const box = element.offsetParent as HTMLElement | null;
@@ -46,9 +66,6 @@ function insetsOf(element: HTMLElement): Insets {
   return { top, right: width - left - offsetWidth, bottom: height - top - offsetHeight, left };
 }
 
-const sameInsets = (a: Insets, b: Insets) =>
-  a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left;
-
 const inPoints = ({ top, right, bottom, left }: Insets) => ({
   top: `${top}px`,
   right: `${right}px`,
@@ -56,12 +73,30 @@ const inPoints = ({ top, right, bottom, left }: Insets) => ({
   left: `${left}px`
 });
 
-// Slides `element` from `from` to where it is laid out now, which it answers,
-// with the slide: none if it is there already, or with Reduced Motion.
-function slide(element: HTMLElement, from: Insets): { to: Insets; slide: Animation | null } {
+// Stops `slide` of `element`, answering where it had got and how fast each
+// edge was moving there, for the slide that takes over; null with none.
+function stop(element: HTMLElement, slide: Slide | null): { at: Insets; velocity: Edges<number> } | null {
+  if (!slide) return null;
+  // Read before it is cancelled, which takes the element back to its place.
+  const t = Number(slide.animation.currentTime ?? 0) / 1000;
+  const stopped = { at: insetsOf(element), velocity: edgesBy((edge) => slide.springs[edge].velocityAt(t)) };
+  slide.animation.cancel();
+  return stopped;
+}
+
+// Slides `element` from `from`, moving at `velocity`, to where it is laid out
+// now, which it answers, with the slide: none if it is there and still
+// already, or with Reduced Motion. Its last frame is exactly in place.
+function slide(element: HTMLElement, from: Insets, velocity = STILL): { to: Insets; slide: Slide | null } {
   const to = insetsOf(element);
-  if (sameInsets(from, to) || prefersReducedMotion()) return { to, slide: null };
-  return { to, slide: element.animate([inPoints(from), inPoints(to)], SLIDE) };
+  if (prefersReducedMotion()) return { to, slide: null };
+  const springs = edgesBy((edge) => criticalSpring(RESPONSE, from[edge] - to[edge], velocity[edge]));
+  const duration = Math.max(...EDGES.map((edge) => springs[edge].settling(SETTLED)));
+  if (duration === 0) return { to, slide: null };
+  const frames = sample(duration, (t) =>
+    inPoints(t >= duration ? to : edgesBy((edge) => to[edge] + springs[edge].offsetAt(t)))
+  );
+  return { to, slide: { animation: element.animate(frames, { duration: duration * 1000 }), springs } };
 }
 
 /**
@@ -72,19 +107,19 @@ function slide(element: HTMLElement, from: Insets): { to: Insets; slide: Animati
 export function useHalfSlide(layer: RefObject<HTMLElement | null>, side: SplitSide) {
   // Where it was laid out, and its slide.
   const was = useRef<Insets | null>(null);
-  const sliding = useRef<Animation | null>(null);
+  const sliding = useRef<Slide | null>(null);
   useLayoutEffect(() => {
     const element = layer.current;
     if (!element) return;
-    // Where it is now: partway, if it is sliding; else where it was laid
-    // out, if it was.
-    const from = sliding.current ? insetsOf(element) : was.current;
-    sliding.current?.cancel();
+    // Where it is now: partway, if it is sliding; else still where it was
+    // laid out, if it was.
+    const stopped = stop(element, sliding.current);
+    const from = stopped?.at ?? was.current;
     if (!from) {
       was.current = insetsOf(element);
       return;
     }
-    const slid = slide(element, from);
+    const slid = slide(element, from, stopped?.velocity);
     was.current = slid.to;
     sliding.current = slid.slide;
   }, [side]);
@@ -103,32 +138,32 @@ export function useDropFrame(slot: RefObject<HTMLElement | null>, half: string |
   const [keeping, setKeeping] = useState(false);
   // The half it had, and where its frame was then laid out.
   const was = useRef<{ half: string | undefined; insets: Insets }>({ half: undefined, insets: WHOLE });
-  const sliding = useRef<Animation | null>(null);
+  const sliding = useRef<Slide | null>(null);
 
   useLayoutEffect(() => {
     const element = slot.current;
     // Only a half coming, changing or going moves the frame: not one that
     // is placed otherwise, as a peek's card is, or a split's half.
     if (!element || (half === undefined && was.current.half === undefined && !sliding.current)) return;
-    // Where it is now: partway, if it is sliding; else the whole box, if it
-    // had no half, or the half it had.
-    const from = sliding.current ? insetsOf(element) : was.current.half ? was.current.insets : WHOLE;
-    sliding.current?.cancel();
+    // Where it is now: partway, if it is sliding; else still in the whole
+    // box, if it had no half, or the half it had.
+    const stopped = stop(element, sliding.current);
     sliding.current = null;
+    const from = stopped?.at ?? (was.current.half ? was.current.insets : WHOLE);
     if (split) {
       was.current = { half, insets: insetsOf(element) };
       setKeeping(false);
       return;
     }
     if (half) setKeeping(true);
-    const { to, slide: slid } = slide(element, from);
+    const { to, slide: slid } = slide(element, from, stopped?.velocity);
     was.current = { half, insets: to };
     if (!slid) {
       if (!half) setKeeping(false);
       return;
     }
     sliding.current = slid;
-    slid.finished.then(
+    slid.animation.finished.then(
       () => {
         if (sliding.current !== slid) return;
         sliding.current = null;
