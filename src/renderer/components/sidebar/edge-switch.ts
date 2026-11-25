@@ -10,21 +10,15 @@
 // resize handle's (pages/ui/app.tsx) and so is heard on the window. A drag
 // that starts in a strip, as a row held near its side does, is not taken
 // there until it has left it. The drag must stay in the strip a moment
-// (`HOLD_MS`), and meanwhile the next space comes in a little from that
-// side, as the spaces lie side by side for a swipe (state/space-slide.ts),
-// so it is plain what is about to happen.
+// (`HOLD_MS`), and nothing moves while it waits, so a drag that only passes
+// the edge on its way to the page leaves the sidebar still.
 //
-// A drag that leaves the strip, or ends, takes the content back. One that
-// stays takes it on to the next space, which the window switches to as it
-// glides, as a swipe's lifted fingers do. Held there still, it goes on once
-// the content has landed and the drag has waited as long again. With
-// Reduced Motion nothing moves, and the window switches once the drag has
-// waited.
+// A drag that stays switches to the next space, gliding as a space's button
+// does. Held there still, it goes on once the content has landed and the
+// drag has waited as long again.
 
-import { animate, type AnimationPlaybackControls } from "motion/react";
 import { type RefObject, useEffect, useEffectEvent, useRef } from "react";
 import { useSpace } from "@/state/space";
-import { prefersReducedMotion } from "@/utils/motion";
 import { whenDragEnds } from "./drag-hold";
 import { carriedToSpaces } from "./space-drop";
 
@@ -37,13 +31,10 @@ const BEYOND = 12;
 /** How long a drag stays at an edge before the window switches: a little longer than over a space's button, as an edge is easier to reach by chance. */
 const HOLD_MS = 300;
 
-/** How far the content moves toward the next space as a drag waits at the edge, in points: past the gap between them, so a little of the next one shows. */
-const PEEK = 44;
-
 type Side = 1 | -1;
 
-/** A drag waiting at an edge: the side, what switches once it has waited, and the content moving toward that side, unless nothing moves. */
-type Waiting = { side: Side; timer: number; peek: AnimationPlaybackControls | null };
+/** A drag waiting at an edge: the side, and what switches once it has waited. */
+type Waiting = { side: Side; timer: number };
 
 /**
  * Makes the sides of `sidebar` edges a drag is held at to switch spaces.
@@ -54,25 +45,15 @@ export function useEdgeSwitch(
   sidebar: RefObject<HTMLElement | null>,
   neighbour: (side: Side) => { id: number } | undefined
 ) {
-  const { spaces, slide, show, showNow } = useSpace();
+  const { spaces, slide, show } = useSpace();
   // For the drag the edges hear, from its first move over the page to its
   // end: whether it has been away from them, or null between drags.
   const armed = useRef<boolean | null>(null);
   const waiting = useRef<Waiting | null>(null);
 
-  // What waits, no longer waiting, with the content where it has got to.
-  const takeWaiting = () => {
-    const taken = waiting.current;
-    waiting.current = null;
-    if (taken) {
-      window.clearTimeout(taken.timer);
-      taken.peek?.stop();
-    }
-    return taken;
-  };
-  // The content goes back as the drag leaves the edge.
   const stopWaiting = () => {
-    if (takeWaiting()?.peek) slide.release(0, 0);
+    if (waiting.current) window.clearTimeout(waiting.current.timer);
+    waiting.current = null;
   };
   const forget = () => {
     stopWaiting();
@@ -80,25 +61,13 @@ export function useEdgeSwitch(
   };
 
   const switchTo = (side: Side) => {
-    const taken = takeWaiting();
-    if (!taken) return;
-    if (taken.peek) {
-      const landed = slide.release(side, 0);
-      if (landed !== undefined) showNow(landed);
-      return;
-    }
+    waiting.current = null;
     const next = neighbour(side);
     if (next) show(next.id);
   };
 
   const wait = (side: Side) => {
-    const still = prefersReducedMotion();
-    if (!still) slide.hold();
-    waiting.current = {
-      side,
-      timer: window.setTimeout(() => switchTo(side), HOLD_MS),
-      peek: still ? null : animate(slide.x, -side * PEEK, { duration: HOLD_MS / 1000, ease: "easeOut" })
-    };
+    waiting.current = { side, timer: window.setTimeout(() => switchTo(side), HOLD_MS) };
   };
 
   // The edge the pointer is at, if any, by its place over the sidebar.
