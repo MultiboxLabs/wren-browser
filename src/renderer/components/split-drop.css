@@ -1,18 +1,23 @@
 /* The half of the page a tab dragged from the sidebar would take in a split
-   (split-drop.tsx), drawn as the card it would be, empty, under the tabs:
-   a card's corners (card.css), a thick edge, and a faint fill, so the window
-   shows through nearly as it is. The tab's own card is drawn over the tabs,
-   in its middle. */
+   (split-drop.tsx), drawn under the tabs as macOS draws where a window it
+   tiles will go: a panel with a card's corners (card.css) and a thin edge,
+   not a thick outline, and no shadow, which would blur its edge on a pale
+   space. On a dark window it is lighter than the window. The tab's own card
+   is drawn over the tabs, in its middle. */
 .split-drop-half {
   border-radius: max(0px, calc(var(--radius-card) - var(--page-inset, 0px)));
-  background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.4);
-}
-/* On a light window a dark edge, as plain as the light one is on a dark
-   window. */
-:root[data-scheme="light"] .split-drop-half {
   background: rgb(255 255 255 / 0.12);
-  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.28);
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.25);
+}
+/* On a light window it is a little darker than the window, a slot the
+   tab's white card stands out of. Lighter, it would be the white of an
+   empty page's card, and the tab's card would be lost on it. Without
+   Window Margins the half fills all the window there is beside the page, so
+   its fill has nothing to stand out of, and its edge alone shows it: dark
+   enough to read on a pale space. */
+:root[data-scheme="light"] .split-drop-half {
+  background: rgb(0 0 0 / 0.05);
+  box-shadow: inset 0 0 0 1.5px rgb(0 0 0 / 0.22);
 }
 
 /* The tab's card, drawn over the tabs in the middle of the half: solid black
