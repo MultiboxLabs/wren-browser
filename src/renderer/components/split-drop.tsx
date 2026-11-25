@@ -212,9 +212,10 @@ function Cover({ tab, shown, onPreview, onLand, carried, face }: CoverProps & { 
  * A layer of the dragged tab's half of the split `preview` shows: the empty
  * card it would be (`hole`), drawn under the tabs, so the page's frame slides
  * over it, or the tab's card in its middle (`card`), drawn over them. Both
- * come in as the preview does, move to the other side as the preview's does,
- * in time with the page's frame (split-drop-frame.ts), and go as the preview
- * does, as the split it made is drawn too.
+ * come in as the preview does, growing out of the edge the drag is near,
+ * move to the other side as the preview's does, in time with the page's
+ * frame (split-drop-frame.ts), and go as the preview does, as the split it
+ * made is drawn too, shrinking back into that edge.
  */
 export function DropHalf({
   preview,
@@ -232,6 +233,18 @@ export function DropHalf({
   );
 }
 
+/**
+ * Where a half on each side grows from as it comes, and shrinks to as it
+ * goes: the middle of the page's edge on that side, the edge the drag is
+ * near, so it comes out of the edge toward the middle of the page.
+ */
+const GROWS_FROM: Record<SplitSide, string> = {
+  left: "left center",
+  right: "right center",
+  top: "center top",
+  bottom: "center bottom"
+};
+
 // A layer as long as it is shown, which slides from side to side.
 function HalfLayer({ preview, halfOf, layer }: { preview: SplitPreview; halfOf: HalfOf; layer: "hole" | "card" }) {
   const still = useReducedMotion();
@@ -241,7 +254,7 @@ function HalfLayer({ preview, halfOf, layer }: { preview: SplitPreview; halfOf: 
   return (
     <motion.div
       ref={element}
-      style={half.style}
+      style={{ ...half.style, transformOrigin: GROWS_FROM[preview.side] }}
       data-join={layer === "hole" ? half.join : undefined}
       initial={{ opacity: 0, ...scaleTo(still, 0.97) }}
       animate={{ opacity: 1, ...scaleTo(still, 1) }}
