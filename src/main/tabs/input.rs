@@ -55,6 +55,13 @@ impl InputLock {
 #[derive(Default)]
 pub struct WindowInputLocks(RefCell<HashSet<InputLock>>);
 
+impl WindowInputLocks {
+    /// Whether the window holds `lock` on its tabs.
+    pub fn holds(&self, lock: InputLock) -> bool {
+        self.0.borrow().contains(&lock)
+    }
+}
+
 thread_local! {
     // By tab, whose ID is the app's own whichever Browser it is in. A tab
     // with no lock on it has no entry.

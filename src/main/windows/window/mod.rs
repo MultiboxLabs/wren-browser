@@ -29,7 +29,7 @@ use crate::ipc::Told;
 use crate::perf::PageCounts;
 use crate::platform::PageWindow;
 use crate::sidebar::hover::SidebarHover;
-use crate::tabs::input::{self, WindowInputLocks};
+use crate::tabs::input::{self, InputLock, WindowInputLocks};
 use crate::tabs::placeholder;
 
 /// The page's mark on its page info button, which the site's bubbles (page
@@ -408,6 +408,13 @@ impl BrowserWindow {
     pub fn is_blocked(&self) -> bool {
         self.browser()
             .is_some_and(|browser| browser.has_modal_dialog())
+    }
+
+    /// Whether a dialog is up over the window: one of Chromium's, which
+    /// blocks it (`is_blocked`), or one of Wren's, whose scrim locks its
+    /// tabs' input.
+    pub fn has_dialog(&self) -> bool {
+        self.is_blocked() || self.input_locks.holds(InputLock::Dialog)
     }
 
     /// Notes that a Browser for `place` is on the way; false if the window
