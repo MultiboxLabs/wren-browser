@@ -1,0 +1,8 @@
+/* Hides the callout of Google's account bar on the Chrome Web Store, which
+   asks "Switch to Chrome?". The bar loads it in a frame named "callout" from
+   ogs.google.com, and Google's server picks what it says, so this hides its
+   other messages here too, such as asking to add a recovery phone. Google
+   shows those again on its own sites. */
+iframe[name="callout"] {
+  display: none !important;
+}

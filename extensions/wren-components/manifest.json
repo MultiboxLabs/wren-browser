@@ -9,6 +9,7 @@
   "content_scripts": [
     {
       "matches": ["https://chromewebstore.google.com/*"],
+      "css": ["chrome-web-store.css"],
       "js": ["chrome-web-store.js"],
       "run_at": "document_start",
       "world": "MAIN"

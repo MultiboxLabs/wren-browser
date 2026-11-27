@@ -1,5 +1,5 @@
 // What Wren changes in the Chrome Web Store, in the store's own world, from
-// before its first script runs.
+// before its first script runs. What it hides is in chrome-web-store.css.
 
 // The store assigns window.IJ_values in an inline <script id="_ij">. The
 // server leaves index 24 (`Mk`, "this request came from Google Chrome")
