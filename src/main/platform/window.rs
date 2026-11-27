@@ -47,8 +47,7 @@ pub enum WindowKind {
 
 type Watch = Rc<RefCell<Option<Box<dyn Fn()>>>>;
 
-/// A window showing one page. Its web view drops first, which takes the page
-/// out of the window.
+/// A window showing one page. Dropping it closes it (`close`).
 pub struct PageWindow {
     pub web_view: Rc<WebView>,
     native: current::window::PageWindow,
@@ -125,6 +124,14 @@ impl PageWindow {
     /// frame.
     pub fn hide(&self) {
         self.native.hide();
+    }
+
+    /// Closes the window now, as dropping it does once nothing holds it.
+    /// The page ends once the window has gone, which may be a moment
+    /// later, as the platform animates the window closing. Closing it again
+    /// does nothing more.
+    pub fn close(&self) {
+        self.native.close();
     }
 
     /// Names the window, as the platform's window lists show it; the title

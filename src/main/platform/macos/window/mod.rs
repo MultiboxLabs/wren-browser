@@ -7,10 +7,12 @@
 // - panel.rs: the window of `WindowKind::Panel`, an NSPanel;
 // - delegate.rs: the window's delegate, which hears its close button;
 // - title_bar.rs: the close, minimise and zoom buttons, which the page places;
+// - closing.rs: closing the window so that its closing animation shows;
 // - pointer.rs: where the pointer is, and its moves, beyond the window too;
 // - devtools.rs: the window of Chromium's undocked DevTools;
 // - key_window.rs: closing a key window of its own (⌘W).
 
+mod closing;
 mod delegate;
 mod devtools;
 mod frame;
@@ -55,22 +57,28 @@ use title_bar::TitleBar;
 pub use devtools::DevToolsWindow;
 pub use key_window::close_other_key_window;
 
+// What NSNotificationCenter answers for an observer, to remove it with.
+type Observer = Retained<ProtocolObject<dyn NSObjectProtocol>>;
+
 pub struct PageWindow {
     window: Retained<NSWindow>,
     // Behind the page, which is see-through where it draws nothing.
     backdrop: Retained<NSVisualEffectView>,
     // A window holds its delegate weakly.
     delegate: Retained<WindowDelegate>,
-    observers: RefCell<Vec<Retained<ProtocolObject<dyn NSObjectProtocol>>>>,
+    observers: RefCell<Vec<Observer>>,
     // The app's monitor of the pointer, while the window watches it and is
     // in use (pointer.rs).
     pointer_monitor: Rc<RefCell<Option<Retained<AnyObject>>>>,
     title_bar: Rc<TitleBar>,
+    // The page's web view, held until the window has closed and left the
+    // screen, as its closing animation shows the page (closing.rs).
+    page: RefCell<Option<Rc<WebView>>>,
 }
 
 impl PageWindow {
     pub fn open(
-        web_view: &WebView,
+        web_view: &Rc<WebView>,
         title: &str,
         size: WindowSize,
         kind: WindowKind,
@@ -183,6 +191,7 @@ impl PageWindow {
             observers: RefCell::new(observers),
             pointer_monitor: Rc::default(),
             title_bar,
+            page: RefCell::new(Some(web_view.clone())),
         }
     }
 
@@ -199,6 +208,17 @@ impl PageWindow {
 
     pub fn hide(&self) {
         self.window.orderOut(None);
+    }
+
+    // While a panel has the keyboard, AppKit counts the app as active, even
+    // with another app in front, so closing the panel would give the
+    // keyboard to the app's main window, which would come in front for a
+    // moment. It goes back to the app in front first.
+    pub fn close(&self) {
+        if self.window.isKeyWindow() && takes_keyboard_alone(&self.window) && !is_in_front() {
+            NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).deactivate();
+        }
+        closing::close(&self.window, self.page.take());
     }
 
     // The Window menu, the Dock and Mission Control show the title. A new one
@@ -288,11 +308,7 @@ impl PageWindow {
 }
 
 // Runs `run` on each of the window's notifications by that name.
-fn observe(
-    name: &NSString,
-    window: &NSWindow,
-    run: impl Fn() + 'static,
-) -> Retained<ProtocolObject<dyn NSObjectProtocol>> {
+fn observe(name: &NSString, window: &NSWindow, run: impl Fn() + 'static) -> Observer {
     let block = RcBlock::new(move |_: NonNull<NSNotification>| run());
     let object: &AnyObject = window;
     unsafe {
@@ -404,13 +420,6 @@ impl Drop for PageWindow {
             pointer::remove_monitor(&monitor);
         }
         self.window.setDelegate(None);
-        // While a panel has the keyboard, AppKit counts the app as active,
-        // even with another app in front, so closing it would give the
-        // keyboard to the app's main window, which would come in front for
-        // a moment. It goes back to the app in front first.
-        if self.window.isKeyWindow() && takes_keyboard_alone(&self.window) && !is_in_front() {
-            NSApplication::sharedApplication(MainThreadMarker::new().unwrap()).deactivate();
-        }
-        self.window.close();
+        self.close();
     }
 }

@@ -262,11 +262,15 @@ pub(super) fn moved_to_tab(state: &State, id: WindowId) {
     state.mini_wrens.returns_to.borrow_mut().remove(&id);
 }
 
-/// Mini Wren `window` is closing: if it keeps an app, and it is still
-/// the window in use, that app comes back to the front.
+/// Mini Wren `window` is closing. It closes now, and then, if it keeps an
+/// app and was still the window in use, that app comes back to the front.
+/// The app's windows would cover the window's closing animation if they
+/// came forward first.
 pub fn closed(state: &State, window: &BrowserWindow) {
     let app = state.mini_wrens.returns_to.borrow_mut().remove(&window.id);
-    if let Some(app) = app.filter(|_| window.page.is_active())
+    let app = app.filter(|_| window.page.is_active());
+    window.page.close();
+    if let Some(app) = app
         && !platform::activate_app(&app.id)
     {
         eprintln!("Wren could not go back to {}.", app.name);
